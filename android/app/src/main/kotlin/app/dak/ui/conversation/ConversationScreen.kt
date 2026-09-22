@@ -243,7 +243,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     }
                 }
             }
-            Composer(ui = composerUi, actions = viewModel.composer)
+            Composer(ui = composerUi, text = viewModel.composer.draftText, actions = viewModel.composer)
         }
     }
 

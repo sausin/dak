@@ -101,3 +101,94 @@ category channel. Lock-screen visibility follows `notifications.lockScreenPrivac
 `ContactLookup` (`AndroidContactLookup`, also usable app-wide for names/photos). `di/IndexControl` starts
 `IndexSync` once Dak is the default SMS app (app start and right after the role is granted), applies the
 onboarding/Settings index schedule and runs "Rebuild index now".
+
+## Screens
+
+Written by app agent 2. Everything below lives in its own packages; strings are in
+`res/values/strings_screens.xml` (all prefixed `scr_`), the camera FileProvider paths in `res/xml/dak_file_paths.xml`.
+
+### `automation/` — Android side of `:automations`
+
+- `AutomationModule` binds the executor interfaces: `SmsForwarder` → `AndroidSmsForwarder` (MessageSender, E.164 via
+  NumberNormalizer when `simsSending.numberNormalization` is on, over-limit forwards are scheduled for the next free
+  slot), `ReplyScheduler` → `ScheduledSendScheduler`, `Labeler` → `UserLabels`, `AuditSink` → `IndexAuditSink`
+  (index audit log, actor `rule:<name>`, action `automation.<Type>`), `ActionRegistry` → `DefaultActionRegistry`,
+  and contributes `AutomationRunner` to `Set<IncomingMessageHandler>` (priority 200, after notify 0 / index 100).
+- `AutomationRunner` builds a `MessageEvent` from the indexed `MessageItem` (category, OTP, transaction, merge key,
+  SIM slot), runs `RuleEngine.evaluate` on `RuleRepository.enabledRules()` and executes each `PlannedAction` with a
+  per-rule `ActionContext` (Notifier renders templates; IntentLauncher posts a tap-to-open notification because
+  background activity starts are blocked; Archiver/Binner go through `ConversationRepository.setMessageArchived` /
+  `RecycleBin.moveToBin(DeletedBy.AutoRule(name))` and register an undo with `AutomationUndoCenter`, which the inbox
+  shows as a snackbar). Forward/relay actions of OTP-capable rules run only when `OtpForwardConfirmations` holds a
+  biometric confirmation for the rule's current recipients; otherwise they are skipped and audit-logged.
+- Scheduled sends: `ScheduledSendScheduler.schedule(addresses, body, subId, atMillis, conversationId?, ruleId?)`
+  records in `ScheduledSendStore` and arms an `AlarmManager` alarm (exact when allowed on 12+) to
+  `ScheduledSendReceiver` plus a WorkManager `ScheduledSendWorker` safety net; `ScheduledSendExecutor.runDue()` is
+  idempotent and mutex-guarded and spreads sends with `SendThrottle` (`SendRateLimiter.planSends`, 30 / 30 min).
+- `RuleRepository` decodes/encodes `AutomationStore` JSON with `RuleCodec`.
+
+### `backup/`
+
+- `SafBackupTarget(context, treeUri)` — `BackupTarget` over an `ACTION_OPEN_DOCUMENT_TREE` folder (local, SD, or the
+  Google Drive / Dropbox apps' document providers — the user's own cloud, no credentials held by Dak).
+- `BackupManager` — `backupNow()` (encrypted with the Keystore-wrapped passphrase from `BackupPassphraseVault`,
+  incremental with a full snapshot every 15th run; returns the recovery code once after each full backup),
+  `restore(RestoreKey)` (additive `ProviderWriter.restore`, settings re-imported, then
+  `IndexMaintenance.requestReindex(RESTORE)`), `export(uri, DAK | SMS_BACKUP_RESTORE_XML)`, `import(uri)` (SMS Backup &
+  Restore XML, Fossify, SMS Organizer via `ImportDetector`, deduped by kind+address+date+body hash). `start*` variants
+  run on the application scope; `operation: StateFlow<BackupOperation>` reports progress.
+- `ProviderSnapshot` reads the provider (never the index) into `MessageRecord`s; `BackupStateStore` keeps the folder,
+  previous manifest/digest and last outcome; `BackupWorker` (`@HiltWorker`, daily, enqueued by
+  `BackupScheduler.ensureScheduled()` when a folder is chosen) honours `backupData.schedule` (daily/weekly/manual).
+
+### UI packages
+
+All screens keep the pinned signatures and get their ViewModel via `hiltViewModel()`.
+
+- `ui/inbox` — tabs (All, Personal, Transactions, OTP, Promotions, Spam, Starred, Archived), SIM filter, pinned saved
+  searches as virtual folders, `ReliabilityBanner`, index progress row, swipe start→end archive / end→start delete to
+  bin with undo, long-press pin/mute/mark read, search entry → `Routes.search()`, overflow, FAB → compose.
+- `ui/conversation` — `ConversationScreen` (Paging, token-themed bubbles, SIM chip per bubble, OTP highlight + tap to
+  copy (sensitive clip) + delete now, group sender names, Coil images, MMS download failed → tap to retry, send status
+  with retry, link safety dialog via `LookalikeDomainChecker`, highlight + scroll-to from search with "Back to results",
+  thread menu incl. reply SIM, bubble colour, text size, block, 1909 report via the composer, "Forwarded to …" from the
+  audit log), `NewConversationScreen` (contacts search + raw numbers, shared media from `PendingShare`), and the shared
+  composer (`Composer`, `ComposerDelegate`, `MessageSendController` for the SMS/MMS decision and E.164,
+  `MmsMediaCompressor` to the carrier MMS limit, default 300 KB, off the main thread). `annotateMessage` and
+  `copyToClipboard` are reused by search/backup.
+- `ui/search` — `SearchViewModel` keeps query text, sort and scroll in `SavedStateHandle`; chips from
+  `SearchQuery.chips()`, filter sheet (edits the text via `withFilter`/`withoutFilter`), suggestions, saved searches
+  (pin to inbox), AI search entry locked unless `Feature.AI_SEARCH`.
+- `ui/bin` — bin list with `deletedBy`, restore, delete forever, empty; `AuthGate`/`rememberAuthGate()` (platform
+  BiometricPrompt on 10+, keyguard confirm below; works from `ComponentActivity`) gates it when
+  `backupData.binBiometricLock` is on.
+- `ui/passbook` — accounts/cards/wallets with honest `BalanceState` ("unknown since …"), card outstanding + statement
+  day, monthly totals, entries with ≈ indicative FX + rate/date, settled markup, raw SMS inline and one tap to thread.
+- `ui/automations` — rules with toggles, simple editor (`RuleDraft` ↔ `Rule`), presets, premium actions locked,
+  biometric confirmation for OTP forwarding, scheduled sends with cancel, exact-alarm prompt.
+- `ui/backup` — folder picker, passphrase + recovery code dialog, backup now/schedule, exports, import, restore.
+- `ui/blocked` — shared system block list via `BlockedNumbers`.
+
+### Manifest entries these packages need (shell-owned manifest)
+
+```xml
+<!-- User-granted on 13+ (Automations shows the prompt); USE_EXACT_ALARM is reserved for alarm apps by Play policy. -->
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<!-- inside <application> -->
+<receiver android:name=".automation.ScheduledSendReceiver" android:exported="false">
+    <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.TIME_SET" />
+        <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+    </intent-filter>
+</receiver>
+<provider android:name="androidx.core.content.FileProvider"
+    android:authorities="${applicationId}.dakfiles" android:exported="false" android:grantUriPermissions="true">
+    <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/dak_file_paths" />
+</provider>
+```
+
+Without them everything still compiles and degrades: scheduled sends fall back to WorkManager timing, the camera
+falls back to `TakePicturePreview`, and location sharing reports "unavailable".

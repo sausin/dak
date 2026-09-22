@@ -98,7 +98,7 @@ fun NewConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier
                     }
                 }
                 OutlinedTextField(
-                    value = query,
+                    value = viewModel.queryText,
                     onValueChange = viewModel::onQueryChange,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -137,7 +137,7 @@ fun NewConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier
                     }
                 }
             }
-            Composer(ui = composerUi, actions = viewModel.composer)
+            Composer(ui = composerUi, text = viewModel.composer.draftText, actions = viewModel.composer)
         }
     }
 }

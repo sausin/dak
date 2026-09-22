@@ -1,6 +1,9 @@
 package app.dak.ui.search
 
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -70,6 +73,10 @@ class SearchViewModel @Inject constructor(
 
     val text: StateFlow<String> = savedState.getStateFlow(KEY_TEXT, "")
 
+    /** The query as Compose snapshot state, updated synchronously so the text field never drops keystrokes. */
+    var fieldText: String by mutableStateOf(text.value)
+        private set
+
     val sort: StateFlow<SearchSort> = savedState.getStateFlow(KEY_SORT, SearchSort.RECENT.name)
         .map { name -> SearchSort.entries.firstOrNull { it.name == name } ?: SearchSort.RECENT }
         .stateIn(viewModelScope, SharingStarted.Eagerly, SearchSort.RECENT)
@@ -114,6 +121,7 @@ class SearchViewModel @Inject constructor(
     val savedScroll: Pair<Int, Int> get() = (savedState.get<Int>(KEY_SCROLL_INDEX) ?: 0) to (savedState.get<Int>(KEY_SCROLL_OFFSET) ?: 0)
 
     fun onTextChange(value: String) {
+        fieldText = value
         savedState[KEY_TEXT] = value
         resetScroll()
         suggestionPrefix.value = value.substringAfterLast(' ')
@@ -188,6 +196,7 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun setText(value: String) {
+        fieldText = value
         savedState[KEY_TEXT] = value
         resetScroll()
     }

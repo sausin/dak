@@ -147,7 +147,7 @@ fun SearchScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 },
                 title = {
                     TextField(
-                        value = text,
+                        value = viewModel.fieldText,
                         onValueChange = { viewModel.onTextChange(it); showSuggestions = true },
                         modifier = Modifier.fillMaxWidth().focusRequester(focus),
                         singleLine = true,

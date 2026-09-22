@@ -232,13 +232,14 @@ class ConversationRepository @Inject constructor(
                 messageDao.pageByConversation(conversationId, limit, offset)
             }
             val out = rows.mapTo(ArrayList<MessageItem>(limit)) { Mappers.messageItem(it.message, it.otpRepeatedLater) }
-            if (out.size < limit && threadId != null && !backfillComplete()) {
+            val tid = threadId
+            if (out.size < limit && tid != null && !backfillComplete()) {
                 // Indexed rows are the newest part of the thread (the backfill runs newest to oldest), so provider
                 // positions line up with combined offsets; skip anything that is already indexed.
-                val count = indexedCount ?: messageDao.countInThread(threadId).also { indexedCount = it }
+                val count = indexedCount ?: messageDao.countInThread(tid).also { indexedCount = it }
                 val providerOffset = maxOf(count, offset + out.size)
                 val seen = out.mapTo(HashSet<MessageKey>()) { it.key }
-                runCatching { reader.messagesInThread(threadId, limit - out.size, providerOffset) }
+                runCatching { reader.messagesInThread(tid, limit - out.size, providerOffset) }
                     .getOrDefault(emptyList())
                     .filter { it.key !in seen && messageDao.get(it.kind.name, it.providerId) == null }
                     .mapTo(out) { Mappers.providerMessageItem(it) }

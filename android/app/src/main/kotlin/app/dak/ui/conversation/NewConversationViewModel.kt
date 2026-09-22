@@ -2,6 +2,9 @@ package app.dak.ui.conversation
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -62,6 +65,10 @@ class NewConversationViewModel @Inject constructor(
     private val queryState = MutableStateFlow(savedState.get<String>(KEY_QUERY).orEmpty())
     val query: StateFlow<String> = queryState.asStateFlow()
 
+    /** The "To" field as Compose snapshot state, updated synchronously so typing never drops characters. */
+    var queryText: String by mutableStateOf(queryState.value)
+        private set
+
     val suggestions: StateFlow<List<ContactSuggestion>> = queryState
         .debounce(150)
         .mapLatest { q -> if (q.isBlank()) emptyList() else contactSearch.search(q) }
@@ -113,6 +120,7 @@ class NewConversationViewModel @Inject constructor(
     }
 
     fun onQueryChange(value: String) {
+        queryText = value
         queryState.value = value
         savedState[KEY_QUERY] = value
     }

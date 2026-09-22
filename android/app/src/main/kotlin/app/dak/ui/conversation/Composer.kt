@@ -77,8 +77,9 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
 
-/** Everything the composer shows; built by the screen's ViewModel. */
+/** Everything the composer shows besides the draft text; built by the screen's ViewModel. */
 data class ComposerUi(
+    /** Draft as last seen by the derived state (segments, MMS switch); the field itself binds to the live draft. */
     val text: String = "",
     val attachments: List<ComposerAttachment> = emptyList(),
     val isMms: Boolean = false,
@@ -112,20 +113,20 @@ interface ComposerActions {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Composer(ui: ComposerUi, actions: ComposerActions, modifier: Modifier = Modifier) {
+fun Composer(ui: ComposerUi, text: String, actions: ComposerActions, modifier: Modifier = Modifier) {
     var trayOpen by rememberSaveable { mutableStateOf(false) }
     var laterMenu by remember { mutableStateOf(false) }
     Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 2.dp) {
         Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             ComposerStatusRow(ui, actions)
             if (ui.attachments.isNotEmpty()) AttachmentStrip(ui.attachments, actions::onRemoveAttachment)
-            if (trayOpen) AttachmentTray(onAttachment = actions::onAddAttachment, onText = { actions.onTextChange(joinText(ui.text, it)) }, onDone = { trayOpen = false })
+            if (trayOpen) AttachmentTray(onAttachment = actions::onAddAttachment, onText = { actions.onTextChange(joinText(text, it)) }, onDone = { trayOpen = false })
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = { trayOpen = !trayOpen }, enabled = ui.enabled) {
                     Icon(if (trayOpen) Icons.Outlined.Close else Icons.Outlined.Add, contentDescription = stringResource(R.string.scr_composer_attach))
                 }
                 OutlinedTextField(
-                    value = ui.text,
+                    value = text,
                     onValueChange = actions::onTextChange,
                     modifier = Modifier.weight(1f),
                     enabled = ui.enabled,
@@ -136,7 +137,7 @@ fun Composer(ui: ComposerUi, actions: ComposerActions, modifier: Modifier = Modi
                 Box {
                     SendButton(
                         isMms = ui.isMms,
-                        enabled = ui.enabled && !ui.sending && (ui.text.isNotBlank() || ui.attachments.isNotEmpty()),
+                        enabled = ui.enabled && !ui.sending && (text.isNotBlank() || ui.attachments.isNotEmpty()),
                         onClick = actions::onSend,
                         onLongClick = { laterMenu = true },
                     )

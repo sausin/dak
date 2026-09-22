@@ -1,5 +1,8 @@
 package app.dak.ui.conversation
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.core.model.NO_SUB_ID
@@ -42,6 +45,13 @@ class ComposerDelegate(
 ) : ComposerActions {
 
     private val text = MutableStateFlow(savedState.get<String>(KEY_DRAFT).orEmpty())
+
+    /**
+     * The draft as Compose snapshot state, updated synchronously on every keystroke: bind the text field to this,
+     * not to [ui] (which is derived asynchronously and would make fast typing drop characters).
+     */
+    var draftText: String by mutableStateOf(text.value)
+        private set
     private val attachments = MutableStateFlow<List<ComposerAttachment>>(emptyList())
     private val sending = MutableStateFlow(false)
     private var hintVisible = false
@@ -80,6 +90,7 @@ class ComposerDelegate(
     fun setText(value: String) = onTextChange(value)
 
     override fun onTextChange(text: String) {
+        draftText = text
         this.text.value = text
         savedState[KEY_DRAFT] = text
     }

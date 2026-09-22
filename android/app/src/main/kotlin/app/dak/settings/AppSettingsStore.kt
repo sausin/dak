@@ -21,6 +21,9 @@ class AppSettingsStore(private val adapter: DataStorePersistenceAdapter) : Setti
     override fun <T> observe(def: SettingDef<T>): Flow<T> = registry.observe(def)
     override fun resetGroup(group: SettingsGroup) = registry.resetGroup(group)
 
+    /** Raw stored values keyed by setting key; emits on every change. Rows not present use their defaults. */
+    val snapshot: Flow<Map<String, String>> = adapter.observeAll()
+
     /** Resets the Appearance section. */
     fun resetAppearance() {
         AppearanceSettings.all.forEach { adapter.remove(it.key) }

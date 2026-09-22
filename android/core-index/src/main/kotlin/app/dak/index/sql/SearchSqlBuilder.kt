@@ -10,7 +10,7 @@ import app.dak.search.SearchQuery
 /**
  * Pure translation of a parsed [SearchQuery] into SQL over the index.
  *
- * Text goes through the FTS4 table ([FtsMatch]); structured filters resolve against enrichment columns, so
+ * Text goes through the FTS4 table ([FtsSqlRenderer]); structured filters resolve against enrichment columns, so
  * `amount:` and `category:` are index lookups, not text scans. Filters combine with AND; `Filter.Not` negates one
  * filter with NULL-safe semantics. Results are grouped by conversation: each row carries the key of the chosen
  * matching message (most recent, or the largest amount for [SearchSort.AMOUNT]) plus the number of matches.
@@ -43,7 +43,7 @@ internal class SearchSqlBuilder {
         val where = ArrayList<String>()
         val args = ArrayList<Any>()
         query.textExpr?.let { expr ->
-            FtsMatch(FtsMatch.Mode.Fts(FTS_PREDICATE)).toSql(expr)?.let { where += "(${it.sql})"; args += it.args }
+            FtsSqlRenderer(FtsSqlRenderer.Mode.Fts(FTS_PREDICATE)).toSql(expr)?.let { where += "(${it.sql})"; args += it.args }
         }
         for (filter in query.filters) {
             messageFilter(filter, resolved)?.let { where += "(${it.sql})"; args += it.args }
@@ -75,7 +75,7 @@ internal class SearchSqlBuilder {
         val where = ArrayList<String>()
         val args = ArrayList<Any>()
         query.textExpr?.let { expr ->
-            FtsMatch(FtsMatch.Mode.Like("b.searchText")).toSql(expr)?.let { where += "(${it.sql})"; args += it.args }
+            FtsSqlRenderer(FtsSqlRenderer.Mode.Like("b.searchText")).toSql(expr)?.let { where += "(${it.sql})"; args += it.args }
         }
         for (filter in query.filters) {
             binFilter(filter, resolved)?.let { where += "(${it.sql})"; args += it.args }

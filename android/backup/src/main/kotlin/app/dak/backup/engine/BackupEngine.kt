@@ -16,10 +16,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-/** How a snapshot's contents are protected. Either key unlocks a backup made with [BackupCrypto]. */
+/** How an existing snapshot is unlocked for [BackupEngine.restore]. Either key [BackupCrypto] wrapped works. */
 sealed class RestoreKey {
     data class Passphrase(val value: CharArray) : RestoreKey()
     data class RecoveryCode(val value: String) : RestoreKey()
@@ -31,11 +33,11 @@ data class BackupEncryption(val passphrase: CharArray, val iterations: Int = Bac
 data class BackupResult(
     val manifest: Manifest,
     val blobName: String,
-    /** [MessageRecord.key] -> content hash, to pass as `previousDigest` on the next incremental call. */
+    /** [MessageRecord.key] -> content hash, covering every live message, to pass as `previousDigest` next time. */
     val digest: Map<String, String>,
-    /** Attachment sha256 hashes now known to be present in the target (union of the input set and any newly written). */
+    /** Attachment sha256 hashes now known to be present in the target (input set plus any newly written). */
     val knownAttachmentHashes: Set<String>,
-    /** Present only if this backup was encrypted: show it to the user once. */
+    /** Present only when this backup was encrypted: show it to the user once, it is never stored. */
     val recoveryCode: String? = null,
 )
 
@@ -43,7 +45,7 @@ data class BackupResult(
  * Backs up messages to a [BackupTarget] as a "Dak export format v1" snapshot (optionally
  * end-to-end encrypted via [BackupCrypto]), and restores them back out. A snapshot's blob is named
  * `"<manifest id>.dakbackup"`; `latest.json` on the target points at the newest one so callers do
- * not need to track ids themselves.
+ * not need to track ids themselves between calls.
  */
 class BackupEngine(private val target: BackupTarget, private val encryption: BackupEncryption? = null) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -51,9 +53,10 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
     /**
      * Writes one snapshot. Pass [previousManifest] and [previousDigest] (from a prior [BackupResult])
      * to write an INCREMENTAL snapshot containing only added/changed messages and a list of deleted
-     * keys; omit both for a FULL snapshot. A full snapshot streams [messages] straight through
-     * without materializing them; an incremental snapshot first computes the (typically much
-     * smaller) delta via [BackupPlanner], which does materialize that delta.
+     * keys; omit both for a FULL snapshot. [DakExportWriter] itself streams entry-by-entry into
+     * [target], but this call does materialize the message list it writes (the full set for a FULL
+     * snapshot, or the — typically much smaller — delta computed by [BackupPlanner] for an
+     * INCREMENTAL one) in order to compute the attachment set once before writing.
      */
     suspend fun backup(
         messages: Sequence<MessageRecord>,
@@ -70,15 +73,15 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
     ): BackupResult {
         val isIncremental = previousManifest != null
         val plan = if (isIncremental) BackupPlanner.plan(previousDigest, messages) else null
-        val toWrite: Sequence<MessageRecord> = plan?.toWrite()?.asSequence() ?: messages
+        val toWriteList: List<MessageRecord> = plan?.toWrite() ?: messages.toList()
         val deletedKeys = plan?.deletedKeys ?: emptyList()
-
         val blobName = "$id.dakbackup"
-        var recoveryCode: String? = null
-        val digest = LinkedHashMap<String, String>() // rebuilt as messages are written, one pass
-        val newAttachmentHashes = LinkedHashSet<String>(knownAttachmentHashes)
 
-        withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
+            var recoveryCode: String? = null
+            val digest = LinkedHashMap<String, String>()
+            val newAttachmentHashes = LinkedHashSet<String>(knownAttachmentHashes)
+
             val rawOut = target.openWrite(blobName)
             val out = if (encryption != null) {
                 val result = BackupCrypto.encryptingOutputStream(rawOut, encryption.passphrase, encryption.iterations)
@@ -87,18 +90,13 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
             } else {
                 rawOut
             }
-            out.use { stream ->
+            val manifest = out.use { stream ->
                 val writer = DakExportWriter(stream)
-                // Attachments referenced by the messages we are about to write, skipping ones already known.
                 val neededHashes = LinkedHashSet<String>()
-                val digestedMessages = toWrite.map { record ->
+                for (record in toWriteList) {
                     digest[record.key] = record.contentHash()
                     for (a in record.attachments) if (a.sha256 !in newAttachmentHashes) neededHashes += a.sha256
-                    record
                 }
-                // Materialize once so attachment discovery above and the write below see the same records
-                // without requiring the caller's sequence to be re-iterable.
-                val toWriteList = digestedMessages.toList()
                 for (hash in neededHashes) {
                     val input = attachmentSource(hash) ?: continue
                     writer.writeAttachment(hash, input)
@@ -116,22 +114,22 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
                     kind = if (isIncremental) ManifestKind.INCREMENTAL else ManifestKind.FULL,
                     deletedKeys = deletedKeys,
                 )
-                val manifest = writer.finish(meta)
+                val m = writer.finish(meta)
                 writer.close()
-
-                // Fold in unchanged entries from the previous digest so the returned digest stays complete
-                // for the *next* incremental call, not just this snapshot's delta.
-                if (isIncremental) for ((k, v) in previousDigest) digest.putIfAbsent(k, v)
-                for (k in deletedKeys) digest.remove(k)
-
-                target.openWrite("latest.json").use {
-                    it.write(json.encodeToString(LatestPointer(manifest.id, blobName)).toByteArray(Charsets.UTF_8))
-                }
-
-                return@withContext BackupResult(manifest, blobName, digest, newAttachmentHashes, recoveryCode)
+                m
             }
+
+            // Fold in unchanged/previous entries so the returned digest is complete for the *next*
+            // incremental call, not just this snapshot's delta, then drop anything just deleted.
+            if (isIncremental) for ((k, v) in previousDigest) digest.putIfAbsent(k, v)
+            for (k in deletedKeys) digest.remove(k)
+
+            target.openWrite("latest.json").use {
+                it.write(json.encodeToString(LatestPointer(manifest.id, blobName)).toByteArray(Charsets.UTF_8))
+            }
+
+            BackupResult(manifest, blobName, digest, newAttachmentHashes, recoveryCode)
         }
-        error("unreachable") // withContext above always returns from its block
     }
 
     /**
@@ -139,11 +137,12 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
      * its incremental chain and merging added/changed/deleted entries into one effective set. Never
      * blanks anything: it only emits messages [existingKeys] reports as not already present, keyed by
      * `(kind, address, dateMillis, sha256(body))` as the spec requires, so restoring is purely additive.
+     * [key] must match how the backup was written (null for an unencrypted backup).
      */
     fun restore(
         key: RestoreKey? = null,
         existingKeys: (kind: MessageKind, address: String, dateMillis: Long, bodyHash: String) -> Boolean,
-        attachmentSink: suspend (sha256: String, input: InputStream) -> Unit = { _, _ -> },
+        attachmentSink: (sha256: String, input: InputStream) -> Unit = { _, _ -> },
         fromBlobName: String? = null,
     ): Flow<MessageRecord> = flow {
         val startBlob = fromBlobName ?: readLatestPointer()?.blobName
@@ -152,7 +151,7 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
         val chain = mutableListOf<Pair<Manifest, String>>() // newest first
         var currentBlob: String? = startBlob
         while (currentBlob != null) {
-            val manifest = readManifestOnly(currentBlob)
+            val manifest = readManifestOnly(currentBlob, key)
             chain += manifest to currentBlob
             currentBlob = manifest.parentId?.let { "$it.dakbackup" }
         }
@@ -160,8 +159,7 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
         val merged = LinkedHashMap<String, MessageRecord>()
         // Oldest to newest, so later snapshots' changes and deletions win.
         for ((manifest, blobName) in chain.asReversed()) {
-            val records = readMessages(blobName, attachmentSink)
-            for (r in records) merged[r.key] = r
+            for (r in readMessages(blobName, key, attachmentSink)) merged[r.key] = r
             for (deleted in manifest.deletedKeys) merged.remove(deleted)
         }
 
@@ -174,39 +172,35 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
     }
 
     private suspend fun readLatestPointer(): LatestPointer? = withContext(Dispatchers.IO) {
-        target.openRead("latest.json")?.use { json.decodeFromString(LatestPointer.serializer(), it.readBytes().toString(Charsets.UTF_8)) }
+        target.openRead("latest.json")?.use { json.decodeFromString<LatestPointer>(it.readBytes().toString(Charsets.UTF_8)) }
     }
 
-    private suspend fun readManifestOnly(blobName: String): Manifest = withContext(Dispatchers.IO) {
+    private suspend fun readManifestOnly(blobName: String, key: RestoreKey?): Manifest = withContext(Dispatchers.IO) {
         val raw = target.openRead(blobName) ?: throw IllegalStateException("Missing snapshot $blobName")
-        decryptingStream(raw).use { stream ->
+        decryptingStream(raw, key).use { stream ->
             val reader = DakExportReader(stream)
-            // Drain fully to reach the trailer manifest.json entry; message bodies are discarded here.
-            reader.readMessages().forEach { }
+            reader.readMessages().forEach { } // drain to reach the trailer manifest.json entry
             reader.manifest ?: throw IllegalStateException("Snapshot $blobName has no manifest")
         }
     }
 
     private suspend fun readMessages(
         blobName: String,
-        attachmentSink: suspend (String, InputStream) -> Unit,
+        key: RestoreKey?,
+        attachmentSink: (String, InputStream) -> Unit,
     ): List<MessageRecord> = withContext(Dispatchers.IO) {
         val raw = target.openRead(blobName) ?: throw IllegalStateException("Missing snapshot $blobName")
-        decryptingStream(raw).use { stream ->
-            val reader = DakExportReader(stream)
-            reader.readMessages { sha256, input -> kotlinx.coroutines.runBlocking { attachmentSink(sha256, input) } }.toList()
+        decryptingStream(raw, key).use { stream ->
+            DakExportReader(stream).readMessages(attachmentSink).toList()
         }
     }
 
-    private fun decryptingStream(raw: InputStream): InputStream = when (val k = key(encryption)) {
+    private fun decryptingStream(raw: InputStream, key: RestoreKey?): InputStream = when (key) {
         null -> raw
-        else -> raw // placeholder, replaced by decryptFor()
+        is RestoreKey.Passphrase -> BackupCrypto.decryptingInputStream(raw, key.value)
+        is RestoreKey.RecoveryCode -> BackupCrypto.decryptingInputStreamWithRecoveryCode(raw, key.value)
     }
 
-    // `restore()` needs the *caller-supplied* key (passphrase or recovery code), not the engine's own
-    // write-time [encryption]; kept as a separate helper to make that distinction explicit at call sites.
-    private fun key(e: BackupEncryption?): BackupEncryption? = e
-
-    @kotlinx.serialization.Serializable
+    @Serializable
     private data class LatestPointer(val id: String, val blobName: String)
 }

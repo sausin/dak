@@ -9,7 +9,7 @@ import app.dak.search.TextNormalizer
  * The FTS index matches on [TextNormalizer]-normalized text, whose offsets differ from the original body
  * (case folding, NFKC, stripped diacritics). This class normalizes the body code point by code point while keeping
  * a map back to original offsets, then finds each positive query token at a word start (prefix semantics, matching
- * how [app.dak.index.sql.FtsMatch] builds prefix queries).
+ * how [app.dak.index.sql.FtsSqlRenderer] builds prefix queries).
  */
 object Highlighter {
 

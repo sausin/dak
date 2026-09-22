@@ -14,7 +14,7 @@ import app.dak.search.TextExpr
  *
  * In [Mode.Like] (tables without FTS, such as the bin) every term becomes a `LIKE` over a normalized text column.
  */
-internal class FtsMatch(private val mode: Mode) {
+internal class FtsSqlRenderer(private val mode: Mode) {
 
     sealed class Mode {
         /** [predicate] must contain exactly one `?`, bound to the MATCH string. */

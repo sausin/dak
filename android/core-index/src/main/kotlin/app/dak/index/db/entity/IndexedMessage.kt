@@ -29,6 +29,7 @@ import app.dak.index.sql.Tables
         Index(value = ["mergeKey"]),
         Index(value = ["category", "dateMillis"]),
         Index(value = ["templateVersion"]),
+        Index(value = ["accountId"]),
     ],
 )
 data class IndexedMessage(
@@ -64,6 +65,10 @@ data class IndexedMessage(
     val direction: TransactionDirection?,
     val instrumentLast4: String?,
     val merchant: String?,
+    /** Ledger account id (`Account.idFor`) of the extracted transaction, if any. */
+    val accountId: String?,
+    /** Full `ExtractedTransaction` as JSON (balance, reference, institution...), if any. */
+    val transactionJson: String?,
     val starred: Boolean,
     val archived: Boolean,
     val indexedAt: Long,
@@ -76,12 +81,13 @@ data class IndexedMessage(
     val searchText: String,
     val searchSender: String,
 ) {
-    val key: MessageKey get() = MessageKey(kind, providerId)
-
     companion object {
         const val PREVIEW_LENGTH = 200
     }
 }
+
+/** Provider key of this row. (An extension rather than a property so Room never sees it as a column.) */
+fun IndexedMessage.messageKey(): MessageKey = MessageKey(kind, providerId)
 
 /** External-content FTS4 index over [IndexedMessage.searchText] and [IndexedMessage.searchSender]. */
 @Fts4(contentEntity = IndexedMessage::class, tokenizer = FtsOptions.TOKENIZER_UNICODE61)

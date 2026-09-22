@@ -90,7 +90,10 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, view
                     OnboardingStep.WELCOME -> WelcomeStep(onContinue = viewModel::next)
                     OnboardingStep.DEFAULT_APP -> DefaultAppStep(
                         declined = state.roleDeclined,
-                        onRequest = { roleLauncher.launch(SmsRole.requestIntent(context)) },
+                        // No handler for the role / change-default intent (e.g. telephony-less tablets): show "declined".
+                        onRequest = {
+                            if (runCatching { roleLauncher.launch(SmsRole.requestIntent(context)) }.isFailure) viewModel.onRoleResult()
+                        },
                     )
                     OnboardingStep.PERMISSIONS -> PermissionsStep(
                         state = state,

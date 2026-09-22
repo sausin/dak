@@ -112,7 +112,8 @@ class OnboardingViewModel @Inject constructor(
         if (current == OnboardingStep.WELCOME && _state.value.isDefaultSmsApp) indexScheduler.startInitialSync()
         val next = when (current) {
             OnboardingStep.WELCOME -> if (_state.value.isDefaultSmsApp) OnboardingStep.PERMISSIONS else OnboardingStep.DEFAULT_APP
-            OnboardingStep.DEFAULT_APP -> OnboardingStep.PERMISSIONS
+            // Runtime permissions are only requested once Dak holds the SMS role (Play policy).
+            OnboardingStep.DEFAULT_APP -> if (_state.value.isDefaultSmsApp) OnboardingStep.PERMISSIONS else OnboardingStep.INDEXING
             OnboardingStep.PERMISSIONS -> OnboardingStep.INDEXING
             OnboardingStep.INDEXING -> OnboardingStep.RELIABILITY
             OnboardingStep.RELIABILITY -> OnboardingStep.RELIABILITY

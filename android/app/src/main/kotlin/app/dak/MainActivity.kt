@@ -74,7 +74,8 @@ class MainActivity : ComponentActivity() {
                             routeRequests.receiveAsFlow().collect { route ->
                                 // Intent routes only apply once onboarding is done; before that there is nothing to open.
                                 if (navController.currentDestination?.route != Routes.ONBOARDING) {
-                                    navController.navigate(route) { launchSingleTop = true }
+                                    // The activity is exported: an unknown route from another app must not crash us.
+                                    runCatching { navController.navigate(route) { launchSingleTop = true } }
                                 }
                             }
                         }

@@ -309,11 +309,14 @@ private fun AttachmentTray(onAttachment: (ComposerAttachment) -> Unit, onText: (
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         TrayButton(Icons.Outlined.PhotoCamera, stringResource(R.string.scr_tray_camera)) {
             val uri = cameraOutputUri(context)
-            if (uri != null) {
+            // launch() throws ActivityNotFoundException on devices without a camera app (camera is optional).
+            val launched = uri != null && runCatching {
                 pendingCameraUri = uri.toString()
                 camera.launch(uri)
-            } else {
-                cameraPreview.launch(null)
+            }.isSuccess
+            if (!launched) {
+                pendingCameraUri = null
+                runCatching { cameraPreview.launch(null) }
             }
         }
         TrayButton(Icons.Outlined.Image, stringResource(R.string.scr_tray_gallery)) {

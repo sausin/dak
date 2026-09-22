@@ -10,6 +10,7 @@ import app.dak.telephony.OutgoingMms
 import app.dak.telephony.OutgoingMmsPart
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.SendResult
+import app.dak.telephony.SimRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -48,6 +49,7 @@ class MessageSendController @Inject constructor(
     private val normalizer: NumberNormalizer,
     private val settings: SettingsStore,
     private val compressor: MmsMediaCompressor,
+    private val sims: SimRepository,
 ) {
     /** True when this message will go as MMS (shown as the "MMS" chip on the send button). */
     fun isMms(recipientCount: Int, text: String, attachments: List<ComposerAttachment>): Boolean =
@@ -72,13 +74,15 @@ class MessageSendController @Inject constructor(
     ): SendOutcome {
         val recipients = addresses.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         if (recipients.isEmpty()) return SendOutcome.Failed(SendProblem.NO_RECIPIENT)
-        if (subId < 0) return SendOutcome.Failed(SendProblem.NO_SIM)
-        val targets = recipients.map { normalized(it, subId) }
+        // No system default SMS SIM (dual-SIM "ask every time"): send from the first active SIM instead of failing.
+        val sendSubId = if (subId >= 0) subId else sims.sims.value.firstOrNull { it.isActive }?.subId
+            ?: return SendOutcome.Failed(SendProblem.NO_SIM)
+        val targets = recipients.map { normalized(it, sendSubId) }
         val result = if (!isMms(targets.size, text, attachments)) {
-            sender.sendSms(OutgoingSms(targets, text, subId, threadId, requestDeliveryReport = settings.get(DakSettings.deliveryReports)))
+            sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = settings.get(DakSettings.deliveryReports)))
         } else {
-            val parts = buildParts(text, attachments, subId) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
-            sender.sendMms(OutgoingMms(targets, text.ifEmpty { null }, subId, parts, threadId = threadId))
+            val parts = buildParts(text, attachments, sendSubId) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
+            sender.sendMms(OutgoingMms(targets, text.ifEmpty { null }, sendSubId, parts, threadId = threadId))
         }
         return when (result) {
             is SendResult.Queued -> SendOutcome.Sent

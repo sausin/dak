@@ -61,3 +61,13 @@ webhooks and send API are not implemented.
 - User labels from automations are stored app-side (no index API yet).
 - Release builds have R8 disabled until keep rules are verified on a device.
 - Play `.aab` publishing and release signing (CI already signs when keystore secrets are set).
+
+## Runtime risks to check first on a device
+
+- The index DB (Keystore unwrap + SQLCipher open) can open on the main thread when the first
+  ViewModel injects a repository; move `IndexProvidesModule.openedIndex` behind a suspend opener
+  if it shows up as jank/ANR on slow phones.
+- First SMS in a cold process loads classifier JSON and may rebuild the consumed-OTP hash table
+  inside the receiver's time budget.
+- Settings adapter does a `runBlocking` first read on the main thread (`appearanceNow()`).
+- Navigation args are `Uri.decode`d twice in some ViewModels (a literal `%xx` gets mangled).

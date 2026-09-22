@@ -80,6 +80,12 @@ enum class OutgoingStatus { QUEUED, SENDING, SENT, DELIVERED, FAILED }
 /** Emits whenever the SMS or MMS provider content changes (ContentObserver), debounced. */
 interface ProviderChanges {
     val changes: Flow<Unit>
+
+    /**
+     * Asks [changes] to emit once more (debounced like a real change), e.g. when the app returns to the
+     * foreground or a periodic reconcile worker fires. Scheduling that worker is the index module's job.
+     */
+    fun requestReconcile() {}
 }
 
 /** Active subscriptions; refreshes on SIM hot-swap / eSIM changes. */
@@ -127,6 +133,9 @@ interface MessageSender {
     suspend fun sendMms(mms: OutgoingMms): SendResult
     /** Retries a FAILED message by key. */
     suspend fun retry(key: MessageKey): SendResult
+
+    /** Human-readable reason for the last send failure of [key] (for the "tap to retry" bubble), if any. */
+    fun failureReason(key: MessageKey): String? = null
 }
 
 /** MMS download state for a notification-indication awaiting retrieval. */
@@ -141,7 +150,19 @@ sealed interface MmsDownloadState {
 interface MmsDownloads {
     fun state(key: MessageKey): Flow<MmsDownloadState>
     suspend fun retry(key: MessageKey)
+
+    /**
+     * After a successful download the notification-ind row is replaced by the retrieved message (a new provider
+     * row); this returns the new key for the old one, if known.
+     */
+    fun replacementFor(key: MessageKey): MessageKey? = null
 }
+
+/**
+ * [Message.providerId] of a message handed to [IncomingMessageHandler]s when writing it to the provider failed
+ * (e.g. the role was revoked mid-delivery). The notification path must still show it; indexers should skip it.
+ */
+const val UNPERSISTED_PROVIDER_ID: Long = -1L
 
 /**
  * Hook invoked by the receivers after an incoming message has been written to the provider.

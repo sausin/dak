@@ -1,0 +1,236 @@
+# :core-index
+
+Android library, package `app.dak.index`. The encrypted index (Room 2.6 + SQLCipher 4.6) that every smart
+feature reads from: classification, sender merge groups, OTP lifecycle, recycle bin, search, finance ledger,
+saved searches, automation rules, scheduled sends and an audit log. The Telephony provider stays canonical and
+raw; everything here is rebuildable from it (user data such as prefs, bin, rules is kept across rebuilds but is
+lost if the Keystore key is wiped, so `:backup` should cover it).
+
+Depends on `:core-model`, `:classify`, `:finance`, `:search` (api) and `:core-telephony` (contracts only:
+`ProviderReader`, `ProviderWriter`, `ProviderChanges`, `SimRepository`, `IncomingMessageHandler`).
+
+## What the app must do
+
+1. **Hilt**: the bindings install into `SingletonComponent` automatically (`IndexProvidesModule`,
+   `IndexBindsModule`). :core-telephony must bind `ProviderReader`, `ProviderWriter`, `ProviderChanges`,
+   `SimRepository`. This module contributes `IncomingIndexer` to `Set<IncomingMessageHandler>` (`@IntoSet`,
+   priority 100); the receivers must inject that set as `Set<@JvmSuppressWildcards IncomingMessageHandler>`.
+2. **WorkManager + Hilt workers**: the workers (`BackfillWorker`, `ReconcileWorker`, `OtpDeleteWorker`,
+   `BinPurgeWorker`) are `@HiltWorker`. The `Application` must implement `androidx.work.Configuration.Provider`
+   with an injected `HiltWorkerFactory`, and remove the default initializer in the app manifest:
+   ```xml
+   <provider android:name="androidx.startup.InitializationProvider"
+       android:authorities="${applicationId}.androidx-startup" tools:node="merge">
+       <meta-data android:name="androidx.work.WorkManagerInitializer"
+           android:value="androidx.startup" tools:node="remove" />
+   </provider>
+   ```
+3. **Start sync**: call `IndexSync.start()` from `Application.onCreate` (idempotent, main-safe).
+4. **Onboarding**: call `IndexMaintenance.chooseSchedule(IndexSchedule.NOW | WHEN_CHARGING | TONIGHT)`.
+   Until then stage 2 runs "When plugged in".
+5. **Backup rules**: exclude `databases/dak_index.db*` from Auto Backup / device transfer (it is useless without
+   the Keystore key, which never leaves the device). The wrapped key lives in `noBackupFilesDir` already.
+6. **Optional bindings** (`@BindsOptionalOf`; bind with `@Binds` in a `SingletonComponent` module to override):
+
+   | Seam | Default when unbound |
+   |---|---|
+   | `BinPolicy` — `suspend retentionMillis(category): Long?` (null = until emptied) | `DefaultBinPolicy`: OTP 1 day, others 30 days |
+   | `OtpPolicy` — `otpAutoDeleteAfterMillis(): Long?`, `consumedOtpMode(): ConsumedOtpMode`, `consumedOtpDeleteAfterMillis()` | `DefaultOtpPolicy`: 24 h; `SILENT_AUTO_DELETE`; 10 min (clamped to >= 5 min) |
+   | `ContactLookup` — `displayName`, `isContact`, `addressesMatching`, `namesMatching` (blocking, called off-main) | `NoContactLookup` |
+   | `app.dak.index.repo.RatesSource` — `current(): RatesTable?` | bundled `RatesLoader.loadBundled()` |
+   | `app.dak.classify.CloudClassifier` (premium only; must itself honour the opt-in) | `NoCloudClassifier` |
+
+7. The first injection of anything touching the database opens it (Keystore unwrap + SQLCipher open, a few ms).
+   `IndexSync.start()` does this on IO; avoid injecting repositories into objects created before it on main.
+
+## Public API
+
+All repository functions are `suspend` or return `Flow` and are main-safe.
+
+### Types (`app.dak.index`)
+
+- `enum InboxTab { ALL, PERSONAL, TRANSACTION, OTP, PROMOTION, SPAM, ARCHIVED, STARRED }` — ALL excludes spam and
+  archived; category tabs filter at message level (HDFC shows in both Transactions and OTP with the matching
+  snippet); ARCHIVED/STARRED include conversation- and message-level flags.
+- `enum SearchSort { RECENT, RELEVANCE, AMOUNT }`
+- `ConversationSummary(conversationId, title, address, snippet, dateMillis, unreadCount, messageCount, category,
+  subIds: Set<Int>, threadIds: Set<Long>, isMergedSender, pinned, muted, archived, starred, lastBox,
+  hasAttachment, enriched)` — `enriched = false` for provider threads the backfill has not reached yet.
+- `MessageItem(key, conversationId, threadId, address, body, dateMillis, box, read, subId, attachments, category,
+  confidence, canonicalSender, labels, otp: OtpItem?, transaction: TransactionItem?, hasLink, starred, archived,
+  enriched)`
+- `OtpItem(code, consumedBy, webOtpDomain, repeatedLater)` — `repeatedLater`: the same code arrived again within
+  10 min in this conversation (collapse the older copy).
+- `TransactionItem(direction, amountMinor, currency, instrumentLast4, merchant, accountId)`
+- `SearchHit(conversationId, conversationTitle, message: MessageItem, matchCount, highlights: List<IntRange>,
+  binId: Long?)` — highlight ranges are inclusive offsets into `message.body`.
+- `BinItem(id, originalKey, conversationId, threadId, address, body, dateMillis, subId, category, attachments,
+  deletedBy, deletedAtMillis, purgeAtMillis)`
+- `enum IndexSchedule { NOW, WHEN_CHARGING, TONIGHT }`, `enum BackfillStage { NOT_STARTED, STAGE1, STAGE2, DONE }`,
+  `enum BackfillReason { INITIAL, REINDEX, RESTORE, REBUILD }`
+- `BackfillProgress(stage, done, total, schedule, reason, waiting)` + `remaining`, `fraction`.
+- Conversation ids: `t:<threadId>` (provider thread) or `m:<mergeKey>` (sender merge group); helpers in
+  `app.dak.index.enrich.ConversationIds`.
+
+### `repo.ConversationRepository`
+
+```kotlin
+fun conversations(tab: InboxTab, subId: Int? = null, pageSize: Int = 30): Flow<PagingData<ConversationSummary>>
+fun messages(conversationId: String, pageSize: Int = 50): Flow<PagingData<MessageItem>>   // newest first
+fun message(key: MessageKey): Flow<MessageItem?>
+suspend fun conversationIdOf(key: MessageKey): String?
+fun prefs(conversationId: String): Flow<ConversationPrefs?>
+suspend fun markRead(conversationId: String)            // index + provider
+suspend fun markMessageRead(key: MessageKey)
+suspend fun setPinned / setMuted / setArchived / setStarred(conversationId, Boolean)
+suspend fun setBubbleColor(conversationId, argb: Int?) / setFontScale(conversationId, Float?) / setAlwaysTranslate(conversationId, Boolean)
+suspend fun setReplySim(conversationId: String, subId: Int?)     // null = default
+suspend fun replySimFor(conversationId: String): Int              // choice > SIM of last incoming > system default
+suspend fun addressesFor(conversationId: String): List<String>    // reply recipients
+suspend fun setMessageStarred(key, Boolean) / setMessageArchived(key, Boolean)   // survive rebuilds
+```
+
+Pinned conversations sort first. While the backfill runs, the ALL tab appends provider threads with no indexed
+rows, and `messages("t:<id>")` continues past the indexed part straight from the provider.
+
+### `repo.SearchRepository`
+
+```kotlin
+fun search(query: SearchQuery, sort: SearchSort = RECENT, pageSize: Int = 30): Flow<PagingData<SearchHit>>
+suspend fun suggestions(prefix: String, limit: Int = 8): List<app.dak.search.Suggestion>
+suspend fun recordQuery(queryText: String)
+suspend fun clearHistory()
+```
+
+Parse input with `app.dak.search.QueryParser.parse(text, ZonedDateTime.now())`. Text runs through FTS4
+(`unicode61`, `TextNormalizer`-normalized body + sender) using only standard query syntax; OR-of-AND groups and
+negation are composed in SQL, so any `TextExpr` works regardless of SQLCipher's FTS compile options. (This is why
+`:search`'s `FtsMatch.build` is not used: it flattens such expressions.) Terms of 2+ chars are prefix-matched.
+Filters are column lookups: `from:` (address / brand / merge-group name / contact numbers), `category:`, `sim:`
+(1-based slot, sub id, display or carrier name), `has:attachment|link|otp`, `amount:`, dates, `in:inbox|archive`,
+`is:starred|unread|read`, negation. `in:bin` searches the recycle bin instead (LIKE; from/category/sim/date/
+has:otp/has:attachment only). RELEVANCE = most matching messages per conversation, then recency.
+
+### `bin.RecycleBin`
+
+```kotlin
+suspend fun moveToBin(keys: Collection<MessageKey>, deletedBy: DeletedBy): BinReceipt   // copy, then provider delete
+suspend fun undo(receipt: BinReceipt): Int
+suspend fun restore(binId: Long): MessageKey?          // provider re-insert + re-index
+fun observe(): Flow<List<BinItem>>;  fun count(): Flow<Int>
+suspend fun deleteForever(binId: Long);  suspend fun empty(): Int
+suspend fun purgeExpired(nowMillis: Long = now): Int  // also run daily by BinPurgeWorker
+suspend fun message(binId: Long): Message?
+```
+
+`DeletedBy`: `Manual`, `AutoRule(name)`, `AutoConsumed(pkg)`, `AutoOtp`; stored as `manual`, `auto-rule:<name>`,
+`auto-consumed:<pkg>`, `auto-otp` (`DeletedBy.decode`). A failed provider delete (not default SMS app) leaves the
+message in place and reports it in `BinReceipt.failed`.
+
+### `otp.OtpLifecycle`
+
+```kotlin
+suspend fun onIndexed(row: IndexedMessage)            // called by IncomingIndexer / reconcile
+suspend fun shouldNotifySilently(message: Message): Boolean   // for the notification handler (runs before indexing)
+suspend fun deleteNow(key: MessageKey): Boolean       // "delete now" quick action
+fun cancel(key: MessageKey)
+```
+
+Never deletes retroactively (an OTP discovered after its lifetime, e.g. from a restore, is left alone); starred
+messages are skipped.
+
+### `signature.AppSignatureRegistry`
+
+```kotlin
+suspend fun refresh(force: Boolean = false): Int
+suspend fun consumerOf(otp: OtpInfo, refreshOnMiss: Boolean = true): String?
+suspend fun hashesOf(packageName: String): List<String>
+```
+
+Hashes via `app.dak.classify.AppSignatureHash` for every signing certificate (P+ `GET_SIGNING_CERTIFICATES`,
+`GET_SIGNATURES` below). Package broadcasts are not receivable on 8+, so it refreshes on app start
+(incremental by `lastUpdateTime`) and on an unknown hash (throttled to once a minute). Visibility comes from the
+`<queries>` in this module's manifest (launcher apps, https browsers).
+
+### `repo.LedgerRepository` (on `:finance`)
+
+```kotlin
+fun accounts(): Flow<List<AccountSummary>>            // AccountSummary(account: Account, balance: BalanceState, entryCount, lastActivityMillis)
+fun account(accountId: String): Flow<AccountSummary?>
+fun entries(accountId: String): Flow<List<LedgerEntry>>   // newest first
+fun ledger(accountId: String): Flow<AccountLedger?>
+fun monthlyTotals(accountId: String): Flow<List<MonthlyTotal>>
+fun spendByMerchant(accountId: String): Flow<Map<String, Money>>
+fun cardOutstanding(accountId: String, asOfMillis: Long): Flow<Money?>
+fun messageKeyOf(entry: LedgerEntry): MessageKey?
+suspend fun setStatementDay(accountId: String, statementDay: Int?)
+suspend fun recompute(accountIds: Collection<String>);  suspend fun recomputeAll()
+```
+
+Accounts are recomputed (`Ledger.apply` + `Reconciler.reconcile`) whenever one of their messages is indexed.
+
+### `repo.SenderMergeRepository`
+
+```kotlin
+fun groups(): Flow<List<SenderMergeGroup>>;  fun group(mergeKey): Flow<SenderMergeGroup?>
+suspend fun rename(mergeKey: String, displayName: String);  suspend fun undoRename(mergeKey): Boolean
+suspend fun splitSender(address: String): String                    // new conversation id
+suspend fun mergeSender(address: String, intoMergeKey: String): String
+suspend fun undoSenderEdit(address: String): String?
+```
+
+### Stores (`repo.Stores.kt`)
+
+- `SavedSearchRepository`: `all()`, `pinned()`: `Flow<List<SavedSearchItem>>`; `save(name, query, sort, pinned)`,
+  `update(item)`, `setPinned(id, Boolean)`, `reorder(ids)`, `delete(id)`.
+- `AutomationStore` (rule AST JSON is opaque here): `observe()`, `all()`, `enabled()`, `get(id)`,
+  `put(name, json, enabled = true, id = null): String`, `setEnabled`, `reorder`, `delete`.
+- `ScheduledSendStore`: `pending()`, `pendingFor(conversationId)`, `due(now)`, `get(id)`,
+  `schedule(addresses, body, subId, sendAtMillis, conversationId?, ruleId?): Long`, `edit`, `markStatus`, `delete`.
+  Alarms and the actual send are the caller's job.
+- `AuditLogRepository`: `log(actor, action, target?, detail?)`, `recent(limit)`, `trim()`.
+
+### Sync (`sync`)
+
+- `IndexSync.start()`, `IndexSync.requestReconcile()`.
+- `IndexMaintenance`: `progress: Flow<BackfillProgress>`, `schedule`, `chooseSchedule(IndexSchedule)`,
+  `requestReindex(reason, schedule? = null)` (after restore use `BackfillReason.RESTORE`), `rebuild()`,
+  `installTemplates(bundle: TemplateBundle): Boolean` (verified OTA bundle; re-indexes if the version changed).
+- `IndexIngestor.ingest(messages, allowCloud = false, refreshSignaturesOnMiss = false, force = false)` /
+  `remove(keys)` — the single write path (used by backup restore if it wants to index directly).
+- `enrich.MessageEnricher` — the narrow seam over `:classify` (`ClassifierPipeline`) and `:finance`
+  (`TransactionParser`); `DefaultMessageEnricher` is bound.
+
+## How it works
+
+- **Encryption**: 32 random bytes, wrapped with AES-256-GCM key `dak_index_key` in AndroidKeyStore, stored in
+  `noBackupFilesDir/dak_index_key.bin` (a file there rather than SharedPreferences: same no-backup guarantee,
+  atomic writes). Passed to SQLCipher as a raw key (`x'<hex>'`, no PBKDF2). If unwrap or open fails, the
+  database is deleted, a new key made, and the index rebuilt from the provider.
+- **Backfill**: stage 1 in-process (`recentMessages(now - 30 d, 1000)`), stage 2 unique work
+  `dak-index-backfill` in batches of 500 via `messagesBefore(cursor)`, cursor persisted in `backfill_state`.
+  NOW = no constraints (not expedited: a long job would exceed the expedited quota and needs a foreground
+  notification below API 31); WHEN_CHARGING = `setRequiresCharging`; TONIGHT = initial delay to 01:00,
+  `setRequiresDeviceIdle` + `setRequiresBatteryNotLow`, stops at 05:00 and re-enqueues for the next night.
+  Re-index after template updates / restore reuses the same worker (rows are re-enriched when their
+  `templateVersion` differs from `MessageEnricher.version`).
+- **Reconcile**: every `ProviderChanges` emission -> `messagesAfter(maxSmsId, maxMmsId)`, refresh of the 50 most
+  recent messages (sent/failed/read changes), deletion check when the provider count drops; plus
+  `dak-index-reconcile` every 6 h with a full deletion check. An empty provider key set never empties the index.
+- **FTS**: external-content FTS4 over `searchText`/`searchSender`; rows are written with insert-ignore + update
+  (never REPLACE) so Room's content-sync triggers keep it consistent.
+- **Schema**: version 1, exported to `core-index/schemas`. The DB holds user data, so later versions need
+  real migrations (only downgrades are destructive).
+
+## Tests
+
+`src/test` holds JVM unit tests for the pure parts (SQL builders, FTS rendering, highlighting, grouping,
+timing, retention, enricher). They need no Android runtime; CI runs them with `:core-index:testDebugUnitTest`.
+
+## Known limits
+
+- Hinglish transliteration is not handled by the FTS tokenizer (`unicode61`); Indic scripts match via
+  normalized tokens.
+- Contacts-based `from:` matching compares merge keys (last 10 digits for numbers).
+- Message-level stars/archives survive `rebuild()` (kept in `message_flag`), but per-message state keyed by
+  provider id cannot survive a backup restore, which assigns new provider ids.

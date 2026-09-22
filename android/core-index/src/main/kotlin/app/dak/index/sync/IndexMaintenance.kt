@@ -96,9 +96,14 @@ class IndexMaintenance @Inject constructor(
     /** Records the onboarding choice and (re)schedules stage 2 with it if a pass is pending. */
     suspend fun chooseSchedule(schedule: IndexSchedule): Unit = withContext(Dispatchers.IO) {
         scheduler.schedule = schedule
-        val state = stateDao.get() ?: return@withContext
-        stateDao.put(state.copy(schedule = schedule.name, updatedAt = System.currentTimeMillis()))
-        if (state.stage == BackfillStage.STAGE2.name) scheduler.enqueueBackfill(schedule, replace = true)
+        val pending = stateDao.get()?.stage == BackfillStage.STAGE2.name
+        // Stop a running worker first so it releases the lock and cannot overwrite the state written below.
+        if (pending) scheduler.cancelBackfill()
+        mutex.withLock {
+            val state = stateDao.get() ?: return@withLock
+            stateDao.put(state.copy(schedule = schedule.name, updatedAt = System.currentTimeMillis()))
+        }
+        if (pending) scheduler.enqueueBackfill(schedule, replace = true)
     }
 
     /**
@@ -109,19 +114,23 @@ class IndexMaintenance @Inject constructor(
     suspend fun requestReindex(reason: BackfillReason, schedule: IndexSchedule? = null): Unit = withContext(Dispatchers.IO) {
         val chosen = schedule ?: scheduler.schedule
         val now = System.currentTimeMillis()
-        stateDao.put(
-            BackfillStateRow(
-                stage = BackfillStage.STAGE2.name,
-                cursorMillis = Long.MAX_VALUE,
-                total = runCatching { reader.totalMessageCount() }.getOrDefault(0),
-                schedule = chosen.name,
-                reason = reason.name,
-                enricherVersion = enricher.version,
-                startedAt = now,
-                updatedAt = now,
-                finishedAt = null,
-            ),
-        )
+        scheduler.cancelBackfill()
+        val total = runCatching { reader.totalMessageCount() }.getOrDefault(0)
+        mutex.withLock {
+            stateDao.put(
+                BackfillStateRow(
+                    stage = BackfillStage.STAGE2.name,
+                    cursorMillis = Long.MAX_VALUE,
+                    total = total,
+                    schedule = chosen.name,
+                    reason = reason.name,
+                    enricherVersion = enricher.version,
+                    startedAt = now,
+                    updatedAt = now,
+                    finishedAt = null,
+                ),
+            )
+        }
         audit.log("index", "index.reindex", detail = reason.name)
         scheduler.enqueueBackfill(chosen, replace = true)
     }
@@ -141,8 +150,8 @@ class IndexMaintenance @Inject constructor(
 
     /** Wipes all derived index data (user data such as prefs, bin and rules is kept) and backfills again. */
     suspend fun rebuild(): Unit = withContext(Dispatchers.IO) {
+        scheduler.cancelBackfill()
         mutex.withLock {
-            scheduler.cancelBackfill()
             messageDao.clear()
             db.ledgerDao().clearEntries()
         }
@@ -214,7 +223,7 @@ class IndexMaintenance @Inject constructor(
                     continue
                 }
                 ingestor.ingest(batch)
-                cursor = nextCursor(cursor, batch.minOf { it.dateMillis })
+                cursor = BackfillCursor.next(cursor, batch.minOf { it.dateMillis })
                 state = state.copy(cursorMillis = cursor, updatedAt = System.currentTimeMillis())
                 stateDao.put(state)
                 onProgress(messageDao.countAtVersion(state.enricherVersion), total)
@@ -249,13 +258,5 @@ class IndexMaintenance @Inject constructor(
         const val STAGE1_MIN_COUNT = 1000
         const val STAGE1_CHUNK = 200
         const val STAGE2_BATCH = 500
-
-        /**
-         * Next "strictly older than" cursor after a batch whose oldest message is at [oldestInBatch]. Normally
-         * `oldest + 1`, so messages sharing that timestamp but cut off by the batch limit are fetched again; if
-         * that would not move the cursor (the whole batch shares one timestamp), step past it.
-         */
-        fun nextCursor(previous: Long, oldestInBatch: Long): Long =
-            if (oldestInBatch + 1 < previous) oldestInBatch + 1 else oldestInBatch
     }
 }

@@ -87,11 +87,12 @@ public class ClassifierPipeline(
         return null
     }
 
-    private val ruleRegexCache = HashMap<String, Regex?>()
+    // Thread-safe: the pipeline is shared by the notification path and the indexer.
+    private val ruleRegexCache = java.util.concurrent.ConcurrentHashMap<String, Result<Regex>>()
 
     private fun ruleRegex(rule: TemplateRule): Regex? = ruleRegexCache.getOrPut(rule.id) {
-        runCatching { Regex(rule.pattern, setOf(RegexOption.IGNORE_CASE)) }.getOrNull()
-    }
+        runCatching { Regex(rule.pattern, setOf(RegexOption.IGNORE_CASE)) }
+    }.getOrNull()
 
     private fun trafficTypeLabel(dltHeader: DltHeader?): Set<String> = when (dltHeader?.trafficType) {
         TrafficType.PROMOTIONAL -> setOf("dlt-promotional")

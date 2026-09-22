@@ -43,10 +43,10 @@ internal class SearchSqlBuilder {
         val where = ArrayList<String>()
         val args = ArrayList<Any>()
         query.textExpr?.let { expr ->
-            FtsSqlRenderer(FtsSqlRenderer.Mode.Fts(FTS_PREDICATE)).toSql(expr)?.let { where += "(${it.sql})"; args += it.args }
+            FtsSqlRenderer(FtsSqlRenderer.Mode.Fts(FTS_PREDICATE)).toSql(expr)?.let { where += "(${it.sql})"; args.addAll(it.args) }
         }
         for (filter in query.filters) {
-            messageFilter(filter, resolved)?.let { where += "(${it.sql})"; args += it.args }
+            messageFilter(filter, resolved)?.let { where += "(${it.sql})"; args.addAll(it.args) }
         }
         val agg = if (sort == SearchSort.AMOUNT) "COALESCE(m.amountMinor, -1)" else "m.dateMillis"
         val order = when (sort) {
@@ -75,10 +75,10 @@ internal class SearchSqlBuilder {
         val where = ArrayList<String>()
         val args = ArrayList<Any>()
         query.textExpr?.let { expr ->
-            FtsSqlRenderer(FtsSqlRenderer.Mode.Like("b.searchText")).toSql(expr)?.let { where += "(${it.sql})"; args += it.args }
+            FtsSqlRenderer(FtsSqlRenderer.Mode.Like("b.searchText")).toSql(expr)?.let { where += "(${it.sql})"; args.addAll(it.args) }
         }
         for (filter in query.filters) {
-            binFilter(filter, resolved)?.let { where += "(${it.sql})"; args += it.args }
+            binFilter(filter, resolved)?.let { where += "(${it.sql})"; args.addAll(it.args) }
         }
         val sql = "SELECT b.id AS id FROM ${Tables.BIN} b WHERE " +
             (if (where.isEmpty()) "1" else where.joinToString(" AND ")) +
@@ -129,7 +129,7 @@ internal class SearchSqlBuilder {
         val parts = ArrayList<String>()
         val args = ArrayList<Any>()
         parts += "$mergeKey IN (${placeholders(keys.size)})"
-        args += keys
+        args.addAll(keys)
         parts += "$address LIKE ? ESCAPE '\\'"
         args += like
         for (col in extraLike) {

@@ -6,11 +6,13 @@ import app.dak.index.otp.OtpLifecycle
 import app.dak.index.signature.AppSignatureRegistry
 import app.dak.telephony.IncomingMessageHandler
 import app.dak.telephony.ProviderChanges
+import dagger.Lazy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,14 +23,17 @@ import javax.inject.Singleton
  * `Set<IncomingMessageHandler>` by `IndexModule`.
  */
 class IncomingIndexer @Inject constructor(
-    private val ingestor: IndexIngestor,
-    private val otpLifecycle: OtpLifecycle,
+    // Lazy: receivers inject the handler set on the main thread; the database is opened on first use (on IO).
+    private val ingestor: Lazy<IndexIngestor>,
+    private val otpLifecycle: Lazy<OtpLifecycle>,
 ) : IncomingMessageHandler {
     override val priority: Int get() = PRIORITY
 
     override suspend fun onIncoming(message: Message) {
-        val row = ingestor.ingest(listOf(message), allowCloud = true, refreshSignaturesOnMiss = true).firstOrNull() ?: return
-        otpLifecycle.onIndexed(row)
+        withContext(Dispatchers.IO) {
+            val row = ingestor.get().ingest(listOf(message), allowCloud = true, refreshSignaturesOnMiss = true).firstOrNull()
+            if (row != null) otpLifecycle.get().onIndexed(row)
+        }
     }
 
     companion object {
@@ -45,10 +50,11 @@ class IncomingIndexer @Inject constructor(
  */
 @Singleton
 class IndexSync @Inject constructor(
-    private val maintenance: IndexMaintenance,
-    private val reconciler: ProviderReconciler,
+    // Lazy so that injecting IndexSync into the Application does not open the database on the main thread.
+    private val maintenance: Lazy<IndexMaintenance>,
+    private val reconciler: Lazy<ProviderReconciler>,
+    private val signatures: Lazy<AppSignatureRegistry>,
     private val changes: ProviderChanges,
-    private val signatures: AppSignatureRegistry,
     private val scheduler: BackfillScheduler,
 ) {
     private val started = AtomicBoolean(false)
@@ -59,21 +65,21 @@ class IndexSync @Inject constructor(
         if (!started.compareAndSet(false, true)) return
         scope.launch {
             runCatching { scheduler.schedulePeriodic() }.onFailure { Log.w(TAG, "periodic scheduling failed", it) }
-            runCatching { maintenance.ensureStarted() }.onFailure { Log.w(TAG, "backfill start failed", it) }
+            runCatching { maintenance.get().ensureStarted() }.onFailure { Log.w(TAG, "backfill start failed", it) }
         }
         scope.launch {
-            runCatching { signatures.refresh() }.onFailure { Log.w(TAG, "signature refresh failed", it) }
+            runCatching { signatures.get().refresh() }.onFailure { Log.w(TAG, "signature refresh failed", it) }
         }
         scope.launch {
             changes.changes.conflate().collect {
-                runCatching { reconciler.incremental() }.onFailure { Log.w(TAG, "incremental reconcile failed", it) }
+                runCatching { reconciler.get().incremental() }.onFailure { Log.w(TAG, "incremental reconcile failed", it) }
             }
         }
     }
 
     /** Runs one incremental reconcile now (e.g. when a thread screen resumes). */
     fun requestReconcile() {
-        scope.launch { runCatching { reconciler.incremental() } }
+        scope.launch { runCatching { reconciler.get().incremental() } }
     }
 
     private companion object {

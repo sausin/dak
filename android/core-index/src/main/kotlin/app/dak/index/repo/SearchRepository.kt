@@ -57,7 +57,7 @@ class SearchRepository @Inject constructor(
 
     /** Paged results for [query]; an empty query yields no results. Live: re-runs when the index changes. */
     fun search(query: SearchQuery, sort: SearchSort = SearchSort.RECENT, pageSize: Int = 30): Flow<PagingData<SearchHit>> {
-        if (builder.isEmpty(query)) return flowOf(PagingData.empty())
+        if (builder.isEmpty(query)) return flowOf(PagingData.empty<SearchHit>())
         return Pager(PagingConfig(pageSize = pageSize, enablePlaceholders = false)) {
             SearchPagingSource(query, sort)
         }.flow

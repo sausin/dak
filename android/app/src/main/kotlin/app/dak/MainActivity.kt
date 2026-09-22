@@ -70,11 +70,12 @@ class MainActivity : ComponentActivity() {
                     if (startDestination != null) {
                         val navController = rememberNavController()
                         DakNavHost(navController = navController, startDestination = startDestination)
-                        LaunchedEffect(navController, startDestination) {
-                            // Intent routes only apply once onboarding is done; before that there is nothing to open.
-                            if (startDestination == Routes.ONBOARDING) return@LaunchedEffect
+                        LaunchedEffect(navController) {
                             routeRequests.receiveAsFlow().collect { route ->
-                                navController.navigate(route) { launchSingleTop = true }
+                                // Intent routes only apply once onboarding is done; before that there is nothing to open.
+                                if (navController.currentDestination?.route != Routes.ONBOARDING) {
+                                    navController.navigate(route) { launchSingleTop = true }
+                                }
                             }
                         }
                     }

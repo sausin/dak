@@ -15,7 +15,7 @@ class ScheduledSendTest {
         ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(millis), ZoneId.of(zone))
 
     @Test
-    fun `daily recurrence in Asia:Kolkata rolls to the next day once past the time`() {
+    fun `daily recurrence in Asia_Kolkata rolls to the next day once past the time`() {
         val recurrence = Recurrence.Daily(hour = 9, minute = 30, zoneId = "Asia/Kolkata")
         val before = millis("2026-09-22T08:00:00+05:30", "Asia/Kolkata")
         val after = millis("2026-09-22T09:30:01+05:30", "Asia/Kolkata")
@@ -66,7 +66,7 @@ class ScheduledSendTest {
     }
 
     @Test
-    fun `daily recurrence in Europe:London skips forward correctly across the spring-forward DST gap`() {
+    fun `daily recurrence in Europe_London skips forward correctly across the spring-forward DST gap`() {
         // UK clocks spring forward 01:00 -> 02:00 on 2026-03-29. A 01:30 daily local time does not exist that day.
         val recurrence = Recurrence.Daily(hour = 1, minute = 30, zoneId = "Europe/London")
         val dayBefore = millis("2026-03-28T12:00:00Z", "UTC")
@@ -77,7 +77,7 @@ class ScheduledSendTest {
     }
 
     @Test
-    fun `daily recurrence in Europe:London handles the autumn fall-back overlap deterministically`() {
+    fun `daily recurrence in Europe_London handles the autumn fall-back overlap deterministically`() {
         // UK clocks fall back 02:00 -> 01:00 on 2026-10-25; 01:30 local happens twice.
         val recurrence = Recurrence.Daily(hour = 1, minute = 30, zoneId = "Europe/London")
         val dayBefore = millis("2026-10-24T12:00:00Z", "UTC")

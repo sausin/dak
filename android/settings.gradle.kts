@@ -25,6 +25,7 @@ rootProject.name = "dak"
 // Pure-Kotlin (JVM) modules: no Android dependency, fast unit tests, reusable by future platforms.
 include(
     ":core-model",
+    ":mms-pdu",
     ":premium-api",
     ":classify",
     ":finance",

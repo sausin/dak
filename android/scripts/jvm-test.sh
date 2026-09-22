@@ -6,7 +6,7 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 work="${DAK_JVM_HARNESS_DIR:-$here/build/jvm-harness}"
 mkdir -p "$work"
-modules=(core-model premium-api classify finance automations search backup settings-registry)
+modules=(core-model mms-pdu premium-api classify finance automations search backup settings-registry)
 {
   echo 'pluginManagement { repositories { mavenCentral(); gradlePluginPortal() } }'
   echo 'dependencyResolutionManagement {'

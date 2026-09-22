@@ -23,6 +23,7 @@ android {
 dependencies {
     api(project(":core-model"))
     implementation(project(":classify"))
+    implementation(project(":mms-pdu"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.android)

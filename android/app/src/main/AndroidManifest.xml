@@ -12,6 +12,11 @@
     <!-- Direct battery-optimisation exemption prompt: timely OTP/bank-alert delivery is the core function. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Share location as a maps link from the composer. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Camera capture from the composer (the camera app does the capture; we only declare the feature optional). -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <!-- Consumed-OTP detection: SMS Retriever hashes of launchable apps, and WebOTP-capable browsers. -->
@@ -103,5 +108,27 @@
         <receiver
             android:name=".notifications.NotificationActionReceiver"
             android:exported="false" />
+
+        <!-- Scheduled sends: exact alarm target, rescheduled after reboot / clock changes. -->
+        <receiver
+            android:name=".automation.ScheduledSendReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Camera capture target for the composer attachment tray. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.dakfiles"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/dak_file_paths" />
+        </provider>
     </application>
 </manifest>

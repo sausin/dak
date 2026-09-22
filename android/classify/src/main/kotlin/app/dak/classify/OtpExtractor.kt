@@ -35,7 +35,7 @@ public object OtpExtractor {
 
     // "OTP is 123456", "OTP: 123456", "your OTP for login is 123456"
     private val codeAfterKeyword = Regex(
-        """(?i)(?:$otpKeywordEn|$otpKeywordHi)[^0-9A-Za-z]{0,40}?\b([A-Z0-9]{4,8})\b""",
+        """(?i)(?:$otpKeywordEn|$otpKeywordHi)[^\n]{0,40}?\b([A-Z0-9]{4,8})\b""",
     )
 
     // "123456 is your OTP", "123456 is the verification code"
@@ -98,9 +98,16 @@ public object OtpExtractor {
             if (i < body.length) append(body, i, body.length)
         }
 
-        codeAfterKeyword.find(masked)?.let { return normalizeCode(it.groupValues[1]) }
-        codeBeforeKeyword.find(masked)?.let { return normalizeCode(it.groupValues[1]) }
-        genericCode.find(masked)?.let { return normalizeCode(it.groupValues[1]) }
+        firstValidCode(codeAfterKeyword, masked)?.let { return it }
+        firstValidCode(codeBeforeKeyword, masked)?.let { return it }
+        firstValidCode(genericCode, masked)?.let { return it }
+        return null
+    }
+
+    private fun firstValidCode(regex: Regex, masked: String): String? {
+        for (match in regex.findAll(masked)) {
+            normalizeCode(match.groupValues[1])?.let { return it }
+        }
         return null
     }
 

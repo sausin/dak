@@ -60,8 +60,10 @@ public class SendRateLimiter(
                 val windowStart = candidate - windowMillis
                 val inWindow = timestamps.filter { it > windowStart && it <= candidate }
                 if (inWindow.size < maxSends) return candidate
-                // Wait until the earliest send in the current window falls out of it.
-                candidate = inWindow.min() + windowMillis + 1
+                // Wait until the earliest send in the current window falls out of it. The window test
+                // below is `> windowStart`, so setting candidate = earliest + windowMillis makes
+                // windowStart == earliest, which excludes it (strictly greater-than) on the next check.
+                candidate = inWindow.min() + windowMillis
             }
         }
     }

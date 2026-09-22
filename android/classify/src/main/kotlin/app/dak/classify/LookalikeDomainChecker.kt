@@ -27,7 +27,7 @@ public class LookalikeDomainChecker(
 ) {
     // brand -> domain, indexed the other way for lookup.
     private val domainToBrand: Map<String, String> = officialDomains
-    private val brandNames: List<Pair<String, String>> = officialDomains.entries.map { it.value.lowercase() to it.key }
+    private val brandNames: List<Pair<String, String>> = officialDomains.values.distinct().map { it.lowercase() to it }
 
     public fun check(link: ExtractedLink): LinkVerdict {
         val host = link.host ?: return LinkVerdict(link, LinkRisk.UNKNOWN)

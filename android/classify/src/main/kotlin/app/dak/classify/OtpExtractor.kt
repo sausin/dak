@@ -30,7 +30,7 @@ public object OtpExtractor {
     // Dates like 12/03/2024, 12-03-24, 2024-03-12.
     private val dateRegex = Regex("""\b\d{1,4}[/-]\d{1,2}[/-]\d{1,4}\b""")
 
-    private val otpKeywordEn = "otp|one[- ]?time password|verification code|security code|passcode|auth(entication)? code|login code"
+    private val otpKeywordEn = "otp|one[- ]?time password|verification code|security code|passcode|auth(?:entication)? code|login code"
     private val otpKeywordHi = "ओटीपी|सत्यापन कोड|वन टाइम पासवर्ड"
 
     // "OTP is 123456", "OTP: 123456", "your OTP for login is 123456"

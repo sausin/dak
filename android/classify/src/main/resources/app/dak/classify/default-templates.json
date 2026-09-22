@@ -69,7 +69,7 @@
 
     {"id": "delivery-out", "category": "TRANSACTION", "pattern": "\\b(out for delivery|has been shipped|order has been delivered|dispatched|tracking id)\\b", "priority": 55, "labels": ["delivery"]},
 
-    {"id": "spam-kyc", "category": "SPAM", "pattern": "\\b(kyc|pan card|aadhaar).{0,20}(update|verify|expire|suspend|block)\\b", "priority": 95, "labels": ["fraud-risk"]},
+    {"id": "spam-kyc", "category": "SPAM", "pattern": "\\b(kyc|pan card|aadhaar)\\b.{0,30}\\b(update|verify|expire|suspend|block)|\\b(update|verify|expire|suspend|block)\\w*\\b.{0,30}\\b(kyc|pan card|aadhaar)\\b", "priority": 95, "labels": ["fraud-risk"]},
     {"id": "spam-lottery", "category": "SPAM", "pattern": "\\b(congratulations|winner|lottery|lucky draw|prize)\\b", "priority": 90},
     {"id": "spam-loan", "category": "SPAM", "pattern": "\\b(instant loan|pre-?approved loan|loan approved|low interest)\\b", "priority": 85},
     {"id": "spam-click-link", "category": "SPAM", "pattern": "\\b(click here|click now|verify now)\\b.*\\bhttps?://", "priority": 85},

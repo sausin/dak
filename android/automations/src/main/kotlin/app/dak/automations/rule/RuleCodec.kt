@@ -1,5 +1,7 @@
 package app.dak.automations.rule
 
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /** Encodes and decodes [Rule] lists as JSON, for export/import and for storing presets. */

@@ -15,8 +15,9 @@ public object Masker {
     private val numberRegex = Regex("""\d+(\.\d+)?""")
 
     // Capitalised word(s) following a salutation, used as a light heuristic for a personal name.
-    private val nameAfterRegex = Regex("""\b(dear|hi|hello|hey)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2})""")
-    private val nameToFromRegex = Regex("""\b(to|from)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2})\b""")
+    // Only the salutation itself is matched case-insensitively; the name still requires capitals.
+    private val nameAfterRegex = Regex("""\b((?i:dear|hi|hello|hey))\b\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2})""")
+    private val nameToFromRegex = Regex("""\b((?i:to|from))\b\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,2})\b""")
 
     /** Masks [body], returning placeholder text with no leaked digits. */
     public fun mask(body: String): String {

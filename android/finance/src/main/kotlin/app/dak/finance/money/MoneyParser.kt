@@ -26,8 +26,11 @@ object MoneyParser {
 
     private val currencyAlt = currencyTokens.joinToString("|") { Regex.escape(it) }
 
-    /** A currency token (symbol or ISO code), not glued to surrounding letters or digits. */
-    private val currencyCapture = "(?<![A-Za-z0-9])($currencyAlt)(?![A-Za-z0-9])"
+    /**
+     * A currency token (symbol or ISO code), not glued to surrounding letters (so "INR" inside a
+     * longer word never matches) - but a following digit is fine and expected ("Rs.500", "$42.10").
+     */
+    private val currencyCapture = "(?<![A-Za-z])($currencyAlt)(?![A-Za-z])"
 
     /** Matches an optional currency token, a number, an optional trailing currency token, an optional "/-". */
     private val pattern = Regex(

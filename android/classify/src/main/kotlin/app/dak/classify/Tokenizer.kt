@@ -12,7 +12,7 @@ public object Tokenizer {
         val tokens = mutableListOf<String>()
         val current = StringBuilder()
         for (ch in text) {
-            if (Character.isLetter(ch) || Character.isDigit(ch)) {
+            if (Character.isLetter(ch) || Character.isDigit(ch) || isCombiningMark(ch)) {
                 current.append(Character.toLowerCase(ch))
             } else {
                 if (current.isNotEmpty()) {
@@ -23,5 +23,14 @@ public object Tokenizer {
         }
         if (current.isNotEmpty()) tokens += current.toString()
         return tokens
+    }
+
+    /**
+     * True for combining diacritical marks such as Devanagari matras (vowel signs) and virama,
+     * which are not [Character.isLetter] on their own but belong to the letter they attach to.
+     */
+    private fun isCombiningMark(ch: Char): Boolean = when (Character.getType(ch)) {
+        Character.NON_SPACING_MARK.toInt(), Character.COMBINING_SPACING_MARK.toInt(), Character.ENCLOSING_MARK.toInt() -> true
+        else -> false
     }
 }

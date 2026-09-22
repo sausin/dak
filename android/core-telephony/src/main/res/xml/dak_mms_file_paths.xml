@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Files handed to the platform MmsService for MMS send/download (see MmsFiles). -->
+<paths>
+    <cache-path name="dak_mms" path="dak_mms/" />
+</paths>

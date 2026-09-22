@@ -4,6 +4,7 @@ import android.util.Log
 import app.dak.core.model.Message
 import app.dak.telephony.internal.TAG
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
@@ -15,9 +16,10 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 @Singleton
 class IncomingDispatcher @Inject constructor(
-    handlers: Set<@JvmSuppressWildcards IncomingMessageHandler>,
+    // A Provider, so handlers may themselves depend on telephony classes without creating a Dagger cycle.
+    private val handlers: Provider<Set<@JvmSuppressWildcards IncomingMessageHandler>>,
 ) {
-    private val ordered: List<IncomingMessageHandler> = handlers.sortedBy { it.priority }
+    private val ordered: List<IncomingMessageHandler> by lazy { handlers.get().sortedBy { it.priority } }
 
     suspend fun dispatch(message: Message) {
         for (handler in ordered) {

@@ -21,7 +21,7 @@ import app.dak.telephony.internal.int
 import app.dak.telephony.internal.isUsableSubId
 import app.dak.telephony.internal.safeQuery
 import app.dak.telephony.internal.string
-import app.dak.telephony.mms.MmsTransfers
+import app.dak.telephony.mms.MmsSendManager
 import app.dak.telephony.number.TelephonyNumberNormalizer
 import app.dak.telephony.provider.ProviderUris
 import app.dak.telephony.provider.SmsColumns
@@ -41,7 +41,7 @@ import kotlinx.coroutines.withContext
  * SMS: each recipient gets its own provider row, written to the outbox first; the text is split with
  * `divideMessage` and sent with per-part sent (and, if requested, delivery) PendingIntents on the chosen
  * subscription's SmsManager. Sends are spread by [SendRateLimiter]; failures are retried with backoff by
- * [SmsStatusProcessor] + [SendScheduler]. MMS is delegated to [MmsTransfers]. Addresses are normalised to E.164
+ * [SmsStatusProcessor] + [SendScheduler]. MMS is delegated to [MmsSendManager]. Addresses are normalised to E.164
  * with the sending SIM's home country when the setting is on.
  */
 @Singleton
@@ -56,7 +56,7 @@ class TelephonyMessageSender @Inject constructor(
     private val failures: SendFailureStore,
     private val scheduler: SendScheduler,
     private val statusProcessor: SmsStatusProcessor,
-    private val mmsTransfers: MmsTransfers,
+    private val mmsSender: MmsSendManager,
 ) : MessageSender {
 
     override suspend fun sendSms(sms: OutgoingSms): SendResult {
@@ -92,7 +92,7 @@ class TelephonyMessageSender @Inject constructor(
         if (mms.text.isNullOrEmpty() && mms.parts.isEmpty()) return SendResult.Failed("Message is empty")
         val subId = resolveSubId(mms.subId)
         val addresses = recipients.map { outgoingAddress(it, subId) }
-        return mmsTransfers.send(addresses, mms.text, mms.parts, mms.subject, subId, mms.threadId)
+        return mmsSender.send(addresses, mms.text, mms.parts, mms.subject, subId, mms.threadId)
     }
 
     override suspend fun retry(key: MessageKey): SendResult {
@@ -105,7 +105,7 @@ class TelephonyMessageSender @Inject constructor(
                 runScheduled(key, attempt = 1, slotReserved = false)
                 SendResult.Queued(listOf(key))
             }
-            MessageKind.MMS -> mmsTransfers.resend(key.providerId, attempt = 1)
+            MessageKind.MMS -> mmsSender.resend(key.providerId, attempt = 1)
         }
     }
 
@@ -130,7 +130,7 @@ class TelephonyMessageSender @Inject constructor(
                 }
                 dispatchSms(key.providerId, row.address, row.body, resolveSubId(row.subId), row.deliveryRequested, attempt)
             }
-            MessageKind.MMS -> mmsTransfers.resend(key.providerId, attempt)
+            MessageKind.MMS -> mmsSender.resend(key.providerId, attempt)
         }
     }
 

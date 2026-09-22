@@ -23,7 +23,6 @@ import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.ConversationRepository
 import app.dak.index.repo.SenderMergeRepository
 import app.dak.index.sync.IndexSync
-import app.dak.navigation.PendingShare
 import app.dak.navigation.Routes
 import app.dak.notifications.MessageNotifier
 import app.dak.telephony.BlockedNumbers
@@ -49,7 +48,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 import javax.inject.Inject
 
 /** Title and recipients of the open conversation. */
@@ -59,6 +57,8 @@ data class ConversationHeader(
     val isGroup: Boolean,
     val isBusiness: Boolean,
     val photoUri: String?,
+    /** Display name per raw address (contact name or the address), for group sender attribution. */
+    val names: Map<String, String> = emptyMap(),
 )
 
 /** Per-thread preferences as the screen needs them. */
@@ -102,7 +102,6 @@ class ConversationViewModel @Inject constructor(
     private val notifier: MessageNotifier,
     private val indexSync: IndexSync,
     private val labels: UserLabels,
-    private val pendingShare: PendingShare,
     audit: AuditLogRepository,
     controller: MessageSendController,
     scheduler: ScheduledSendScheduler,
@@ -169,9 +168,6 @@ class ConversationViewModel @Inject constructor(
             recipients.value = addresses
             headerState.value = buildHeader(addresses)
             composer.subId.value = runCatching { conversations.replySimFor(conversationId) }.getOrDefault(sims.defaultSmsSubId())
-        }
-        pendingShare.consume().takeIf { it.isNotEmpty() }?.let { uris ->
-            composer.addShared(uris.map { ComposerAttachment(UUID.randomUUID().toString(), "image/*", null, uri = it) })
         }
     }
 
@@ -285,6 +281,7 @@ class ConversationViewModel @Inject constructor(
             isGroup = addresses.size > 1,
             isBusiness = mergeKey != null || (first.isNotEmpty() && first.none { it.isDigit() }),
             photoUri = matches.singleOrNull()?.second?.photoUri,
+            names = matches.associate { (address, match) -> address to (match?.displayName ?: address) },
         )
     }
 

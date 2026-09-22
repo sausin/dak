@@ -12,7 +12,8 @@ import app.dak.telephony.ProviderWriter
 import app.dak.telephony.SimRepository
 import app.dak.telephony.blocked.TelephonyBlockedNumbers
 import app.dak.telephony.boot.OutboxRecovery
-import app.dak.telephony.mms.MmsTransfers
+import app.dak.telephony.mms.MmsDownloadManager
+import app.dak.telephony.mms.MmsSendManager
 import app.dak.telephony.mms.TelephonyMmsDownloads
 import app.dak.telephony.mms.WapPushProcessor
 import app.dak.telephony.number.TelephonyNumberNormalizer
@@ -99,7 +100,8 @@ interface TelephonyEntryPoint {
     fun incomingSmsProcessor(): IncomingSmsProcessor
     fun smsStatusProcessor(): SmsStatusProcessor
     fun wapPushProcessor(): WapPushProcessor
-    fun mmsTransfers(): MmsTransfers
+    fun mmsDownloadManager(): MmsDownloadManager
+    fun mmsSendManager(): MmsSendManager
     fun messageSender(): TelephonyMessageSender
     fun outboxRecovery(): OutboxRecovery
 

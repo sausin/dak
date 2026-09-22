@@ -10,7 +10,8 @@ import com.google.i18n.phonenumbers.PhoneNumberUtil
  * - Alphanumeric sender ids (`VM-HDFCBK`), e-mail addresses and USSD/service codes (`*`, `#`) are never touched.
  * - Short codes (fewer than [MIN_DIGITS] digits) are never prefixed.
  * - Numbers already in international form are canonicalised; national numbers get the SIM country's code.
- * - Anything libphonenumber cannot confidently turn into a complete number is returned unchanged.
+ * - Only numbers libphonenumber validates for that country are rewritten; anything else is returned unchanged
+ *   (the network then interprets it exactly as the user typed it).
  */
 class E164Normalizer(private val util: PhoneNumberUtil = PhoneNumberUtil.getInstance()) {
 
@@ -22,9 +23,9 @@ class E164Normalizer(private val util: PhoneNumberUtil = PhoneNumberUtil.getInst
             ?: UNKNOWN_REGION
         return try {
             val number = util.parse(trimmed, region)
-            val complete = util.isValidNumber(number) ||
-                util.isPossibleNumberWithReason(number) == PhoneNumberUtil.ValidationResult.IS_POSSIBLE
-            if (complete) util.format(number, PhoneNumberUtil.PhoneNumberFormat.E164) else address
+            // Only numbers libphonenumber considers valid are rewritten: "possible" is too loose (a 10-digit
+            // Indian mobile is a possible UAE number), and a wrong country code silently misroutes the message.
+            if (util.isValidNumber(number)) util.format(number, PhoneNumberUtil.PhoneNumberFormat.E164) else address
         } catch (e: NumberParseException) {
             address
         }

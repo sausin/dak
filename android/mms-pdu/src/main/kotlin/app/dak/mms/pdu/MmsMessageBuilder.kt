@@ -25,7 +25,7 @@ object MmsMessageBuilder {
         requestDeliveryReport: Boolean = false,
         requestReadReport: Boolean = false,
     ): SendReq {
-        val usedNames = HashSet<String>()
+        val usedNames = hashSetOf(SMIL_LOCATION, TEXT_LOCATION)
         val mediaParts = attachments.mapIndexed { index, a ->
             val location = uniqueName(sanitizeFileName(a.fileName, a.mimeType, index), usedNames)
             PduPart(
@@ -34,7 +34,7 @@ object MmsMessageBuilder {
                     name = location,
                 ),
                 data = a.data,
-                contentId = "<${location.substringBeforeLast('.')}>",
+                contentId = "<$location>",
                 contentLocation = location,
             )
         }

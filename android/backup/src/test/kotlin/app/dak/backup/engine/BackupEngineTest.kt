@@ -115,7 +115,7 @@ class BackupEngineTest {
     }
 
     @Test
-    fun `encrypted backup restore with recovery code works and wrong passphrase fails`() = runBlocking {
+    fun `encrypted backup restore with recovery code works and wrong passphrase fails`(): Unit = runBlocking {
         val target = LocalDirectoryTarget(tempDir())
         val engine = BackupEngine(target, BackupEncryption("correct horse".toCharArray(), iterations = 100))
         val messages = listOf(record("sms:1", "secret message"))

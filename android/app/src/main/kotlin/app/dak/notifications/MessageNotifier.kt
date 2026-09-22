@@ -18,7 +18,7 @@ import app.dak.core.model.Classification
 import app.dak.core.model.Message
 import app.dak.core.model.MessageBox
 import app.dak.core.model.OtpInfo
-import app.dak.di.ContactLookup
+import app.dak.di.AndroidContactLookup
 import app.dak.index.enrich.ConversationIds
 import app.dak.navigation.IntentRoutes
 import app.dak.navigation.Routes
@@ -44,7 +44,7 @@ import javax.inject.Singleton
 class MessageNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val classifier: NotificationClassifier,
-    private val contacts: ContactLookup,
+    private val contacts: AndroidContactLookup,
     private val consumedOtps: ConsumedOtpDetector,
     private val callState: CallStateDetector,
     private val settings: SettingsStore,

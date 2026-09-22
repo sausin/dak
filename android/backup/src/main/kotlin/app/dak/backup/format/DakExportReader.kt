@@ -29,7 +29,7 @@ class DakExportReader(
         private set
 
     /**
-     * Lazily parses every `messages/*.jsonl` entry. [attachmentSink] is invoked with each
+     * Lazily parses every `messages/NNNN.jsonl` entry. [attachmentSink] is invoked with each
      * `attachments/<sha256>` entry's name and content stream (valid only for the duration of the
      * call; read it fully before returning) as it is encountered, in archive order.
      */

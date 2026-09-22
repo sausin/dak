@@ -100,6 +100,8 @@ data class BackfillStateRow(
     val schedule: String,
     /** Why the current pass runs: `INITIAL`, `REINDEX`, `RESTORE`, `REBUILD`. */
     val reason: String,
+    /** Enricher version this pass indexes with (progress counts rows at this version). */
+    val enricherVersion: Int,
     val startedAt: Long,
     val updatedAt: Long,
     val finishedAt: Long?,

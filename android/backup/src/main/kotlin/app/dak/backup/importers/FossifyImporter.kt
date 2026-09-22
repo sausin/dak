@@ -23,10 +23,11 @@ class FossifyImporter : Importer {
 
     override fun sniff(headerBytes: ByteArray, fileName: String?): Boolean {
         val head = String(headerBytes, Charsets.UTF_8).trimStart()
-        val looksLikeJsonArrayOfMessages = head.startsWith("[") &&
-            (head.contains("\"address\"") || head.contains("\"subscriptionId\"") || head.contains("\"backupType\""))
-        return looksLikeJsonArrayOfMessages ||
-            (fileName?.endsWith(".json", ignoreCase = true) == true && head.startsWith("["))
+        if (!head.startsWith("[")) return false
+        // Require at least one Fossify-shaped field name so a generic JSON array (e.g. an unknown
+        // SMS Organizer export) falls through to the tolerant importer instead of matching here.
+        return head.contains("\"address\"") || head.contains("\"subscriptionId\"") ||
+            head.contains("\"backupType\"") || head.contains("\"dateSent\"")
     }
 
     override fun import(input: InputStream): Sequence<ImportedMessage> {
@@ -37,7 +38,6 @@ class FossifyImporter : Importer {
     }
 
     private fun parseOne(obj: JsonObject): ImportedMessage? {
-        val address = firstString(obj, "address", "addresses") ?: return null
         val body = firstString(obj, "body") ?: ""
         val date = firstLong(obj, "date") ?: return null
         val dateSent = firstLong(obj, "dateSent", "date_sent")
@@ -57,7 +57,7 @@ class FossifyImporter : Importer {
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
                 .ifBlank { null }
-        } ?: address
+        } ?: firstString(obj, "address") ?: return null
 
         return ImportedMessage(
             kind = kind,

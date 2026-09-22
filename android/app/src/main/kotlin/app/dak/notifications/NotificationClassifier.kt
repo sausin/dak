@@ -5,7 +5,7 @@ import app.dak.classify.NaiveBayesModel
 import app.dak.classify.TemplateBundle
 import app.dak.core.model.Classification
 import app.dak.core.model.Message
-import app.dak.di.ContactLookup
+import app.dak.di.AndroidContactLookup
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -17,7 +17,7 @@ import javax.inject.Singleton
  * depend on the network, and cloud classification is opt-in and handled by the index).
  */
 @Singleton
-class NotificationClassifier @Inject constructor(private val contacts: ContactLookup) {
+class NotificationClassifier @Inject constructor(private val contacts: AndroidContactLookup) {
 
     private val pipeline: ClassifierPipeline by lazy {
         ClassifierPipeline(

@@ -19,6 +19,9 @@ interface LedgerDao {
     @Query("SELECT * FROM ledger_account WHERE id = :accountId")
     suspend fun account(accountId: String): AccountRow?
 
+    @Query("SELECT id FROM ledger_account")
+    suspend fun accountIds(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putAccount(row: AccountRow)
 

@@ -88,7 +88,7 @@ class IndexIngestor @Inject constructor(
     }
 
     /** Removes rows for messages that no longer exist in the provider (deleted, or moved to the bin). */
-    suspend fun remove(keys: Collection<MessageKey>) = withContext(Dispatchers.IO) {
+    suspend fun remove(keys: Collection<MessageKey>): Unit = withContext(Dispatchers.IO) {
         if (keys.isEmpty()) return@withContext
         val affectedAccounts = HashSet<String>()
         for ((kind, group) in keys.groupBy { it.kind }) {

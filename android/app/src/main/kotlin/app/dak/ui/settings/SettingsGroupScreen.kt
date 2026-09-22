@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -70,6 +71,7 @@ fun SettingsGroupScreen(navigator: DakNavigator, modifier: Modifier = Modifier, 
             }
             else -> -1
         }
+        if (advancedIndex >= 0 && mainIndex < 0) withFrameNanos { } // let the Advanced rows compose first
         if (target >= 0) listState.animateScrollToItem(target)
         focusHandled = true
     }

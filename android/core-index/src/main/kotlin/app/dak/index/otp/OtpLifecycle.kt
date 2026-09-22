@@ -48,14 +48,23 @@ class OtpLifecycle @Inject constructor(
             when (policy.consumedOtpMode()) {
                 ConsumedOtpMode.SILENT_AUTO_DELETE -> {
                     val lifetime = OtpTiming.clampConsumedDelay(policy.consumedOtpDeleteAfterMillis())
-                    schedule(key, OtpTiming.remainingDelay(row.dateMillis, lifetime, nowMillis), DeletedBy.AutoConsumed(consumedBy))
+                    scheduleIfLive(key, row.dateMillis, lifetime, nowMillis, DeletedBy.AutoConsumed(consumedBy))
                     return
                 }
                 ConsumedOtpMode.SILENT_ONLY, ConsumedOtpMode.NORMAL -> Unit
             }
         }
         val lifetime = policy.otpAutoDeleteAfterMillis() ?: return
-        schedule(key, OtpTiming.remainingDelay(row.dateMillis, lifetime, nowMillis), DeletedBy.AutoOtp)
+        scheduleIfLive(key, row.dateMillis, lifetime, nowMillis, DeletedBy.AutoOtp)
+    }
+
+    /**
+     * Never deletes retroactively: an OTP discovered after its lifetime already passed (e.g. re-inserted by a
+     * backup restore) is left alone.
+     */
+    private fun scheduleIfLive(key: MessageKey, arrivedAt: Long, lifetime: Long, nowMillis: Long, deletedBy: DeletedBy) {
+        if (arrivedAt + lifetime <= nowMillis) return
+        schedule(key, OtpTiming.remainingDelay(arrivedAt, lifetime, nowMillis), deletedBy)
     }
 
     /**

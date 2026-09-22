@@ -14,14 +14,14 @@ class DakNavigator(private val nav: NavHostController) {
         nav.navigate(route) { launchSingleTop = true }
     }
 
-    /** Pop one screen. Returns false when there was nothing to pop (caller may finish the activity). */
-    fun back(): Boolean = nav.popBackStack()
+    /** Pop one screen. Never pops the last screen; returns false when there was nothing to pop. */
+    fun back(): Boolean = if (nav.previousBackStackEntry != null) nav.popBackStack() else false
 
     /** Pop back to the inbox, or navigate to it when it is not on the back stack. */
     fun toInbox() {
         if (!nav.popBackStack(Routes.INBOX, inclusive = false)) {
             nav.navigate(Routes.INBOX) {
-                popUpTo(0) { inclusive = true }
+                popUpTo(nav.graph.id) { inclusive = true }
                 launchSingleTop = true
             }
         }
@@ -30,7 +30,7 @@ class DakNavigator(private val nav: NavHostController) {
     /** Replace the whole back stack with [route] (used when onboarding finishes). */
     fun replaceAll(route: String) {
         nav.navigate(route) {
-            popUpTo(0) { inclusive = true }
+            popUpTo(nav.graph.id) { inclusive = true }
             launchSingleTop = true
         }
     }

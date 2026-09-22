@@ -109,6 +109,7 @@ class OnboardingViewModel @Inject constructor(
 
     fun next() {
         val current = _state.value.step
+        if (current == OnboardingStep.WELCOME && _state.value.isDefaultSmsApp) indexScheduler.startInitialSync()
         val next = when (current) {
             OnboardingStep.WELCOME -> if (_state.value.isDefaultSmsApp) OnboardingStep.PERMISSIONS else OnboardingStep.DEFAULT_APP
             OnboardingStep.DEFAULT_APP -> OnboardingStep.PERMISSIONS

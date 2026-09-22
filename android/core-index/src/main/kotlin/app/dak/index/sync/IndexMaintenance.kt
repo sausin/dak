@@ -1,5 +1,6 @@
 package app.dak.index.sync
 
+import app.dak.classify.TemplateBundle
 import app.dak.index.BackfillProgress
 import app.dak.index.BackfillReason
 import app.dak.index.BackfillStage
@@ -7,6 +8,7 @@ import app.dak.index.IndexSchedule
 import app.dak.index.crypto.IndexDatabaseFactory
 import app.dak.index.db.DakIndexDatabase
 import app.dak.index.db.entity.BackfillStateRow
+import app.dak.index.enrich.DefaultMessageEnricher
 import app.dak.index.enrich.MessageEnricher
 import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.LedgerRepository
@@ -75,7 +77,7 @@ class IndexMaintenance @Inject constructor(
      * Called by `IndexSync.start()`: runs stage 1 when nothing is indexed yet (first run, or the database had to
      * be recreated), resumes a pending stage 2, and starts a re-index when the enricher version changed.
      */
-    suspend fun ensureStarted() = withContext(Dispatchers.IO) {
+    suspend fun ensureStarted(): Unit = withContext(Dispatchers.IO) {
         val state = stateDao.get()
         when {
             state == null -> {
@@ -92,7 +94,7 @@ class IndexMaintenance @Inject constructor(
     }
 
     /** Records the onboarding choice and (re)schedules stage 2 with it if a pass is pending. */
-    suspend fun chooseSchedule(schedule: IndexSchedule) = withContext(Dispatchers.IO) {
+    suspend fun chooseSchedule(schedule: IndexSchedule): Unit = withContext(Dispatchers.IO) {
         scheduler.schedule = schedule
         val state = stateDao.get() ?: return@withContext
         stateDao.put(state.copy(schedule = schedule.name, updatedAt = System.currentTimeMillis()))
@@ -104,7 +106,7 @@ class IndexMaintenance @Inject constructor(
      * they are re-enriched. Use after a template-bundle update ([BackfillReason.REINDEX]) or a backup restore
      * ([BackfillReason.RESTORE]).
      */
-    suspend fun requestReindex(reason: BackfillReason, schedule: IndexSchedule? = null) = withContext(Dispatchers.IO) {
+    suspend fun requestReindex(reason: BackfillReason, schedule: IndexSchedule? = null): Unit = withContext(Dispatchers.IO) {
         val chosen = schedule ?: scheduler.schedule
         val now = System.currentTimeMillis()
         stateDao.put(
@@ -124,8 +126,21 @@ class IndexMaintenance @Inject constructor(
         scheduler.enqueueBackfill(chosen, replace = true)
     }
 
+    /**
+     * Installs a verified OTA template bundle (`TemplateBundle.parse(json, verifier)`) and, when the enricher
+     * version changed, re-indexes under the user's schedule. Returns false if the active enricher does not support
+     * template updates.
+     */
+    suspend fun installTemplates(bundle: TemplateBundle): Boolean {
+        val updatable = enricher as? DefaultMessageEnricher ?: return false
+        val before = withContext(Dispatchers.IO) { enricher.version }
+        val after = updatable.installTemplates(bundle)
+        if (after != before) requestReindex(BackfillReason.REINDEX)
+        return true
+    }
+
     /** Wipes all derived index data (user data such as prefs, bin and rules is kept) and backfills again. */
-    suspend fun rebuild() = withContext(Dispatchers.IO) {
+    suspend fun rebuild(): Unit = withContext(Dispatchers.IO) {
         mutex.withLock {
             scheduler.cancelBackfill()
             messageDao.clear()
@@ -136,7 +151,7 @@ class IndexMaintenance @Inject constructor(
     }
 
     /** Stage 1: index the most recent messages right away, then hand the rest to the stage-2 worker. */
-    suspend fun runStageOne(reason: BackfillReason) = withContext(Dispatchers.IO) {
+    suspend fun runStageOne(reason: BackfillReason): Unit = withContext(Dispatchers.IO) {
         mutex.withLock {
             val now = System.currentTimeMillis()
             val version = enricher.version

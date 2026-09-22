@@ -33,11 +33,11 @@ class ProviderReconciler @Inject constructor(
     @Volatile
     private var lastProviderCount = -1
 
-    suspend fun incremental() = withContext(Dispatchers.IO) {
+    suspend fun incremental(): Unit = withContext(Dispatchers.IO) {
         mutex.withLock { reconcile(forceDeletionCheck = false) }
     }
 
-    suspend fun full() = withContext(Dispatchers.IO) {
+    suspend fun full(): Unit = withContext(Dispatchers.IO) {
         mutex.withLock { reconcile(forceDeletionCheck = true) }
     }
 

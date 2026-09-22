@@ -3,6 +3,7 @@ package app.dak.ui.settings
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.dak.di.IndexControl
 import app.dak.navigation.Routes
 import app.dak.premium.Entitlements
 import app.dak.settings.AppSettingsStore
@@ -31,6 +32,7 @@ class SettingsViewModel @Inject constructor(
     private val store: AppSettingsStore,
     private val entitlements: Entitlements,
     private val deviceContext: DeviceContextProvider,
+    private val indexControl: IndexControl,
 ) : ViewModel(), SettingsCommands {
 
     /** Section shown by SettingsGroupScreen (null on the root screen). */
@@ -70,6 +72,8 @@ class SettingsViewModel @Inject constructor(
             SettingsGroup.entries.firstOrNull { it.name == sectionId }?.let { store.resetGroup(it) }
         }
     }
+
+    override fun rebuildIndex(): Boolean = indexControl.rebuildIndex()
 
     /** Section id for a setting key (deep links from anywhere in the app). */
     fun sectionIdFor(key: String): String? = when {

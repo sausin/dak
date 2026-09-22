@@ -9,7 +9,7 @@ import android.net.Uri
 import android.os.Build
 import app.dak.classify.AppSignatureHash
 import app.dak.core.model.OtpInfo
-import app.dak.index.db.dao.AppSignatureDao
+import app.dak.index.db.DakIndexDatabase
 import app.dak.index.db.entity.AppSignatureRow
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +32,9 @@ import javax.inject.Singleton
 @Singleton
 class AppSignatureRegistry @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val dao: AppSignatureDao,
+    db: DakIndexDatabase,
 ) {
+    private val dao = db.appSignatureDao()
     private val mutex = Mutex()
 
     @Volatile
@@ -78,7 +79,7 @@ class AppSignatureRegistry @Inject constructor(
         val installed = installedPackages(pm)
         val browsers = browserPackages(pm)
         val existing = dao.all().groupBy { it.packageName }
-        val installedNames = installed.mapTo(HashSet()) { it.packageName }
+        val installedNames = installed.mapTo(HashSet<String>()) { it.packageName }
 
         val removed = existing.keys.filter { it !in installedNames }
         removed.chunked(CHUNK).forEach { dao.deletePackages(it) }
@@ -117,7 +118,7 @@ class AppSignatureRegistry @Inject constructor(
             @Suppress("DEPRECATION")
             pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
         }
-        return resolved.mapNotNullTo(HashSet()) { it.activityInfo?.packageName }
+        return resolved.mapNotNullTo(HashSet<String>()) { it.activityInfo?.packageName }
     }
 
     private fun signatures(pm: PackageManager, packageName: String): List<Signature> = try {

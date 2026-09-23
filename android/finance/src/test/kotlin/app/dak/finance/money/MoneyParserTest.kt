@@ -83,4 +83,97 @@ class MoneyParserTest {
         assertEquals(Money(50000L, "INR"), occurrences[0].money)
         assertEquals(Money(1234567L, "INR"), occurrences[1].money)
     }
+
+    @Test
+    fun `devanagari digits are normalised before parsing`() {
+        // "Rs.१,२३४.५०" - Devanagari digits, same amount as "Rs.1,234.50".
+        assertEquals(Money(123450L, "INR"), MoneyParser.parse("Rs.१,२३४.५० debited"))
+    }
+
+    @Test
+    fun `arabic-indic digits are normalised before parsing`() {
+        // Arabic-Indic (٠-٩) and Extended Arabic-Indic (۰-۹) digits.
+        assertEquals(Money(50000L, "AED"), MoneyParser.parse("AED ٥٠٠.٠٠ spent"))
+        assertEquals(Money(12000L, "SAR"), MoneyParser.parse("SAR ۱۲۰ spent"))
+    }
+
+    @Test
+    fun `full-width digits are normalised before parsing`() {
+        // JPY has zero decimal digits, so "１５００" (full-width "1500") is 1500 yen exactly.
+        assertEquals(Money(1500L, "JPY"), MoneyParser.parse("¥１５００ spent"))
+    }
+
+    @Test
+    fun `rupee symbol with narrow nbsp gap and indian grouping`() {
+        assertEquals(Money(123456700L, "INR"), MoneyParser.parse("₹ 12,34,567 debited"))
+    }
+
+    @Test
+    fun `indian grouping with nbsp thousands separator instead of comma`() {
+        assertEquals(Money(123456700L, "INR"), MoneyParser.parse("₹ 12 34 567 debited"))
+    }
+
+    @Test
+    fun `swiss apostrophe thousands separator`() {
+        assertEquals(Money(123450L, "CHF"), MoneyParser.parse("CHF 1'234.50 charged"))
+    }
+
+    @Test
+    fun `european grouping with dot thousands and comma decimal`() {
+        assertEquals(Money(123456L, "EUR"), MoneyParser.parse("EUR 1.234,56 paid"))
+    }
+
+    @Test
+    fun `bangladeshi taka symbol and word`() {
+        assertEquals(Money(50000L, "BDT"), MoneyParser.parse("৳500 debited"))
+        assertEquals(Money(120000L, "BDT"), MoneyParser.parse("Tk 1200 paid"))
+    }
+
+    @Test
+    fun `ambiguous rupee sign defaults to pakistani rupee`() {
+        assertEquals(Money(150000L, "PKR"), MoneyParser.parse("₨1,500 withdrawn"))
+    }
+
+    @Test
+    fun `sri lankan rupee symbol`() {
+        assertEquals(Money(250000L, "LKR"), MoneyParser.parse("රු2,500 spent"))
+    }
+
+    @Test
+    fun `gulf currency symbols`() {
+        assertEquals(Money(10000L, "AED"), MoneyParser.parse("د.إ 100 spent"))
+        assertEquals(Money(20000L, "SAR"), MoneyParser.parse("﷼ 200 spent"))
+    }
+
+    @Test
+    fun `three-decimal dinar-family currency`() {
+        assertEquals(Money(1234500L, "BHD"), MoneyParser.parse("BHD 1234.500 spent"))
+        assertEquals(Money(1500000L, "KWD"), MoneyParser.parse("KWD 1500.000 spent"))
+    }
+
+    @Test
+    fun `east and southeast asian currency symbols`() {
+        assertEquals(Money(100000L, "KRW"), MoneyParser.parse("₩100000 spent"))
+        assertEquals(Money(50000L, "THB"), MoneyParser.parse("฿500 spent"))
+        assertEquals(Money(10000L, "MYR"), MoneyParser.parse("RM100 spent"))
+        assertEquals(Money(5000000L, "IDR"), MoneyParser.parse("Rp50000 spent"))
+        assertEquals(Money(20000L, "PHP"), MoneyParser.parse("₱200 spent"))
+        assertEquals(Money(1000L, "VND"), MoneyParser.parse("₫1000 spent")) // VND has zero decimals
+        assertEquals(Money(10000L, "TRY"), MoneyParser.parse("₺100 spent"))
+    }
+
+    @Test
+    fun `dollar variants disambiguated by their own symbol`() {
+        assertEquals(Money(10000L, "CAD"), MoneyParser.parse("C\$100 charged"))
+        assertEquals(Money(10000L, "AUD"), MoneyParser.parse("A\$100 charged"))
+        assertEquals(Money(10000L, "SGD"), MoneyParser.parse("S\$100 charged"))
+        assertEquals(Money(10000L, "HKD"), MoneyParser.parse("HK\$100 charged"))
+        assertEquals(Money(10000L, "USD"), MoneyParser.parse("US\$100 charged"))
+    }
+
+    @Test
+    fun `chinese yuan symbol and rmb word`() {
+        assertEquals(Money(10000L, "CNY"), MoneyParser.parse("元100 spent"))
+        assertEquals(Money(20000L, "CNY"), MoneyParser.parse("RMB 200 spent"))
+    }
 }

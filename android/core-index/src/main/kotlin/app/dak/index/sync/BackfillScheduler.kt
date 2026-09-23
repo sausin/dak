@@ -3,14 +3,11 @@ package app.dak.index.sync
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import app.dak.index.IndexSchedule
-import app.dak.index.bin.BinPurgeWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,8 +18,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * WorkManager scheduling for the index: the stage-2 backfill / re-index (unique one-shot work under the user's
- * [IndexSchedule]), the 6-hourly provider reconcile, and the daily bin purge.
+ * WorkManager scheduling of the stage-2 backfill / re-index: unique one-shot work under the user's [IndexSchedule].
+ * Periodic housekeeping (bin purge, safety-net reconcile, app-hash refresh) runs in the single daily maintenance
+ * job instead (`app.dak.index.maintenance`).
  */
 @Singleton
 class BackfillScheduler @Inject constructor(
@@ -64,23 +62,6 @@ class BackfillScheduler @Inject constructor(
         WorkManager.getInstance(context).cancelUniqueWork(BACKFILL_WORK)
     }
 
-    /** Schedules the periodic reconcile (every 6 h) and bin purge (daily); keeps existing schedules. */
-    fun schedulePeriodic() {
-        val wm = WorkManager.getInstance(context)
-        wm.enqueueUniquePeriodicWork(
-            RECONCILE_WORK,
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<ReconcileWorker>(6, TimeUnit.HOURS)
-                .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
-                .build(),
-        )
-        wm.enqueueUniquePeriodicWork(
-            PURGE_WORK,
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<BinPurgeWorker>(1, TimeUnit.DAYS).build(),
-        )
-    }
-
     internal fun setRunning(value: Boolean) {
         runningState.value = value
     }
@@ -109,8 +90,6 @@ class BackfillScheduler @Inject constructor(
 
     companion object {
         const val BACKFILL_WORK = "dak-index-backfill"
-        const val RECONCILE_WORK = "dak-index-reconcile"
-        const val PURGE_WORK = "dak-bin-purge"
         private const val PREFS = "dak_index_sync"
         private const val KEY_SCHEDULE = "schedule"
     }

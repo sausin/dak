@@ -15,10 +15,13 @@ import javax.inject.Singleton
 
 /**
  * Keeps the index in step with the provider after the initial backfill:
- * - [incremental] (on every `ProviderChanges` emission): new messages via `messagesAfter(maxSmsId, maxMmsId)`,
- *   a refresh of the most recent messages (sent/failed/read state changes), and deletion detection when the
- *   provider's message count drops;
- * - [full] (periodic worker): the same plus unconditional deletion detection.
+ * - [incremental] (on coalesced `ProviderChanges` emissions): new messages via `messagesAfter(maxSmsId,
+ *   maxMmsId)` (an indexed id lookup, near free when nothing is new), a refresh of the most recent messages
+ *   (sent/failed/read state changes), and - at most every [COUNT_CHECK_INTERVAL_MILLIS] - deletion detection when
+ *   the provider's message count dropped (counting walks the whole table, and as the default SMS app nearly every
+ *   deletion goes through our own recycle bin anyway);
+ * - [full] (daily maintenance task): the same plus deletion detection, skipped when the provider and the index
+ *   hold the same number of messages (the index is a superset of the provider once new messages are ingested).
  */
 @Singleton
 class ProviderReconciler @Inject constructor(
@@ -32,6 +35,9 @@ class ProviderReconciler @Inject constructor(
 
     @Volatile
     private var lastProviderCount = -1
+
+    @Volatile
+    private var lastCountCheckAt = 0L
 
     suspend fun incremental(): Unit = withContext(Dispatchers.IO) {
         mutex.withLock { reconcile(forceDeletionCheck = false) }
@@ -47,10 +53,13 @@ class ProviderReconciler @Inject constructor(
         ingestNew()
         val now = System.currentTimeMillis()
         ingestor.ingest(reader.recentMessages(now - RECENT_WINDOW_MILLIS, RECENT_REFRESH_COUNT))
+        if (!forceDeletionCheck && now - lastCountCheckAt < COUNT_CHECK_INTERVAL_MILLIS) return
+        lastCountCheckAt = now
         val count = runCatching { reader.totalMessageCount() }.getOrDefault(-1)
         val dropped = lastProviderCount >= 0 && count in 0 until lastProviderCount
         if (count >= 0) lastProviderCount = count
-        if (forceDeletionCheck || dropped) detectDeletions()
+        val inStep = count >= 0 && count == messageDao.count()
+        if ((forceDeletionCheck && !inStep) || dropped) detectDeletions()
     }
 
     private suspend fun ingestNew() {
@@ -86,6 +95,7 @@ class ProviderReconciler @Inject constructor(
         const val TAG = "DakIndex"
         const val BATCH = 500
         const val RECENT_WINDOW_MILLIS = 10 * 60_000L
-        const val RECENT_REFRESH_COUNT = 50
+        const val RECENT_REFRESH_COUNT = 20
+        const val COUNT_CHECK_INTERVAL_MILLIS = 30 * 60_000L
     }
 }

@@ -7,17 +7,30 @@ package app.dak.classify
  */
 public object Tokenizer {
 
+    /** Zero-width joiner / non-joiner: legitimate inside an Indic or Arabic letter sequence (they
+     * change how conjuncts render) but carry no meaning for matching, so a word is never split at
+     * one and the character itself is dropped from the token. */
+    private const val ZWNJ = '‌'
+    private const val ZWJ = '‍'
+
     /** Lower-cases and splits [text] into word/number tokens, dropping punctuation and symbols. */
     public fun tokenize(text: String): List<String> {
         val tokens = mutableListOf<String>()
         val current = StringBuilder()
         for (ch in text) {
-            if (Character.isLetter(ch) || Character.isDigit(ch) || isCombiningMark(ch)) {
-                current.append(Character.toLowerCase(ch))
-            } else {
-                if (current.isNotEmpty()) {
-                    tokens += current.toString()
-                    current.clear()
+            when {
+                Character.isLetter(ch) || Character.isDigit(ch) || isCombiningMark(ch) -> {
+                    current.append(Character.toLowerCase(ch))
+                }
+                ch == ZWNJ || ch == ZWJ -> {
+                    // Keep joining the same token (don't split the word), but drop the joiner
+                    // itself so tokens match whether or not the source used one.
+                }
+                else -> {
+                    if (current.isNotEmpty()) {
+                        tokens += current.toString()
+                        current.clear()
+                    }
                 }
             }
         }

@@ -39,6 +39,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.index.sync.BackgroundActivityLog
 import app.dak.navigation.DakNavigator
 import app.dak.notifications.ReliabilityCheck
 import app.dak.notifications.ReliabilityCheckId
@@ -134,6 +135,33 @@ fun SelfTestScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewM
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            if (state.activity.isNotEmpty()) BackgroundActivityCard(state.activity)
+        }
+    }
+}
+
+/** Debug builds only: how often Dak ran in the background per day (see docs/battery.md for expected numbers). */
+@Composable
+private fun BackgroundActivityCard(days: List<BackgroundActivityLog.Day>) {
+    Card(
+        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.battery_activity_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.battery_activity_explain),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            days.forEach { day ->
+                Text(day.date, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    day.counts.entries.joinToString("\n") { (source, count) -> "$source: $count" },
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
     }

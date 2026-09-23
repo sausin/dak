@@ -3,6 +3,7 @@ package app.dak.telephony.mms
 import app.dak.core.model.Attachment
 import app.dak.mms.pdu.ContentType
 import app.dak.mms.pdu.MmsCharset
+import app.dak.mms.pdu.MmsSafety
 import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduPart
 import app.dak.mms.pdu.Priority
@@ -119,8 +120,10 @@ internal object MmsProviderMapping {
             // Inline text is stored as a decoded String, so its charset is UTF-8 from here on.
             val charset = if (inline) MmsCharset.UTF_8 else part.charset
             charset?.let { put(MmsPartColumns.CHARSET, it) }
-            (part.contentType.name ?: part.fileName)?.let { put(MmsPartColumns.NAME, it) }
-            part.fileName?.let { put(MmsPartColumns.FILENAME, it) }
+            // name / fn are what other SMS apps use as the file name when saving a part: never store a sender-chosen
+            // path ("../../x", "/data/…", NUL, bidi overrides). cid / cl stay raw so SMIL references still resolve.
+            MmsSafety.safeFileName(part.contentType.name ?: part.fileName)?.let { put(MmsPartColumns.NAME, it) }
+            part.safeFileName?.let { put(MmsPartColumns.FILENAME, it) }
             part.contentDisposition?.let { put(MmsPartColumns.CONTENT_DISPOSITION, it) }
             part.contentId?.let { put(MmsPartColumns.CONTENT_ID, it) }
             part.contentLocation?.let { put(MmsPartColumns.CONTENT_LOCATION, it) }
@@ -175,7 +178,7 @@ internal object MmsProviderMapping {
                 Attachment(
                     mimeType = p.contentType.lowercase(),
                     uri = partUri(p.id),
-                    name = p.contentLocation ?: p.name ?: p.fileName,
+                    name = MmsSafety.safeFileName(p.contentLocation ?: p.name ?: p.fileName),
                 )
             }
         return text to attachments

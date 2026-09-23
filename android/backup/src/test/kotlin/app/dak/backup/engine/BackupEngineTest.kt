@@ -1,5 +1,6 @@
 package app.dak.backup.engine
 
+import app.dak.backup.crypto.BackupCrypto
 import app.dak.backup.format.Hashing
 import app.dak.backup.format.MessageRecord
 import app.dak.core.model.MessageKind
@@ -102,7 +103,7 @@ class BackupEngineTest {
     @Test
     fun `encrypted backups round trip with the passphrase`() = runBlocking {
         val target = LocalDirectoryTarget(tempDir())
-        val engine = BackupEngine(target, BackupEncryption("correct horse".toCharArray(), iterations = 100))
+        val engine = BackupEngine(target, BackupEncryption("correct horse".toCharArray(), iterations = BackupCrypto.MIN_ITERATIONS))
         val messages = listOf(record("sms:1", "secret message"))
         val result = engine.backup(messages.asSequence(), appVersion = "1.0")
         assertTrue(result.recoveryCode != null)
@@ -117,7 +118,7 @@ class BackupEngineTest {
     @Test
     fun `encrypted backup restore with recovery code works and wrong passphrase fails`(): Unit = runBlocking {
         val target = LocalDirectoryTarget(tempDir())
-        val engine = BackupEngine(target, BackupEncryption("correct horse".toCharArray(), iterations = 100))
+        val engine = BackupEngine(target, BackupEncryption("correct horse".toCharArray(), iterations = BackupCrypto.MIN_ITERATIONS))
         val messages = listOf(record("sms:1", "secret message"))
         val result = engine.backup(messages.asSequence(), appVersion = "1.0")
         val recoveryCode = requireNotNull(result.recoveryCode)

@@ -18,6 +18,7 @@ import app.dak.index.bin.DeletedBy
 import app.dak.index.bin.RecycleBin
 import app.dak.index.otp.OtpLifecycle
 import app.dak.di.ApplicationScope
+import app.dak.safety.SendCostGuard
 import app.dak.telephony.MessageSender
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.ProviderWriter
@@ -41,6 +42,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
     @Inject lateinit var otpLifecycle: OtpLifecycle
     @Inject lateinit var recycleBin: RecycleBin
     @Inject lateinit var notifier: MessageNotifier
+    @Inject lateinit var costGuard: SendCostGuard
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -90,6 +92,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }.getOrDefault(false)
         if (ok) {
             NotificationManagerCompat.from(context).cancel(target.tag, target.id)
+            notifier.refreshSummaries()
         } else {
             toast(context, R.string.toast_delete_failed)
         }
@@ -104,6 +107,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
         NotificationManagerCompat.from(context).cancel(target.tag, target.id)
         if (threadId >= 0 && target.tag.startsWith("thread:")) notifier.cancelForThread(threadId)
+        notifier.refreshSummaries()
     }
 
     private suspend fun reply(context: Context, intent: Intent, target: NotificationActions.Target) {
@@ -115,12 +119,18 @@ class NotificationActionReceiver : BroadcastReceiver() {
         if (text.isNullOrEmpty() || address.isNullOrEmpty()) return
         val threadId = intent.getLongExtra(NotificationActions.EXTRA_THREAD_ID, -1L).takeIf { it >= 0 }
         val subId = intent.getIntExtra(NotificationActions.EXTRA_SUB_ID, NO_SUB_ID)
+        // No dialog is possible from a notification: premium-rate replies must be confirmed in the conversation.
+        if (!runCatching { costGuard.allowUnattended(address.split(' ').filter { it.isNotBlank() }, subId) }.getOrDefault(true)) {
+            toast(context, R.string.safe_reply_needs_confirmation)
+            return
+        }
         val result = runCatching {
             sender.sendSms(OutgoingSms(addresses = address.split(' ').filter { it.isNotBlank() }, body = text, subId = subId, threadId = threadId))
         }.getOrElse { SendResult.Failed(it.message ?: "error") }
         if (result is SendResult.Queued) {
             threadId?.let { runCatching { writer.markThreadRead(it) } }
             NotificationManagerCompat.from(context).cancel(target.tag, target.id)
+            notifier.refreshSummaries()
         } else {
             toast(context, R.string.toast_reply_failed)
         }

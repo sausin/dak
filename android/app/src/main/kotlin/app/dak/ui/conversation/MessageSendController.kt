@@ -2,6 +2,7 @@ package app.dak.ui.conversation
 
 import android.net.Uri
 import android.telephony.SmsMessage
+import app.dak.safety.SendCostGuard
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.MessageSender
@@ -11,6 +12,7 @@ import app.dak.telephony.OutgoingMmsPart
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.SendResult
 import app.dak.telephony.SimRepository
+import app.dak.telephony.cost.CostVerdict
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,7 +43,9 @@ sealed interface SendOutcome {
 /**
  * The one send path behind every composer: picks SMS or MMS automatically (media, group recipients or very long
  * text go as MMS; everything else as SMS, concatenated when long), normalises recipients to E.164 with the sending
- * SIM's home country when enabled, and compresses media to the carrier limit off the main thread.
+ * SIM's home country when enabled, and compresses media to the carrier limit off the main thread. Cost
+ * confirmations (premium / short codes / international / roaming) are asked by the composer via [costWarnings]
+ * before [send].
  */
 @Singleton
 class MessageSendController @Inject constructor(
@@ -50,6 +54,7 @@ class MessageSendController @Inject constructor(
     private val settings: SettingsStore,
     private val compressor: MmsMediaCompressor,
     private val sims: SimRepository,
+    private val costGuard: SendCostGuard,
 ) {
     /** True when this message will go as MMS (shown as the "MMS" chip on the send button). */
     fun isMms(recipientCount: Int, text: String, attachments: List<ComposerAttachment>): Boolean =
@@ -65,6 +70,27 @@ class MessageSendController @Inject constructor(
     fun normalized(address: String, subId: Int): String =
         if (settings.get(DakSettings.numberNormalization)) normalizer.normalize(address, subId) else address
 
+    /**
+     * Destinations of a send to [addresses] from [subId] that need a cost confirmation first (premium-rate or
+     * unknown short codes, international numbers, roaming abroad, alphanumeric ids), loudest first. Empty when the
+     * send can go straight out or "Warn before costly SMS" is off. Call off the main thread.
+     */
+    fun costWarnings(addresses: List<String>, subId: Int): List<CostVerdict> {
+        val sendSubId = sendSubIdFor(subId) ?: return emptyList()
+        val targets = addresses.map { it.trim() }.filter { it.isNotEmpty() }.distinct().map { normalized(it, sendSubId) }
+        return runCatching { costGuard.toConfirm(targets, sendSubId) }.getOrDefault(emptyList())
+    }
+
+    /** "Don't ask again" for [verdicts] (as returned by [costWarnings] for the same [subId]). */
+    fun approveCost(verdicts: List<CostVerdict>, subId: Int) {
+        val sendSubId = sendSubIdFor(subId) ?: return
+        costGuard.approve(verdicts, sendSubId)
+    }
+
+    /** The SIM a send from [subId] actually uses: [subId], or the first active SIM when none is chosen. */
+    private fun sendSubIdFor(subId: Int): Int? =
+        if (subId >= 0) subId else sims.sims.value.firstOrNull { it.isActive }?.subId
+
     suspend fun send(
         addresses: List<String>,
         text: String,
@@ -75,8 +101,7 @@ class MessageSendController @Inject constructor(
         val recipients = addresses.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         if (recipients.isEmpty()) return SendOutcome.Failed(SendProblem.NO_RECIPIENT)
         // No system default SMS SIM (dual-SIM "ask every time"): send from the first active SIM instead of failing.
-        val sendSubId = if (subId >= 0) subId else sims.sims.value.firstOrNull { it.isActive }?.subId
-            ?: return SendOutcome.Failed(SendProblem.NO_SIM)
+        val sendSubId = sendSubIdFor(subId) ?: return SendOutcome.Failed(SendProblem.NO_SIM)
         val targets = recipients.map { normalized(it, sendSubId) }
         val result = if (!isMms(targets.size, text, attachments)) {
             sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = settings.get(DakSettings.deliveryReports)))

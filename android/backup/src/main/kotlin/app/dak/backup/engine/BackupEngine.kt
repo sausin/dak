@@ -1,6 +1,8 @@
 package app.dak.backup.engine
 
 import app.dak.backup.crypto.BackupCrypto
+import app.dak.backup.format.ArchiveLimitException
+import app.dak.backup.format.ArchiveLimits
 import app.dak.backup.format.DakExportReader
 import app.dak.backup.format.DakExportWriter
 import app.dak.backup.format.Hashing
@@ -9,6 +11,7 @@ import app.dak.backup.format.ManifestKind
 import app.dak.backup.format.ManifestMeta
 import app.dak.backup.format.MessageRecord
 import app.dak.backup.format.ThreadPrefs
+import app.dak.backup.format.readBounded
 import app.dak.core.model.MessageKind
 import java.io.InputStream
 import java.util.UUID
@@ -148,12 +151,27 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
         val startBlob = fromBlobName ?: readLatestPointer()?.blobName
             ?: throw IllegalStateException("No backups found on this target")
 
+        if (fromBlobName != null) {
+            // A name the caller listed from the target (may be user-renamed, e.g. "x (1).dakbackup"): no path syntax.
+            if (fromBlobName.any { it == '/' || it == '\\' || it < ' ' } || fromBlobName.startsWith(".")) {
+                throw IllegalStateException("Invalid snapshot name")
+            }
+        } else {
+            requireSafeBlobName(startBlob)
+        }
         val chain = mutableListOf<Pair<Manifest, String>>() // newest first
+        val seen = HashSet<String>()
         var currentBlob: String? = startBlob
         while (currentBlob != null) {
+            // Blob names and parent ids come from files on shared storage: no path syntax, no cycles, bounded length.
+            if (!seen.add(currentBlob)) throw IllegalStateException("Backup chain loops back to $currentBlob")
+            if (chain.size >= ArchiveLimits.MAX_CHAIN_LENGTH) throw ArchiveLimitException("Backup chain is too long")
             val manifest = readManifestOnly(currentBlob, key)
             chain += manifest to currentBlob
-            currentBlob = manifest.parentId?.let { "$it.dakbackup" }
+            currentBlob = manifest.parentId?.let { parent ->
+                if (!ArchiveLimits.isSafeBlobId(parent)) throw IllegalStateException("Invalid parent snapshot id")
+                "$parent.dakbackup"
+            }
         }
 
         val merged = LinkedHashMap<String, MessageRecord>()
@@ -172,7 +190,9 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
     }
 
     private suspend fun readLatestPointer(): LatestPointer? = withContext(Dispatchers.IO) {
-        target.openRead("latest.json")?.use { json.decodeFromString<LatestPointer>(it.readBytes().toString(Charsets.UTF_8)) }
+        target.openRead("latest.json")?.use {
+            json.decodeFromString<LatestPointer>(readBounded(it, ArchiveLimits.MAX_METADATA_BYTES, "latest.json").toString(Charsets.UTF_8))
+        }
     }
 
     private suspend fun readManifestOnly(blobName: String, key: RestoreKey?): Manifest = withContext(Dispatchers.IO) {
@@ -195,10 +215,19 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
         }
     }
 
+    private fun requireSafeBlobName(name: String) {
+        val id = name.removeSuffix(BLOB_SUFFIX)
+        if (id == name || !ArchiveLimits.isSafeBlobId(id)) throw IllegalStateException("Invalid snapshot name")
+    }
+
     private fun decryptingStream(raw: InputStream, key: RestoreKey?): InputStream = when (key) {
         null -> raw
         is RestoreKey.Passphrase -> BackupCrypto.decryptingInputStream(raw, key.value)
         is RestoreKey.RecoveryCode -> BackupCrypto.decryptingInputStreamWithRecoveryCode(raw, key.value)
+    }
+
+    private companion object {
+        const val BLOB_SUFFIX = ".dakbackup"
     }
 
     @Serializable

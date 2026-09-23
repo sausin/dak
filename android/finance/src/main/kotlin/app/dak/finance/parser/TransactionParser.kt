@@ -3,6 +3,7 @@ package app.dak.finance.parser
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.InstrumentType
 import app.dak.core.model.TransactionDirection
+import app.dak.finance.money.DigitNormalizer
 import app.dak.finance.money.MoneyOccurrence
 import app.dak.finance.money.MoneyParser
 
@@ -58,14 +59,18 @@ object TransactionParser {
     private val accountPattern = Regex("""\ba\s?/\s?c\b|\baccount\b|\bacct\b""", RegexOption.IGNORE_CASE)
     private val walletPattern = Regex("""\bwallet\b""", RegexOption.IGNORE_CASE)
 
-    private val last4Patterns = listOf(
-        Regex("""card\s*(?:no\.?)?\s*[x*]{2,}\s*(\d{4})""", RegexOption.IGNORE_CASE),
-        Regex("""card\s+ending\s+(?:with\s+|in\s+)?(\d{4})""", RegexOption.IGNORE_CASE),
-        Regex("""a\s?/\s?c\s*(?:no\.?)?\s*[x*]{2,}\s*(\d{4})""", RegexOption.IGNORE_CASE),
-        Regex("""a\s?/\s?c\s+ending\s+(?:with\s+|in\s+)?(\d{4})""", RegexOption.IGNORE_CASE),
-        Regex("""account\s*(?:no\.?)?\s*[x*]{2,}\s*(\d{4})""", RegexOption.IGNORE_CASE),
-        Regex("""ending\s+(?:with\s+|in\s+)?(\d{4})""", RegexOption.IGNORE_CASE),
-        Regex("""[x*]{4,}(\d{4})\b"""),
+    /**
+     * Account/card number patterns. Group 1 is the number as far as it is shown (mask + every visible digit, e.g.
+     * `XX440065`); banks reveal 4-6 digits and change that over time, so all visible digits are kept, not just 4.
+     */
+    private val accountNumberPatterns = listOf(
+        Regex("""card\s*(?:no\.?)?\s*([x*]{2,}\s*\d{4,})""", RegexOption.IGNORE_CASE),
+        Regex("""card\s+ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE),
+        Regex("""a\s?/\s?c\s*(?:no\.?)?\s*([x*]{2,}\s*\d{4,})""", RegexOption.IGNORE_CASE),
+        Regex("""a\s?/\s?c\s+ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE),
+        Regex("""account\s*(?:no\.?)?\s*([x*]{2,}\s*\d{4,})""", RegexOption.IGNORE_CASE),
+        Regex("""ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE),
+        Regex("""([x*]{4,}\d{4,})\b"""),
     )
 
     private val merchantPatterns = listOf(
@@ -83,7 +88,11 @@ object TransactionParser {
     )
 
     /** Parses [body] from [sender] into an [ExtractedTransaction], or null if it is not a completed transaction. */
-    fun parse(sender: String, body: String): ExtractedTransaction? {
+    fun parse(sender: String, rawBody: String): ExtractedTransaction? {
+        // Normalise non-ASCII decimal digits (Devanagari, Bengali, Arabic-Indic, full-width, ...)
+        // once up front so every `\d` regex below (last4, reference, amounts) matches regardless
+        // of the digit script the SMS was written in.
+        val body = DigitNormalizer.normalizeDigits(rawBody)
         if (otpPattern.containsMatchIn(body)) return null
         if (promoPattern.containsMatchIn(body)) return null
         if (billReminderPattern.containsMatchIn(body)) return null
@@ -106,7 +115,8 @@ object TransactionParser {
         val txnOccurrence = occurrences.firstOrNull { it != balanceOccurrence } ?: occurrences.first()
 
         val instrument = detectInstrument(body)
-        val last4 = detectLast4(body)
+        val maskedNumber = detectMaskedNumber(body)
+        val last4 = maskedNumber?.filter { it.isDigit() }?.takeLast(4)
         val merchant = detectMerchant(body)
         val reference = detectReference(body)
         val institution = InstitutionTable.institutionFor(sender)
@@ -122,11 +132,13 @@ object TransactionParser {
             balanceMinor = balanceOccurrence?.money?.amountMinor,
             balanceCurrency = balanceOccurrence?.money?.currencyUpper,
             institution = institution,
+            maskedNumber = maskedNumber,
         )
     }
 
     /** Parses [body] as a bill/statement-due reminder, or null if it doesn't look like one. */
-    fun parseBillReminder(sender: String, body: String): BillReminder? {
+    fun parseBillReminder(sender: String, rawBody: String): BillReminder? {
+        val body = DigitNormalizer.normalizeDigits(rawBody)
         if (!billReminderPattern.containsMatchIn(body)) return null
         val amount = MoneyParser.findAll(body).firstOrNull() ?: return null
         val dueHint = Regex("""due on[^.,\n]*""", RegexOption.IGNORE_CASE).find(body)?.value
@@ -157,9 +169,12 @@ object TransactionParser {
         else -> InstrumentType.UNKNOWN
     }
 
-    private fun detectLast4(body: String): String? {
-        for (pattern in last4Patterns) {
-            pattern.find(body)?.let { return it.groupValues[1] }
+    /** The first account/card number in [body], normalised (`*` -> `X`, upper-case, no spaces), e.g. `XX440065`. */
+    private fun detectMaskedNumber(body: String): String? {
+        for (pattern in accountNumberPatterns) {
+            pattern.find(body)?.let { match ->
+                return match.groupValues[1].filterNot { it.isWhitespace() }.uppercase().replace('*', 'X')
+            }
         }
         return null
     }

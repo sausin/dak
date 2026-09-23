@@ -47,10 +47,11 @@ class ReliabilityChecker @Inject constructor(@ApplicationContext private val con
             if (permission) {
                 add(ReliabilityCheck(ReliabilityCheckId.APP_NOTIFICATIONS, manager.areNotificationsEnabled(), ReliabilityFix.OpenAppNotificationSettings))
             }
-            val blocked = NotificationChannels.critical.firstOrNull { id ->
-                val channel = manager.getNotificationChannelCompat(id)
-                channel != null && channel.importance == NotificationManagerCompat.IMPORTANCE_NONE
-            }
+            // Flat and per-SIM copies of the critical channels (a blocked "OTP · SIM 2" drops codes just the same).
+            val blocked = manager.notificationChannelsCompat.firstOrNull { channel ->
+                ChannelCatalog.specOf(channel.id)?.critical == true &&
+                    channel.importance == NotificationManagerCompat.IMPORTANCE_NONE
+            }?.id
             add(
                 ReliabilityCheck(
                     ReliabilityCheckId.CHANNELS,

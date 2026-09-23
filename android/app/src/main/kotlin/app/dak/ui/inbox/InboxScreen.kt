@@ -84,6 +84,7 @@ import app.dak.ui.common.EmptyState
 import app.dak.ui.common.ReliabilityBanner
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.relativeTime
+import app.dak.ui.common.text.BidiText
 import app.dak.ui.theme.DakTheme
 import java.text.NumberFormat
 
@@ -347,7 +348,7 @@ private fun ConversationRow(
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        conversation.title,
+                        BidiText.displaySafe(conversation.title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = if (unread) FontWeight.Bold else FontWeight.Normal,
                         maxLines = 1,
@@ -358,7 +359,7 @@ private fun ConversationRow(
                     if (conversation.muted) Icon(Icons.Outlined.NotificationsOff, contentDescription = stringResource(R.string.scr_muted), modifier = Modifier.size(14.dp))
                 }
                 Text(
-                    conversation.snippet,
+                    BidiText.isolate(conversation.snippet),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (unread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,

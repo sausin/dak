@@ -237,4 +237,17 @@ class TransactionParserTest {
         val txn = TransactionParser.parse("VM-AMAZNP", "Hurry! Flat 50% off on electronics. Download the app now.")
         assertNull(txn)
     }
+
+    // --- Non-ASCII digits ---
+
+    @Test
+    fun `devanagari digits in amount and card tail are normalised`() {
+        val txn = TransactionParser.parse(
+            "VM-HDFCBK",
+            "Rs.१,४९९.०० spent on HDFC Bank Card XX१२३४ at AMAZON on 12-09-26. Avl Limit: Rs.45,320.00",
+        )
+        assertNotNull(txn)
+        assertEquals(149900L, txn.amountMinor)
+        assertEquals("1234", txn.last4)
+    }
 }

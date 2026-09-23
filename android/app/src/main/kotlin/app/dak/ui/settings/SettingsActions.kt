@@ -23,7 +23,6 @@ internal object SettingsActions {
             return true
         }
         return when (key) {
-            DakSettings.perCategoryAlerts.key, DakSettings.soundPerSim.key -> openAppNotificationSettings(context)
             DakSettings.exactAlarmPermission.key -> openExactAlarmSettings(context)
             DakSettings.rebuildIndex.key -> commands.rebuildIndex()
             else -> false
@@ -32,6 +31,11 @@ internal object SettingsActions {
 
     private fun routeFor(key: String): String? = when (key) {
         DakSettings.selfTest.key -> Routes.SELF_TEST
+        // Per-category and per-SIM sounds are channel settings; the channels screen lists and opens them.
+        DakSettings.notificationChannels.key,
+        DakSettings.perCategoryAlerts.key,
+        DakSettings.soundPerSim.key,
+        -> Routes.NOTIFICATION_CHANNELS
         DakSettings.blockList.key -> Routes.BLOCKED
         DakSettings.accounts.key -> Routes.PASSBOOK
         DakSettings.backupDestination.key,

@@ -58,26 +58,30 @@ data class AccountLedger(val account: Account, val entries: List<LedgerEntry>) {
 object Ledger {
 
     /**
-     * Builds one [AccountLedger] per distinct (institution, instrument, last4) seen in [inputs].
+     * Builds one [AccountLedger] per distinct account (institution, instrument, visible digits; see
+     * [Account.idOf]) seen in [inputs], after applying [aliases].
      *
      * @param rates used to compute an indicative home-currency value for a foreign-currency entry;
      *   when null (or the pair is not covered), foreign entries are posted with no indicative value.
      * @param defaultHomeCurrency the account's home currency when no balance-bearing SMS states one
      *   (defaults to INR, matching Indian institutions per the product spec).
      * @param statementDayFor supplies a credit card's configured statement day; null leaves it unset.
+     * @param aliases user-confirmed merges: inputs of an alias id are posted to the account it resolves to.
      */
     fun apply(
         inputs: List<LedgerInput>,
         rates: RatesTable? = null,
         defaultHomeCurrency: (institution: String?) -> String = { "INR" },
         statementDayFor: (Account) -> Int? = { null },
+        aliases: AccountAliases = AccountAliases.NONE,
     ): List<AccountLedger> {
-        val grouped = inputs.groupBy {
-            Account.idFor(it.transaction.institution, it.transaction.instrument, it.transaction.last4)
-        }
+        val grouped = inputs.groupBy { aliases.resolve(Account.idOf(it.transaction)) }
         return grouped.map { (id, group) ->
             val sorted = group.sortedBy { it.dateMillis }
-            val sample = sorted.first().transaction
+            // Describe the account by its own (canonical) messages when there are any, newest first, so a merged
+            // alias never renames it; fall back to the newest merged message.
+            val own = sorted.filter { Account.idOf(it.transaction) == id }.ifEmpty { sorted }
+            val sample = own.last().transaction
             val homeCurrency = sorted.firstNotNullOfOrNull { it.transaction.balanceCurrency }
                 ?: defaultHomeCurrency(sample.institution)
             var account = Account(
@@ -86,6 +90,7 @@ object Ledger {
                 instrument = sample.instrument,
                 last4 = sample.last4,
                 homeCurrency = homeCurrency,
+                maskedNumber = own.lastOrNull { it.transaction.maskedNumber != null }?.transaction?.maskedNumber,
             )
             account = account.copy(statementDay = statementDayFor(account))
             val entries = sorted.map { buildEntry(it, homeCurrency, rates) }

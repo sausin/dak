@@ -25,9 +25,12 @@ import javax.inject.Singleton
  * attributed to the app that auto-reads it (`consumedBy`).
  *
  * Package broadcasts (`PACKAGE_ADDED` / `PACKAGE_REPLACED`) cannot be received by a manifest receiver on Android 8+,
- * so the table refreshes lazily instead: on app start ([refresh], incremental by `lastUpdateTime`) and whenever an
- * OTP carries a hash that is not in the table ([consumerOf], throttled). Package visibility on Android 11+ comes
- * from the `<queries>` entries in this module's manifest (launcher apps and browsers).
+ * so the table refreshes lazily instead: built once on first start ([refreshIfNeverBuilt]), refreshed incrementally
+ * (by `lastUpdateTime`) by the daily maintenance job, and whenever an OTP carries a hash that is not in the table
+ * ([consumerOf]: throttled to once a minute, and a hash that stayed unknown after a refresh is not retried for
+ * [NEGATIVE_TTL_MILLIS] - the sender is usually for an app that is simply not installed). The table is persisted,
+ * so a process start never rescans installed apps. Package visibility on Android 11+ comes from the `<queries>`
+ * entries in this module's manifest (launcher apps and browsers).
  */
 @Singleton
 class AppSignatureRegistry @Inject constructor(
@@ -36,6 +39,7 @@ class AppSignatureRegistry @Inject constructor(
 ) {
     private val dao = db.appSignatureDao()
     private val mutex = Mutex()
+    private val prefs by lazy { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
     @Volatile
     private var lastMissRefreshAt = 0L
@@ -45,7 +49,29 @@ class AppSignatureRegistry @Inject constructor(
      * (re)computed. [force] recomputes everything.
      */
     suspend fun refresh(force: Boolean = false): Int = withContext(Dispatchers.IO) {
-        mutex.withLock { refreshLocked(force) }
+        mutex.withLock {
+            val count = refreshLocked(force)
+            val now = System.currentTimeMillis()
+            val editor = prefs.edit().putLong(KEY_LAST_REFRESH, now)
+            // New or updated packages may be the apps behind previously unknown hashes: forget those misses
+            // (and always drop expired ones, so the file stays small).
+            for ((name, value) in prefs.all) {
+                if (!name.startsWith(UNKNOWN_PREFIX)) continue
+                val expired = now - ((value as? Long) ?: 0L) >= NEGATIVE_TTL_MILLIS
+                if (count > 0 || expired) editor.remove(name)
+            }
+            editor.apply()
+            count
+        }
+    }
+
+    /**
+     * Builds the table if it has never been built on this install (first start, or after an index rebuild that
+     * recreated the database); otherwise does nothing. Keeps the first OTP's receiver from paying for a full scan.
+     */
+    suspend fun refreshIfNeverBuilt(): Int = withContext(Dispatchers.IO) {
+        val built = prefs.getLong(KEY_LAST_REFRESH, 0L) != 0L && dao.all().isNotEmpty()
+        if (built) 0 else refresh()
     }
 
     /**
@@ -57,10 +83,13 @@ class AppSignatureRegistry @Inject constructor(
         if (hash != null) {
             dao.packageForHash(hash)?.let { return@withContext it }
             val now = System.currentTimeMillis()
-            if (refreshOnMiss && now - lastMissRefreshAt >= MISS_REFRESH_INTERVAL_MILLIS) {
+            // Persisted, so the negative answer survives the short-lived processes an SMS usually runs in.
+            val recentlyMissed = now - prefs.getLong(UNKNOWN_PREFIX + hash, 0L) < NEGATIVE_TTL_MILLIS
+            if (refreshOnMiss && !recentlyMissed && now - lastMissRefreshAt >= MISS_REFRESH_INTERVAL_MILLIS) {
                 lastMissRefreshAt = now
                 refresh()
                 dao.packageForHash(hash)?.let { return@withContext it }
+                prefs.edit().putLong(UNKNOWN_PREFIX + hash, now).apply()
             }
         }
         if (otp.webOtpDomain != null) {
@@ -151,5 +180,9 @@ class AppSignatureRegistry @Inject constructor(
     private companion object {
         const val CHUNK = 200
         const val MISS_REFRESH_INTERVAL_MILLIS = 60_000L
+        const val NEGATIVE_TTL_MILLIS = 6 * 60 * 60_000L
+        const val UNKNOWN_PREFIX = "unknown:"
+        const val PREFS = "dak_app_signatures"
+        const val KEY_LAST_REFRESH = "lastRefresh"
     }
 }

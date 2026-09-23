@@ -60,12 +60,27 @@ object BackupCrypto {
     const val MAGIC = "DAKENC1"
     private const val VERSION: Int = 1
     const val DEFAULT_ITERATIONS = 310_000
+
+    /**
+     * Accepted PBKDF2 iteration range. The count is read from the (unauthenticated) header, so an attacker-made
+     * file could otherwise ask for 2^31 iterations (hours of CPU before the passphrase is even checked) or write
+     * weakly protected backups; both ends are enforced on write and on read.
+     */
+    const val MIN_ITERATIONS = 100_000
+    const val MAX_ITERATIONS = 5_000_000
     const val SALT_BYTES = 16
     const val SEGMENT_SIZE = 64 * 1024
     private const val NONCE_PREFIX_BYTES = 4
     private const val GCM_TAG_BITS = 128
     private const val GCM_NONCE_BYTES = 12
     private const val DATA_KEY_BYTES = 32
+    private const val GCM_TAG_BYTES = GCM_TAG_BITS / 8
+    private const val WRAPPED_KEY_BYTES = GCM_NONCE_BYTES + DATA_KEY_BYTES + GCM_TAG_BYTES
+    private const val MIN_SALT_BYTES = 16
+    private const val MAX_SALT_BYTES = 64
+
+    /** Largest ciphertext segment a writer produces; anything larger is refused before allocating. */
+    private const val MAX_SEGMENT_CIPHERTEXT = SEGMENT_SIZE + GCM_TAG_BYTES
 
     data class EncryptResult(val recoveryCode: RecoveryCode.Generated, val output: OutputStream)
 
@@ -89,6 +104,7 @@ object BackupCrypto {
         iterations: Int = DEFAULT_ITERATIONS,
         random: SecureRandom = SecureRandom(),
     ): EncryptResult {
+        require(iterations in MIN_ITERATIONS..MAX_ITERATIONS) { "iterations must be in $MIN_ITERATIONS..$MAX_ITERATIONS" }
         val salt = ByteArray(SALT_BYTES).also(random::nextBytes)
         val noncePrefix = ByteArray(NONCE_PREFIX_BYTES).also(random::nextBytes)
         val dataKeyBytes = ByteArray(DATA_KEY_BYTES).also(random::nextBytes)
@@ -150,14 +166,27 @@ object BackupCrypto {
             throw MalformedHeaderException("Stream is too short to contain a Dak encryption header")
         }
         if (String(magic, Charsets.US_ASCII) != MAGIC) throw MalformedHeaderException("Bad magic: not a Dak-encrypted backup")
-        val version = input.readUnsignedByte()
+        val version = try {
+            input.readUnsignedByte()
+        } catch (e: EOFException) {
+            throw MalformedHeaderException("Header truncated")
+        }
         if (version != VERSION) throw MalformedHeaderException("Unsupported encryption header version $version")
-        val iterations = input.readInt()
-        if (iterations <= 0) throw MalformedHeaderException("Invalid iteration count $iterations")
+        val iterations = try {
+            input.readInt()
+        } catch (e: EOFException) {
+            throw MalformedHeaderException("Header truncated")
+        }
+        if (iterations !in MIN_ITERATIONS..MAX_ITERATIONS) throw MalformedHeaderException("Unsupported iteration count $iterations")
         val salt = readLenPrefixed(input)
         val noncePrefix = readLenPrefixed(input)
         val pwWrapped = readLenPrefixed(input)
         val recWrapped = readLenPrefixed(input)
+        if (salt.size !in MIN_SALT_BYTES..MAX_SALT_BYTES) throw MalformedHeaderException("Invalid salt length ${salt.size}")
+        if (noncePrefix.size != NONCE_PREFIX_BYTES) throw MalformedHeaderException("Invalid nonce prefix length ${noncePrefix.size}")
+        if (pwWrapped.size != WRAPPED_KEY_BYTES || recWrapped.size != WRAPPED_KEY_BYTES) {
+            throw MalformedHeaderException("Invalid wrapped key length")
+        }
         return Header(iterations, salt, noncePrefix, pwWrapped, recWrapped)
     }
 
@@ -200,15 +229,12 @@ object BackupCrypto {
         out.write(bytes)
     }
 
-    private fun readLenPrefixed(input: DataInputStream): ByteArray {
-        val len = input.readUnsignedByte()
-        val bytes = ByteArray(len)
-        try {
-            input.readFully(bytes)
-        } catch (e: EOFException) {
-            throw MalformedHeaderException("Header truncated")
-        }
-        return bytes
+    private fun readLenPrefixed(input: DataInputStream): ByteArray = try {
+        val bytes = ByteArray(input.readUnsignedByte())
+        input.readFully(bytes)
+        bytes
+    } catch (e: EOFException) {
+        throw MalformedHeaderException("Header truncated")
     }
 
     /** 12-byte GCM nonce for one segment: 4-byte file prefix + 4-byte big-endian counter + 3 zero bytes + final flag. */
@@ -328,7 +354,7 @@ object BackupCrypto {
             if (lengthBytes.size != 4) throw TamperedException("Truncated segment length header")
             val ctLen = ((lengthBytes[0].toInt() and 0xFF) shl 24) or ((lengthBytes[1].toInt() and 0xFF) shl 16) or
                 ((lengthBytes[2].toInt() and 0xFF) shl 8) or (lengthBytes[3].toInt() and 0xFF)
-            if (ctLen < 0 || ctLen > 64 * 1024 * 1024) throw TamperedException("Implausible segment length $ctLen")
+            if (ctLen < GCM_TAG_BYTES || ctLen > MAX_SEGMENT_CIPHERTEXT) throw TamperedException("Implausible segment length $ctLen")
             val ct = ByteArray(ctLen)
             try {
                 input.readFully(ct)

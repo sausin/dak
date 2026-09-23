@@ -30,6 +30,9 @@ public object RuleValidator {
 
     /**
      * @param ownAddresses the user's own SIM numbers (any normalized form), to catch a forward-to-self loop.
+     *
+     * A forward whose recipient is also one of the rule's source senders ([Condition.SenderIs] /
+     * [Condition.SenderInGroups] addresses) is reported as [ValidationIssue.ForwardingLoop] too.
      */
     public fun validate(rule: Rule, entitlements: Entitlements, ownAddresses: Set<String> = emptySet()): List<ValidationIssue> {
         val issues = mutableListOf<ValidationIssue>()
@@ -38,6 +41,8 @@ public object RuleValidator {
         collectRegexIssues(rule.conditions, "conditions", issues)
 
         if (rule.actions.isEmpty()) issues += ValidationIssue.NoActions
+
+        val sources = sourceAddresses(rule.conditions) + (rule.trigger.asCondition()?.let(::sourceAddresses) ?: emptyList())
 
         rule.actions.forEachIndexed { index, action ->
             val actionType = action::class.simpleName ?: "Unknown"
@@ -53,6 +58,8 @@ public object RuleValidator {
                 issues += ValidationIssue.MissingRecipient(index, actionType)
             } else if (recipient != null && normalized(recipient) in ownAddresses.map(::normalized)) {
                 issues += ValidationIssue.ForwardingLoop(index, recipient)
+            } else if (recipient != null && sources.any { Addresses.same(it, recipient) }) {
+                issues += ValidationIssue.ForwardingLoop(index, recipient)
             }
         }
 
@@ -66,6 +73,15 @@ public object RuleValidator {
         is ActionSpec.RelayToWebClient -> action.pairingId ?: ""
         is ActionSpec.RelayRule -> if (action.channel == RelayChannel.WEBHOOK) null else action.recipient
         else -> null
+    }
+
+    /** Raw sender addresses the rule positively selects on (not under a `Not`). */
+    private fun sourceAddresses(condition: Condition): List<String> = when (condition) {
+        is Condition.SenderIs -> listOf(condition.value)
+        is Condition.SenderInGroups -> condition.addresses
+        is Condition.All -> condition.children.flatMap(::sourceAddresses)
+        is Condition.Any -> condition.children.flatMap(::sourceAddresses)
+        else -> emptyList()
     }
 
     private fun normalized(number: String): String {

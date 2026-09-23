@@ -66,6 +66,8 @@ internal object ConditionSerializer : KSerializer<Condition> {
             is Condition.TimeWindow -> json.encodeTagged("timeWindow", Condition.TimeWindow.serializer(), value)
             is Condition.DirectionIs -> json.encodeTagged("directionIs", Condition.DirectionIs.serializer(), value)
             is Condition.HasOtp -> json.encodeTagged("hasOtp", Condition.HasOtp.serializer(), value)
+            is Condition.ActiveBetween -> json.encodeTagged("activeBetween", Condition.ActiveBetween.serializer(), value)
+            is Condition.SenderInGroups -> json.encodeTagged("senderInGroups", Condition.SenderInGroups.serializer(), value)
             is Condition.Unknown -> json.encodeJsonElement(value.raw)
         }
     }
@@ -88,6 +90,8 @@ internal object ConditionSerializer : KSerializer<Condition> {
             "timeWindow" -> json.decodeTagged(obj, Condition.TimeWindow.serializer())
             "directionIs" -> json.decodeTagged(obj, Condition.DirectionIs.serializer())
             "hasOtp" -> json.decodeTagged(obj, Condition.HasOtp.serializer())
+            "activeBetween" -> json.decodeTagged(obj, Condition.ActiveBetween.serializer())
+            "senderInGroups" -> json.decodeTagged(obj, Condition.SenderInGroups.serializer())
             else -> Condition.Unknown(type.ifEmpty { "unknown" }, obj)
         }
     }

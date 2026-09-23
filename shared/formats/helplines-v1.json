@@ -1,0 +1,125 @@
+{
+  "payload": {
+    "format": "dak-helplines",
+    "version": 1,
+    "revision": 1,
+    "issuedAt": "2026-09-23",
+    "notes": "Only official government helplines are listed. Bank card-block numbers are deliberately empty: they are added by the user in the app and shown as unverified. Every entry must be checked against its sourceUrl before a release; entries with needsVerification=true must not ship unchecked.",
+    "helplines": [
+      {
+        "id": "in-cybercrime-1930",
+        "name": "National Cyber Crime Helpline",
+        "country": "IN",
+        "category": "cybercrime",
+        "action": "call",
+        "target": "1930",
+        "purpose": "Lost money to online or UPI fraud? Call immediately: reporting within the first hours gives the best chance of freezing the money.",
+        "sourceUrl": "https://cybercrime.gov.in/",
+        "lastVerified": "2026-09-23",
+        "needsVerification": false
+      },
+      {
+        "id": "in-cybercrime-portal",
+        "name": "National Cyber Crime Reporting Portal",
+        "country": "IN",
+        "category": "cybercrime",
+        "action": "url",
+        "target": "https://cybercrime.gov.in/",
+        "purpose": "File a complaint about financial fraud or any other cyber crime online, and track it.",
+        "sourceUrl": "https://cybercrime.gov.in/",
+        "lastVerified": "2026-09-23",
+        "needsVerification": false
+      },
+      {
+        "id": "in-chakshu",
+        "name": "Chakshu (Sanchar Saathi)",
+        "country": "IN",
+        "category": "fraud_communication",
+        "action": "url",
+        "target": "https://sancharsaathi.gov.in/sfc/",
+        "purpose": "Report suspected fraud calls, SMS or WhatsApp messages (fake KYC, impersonation, fake customer care) to the Department of Telecommunications.",
+        "sourceUrl": "https://sancharsaathi.gov.in/",
+        "lastVerified": null,
+        "needsVerification": true,
+        "verificationNote": "Confirm the Chakshu deep link (/sfc/) still opens the suspected-fraud-communication form."
+      },
+      {
+        "id": "in-trai-1909-sms",
+        "name": "TRAI spam complaint (1909)",
+        "country": "IN",
+        "category": "spam",
+        "action": "sms",
+        "target": "1909",
+        "purpose": "Report unsolicited commercial SMS (spam) to your operator under TRAI's rules. Send the message text, the sender and the date.",
+        "sourceUrl": "https://trai.gov.in/",
+        "lastVerified": null,
+        "needsVerification": true,
+        "verificationNote": "Confirm the complaint SMS format (message text, sender, dd/mm/yy separated by commas) and the complaint window (3 days in TCCCPR 2018; reportedly extended by a 2025 amendment) on TRAI's consumer page.",
+        "smsFormat": "{text},{sender},{date:dd/MM/yy}"
+      },
+      {
+        "id": "in-trai-1909-call",
+        "name": "TRAI DND and spam complaints (call 1909)",
+        "country": "IN",
+        "category": "spam",
+        "action": "call",
+        "target": "1909",
+        "purpose": "Call your operator's 1909 line to register a spam complaint or change your Do Not Disturb preferences.",
+        "sourceUrl": "https://trai.gov.in/",
+        "lastVerified": "2026-09-23",
+        "needsVerification": false
+      },
+      {
+        "id": "in-emergency-112",
+        "name": "Emergency (112)",
+        "country": "IN",
+        "category": "emergency",
+        "action": "call",
+        "target": "112",
+        "purpose": "Police, fire, ambulance: India's single emergency number.",
+        "sourceUrl": "https://112.gov.in/",
+        "lastVerified": "2026-09-23",
+        "needsVerification": false
+      },
+      {
+        "id": "in-rbi-cms",
+        "name": "RBI Complaint Management System",
+        "country": "IN",
+        "category": "banking",
+        "action": "url",
+        "target": "https://cms.rbi.org.in/",
+        "purpose": "Complain to the RBI Ombudsman when your bank, card issuer or payment app hasn't resolved your complaint.",
+        "sourceUrl": "https://cms.rbi.org.in/",
+        "lastVerified": "2026-09-23",
+        "needsVerification": false
+      },
+      {
+        "id": "in-rbi-contact-centre",
+        "name": "RBI Contact Centre (14448)",
+        "country": "IN",
+        "category": "banking",
+        "action": "call",
+        "target": "14448",
+        "purpose": "Help with filing a complaint against a bank or payment company with the RBI.",
+        "sourceUrl": "https://cms.rbi.org.in/",
+        "lastVerified": null,
+        "needsVerification": true,
+        "verificationNote": "Confirm 14448 is still the RBI Contact Centre toll-free number (and its hours) on cms.rbi.org.in."
+      },
+      {
+        "id": "in-rbi-sachet",
+        "name": "RBI Sachet",
+        "country": "IN",
+        "category": "banking",
+        "action": "url",
+        "target": "https://sachet.rbi.org.in/",
+        "purpose": "Report companies illegally collecting deposits or running unregulated investment schemes.",
+        "sourceUrl": "https://sachet.rbi.org.in/",
+        "lastVerified": "2026-09-23",
+        "needsVerification": false
+      }
+    ],
+    "bankCardBlock": []
+  },
+  "signature": null
+}

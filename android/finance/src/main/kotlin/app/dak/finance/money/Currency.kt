@@ -33,32 +33,67 @@ object CurrencyTable {
         return scale
     }
 
+    /** Default display symbols, falling back to the ISO code itself for anything not listed. */
+    private val symbols: Map<String, String> = mapOf(
+        "INR" to "₹", "USD" to "$", "EUR" to "€", "GBP" to "£", "JPY" to "¥", "CNY" to "¥",
+        "KRW" to "₩", "THB" to "฿", "MYR" to "RM", "IDR" to "Rp", "PHP" to "₱", "VND" to "₫",
+        "TRY" to "₺", "BDT" to "৳", "PKR" to "₨", "LKR" to "₨", "NPR" to "रु",
+        // Gulf riyal/dinar currencies and ZAR deliberately fall back to their ISO code (no native
+        // symbol here) since a bare glyph like "﷼" is itself ambiguous between SAR/QAR/OMR/YER.
+    )
+
     /** Default display symbol for a currency code, falling back to the code itself. */
-    fun symbolFor(currency: String): String = when (currency.uppercase()) {
-        "INR" -> "₹"
-        "USD" -> "$"
-        "EUR" -> "€"
-        "GBP" -> "£"
-        "JPY" -> "¥"
-        "CNY" -> "¥"
-        "KRW" -> "₩"
-        else -> currency.uppercase()
-    }
+    fun symbolFor(currency: String): String = symbols[currency.uppercase()] ?: currency.uppercase()
 
     /**
-     * Known currency-symbol -> ISO code defaults, used by [MoneyParser] when a symbol (rather
-     * than an ISO code) is written in an SMS. Ambiguous symbols such as `$` default to USD but
-     * are configurable by passing a different [MoneyParser.SymbolResolver].
+     * Known currency-symbol/word -> ISO code defaults, used by [MoneyParser] when a symbol or
+     * common local word (rather than a bare ISO code) is written in an SMS. Ambiguous symbols
+     * such as `$` or `₨` default to the most common reading (USD, PKR respectively) but are
+     * configurable by passing a different map.
      */
     val defaultSymbolToCurrency: Map<String, String> = mapOf(
+        // India
         "₹" to "INR",
         "Rs" to "INR",
         "Rs." to "INR",
         "INR" to "INR",
+        "रु" to "INR",
+        "रू" to "INR",
+        "रुपये" to "INR",
+        "ரூ" to "INR",
+        // Bangladesh
+        "৳" to "BDT",
+        "Tk" to "BDT",
+        // Pakistan / Nepal / Sri Lanka all use the "₨" glyph - ambiguous without a code, default
+        // to the most common SMS-classifier usage (Pakistan); override per-locale if needed.
+        "₨" to "PKR",
+        "රු" to "LKR",
+        // Gulf
+        "د.إ" to "AED",
+        "ر.س" to "SAR",
+        "﷼" to "SAR",
+        // Americas / Oceania / Asia-Pacific dollars - bare "$" stays USD unless a code is given.
         "$" to "USD",
+        "US$" to "USD",
+        "C$" to "CAD",
+        "A$" to "AUD",
+        "S$" to "SGD",
+        "HK$" to "HKD",
+        // Europe
         "€" to "EUR",
         "£" to "GBP",
+        // East/Southeast Asia
         "¥" to "JPY",
+        "円" to "JPY",
+        "元" to "CNY",
+        "RMB" to "CNY",
+        "₩" to "KRW",
+        "฿" to "THB",
+        "RM" to "MYR",
+        "Rp" to "IDR",
+        "₱" to "PHP",
+        "₫" to "VND",
+        "₺" to "TRY",
     )
 
     /** Currency codes this table recognises as a bare ISO alphabetic code. */

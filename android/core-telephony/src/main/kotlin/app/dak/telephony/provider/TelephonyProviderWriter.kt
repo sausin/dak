@@ -12,6 +12,8 @@ import app.dak.core.model.MessageKind
 import app.dak.mms.pdu.ContentType
 import app.dak.mms.pdu.MessageType
 import app.dak.mms.pdu.MmsCharset
+import app.dak.mms.pdu.MmsLimits
+import app.dak.mms.pdu.MmsSafety
 import app.dak.mms.pdu.MmsStatus
 import app.dak.telephony.OutgoingStatus
 import app.dak.telephony.ProviderWriter
@@ -238,7 +240,8 @@ class TelephonyProviderWriter @Inject constructor(
      * a recycle-bin or backup file) and addresses (inbox: the sender; otherwise the space-joined recipients).
      */
     private suspend fun restoreMms(m: Message): MessageKey? {
-        val parties = m.address.split(' ').map { it.trim() }.filter { it.isNotEmpty() }
+        // Restored/imported files are untrusted: bound the recipient list like a received PDU.
+        val parties = m.address.split(' ').map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(MmsLimits.MAX_ADDRESSES)
         val threadId = threadIdFor(parties.toSet())
         return withContext(Dispatchers.IO) {
             val inbox = m.box == MessageBox.INBOX
@@ -272,7 +275,7 @@ class TelephonyProviderWriter @Inject constructor(
                 val part = ContentValues().apply {
                     put(MmsPartColumns.SEQ, seq++)
                     put(MmsPartColumns.CONTENT_TYPE, attachment.mimeType)
-                    attachment.name?.let {
+                    MmsSafety.safeFileName(attachment.name)?.let {
                         put(MmsPartColumns.NAME, it)
                         put(MmsPartColumns.CONTENT_LOCATION, it)
                     }

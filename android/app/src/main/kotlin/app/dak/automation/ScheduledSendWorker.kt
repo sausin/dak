@@ -10,7 +10,7 @@ import dagger.assisted.AssistedInject
 /**
  * WorkManager side of scheduled sends: the fallback that fires when no exact alarm could be set (or the alarm was
  * lost to a reboot), and the runner the alarm receiver enqueues as a backup. Sends whatever is due, then re-arms
- * the remaining pending sends.
+ * the remaining pending sends. Also gives [DailyHousekeeping] its once-a-day chance (no extra wakeup).
  */
 @HiltWorker
 class ScheduledSendWorker @AssistedInject constructor(
@@ -18,11 +18,13 @@ class ScheduledSendWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val executor: ScheduledSendExecutor,
     private val scheduler: ScheduledSendScheduler,
+    private val housekeeping: DailyHousekeeping,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = try {
         executor.runDue()
         scheduler.rearmPending()
+        runCatching { housekeeping.runIfDue() }
         Result.success()
     } catch (e: Exception) {
         if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()

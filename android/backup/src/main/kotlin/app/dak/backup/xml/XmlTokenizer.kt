@@ -1,5 +1,6 @@
 package app.dak.backup.xml
 
+import app.dak.backup.format.ArchiveLimitException
 import java.io.InputStream
 import java.nio.charset.Charset
 
@@ -22,6 +23,11 @@ sealed class XmlToken {
  *
  * Reads from [input] using [charset] (default UTF-8, honouring a `<?xml ... encoding="..."?>`
  * declaration when present and simple enough to detect ASCII-compatible).
+ *
+ * Imported files are untrusted: DTDs are skipped and only predefined/numeric entities are decoded (so entity
+ * expansion attacks such as "billion laughs" and external entities cannot happen), and element names, attribute
+ * counts and values, and text runs are length-capped ([XmlLimits]); exceeding a cap throws
+ * [ArchiveLimitException] instead of exhausting memory.
  */
 class XmlTokenizer(input: InputStream, private val charset: Charset = Charsets.UTF_8) {
     private val reader = input.bufferedReader(charset)
@@ -57,7 +63,7 @@ class XmlTokenizer(input: InputStream, private val charset: Charset = Charsets.U
                 val c2 = reader.read()
                 when {
                     c2 == '?'.code -> { skipUntil("?>"); continue }
-                    c2 == '!'.code -> { skipUntil(">"); continue }
+                    c2 == '!'.code -> { skipDeclaration(); continue }
                     else -> { reader.reset(); return } // real element start; unread back to before '<'
                 }
             } else if (c.toChar().isWhitespace()) {
@@ -69,13 +75,51 @@ class XmlTokenizer(input: InputStream, private val charset: Charset = Charsets.U
         }
     }
 
+    /** Skips input up to and including [terminator] without buffering what is skipped. */
     private fun skipUntil(terminator: String) {
-        val buf = StringBuilder()
+        var matched = 0
         while (true) {
             val c = reader.read()
             if (c < 0) return
-            buf.append(c.toChar())
-            if (buf.length >= terminator.length && buf.endsWith(terminator)) return
+            matched = when {
+                c == terminator[matched].code -> matched + 1
+                c == terminator[0].code -> 1
+                else -> 0
+            }
+            if (matched == terminator.length) return
+        }
+    }
+
+    /**
+     * Skips a `<!…>` construct after `<!`: comments up to `-->`, CDATA up to `]]>`, and DOCTYPE including an
+     * internal subset in `[...]` (whose entity declarations are deliberately ignored, never expanded).
+     */
+    private fun skipDeclaration() {
+        reader.mark(8)
+        val head = CharArray(7)
+        var n = 0
+        while (n < head.size) {
+            val c = reader.read()
+            if (c < 0) break
+            head[n++] = c.toChar()
+        }
+        val start = String(head, 0, n)
+        when {
+            start.startsWith("--") -> { reader.reset(); reader.skip(2); skipUntil("-->") }
+            start.startsWith("[CDATA[") -> skipUntil("]]>")
+            else -> {
+                reader.reset()
+                var depth = 0
+                while (true) {
+                    val c = reader.read()
+                    if (c < 0) return
+                    when (c) {
+                        '['.code -> depth++
+                        ']'.code -> if (depth > 0) depth--
+                        '>'.code -> if (depth == 0) return
+                    }
+                }
+            }
         }
     }
 
@@ -85,16 +129,16 @@ class XmlTokenizer(input: InputStream, private val charset: Charset = Charsets.U
         if (c == '/'.code) {
             val name = StringBuilder()
             c = reader.read()
-            while (c >= 0 && c != '>'.code) { name.append(c.toChar()); c = reader.read() }
+            while (c >= 0 && c != '>'.code) { appendLimited(name, c, XmlLimits.MAX_NAME_CHARS, "element name"); c = reader.read() }
             return XmlToken.EndElement(name.toString().trim())
         }
-        if (c == '!'.code) { // comment or CDATA inside content; skip and recurse
-            skipUntil(">")
+        if (c == '!'.code) { // comment or CDATA inside content; skip and continue
+            skipDeclaration()
             return next()
         }
         val name = StringBuilder()
         while (c >= 0 && !c.toChar().isWhitespace() && c != '>'.code && c != '/'.code) {
-            name.append(c.toChar())
+            appendLimited(name, c, XmlLimits.MAX_NAME_CHARS, "element name")
             c = reader.read()
         }
         val attrs = LinkedHashMap<String, String>()
@@ -109,7 +153,10 @@ class XmlTokenizer(input: InputStream, private val charset: Charset = Charsets.U
             }
             if (c == '>'.code) break
             val attrName = StringBuilder()
-            while (c >= 0 && c != '='.code && !c.toChar().isWhitespace()) { attrName.append(c.toChar()); c = reader.read() }
+            while (c >= 0 && c != '='.code && !c.toChar().isWhitespace()) {
+                appendLimited(attrName, c, XmlLimits.MAX_NAME_CHARS, "attribute name")
+                c = reader.read()
+            }
             while (c >= 0 && c.toChar().isWhitespace()) c = reader.read()
             if (c == '='.code) c = reader.read()
             while (c >= 0 && c.toChar().isWhitespace()) c = reader.read()
@@ -117,13 +164,19 @@ class XmlTokenizer(input: InputStream, private val charset: Charset = Charsets.U
             val attrValue = StringBuilder()
             if (quote == '"'.code || quote == '\''.code) {
                 c = reader.read()
-                while (c >= 0 && c != quote) { attrValue.append(c.toChar()); c = reader.read() }
+                while (c >= 0 && c != quote) { appendLimited(attrValue, c, XmlLimits.MAX_ATTRIBUTE_CHARS, "attribute value"); c = reader.read() }
                 c = reader.read() // consume closing quote
             } else {
                 // unquoted attribute value (not standard XML, tolerate anyway)
-                while (c >= 0 && !c.toChar().isWhitespace() && c != '>'.code && c != '/'.code) { attrValue.append(c.toChar()); c = reader.read() }
+                while (c >= 0 && !c.toChar().isWhitespace() && c != '>'.code && c != '/'.code) {
+                    appendLimited(attrValue, c, XmlLimits.MAX_ATTRIBUTE_CHARS, "attribute value")
+                    c = reader.read()
+                }
             }
-            if (attrName.isNotEmpty()) attrs[attrName.toString()] = XmlEntities.decode(attrValue.toString())
+            if (attrName.isNotEmpty()) {
+                attrs[attrName.toString()] = XmlEntities.decode(attrValue.toString())
+                if (attrs.size > XmlLimits.MAX_ATTRIBUTES) throw ArchiveLimitException("more than ${XmlLimits.MAX_ATTRIBUTES} attributes")
+            }
         }
         return XmlToken.StartElement(name.toString(), attrs, selfClosing)
     }
@@ -138,10 +191,25 @@ class XmlTokenizer(input: InputStream, private val charset: Charset = Charsets.U
                 if (c == '<'.code) reader.reset()
                 break
             }
-            buf.append(c.toChar())
+            appendLimited(buf, c, XmlLimits.MAX_TEXT_CHARS, "text")
         }
         return XmlToken.Text(XmlEntities.decode(buf.toString()))
     }
+
+    private fun appendLimited(sb: StringBuilder, c: Int, limit: Int, what: String) {
+        if (sb.length >= limit) throw ArchiveLimitException("XML $what longer than $limit characters")
+        sb.append(c.toChar())
+    }
+}
+
+/** Size caps applied by [XmlTokenizer]. */
+object XmlLimits {
+    const val MAX_NAME_CHARS: Int = 256
+    const val MAX_ATTRIBUTES: Int = 256
+
+    /** Base64 `data` attributes carry whole MMS attachments: ~24 MiB of base64 is ~18 MiB of media. */
+    const val MAX_ATTRIBUTE_CHARS: Int = 24 * 1024 * 1024
+    const val MAX_TEXT_CHARS: Int = 1024 * 1024
 }
 
 /** Entity decoding for [XmlTokenizer]: the five predefined XML entities plus numeric references. */
@@ -165,7 +233,26 @@ object XmlEntities {
                 i++
             }
         }
-        return out.toString()
+        return replaceLoneSurrogates(out)
+    }
+
+    /**
+     * Numeric references can encode half a surrogate pair (SMS Backup & Restore writes emoji as two decimal
+     * references, which recombine here); an unpaired half is replaced with U+FFFD so no malformed UTF-16 reaches
+     * the provider or the UI.
+     */
+    private fun replaceLoneSurrogates(sb: StringBuilder): String {
+        var i = 0
+        while (i < sb.length) {
+            val c = sb[i]
+            if (Character.isHighSurrogate(c) && i + 1 < sb.length && Character.isLowSurrogate(sb[i + 1])) {
+                i += 2
+                continue
+            }
+            if (Character.isSurrogate(c)) sb.setCharAt(i, '\uFFFD')
+            i++
+        }
+        return sb.toString()
     }
 
     private fun decodeEntity(entity: String): String? = when {
@@ -181,7 +268,7 @@ object XmlEntities {
 
     private fun codePointOrNull(digits: String, radix: Int): String? {
         val cp = digits.toLongOrNull(radix) ?: return null
-        if (cp < 0 || cp > 0x10FFFF) return null
+        if (cp <= 0 || cp > 0x10FFFF) return null // &#0; is not a character
         return try {
             // Handles both BMP characters and characters outside the BMP (encoded as surrogate pairs).
             String(Character.toChars(cp.toInt()))

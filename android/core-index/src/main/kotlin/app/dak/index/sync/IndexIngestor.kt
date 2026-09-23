@@ -7,6 +7,8 @@ import app.dak.index.db.DakIndexDatabase
 import app.dak.index.db.entity.IndexedMessage
 import app.dak.index.db.entity.MessageFlag
 import app.dak.index.enrich.MessageEnricher
+import app.dak.index.enrich.RepeatRules
+import app.dak.index.repo.FoldEngine
 import app.dak.index.repo.LedgerRepository
 import app.dak.index.signature.AppSignatureRegistry
 import kotlinx.coroutines.Dispatchers
@@ -28,9 +30,9 @@ class IndexIngestor @Inject constructor(
     private val enricher: MessageEnricher,
     private val signatures: AppSignatureRegistry,
     private val ledger: LedgerRepository,
+    private val folds: FoldEngine,
 ) {
     private val messageDao = db.messageDao()
-    private val mergeDao = db.senderMergeDao()
 
     /**
      * Indexes [messages] and returns the resulting rows (in input order, duplicates collapsed).
@@ -47,7 +49,7 @@ class IndexIngestor @Inject constructor(
     ): List<IndexedMessage> = withContext(Dispatchers.IO) {
         if (messages.isEmpty()) return@withContext emptyList()
         val version = enricher.version
-        val aliases = mergeDao.aliases().associate { it.address to it.mergeKey }
+        val rules = folds.rules()
         val out = ArrayList<IndexedMessage>(messages.size)
         val affectedAccounts = HashSet<String>()
         for (chunk in messages.distinctBy { it.key }.chunked(CHUNK)) {
@@ -59,7 +61,7 @@ class IndexIngestor @Inject constructor(
                 val key = message.key
                 val old = existing[key]
                 val row = if (!force && old != null && IndexRowMapper.canRefresh(old, message, version)) {
-                    val refreshed = IndexRowMapper.refresh(old, message, aliases, now)
+                    val refreshed = IndexRowMapper.refresh(old, message, rules, now)
                     if (refreshed.copy(indexedAt = old.indexedAt) == old) {
                         out += old
                         continue
@@ -74,14 +76,25 @@ class IndexIngestor @Inject constructor(
                         null
                     }
                     val consumedBy = detected ?: old?.otpConsumedBy
-                    IndexRowMapper.build(message, enrichment, aliases, flags[key], consumedBy, version, now)
+                    IndexRowMapper.build(message, enrichment, rules, flags[key], consumedBy, version, now, old?.repeatGroup)
                 }
                 old?.accountId?.let { affectedAccounts += it }
                 row.accountId?.let { affectedAccounts += it }
                 toWrite += row
                 out += row
             }
-            if (toWrite.isNotEmpty()) db.withTransaction { write(toWrite) }
+            if (toWrite.isNotEmpty()) {
+                val moves = HashMap<String, String>()
+                for (row in toWrite) {
+                    val old = existing[MessageKey(row.kind, row.providerId)] ?: continue
+                    if (old.conversationId != row.conversationId) moves[old.conversationId] = row.conversationId
+                }
+                db.withTransaction {
+                    write(toWrite)
+                    folds.recordMoves(moves)
+                }
+                markRepeats(toWrite)
+            }
         }
         ledger.recompute(affectedAccounts)
         out
@@ -101,6 +114,35 @@ class IndexIngestor @Inject constructor(
             }
         }
         ledger.recompute(affectedAccounts)
+    }
+
+    /**
+     * Joins each eligible new row to a repeat group (see [RepeatRules]): finds the closest copy in its conversation
+     * and shares (or starts) that copy's group. Rows are already written, so copies within one batch find each other;
+     * the backfill runs newest to oldest, so the search looks both ways in time.
+     */
+    private suspend fun markRepeats(rows: List<IndexedMessage>) {
+        for (row in rows) {
+            if (row.repeatGroup != null || !RepeatRules.eligible(row.box, row.category, row.body)) continue
+            val copy = messageDao.repeatCandidate(
+                conversationId = row.conversationId,
+                kind = row.kind.name,
+                providerId = row.providerId,
+                body = row.body,
+                otpCode = row.otpCode,
+                dateMillis = row.dateMillis,
+                fromMillis = row.dateMillis - RepeatRules.EXACT_WINDOW_MILLIS,
+                toMillis = row.dateMillis + RepeatRules.EXACT_WINDOW_MILLIS,
+                otpWindowMillis = RepeatRules.OTP_WINDOW_MILLIS,
+            ) ?: continue
+            if (!RepeatRules.eligible(copy.box, copy.category, copy.body)) continue
+            val group = copy.repeatGroup
+                ?: RepeatRules.groupKeyOf(MessageKey(row.kind, row.providerId), row.dateMillis, MessageKey(copy.kind, copy.providerId), copy.dateMillis)
+            db.withTransaction {
+                messageDao.setRepeatGroup(row.kind.name, row.providerId, group)
+                if (copy.repeatGroup == null) messageDao.setRepeatGroup(copy.kind.name, copy.providerId, group)
+            }
+        }
     }
 
     /** Insert-or-update without REPLACE, so FTS content triggers see UPDATEs and stay consistent. */

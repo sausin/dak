@@ -1,11 +1,10 @@
 package app.dak.notifications
 
 import app.dak.classify.ClassifierPipeline
-import app.dak.classify.NaiveBayesModel
-import app.dak.classify.TemplateBundle
 import app.dak.core.model.Classification
 import app.dak.core.model.Message
 import app.dak.di.AndroidContactLookup
+import app.dak.index.enrich.ClassifierAssets
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -20,9 +19,10 @@ import javax.inject.Singleton
 class NotificationClassifier @Inject constructor(private val contacts: AndroidContactLookup) {
 
     private val pipeline: ClassifierPipeline by lazy {
+        // Shared with the index enricher: the bundled JSON is parsed once per process.
         ClassifierPipeline(
-            templates = TemplateBundle.loadDefault(),
-            model = NaiveBayesModel.loadDefault(),
+            templates = ClassifierAssets.defaultTemplates,
+            model = ClassifierAssets.model,
             contactLookup = { address -> contacts.isContact(address) },
         )
     }

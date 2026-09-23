@@ -32,7 +32,8 @@ class DakExportRoundTripTest {
         val out = ByteArrayOutputStream()
         val writer = DakExportWriter(out, chunkSize = 500)
         val threads = listOf(ThreadPrefs(threadId = 1, replySubId = 1, pinned = true))
-        writer.writeAttachment("deadbeef", "hello attachment".toByteArray())
+        val attachmentSha = Hashing.sha256Hex("hello attachment".toByteArray())
+        writer.writeAttachment(attachmentSha, "hello attachment".toByteArray())
         writer.writeMessages((0 until n).asSequence().map(::record))
         writer.writeThreads(threads)
         writer.writeSettings("""{"theme":"dark"}""")
@@ -54,7 +55,7 @@ class DakExportRoundTripTest {
         assertEquals(threads, reader.threads)
         assertEquals("""{"theme":"dark"}""", reader.settingsJson)
         assertEquals(manifest, reader.manifest)
-        assertEquals("hello attachment", attachmentBytes["deadbeef"]!!.toString(Charsets.UTF_8))
+        assertEquals("hello attachment", attachmentBytes[attachmentSha]!!.toString(Charsets.UTF_8))
     }
 
     @Test

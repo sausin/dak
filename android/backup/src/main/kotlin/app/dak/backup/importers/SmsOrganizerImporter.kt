@@ -1,5 +1,9 @@
 package app.dak.backup.importers
 
+import app.dak.backup.format.ArchiveLimitException
+import app.dak.backup.format.ArchiveLimits
+import app.dak.backup.format.checkJsonDepth
+import app.dak.backup.format.readBounded
 import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKind
 import app.dak.core.model.NO_SUB_ID
@@ -31,7 +35,7 @@ class SmsOrganizerImporter {
 
     /** Parses [input] (owned and closed by this call) into an [ImportResult]. */
     fun import(input: InputStream, fileNameHint: String? = null): ImportResult {
-        val bytes = input.use { it.readBytes() }
+        val bytes = input.use { readBounded(it, ArchiveLimits.MAX_JSON_IMPORT_BYTES, "SMS Organizer backup") }
         val looksLikeZip = bytes.size >= 4 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte()
         val jsonText = if (looksLikeZip) extractFirstJsonEntry(bytes) else bytes.toString(Charsets.UTF_8)
         if (jsonText == null) {
@@ -42,10 +46,13 @@ class SmsOrganizerImporter {
 
     private fun extractFirstJsonEntry(zipBytes: ByteArray): String? {
         ZipInputStream(zipBytes.inputStream()).use { zip ->
+            var entries = 0
             var entry = zip.nextEntry
             while (entry != null) {
+                if (++entries > ArchiveLimits.MAX_ZIP_ENTRIES) throw ArchiveLimitException("too many entries in the backup archive")
                 if (!entry.isDirectory && entry.name.endsWith(".json", ignoreCase = true)) {
-                    return zip.readBytes().toString(Charsets.UTF_8)
+                    // Zip bomb guard: the declared size is not trusted, the stream is capped while inflating.
+                    return readBounded(zip, ArchiveLimits.MAX_JSON_IMPORT_BYTES, "SMS Organizer JSON").toString(Charsets.UTF_8)
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry
@@ -56,6 +63,7 @@ class SmsOrganizerImporter {
 
     private fun parseJson(text: String): ImportResult {
         val root = try {
+            checkJsonDepth(text)
             Json.parseToJsonElement(text)
         } catch (e: Exception) {
             return ImportResult(emptyList(), warnings = listOf("Could not parse JSON: ${e.message}"))

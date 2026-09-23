@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,8 +23,12 @@ import kotlinx.coroutines.runBlocking
  * [PersistenceAdapter] over a Preferences [DataStore]: every setting is stored as a string under its registry key.
  *
  * The registry's contract is synchronous, so values are served from an in-memory snapshot that is loaded from disk
- * once (lazily, on first access) and updated immediately on every write; the write itself is persisted to DataStore
- * asynchronously, in order.
+ * once and updated immediately on every write; the write itself is persisted to DataStore asynchronously, in order.
+ *
+ * The load starts on [Dispatchers.IO] as soon as the adapter is created (in `Application.onCreate`, via the DI
+ * graph), so by the time the first activity reads a value it is normally already in memory. A synchronous read
+ * that races the load waits for it (a small file read, never a second disk read); [observe] and [observeAll]
+ * suspend instead of blocking.
  */
 class DataStorePersistenceAdapter(
     private val dataStore: DataStore<Preferences>,
@@ -33,6 +39,13 @@ class DataStorePersistenceAdapter(
     @Volatile private var loaded = false
     private val writes = Channel<(MutablePreferences) -> Unit>(Channel.UNLIMITED)
 
+    /** The first disk read, started eagerly off the main thread. A failed read yields defaults. */
+    private val initial: Deferred<Map<String, String>> = scope.async(Dispatchers.IO) {
+        runCatching { dataStore.data.first() }
+            .map { prefs -> prefs.asMap().entries.mapNotNull { (k, v) -> (v as? String)?.let { k.name to it } }.toMap() }
+            .getOrElse { emptyMap() }
+    }
+
     init {
         // Single consumer keeps writes in the order they were made.
         scope.launch(Dispatchers.IO) {
@@ -42,10 +55,19 @@ class DataStorePersistenceAdapter(
 
     private fun ensureLoaded() {
         if (loaded) return
+        // Normally already complete (preloaded at startup), so this returns at once instead of waiting.
+        applyLoaded(runBlocking { initial.await() })
+    }
+
+    private suspend fun awaitLoaded() {
+        if (loaded) return
+        applyLoaded(initial.await())
+    }
+
+    private fun applyLoaded(values: Map<String, String>) {
         synchronized(this) {
             if (loaded) return
-            val prefs = runBlocking(Dispatchers.IO) { dataStore.data.first() }
-            snapshot.value = prefs.asMap().entries.mapNotNull { (k, v) -> (v as? String)?.let { k.name to it } }.toMap()
+            snapshot.value = values
             loaded = true
         }
     }
@@ -68,7 +90,7 @@ class DataStorePersistenceAdapter(
     }
 
     override fun observe(key: String): Flow<String?> =
-        snapshot.onStart { ensureLoaded() }.map { it[key] }.distinctUntilChanged()
+        snapshot.onStart { awaitLoaded() }.map { it[key] }.distinctUntilChanged()
 
     override fun keys(): Set<String> {
         ensureLoaded()
@@ -76,7 +98,7 @@ class DataStorePersistenceAdapter(
     }
 
     /** Emits the whole raw snapshot on every change (used for "changed from default" ranking). */
-    fun observeAll(): Flow<Map<String, String>> = snapshot.onStart { ensureLoaded() }
+    fun observeAll(): Flow<Map<String, String>> = snapshot.onStart { awaitLoaded() }
 
     private fun persist(block: (MutablePreferences) -> Unit) {
         writes.trySend(block)

@@ -94,6 +94,8 @@ data class ComposerUi(
     val normalizedHint: String? = null,
     val sending: Boolean = false,
     val enabled: Boolean = true,
+    /** A send waiting for a cost confirmation (premium / short code / international / roaming), or null. */
+    val costPrompt: CostPrompt? = null,
 )
 
 /** Callbacks from the composer to its ViewModel. */
@@ -104,6 +106,12 @@ interface ComposerActions {
     fun onSwitchSim()
     fun onSend()
     fun onScheduleSend(atMillis: Long)
+
+    /** The user confirmed the pending [ComposerUi.costPrompt] send; [dontAskAgain] remembers these numbers. */
+    fun onConfirmCost(dontAskAgain: Boolean) {}
+
+    /** The user cancelled the pending [ComposerUi.costPrompt] send. */
+    fun onDismissCost() {}
 }
 
 /**
@@ -116,6 +124,9 @@ interface ComposerActions {
 fun Composer(ui: ComposerUi, text: String, actions: ComposerActions, modifier: Modifier = Modifier) {
     var trayOpen by rememberSaveable { mutableStateOf(false) }
     var laterMenu by remember { mutableStateOf(false) }
+    ui.costPrompt?.let { prompt ->
+        CostWarningDialog(prompt = prompt, onConfirm = actions::onConfirmCost, onDismiss = actions::onDismissCost)
+    }
     Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 2.dp) {
         Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             ComposerStatusRow(ui, actions)

@@ -89,9 +89,31 @@ OTP (large bold code in a custom view, Copy code / Delete now / Mark read, in-ca
 consumed OTPs, timeout at auto-delete), personal (MessagingStyle, inline RemoteInput reply, Mark read), others by
 category channel. Lock-screen visibility follows `notifications.lockScreenPrivacy`.
 
-- When a thread is opened/read, call `MessageNotifier.cancelForThread(threadId)` (inject `MessageNotifier`).
+- When a thread is opened/read, call `MessageNotifier.cancelForThread(threadId)` (inject `MessageNotifier`; the
+  conversation screen does this on resume). It also refreshes the category summaries.
 - Channel ids are constants on `NotificationChannels` (`PERSONAL`, `OTP`, `TRANSACTIONS`, `PROMOTIONS`, `OTHER`,
-  `SPAM`, `OTP_CONSUMED`, `FAILURES`, `MMS`, `SELF_TEST`, `RELIABILITY`); other modules may post to `FAILURES`/`MMS`.
+  `SPAM`, `OTP_CONSUMED`, `FAILURES`, `AUTOMATION`, `MMS`, `SELF_TEST`, `RELIABILITY`); other modules may post to
+  `FAILURES`/`MMS`/`AUTOMATION` (scheduled sends, automation results). Ids are stable: never rename one, because
+  Android keys the user's sound/importance choices by id. Retired ids go in `ChannelCatalog.obsolete` (deleted once
+  per `SCHEMA` bump). Defaults live in `ChannelCatalog`; after creation the system owns sound, vibration and
+  importance and code never overrides them (no `setSilent`, no DND bypass; spam is created blocked).
+- Multi-SIM: with more than one active SIM, message categories get per-SIM copies (`otp.sim2`, group
+  "SIM 2 · Airtel", see `SimChannelIds`), created on the first notification for that SIM and seeded from the flat
+  channel's current settings. Resolve a channel with `NotificationChannels.channelFor(baseId, subId, sims)`.
+- Per-conversation channels: `ConversationChannels.enable(conversationId, title, addresses)` creates `conv:<id>`
+  (conversation channel via `setConversationId` on API 30+) and a long-lived conversation shortcut
+  (`ConversationChannels.shortcutIdFor(id)`, Person + LocusId); personal notifications always carry that shortcut
+  id, so Android 11+ lists them under Conversations. `ui/notifications/CustomNotifications.open(...)` is the
+  conversation-menu entry; `NotificationChannels.settingsIntent(context, channelId, shortcutId?)` opens a channel's
+  system page. `Routes.NOTIFICATION_CHANNELS` lists groups/channels with live importance, custom conversation
+  channels (remove), critical-blocked warnings and "Reset channels" (`NotificationChannels.resetAll`: recreates
+  channels the user has not customised; customised ones keep their settings).
+- Repeats (`RepeatCollapse`): identical personal text, or same-template (digits masked) informational/OTP text,
+  from the same thread within 15 min updates the existing notification with "×N" (quietly, `setOnlyAlertOnce`)
+  instead of stacking; a resent OTP replaces the previous one with the latest code (alerts again only if the code
+  changed). Informational notifications keep up to 5 distinct lines (InboxStyle). State rides in the notification
+  extras (no memory, no wakeups). `NotificationSummaries` posts an InboxStyle summary per category once more than 3
+  are active.
 - `ReliabilityChecker.check()` reports default-SMS role, POST_NOTIFICATIONS, app/channel blocking, battery
   optimisation and background restriction; `Routes.SELF_TEST` fixes them and runs a send-to-self SMS round trip.
 

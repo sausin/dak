@@ -2,6 +2,7 @@ package app.dak.automation
 
 import app.dak.automations.rule.Rule
 import app.dak.automations.rule.RuleCodec
+import app.dak.automations.rule.isExpired
 import app.dak.index.repo.AutomationStore
 import app.dak.index.repo.StoredRule
 import kotlinx.coroutines.flow.Flow
@@ -37,6 +38,16 @@ class RuleRepository @Inject constructor(
     suspend fun delete(id: String) {
         store.delete(id)
         confirmations.forget(id)
+    }
+
+    /**
+     * Disables every enabled rule whose validity window ended before [nowMillis] (e.g. a forwarding rule "until
+     * 31 Jul"), and returns them. Evaluated lazily: at message time and by the daily housekeeping, never by a timer.
+     */
+    suspend fun disableExpired(nowMillis: Long = System.currentTimeMillis()): List<Rule> {
+        val expired = enabledRules().filter { it.isExpired(nowMillis) }
+        for (rule in expired) store.setEnabled(rule.id, false)
+        return expired
     }
 
     private fun decode(stored: StoredRule): Rule? =

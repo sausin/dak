@@ -15,6 +15,10 @@ import kotlinx.coroutines.CancellationException
  * Stage-2 backfill / re-index worker. Processes batches until done; a stopped run (constraints lost, process
  * killed) resumes from the persisted cursor. A "Tonight" run whose window closes re-enqueues itself for the next
  * night. Reports progress through [setProgress] (`done`, `total`) and `IndexMaintenance.progress`.
+ *
+ * Battery: one-shot unique work (never periodic), so nothing lingers once the backfill is done. Each batch is a
+ * short CPU burst with its cursor persisted, so a stop (constraints lost, the 10-minute execution limit) loses at
+ * most one batch.
  */
 @HiltWorker
 class BackfillWorker @AssistedInject constructor(
@@ -22,9 +26,11 @@ class BackfillWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val maintenance: IndexMaintenance,
     private val scheduler: BackfillScheduler,
+    private val activity: BackgroundActivityLog,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        activity.record(BackgroundActivityLog.BACKFILL)
         val schedule = inputData.getString(KEY_SCHEDULE)
             ?.let { name -> IndexSchedule.entries.firstOrNull { it.name == name } }
             ?: IndexSchedule.NOW
@@ -51,24 +57,5 @@ class BackfillWorker @AssistedInject constructor(
         const val PROGRESS_TOTAL = "total"
         private const val MAX_ATTEMPTS = 8
         private const val TAG = "DakIndex"
-    }
-}
-
-/** Periodic (6 h) provider reconcile: picks up missed changes and deletions. Complements the ContentObserver. */
-@HiltWorker
-class ReconcileWorker @AssistedInject constructor(
-    @Assisted appContext: Context,
-    @Assisted params: WorkerParameters,
-    private val reconciler: ProviderReconciler,
-) : CoroutineWorker(appContext, params) {
-
-    override suspend fun doWork(): Result = try {
-        reconciler.full()
-        Result.success()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Log.w("DakIndex", "Reconcile failed", e)
-        Result.retry()
     }
 }

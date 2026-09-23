@@ -11,6 +11,10 @@ import app.dak.index.crypto.IndexDatabaseFactory
 import app.dak.index.db.DakIndexDatabase
 import app.dak.index.enrich.DefaultMessageEnricher
 import app.dak.index.enrich.MessageEnricher
+import app.dak.index.maintenance.BinPurgeTask
+import app.dak.index.maintenance.MaintenanceTask
+import app.dak.index.maintenance.ProviderReconcileTask
+import app.dak.index.maintenance.SignatureRefreshTask
 import app.dak.index.repo.RatesSource
 import app.dak.index.sync.IncomingIndexer
 import app.dak.telephony.IncomingMessageHandler
@@ -22,6 +26,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
+import dagger.multibindings.Multibinds
 import java.util.Optional
 import javax.inject.Singleton
 
@@ -34,7 +39,10 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object IndexProvidesModule {
 
-    /** Opens (or recreates) the encrypted index; first injection does Keystore + file I/O. */
+    /**
+     * The encrypted index. Cheap to inject on any thread: Keystore unwrap and the SQLCipher open are deferred to
+     * the first real query, which Room runs on its background executor.
+     */
     @Provides
     @Singleton
     fun openedIndex(@ApplicationContext context: Context): IndexDatabaseFactory.OpenedIndex =
@@ -68,6 +76,22 @@ abstract class IndexBindsModule {
     @Binds
     @IntoSet
     abstract fun incomingIndexer(impl: IncomingIndexer): IncomingMessageHandler
+
+    /** Daily housekeeping run by the single maintenance job; features add theirs with `@IntoSet`. */
+    @Multibinds
+    abstract fun maintenanceTasks(): Set<MaintenanceTask>
+
+    @Binds
+    @IntoSet
+    abstract fun binPurgeTask(impl: BinPurgeTask): MaintenanceTask
+
+    @Binds
+    @IntoSet
+    abstract fun providerReconcileTask(impl: ProviderReconcileTask): MaintenanceTask
+
+    @Binds
+    @IntoSet
+    abstract fun signatureRefreshTask(impl: SignatureRefreshTask): MaintenanceTask
 
     @BindsOptionalOf
     abstract fun binPolicy(): BinPolicy

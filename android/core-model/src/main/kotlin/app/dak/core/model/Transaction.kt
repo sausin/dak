@@ -28,4 +28,10 @@ data class ExtractedTransaction(
     val balanceMinor: Long? = null,
     val balanceCurrency: String? = null,
     val institution: String? = null,
+    /**
+     * The account/card number exactly as far as the SMS shows it, mask normalised to `X` and spaces removed
+     * (e.g. `XX440065` or `XXXX1234`), if present. [last4] is its last four digits. Banks change how many digits
+     * they reveal over time, so ledger code compares the visible digits rather than [last4] alone.
+     */
+    val maskedNumber: String? = null,
 )

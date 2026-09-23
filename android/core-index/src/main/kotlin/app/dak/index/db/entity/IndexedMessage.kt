@@ -30,6 +30,7 @@ import app.dak.index.sql.Tables
         Index(value = ["category", "dateMillis"]),
         Index(value = ["templateVersion"]),
         Index(value = ["accountId"]),
+        Index(value = ["repeatGroup"]),
     ],
 )
 data class IndexedMessage(
@@ -80,6 +81,13 @@ data class IndexedMessage(
     val templateVersion: Int,
     val searchText: String,
     val searchSender: String,
+    /**
+     * Repeat group of an incoming message that arrived several times (exact duplicate body within 24 h, or the same
+     * OTP code within 10 min, in one conversation): the key (`MessageKey.toString()`) of the oldest copy, shared by
+     * every copy; null when the message is not repeated. Threads show one bubble per group (see
+     * `app.dak.index.enrich.RepeatRules`).
+     */
+    val repeatGroup: String? = null,
 ) {
     companion object {
         const val PREVIEW_LENGTH = 200

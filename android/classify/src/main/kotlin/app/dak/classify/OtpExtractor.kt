@@ -48,7 +48,11 @@ public object OtpExtractor {
     private val genericCode = Regex("""(?i)\b(?:code|pin)\s*(?:is|:)\s*([A-Z0-9]{4,8})\b""")
 
     /** Attempts to extract OTP info from [body]. Returns null if no OTP-shaped code is found. */
-    public fun extract(body: String): OtpInfo? {
+    public fun extract(rawBody: String): OtpInfo? {
+        // Normalise non-ASCII decimal digits (Devanagari, Bengali, Arabic-Indic, full-width, ...)
+        // up front so every `\d`/digit check below matches regardless of script, and so any code
+        // returned is always ASCII digits (copy/autofill needs ASCII, not e.g. Devanagari ०-९).
+        val body = DigitNormalizer.normalizeDigits(rawBody)
         val webOtp = webOtpRegex.find(body)
         val webOtpDomain = webOtp?.groupValues?.get(1)
         val webOtpCode = webOtp?.groupValues?.get(2)?.takeIf { it.any { c -> c.isDigit() } }

@@ -1,6 +1,8 @@
 package app.dak.automation
 
+import android.content.Context
 import android.util.Log
+import app.dak.R
 import app.dak.automations.MessageEvent
 import app.dak.automations.PlannedAction
 import app.dak.automations.RuleEngine
@@ -15,6 +17,9 @@ import app.dak.automations.action.Notifier
 import app.dak.automations.action.ReplyScheduler
 import app.dak.automations.action.SmsForwarder
 import app.dak.automations.TemplateRenderer
+import app.dak.automations.action.ActionResult
+import app.dak.automations.forwarding.ForwardingSpec
+import app.dak.automations.rule.ActionSpec
 import app.dak.automations.rule.Rule
 import app.dak.core.model.Category
 import app.dak.core.model.ExtractedTransaction
@@ -31,6 +36,7 @@ import app.dak.premium.Entitlements
 import app.dak.premium.PremiumGateway
 import app.dak.telephony.IncomingMessageHandler
 import app.dak.telephony.SimRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -47,6 +53,11 @@ import javax.inject.Singleton
  *
  * Forwarding/relay actions of rules that can match an OTP only run once the rule was confirmed with a biometric
  * check in the Automations screen ([OtpForwardConfirmations]); otherwise they are skipped and audit-logged.
+ *
+ * Time-boxed rules whose window has ended are disabled here, lazily, before evaluation ([DailyHousekeeping.expire]);
+ * each incoming message also gives [DailyHousekeeping.runIfDue] its once-a-day chance. Forwards go through
+ * [AndroidSmsForwarder] (rate-limited), are audit-logged by the registry, and a successful forward by a
+ * forwarding rule also labels the source message "Fwd → <recipient>".
  */
 @Singleton
 class AutomationRunner @Inject constructor(
@@ -65,6 +76,8 @@ class AutomationRunner @Inject constructor(
     private val notifications: AutomationNotifications,
     private val bin: RecycleBin,
     private val undoCenter: AutomationUndoCenter,
+    private val housekeeping: DailyHousekeeping,
+    @ApplicationContext private val context: Context,
     @ApplicationScope private val scope: CoroutineScope,
 ) : IncomingMessageHandler {
 
@@ -74,12 +87,13 @@ class AutomationRunner @Inject constructor(
         if (message.box != MessageBox.INBOX) return
         scope.launch {
             runCatching { run(message) }.onFailure { Log.w(TAG, "automation run failed for ${message.key}", it) }
+            runCatching { housekeeping.runIfDue() }.onFailure { Log.w(TAG, "housekeeping failed", it) }
         }
     }
 
     /** Evaluates all enabled rules against [message] and executes what they plan. */
     suspend fun run(message: Message) {
-        val enabled = rules.enabledRules()
+        val enabled = housekeeping.expire(rules.enabledRules(), System.currentTimeMillis())
         if (enabled.isEmpty()) return
         val item = withTimeoutOrNull(INDEX_WAIT_MILLIS) { conversations.message(message.key).filterNotNull().first() }
         val event = eventOf(message, item)
@@ -90,11 +104,20 @@ class AutomationRunner @Inject constructor(
                 audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "OTP forwarding not confirmed")
                 continue
             }
-            registry.execute(planned, event, contextFor(planned, event))
+            val result = registry.execute(planned, event, contextFor(planned, event))
+            if (result is ActionResult.Success) labelForward(rule, planned.action, event.messageKey)
         }
     }
 
+    /** Marks a message forwarded by a forwarding rule with a persistent label naming the recipient. */
+    private suspend fun labelForward(rule: Rule, action: ActionSpec, messageKey: String) {
+        if (action !is ActionSpec.ForwardSms || !ForwardingSpec.isForwarding(rule)) return
+        val recipient = ForwardingSpec.fromRule(rule)?.recipients?.firstOrNull { it.number == action.to }?.label ?: action.to
+        runCatching { labeler.label(messageKey, context.getString(R.string.fw_label_forwarded, recipient)) }
+    }
+
     private fun eventOf(message: Message, item: MessageItem?): MessageEvent = MessageEvent(
+        conversationId = item?.conversationId,
         messageKey = message.key.toString(),
         address = message.address,
         mergeKey = item?.conversationId?.let { ConversationIds.mergeKeyOf(it) },

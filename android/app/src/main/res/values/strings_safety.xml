@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fraud help and SMS cost warnings (agent "safety"). All names prefixed safe_. -->
+<resources>
+    <!-- Entry points -->
+    <string name="safe_action_report_fraud">Report fraud</string>
+    <string name="safe_link_report">Report</string>
+    <string name="safe_shortcut_short">Report fraud</string>
+    <string name="safe_shortcut_long">Report fraud or call a helpline</string>
+    <string name="safe_shortcut_disabled">Open Dak to report fraud</string>
+
+    <!-- Report fraud screen -->
+    <string name="safe_title">Report fraud</string>
+    <string name="safe_urgent_title">Lost money to a scam?</string>
+    <string name="safe_urgent_body">Call %1$s, the National Cyber Crime Helpline, right away. Reporting within the first few hours gives the best chance of stopping the money. Then call your bank to block your card or account.</string>
+    <string name="safe_call_n">Call %1$s</string>
+    <string name="safe_sms_n">SMS %1$s</string>
+    <string name="safe_report_title">Report this message</string>
+    <string name="safe_report_trai">Report spam to TRAI (1909)</string>
+    <string name="safe_report_trai_body">Opens a complaint SMS with the message text, sender and date, in the format TRAI publishes. Check it before sending: your operator may reply if it needs changes. Complaints must be sent within a few days of the message.</string>
+    <string name="safe_report_chakshu">Report suspected fraud on Chakshu</string>
+    <string name="safe_report_chakshu_body">For fake KYC, impersonation, fake customer care or prize messages. The message details are copied: on the Sanchar Saathi page choose the medium (SMS) and category, then paste them.</string>
+    <string name="safe_report_cyber">Report financial fraud on cybercrime.gov.in</string>
+    <string name="safe_report_cyber_body">If you lost money or shared bank details. The message details are copied for the complaint form. Keep screenshots and transaction IDs ready.</string>
+    <string name="safe_block_sender">Block sender</string>
+    <string name="safe_sender_blocked">Sender blocked</string>
+    <string name="safe_block_sender_body">Adds the sender to your phone\'s block list (also blocks their calls).</string>
+    <string name="safe_copy_details">Copy message details</string>
+    <string name="safe_message_missing">The message to report is no longer on this phone.</string>
+    <string name="safe_section_helplines">Official helplines</string>
+    <string name="safe_section_bank">Your bank</string>
+    <string name="safe_pending_verification">Pending verification</string>
+    <string name="safe_source">Source: %1$s</string>
+    <string name="safe_bank_empty">Dak doesn\'t list bank numbers it hasn\'t verified. Save your bank\'s card-block number here so it\'s one tap away when you need it.</string>
+    <string name="safe_bank_add">Add my bank\'s card-block number</string>
+    <string name="safe_bank_add_hint">Copy it from the back of your card or your bank\'s official website, never from an SMS or a search result.</string>
+    <string name="safe_bank_label">Name</string>
+    <string name="safe_bank_default_label">My bank\'s card-block number</string>
+    <string name="safe_bank_number">Phone number</string>
+    <string name="safe_bank_unverified">Added by you · not verified by Dak</string>
+    <string name="safe_bank_added">Number saved</string>
+    <string name="safe_bank_invalid">Enter a name and a phone number</string>
+    <string name="safe_bank_remove_title">Remove this number?</string>
+    <string name="safe_remove">Remove</string>
+    <string name="safe_save">Save</string>
+    <string name="safe_blocked">Sender blocked</string>
+    <string name="safe_block_failed">Couldn\'t block. Make sure Dak is your default SMS app.</string>
+    <string name="safe_no_app">No app on this phone can open that</string>
+    <string name="safe_details_copied">Details copied</string>
+    <string name="safe_details_copied_paste">Message details copied. Paste them into the form.</string>
+    <string name="safe_clip_label">Message details</string>
+    <string name="safe_detail_sender">Sender</string>
+    <string name="safe_detail_received">Received</string>
+    <string name="safe_detail_sim">SIM</string>
+    <string name="safe_detail_message">Message</string>
+    <string name="safe_footer">Calls open your phone\'s dialer; Dak never calls for you. Banks, police and government agencies never ask for your OTP, PIN or card details over SMS or phone.</string>
+
+    <!-- SMS cost warnings -->
+    <string name="safe_cost_title">Check before sending</string>
+    <string name="safe_cost_title_premium">This may cost a lot</string>
+    <string name="safe_cost_premium">Premium-rate number. Each message can be charged much more than a normal SMS, or sign you up for a paid service.</string>
+    <string name="safe_cost_unknown_short_code">Short code with unknown charges. It may be billed at a premium rate.</string>
+    <string name="safe_cost_international">International number. International SMS rates apply.</string>
+    <string name="safe_cost_international_to">Number in %1$s. International SMS rates apply.</string>
+    <string name="safe_cost_roaming">You\'re roaming abroad. SMS may be charged at roaming rates.</string>
+    <string name="safe_cost_also_roaming">You\'re also roaming abroad.</string>
+    <string name="safe_cost_alphanumeric">This sender can\'t receive replies. Your message won\'t be delivered (you may still be charged).</string>
+    <string name="safe_cost_emergency">Emergency number. SMS to emergency services may not be supported: call instead.</string>
+    <string name="safe_cost_standard_short_code">Short code, charged at the standard rate.</string>
+    <string name="safe_cost_toll_free">Toll-free number.</string>
+    <string name="safe_cost_scheduled_note">The message will be sent later, when you may be somewhere else.</string>
+    <string name="safe_cost_dont_ask_number">Don\'t ask again for this number</string>
+    <string name="safe_cost_dont_ask_numbers">Don\'t ask again for these numbers</string>
+    <string name="safe_cost_send_anyway">Send anyway</string>
+    <string name="safe_cost_schedule_anyway">Schedule anyway</string>
+    <string name="safe_cost_dont_send">Don\'t send</string>
+    <string name="safe_reply_needs_confirmation">Not sent: this number may be costly. Open the conversation to confirm.</string>
+</resources>

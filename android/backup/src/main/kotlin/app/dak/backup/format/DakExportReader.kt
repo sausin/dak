@@ -35,26 +35,66 @@ class DakExportReader(
      */
     fun readMessages(attachmentSink: (sha256: String, input: InputStream) -> Unit = { _, _ -> }): Sequence<MessageRecord> =
         sequence {
+            // Archives are untrusted (shared storage, downloads): every entry is size-capped while streaming and
+            // attachment names must be bare SHA-256 hex, so a crafted "attachments/../../x" can never become a path.
+            var total = 0L
+            val countTotal: (Long) -> Unit = { n ->
+                total += n
+                if (total > ArchiveLimits.MAX_TOTAL_UNCOMPRESSED_BYTES) {
+                    throw ArchiveLimitException("archive expands beyond ${ArchiveLimits.MAX_TOTAL_UNCOMPRESSED_BYTES} bytes")
+                }
+            }
+            fun entryStream(zip: ZipInputStream, limit: Long, what: String): InputStream =
+                LimitedInputStream(zip, limit, what, countTotal, closeUnderlying = false)
+
             val zip = ZipInputStream(input)
+            var entries = 0
             var entry = zip.nextEntry
             while (entry != null) {
+                if (++entries > ArchiveLimits.MAX_ZIP_ENTRIES) throw ArchiveLimitException("more than ${ArchiveLimits.MAX_ZIP_ENTRIES} entries")
                 val name = entry.name
                 when {
-                    name.startsWith("attachments/") -> attachmentSink(name.removePrefix("attachments/"), zip)
-                    name.startsWith("messages/") && name.endsWith(".jsonl") -> {
-                        val reader = zip.bufferedReader(Charsets.UTF_8)
-                        var line = reader.readLine()
-                        while (line != null) {
-                            if (line.isNotBlank()) yield(json.decodeFromString<MessageRecord>(line))
-                            line = reader.readLine()
+                    name.startsWith("attachments/") -> {
+                        val sha = name.removePrefix("attachments/")
+                        if (ArchiveLimits.isSha256Hex(sha)) {
+                            attachmentSink(sha, entryStream(zip, ArchiveLimits.MAX_ATTACHMENT_BYTES, "attachment"))
                         }
                     }
-                    name == "threads.json" -> threads = json.decodeFromString(zip.readBytes().toString(Charsets.UTF_8))
-                    name == "settings.json" -> settingsJson = zip.readBytes().toString(Charsets.UTF_8)
-                    name == "manifest.json" -> manifest = json.decodeFromString(zip.readBytes().toString(Charsets.UTF_8))
+                    name.startsWith("messages/") && name.endsWith(".jsonl") -> {
+                        val reader = entryStream(zip, ArchiveLimits.MAX_MESSAGE_CHUNK_BYTES, name).bufferedReader(Charsets.UTF_8)
+                        var line = readBoundedLine(reader)
+                        while (line != null) {
+                            if (line.isNotBlank()) {
+                                checkJsonDepth(line)
+                                yield(json.decodeFromString<MessageRecord>(line))
+                            }
+                            line = readBoundedLine(reader)
+                        }
+                    }
+                    name == "threads.json" -> threads = json.decodeFromString(readMetadata(entryStream(zip, ArchiveLimits.MAX_METADATA_BYTES, name)))
+                    name == "settings.json" -> settingsJson = readMetadata(entryStream(zip, ArchiveLimits.MAX_METADATA_BYTES, name))
+                    name == "manifest.json" -> manifest = json.decodeFromString(readMetadata(entryStream(zip, ArchiveLimits.MAX_METADATA_BYTES, name)))
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry
             }
         }
+
+    private fun readMetadata(input: InputStream): String {
+        val text = input.readBytes().toString(Charsets.UTF_8)
+        checkJsonDepth(text)
+        return text
+    }
+
+    /** Like [java.io.BufferedReader.readLine] (split on `\n`, `\r` dropped) but refuses absurdly long lines. */
+    private fun readBoundedLine(reader: java.io.Reader): String? {
+        val sb = StringBuilder()
+        while (true) {
+            val c = reader.read()
+            if (c < 0) return if (sb.isEmpty()) null else sb.toString()
+            if (c == '\n'.code) return sb.toString()
+            if (c != '\r'.code) sb.append(c.toChar())
+            if (sb.length > ArchiveLimits.MAX_JSON_LINE_CHARS) throw ArchiveLimitException("message line too long")
+        }
+    }
 }

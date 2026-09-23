@@ -1,5 +1,8 @@
 package app.dak.backup.importers
 
+import app.dak.backup.format.ArchiveLimits
+import app.dak.backup.format.checkJsonDepth
+import app.dak.backup.format.readBounded
 import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKind
 import app.dak.core.model.NO_SUB_ID
@@ -31,7 +34,8 @@ class FossifyImporter : Importer {
     }
 
     override fun import(input: InputStream): Sequence<ImportedMessage> {
-        val text = input.use { it.readBytes().toString(Charsets.UTF_8) }
+        val text = input.use { readBounded(it, ArchiveLimits.MAX_JSON_IMPORT_BYTES, "Fossify export").toString(Charsets.UTF_8) }
+        checkJsonDepth(text)
         val root = Json.parseToJsonElement(text)
         val array = (root as? JsonArray) ?: return emptySequence()
         return array.asSequence().mapNotNull { el -> (el as? JsonObject)?.let(::parseOne) }
@@ -53,7 +57,7 @@ class FossifyImporter : Importer {
         val kind = if (isMms) MessageKind.MMS else MessageKind.SMS
         val (mmsBody, attachments) = if (parts != null) parseParts(parts) else body to emptyList()
         val resolvedAddress = addressesArray?.let { arr ->
-            arr.mapNotNull { addr -> (addr as? JsonObject)?.let { firstString(it, "address") } }
+            arr.take(ArchiveLimits.MAX_MMS_ADDRESSES).mapNotNull { addr -> (addr as? JsonObject)?.let { firstString(it, "address") } }
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
                 .ifBlank { null }
@@ -76,7 +80,7 @@ class FossifyImporter : Importer {
     private fun parseParts(parts: JsonArray): Pair<String, List<ImportedAttachment>> {
         val bodyParts = StringBuilder()
         val attachments = mutableListOf<ImportedAttachment>()
-        for (el in parts) {
+        for (el in parts.take(ArchiveLimits.MAX_MMS_PARTS)) {
             val part = el as? JsonObject ?: continue
             val contentType = firstString(part, "contentType", "ct") ?: ""
             val text = firstString(part, "text")
@@ -88,7 +92,7 @@ class FossifyImporter : Importer {
                     bodyParts.append(text)
                 }
                 data != null -> {
-                    val decoded = runCatching { Base64.getDecoder().decode(data) }.getOrNull()
+                    val decoded = runCatching { Base64.getMimeDecoder().decode(data) }.getOrNull()
                     attachments += ImportedAttachment(
                         mimeType = contentType.ifEmpty { "application/octet-stream" },
                         name = name,

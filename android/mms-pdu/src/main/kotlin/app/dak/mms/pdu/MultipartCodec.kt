@@ -4,11 +4,18 @@ package app.dak.mms.pdu
 internal object MultipartCodec {
     private const val MAX_NESTING = 3
 
-    fun read(r: WspReader, depth: Int = 0): List<PduPart> {
+    /** Reads a multipart body; nested multiparts are flattened and all parts count towards [MmsLimits.MAX_PARTS]. */
+    fun read(r: WspReader): List<PduPart> {
+        val parts = ArrayList<PduPart>()
+        read(r, 0, parts)
+        return parts
+    }
+
+    private fun read(r: WspReader, depth: Int, parts: MutableList<PduPart>) {
         val count = r.readUintvarInt()
         // Each entry needs at least 3 octets (two uintvars and a content type): reject absurd counts up front.
         if (count > r.remaining / 3 + 1) throw r.malformed("multipart claims $count parts in ${r.remaining} octets")
-        val parts = ArrayList<PduPart>(count)
+        if (parts.size + count > MmsLimits.MAX_PARTS) throw r.malformed("more than ${MmsLimits.MAX_PARTS} parts")
         repeat(count) {
             val headersLength = r.readUintvarInt()
             val dataLength = r.readUintvarInt()
@@ -17,17 +24,23 @@ internal object MultipartCodec {
             val part = readPartHeaders(headers, contentType, r.readBytes(dataLength))
             if (part.contentType.isMultipart && depth < MAX_NESTING) {
                 // Nested multipart (e.g. multipart/alternative inside related): flatten its children when valid.
-                val nested = try {
-                    read(WspReader(part.data), depth + 1)
+                val nested = ArrayList<PduPart>()
+                val valid = try {
+                    read(WspReader(part.data), depth + 1, nested)
+                    true
                 } catch (e: PduFormatException) {
-                    null
+                    false
                 }
-                if (nested != null) parts.addAll(nested) else parts.add(part)
+                if (valid) {
+                    if (parts.size + nested.size > MmsLimits.MAX_PARTS) throw r.malformed("more than ${MmsLimits.MAX_PARTS} parts")
+                    parts.addAll(nested)
+                } else {
+                    parts.add(part)
+                }
             } else {
                 parts.add(part)
             }
         }
-        return parts
     }
 
     private fun readPartHeaders(r: WspReader, contentType: ContentType, data: ByteArray): PduPart {

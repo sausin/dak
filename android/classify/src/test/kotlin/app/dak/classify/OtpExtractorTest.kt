@@ -71,4 +71,28 @@ class OtpExtractorTest {
     fun `returns null when there is no code at all`() {
         assertNull(OtpExtractor.extract("Thanks for shopping with us, see you again soon."))
     }
+
+    @Test
+    fun `devanagari digit otp is returned as ascii`() {
+        val info = OtpExtractor.extract("आपका ओटीपी ६६५५४४ है कृपया साझा न करें")
+        assertEquals("665544", info?.code)
+    }
+
+    @Test
+    fun `otp with devanagari digits before keyword is returned as ascii`() {
+        val info = OtpExtractor.extract("४८२९१० is your OTP for login.")
+        assertEquals("482910", info?.code)
+    }
+
+    @Test
+    fun `arabic-indic digit otp is returned as ascii`() {
+        val info = OtpExtractor.extract("Your OTP is ٩٠٣٢١٤. Never share it.")
+        assertEquals("903214", info?.code)
+    }
+
+    @Test
+    fun `still ignores amounts and phone numbers written with devanagari digits`() {
+        assertNull(OtpExtractor.extract("Rs ४५००.०० debited from A/c XX1234 on 12-03-24. Avl bal Rs 12,340.00"))
+        assertNull(OtpExtractor.extract("Call us at ९८७६५४३२१० for support"))
+    }
 }

@@ -29,4 +29,21 @@ class TokenizerTest {
     fun `drops punctuation`() {
         assertEquals(listOf("rs", "4500", "00", "debited"), Tokenizer.tokenize("Rs.4500.00 debited!!"))
     }
+
+    @Test
+    fun `zwnj inside a word is dropped but does not split the token`() {
+        // "क्ष" style conjuncts sometimes carry an explicit ZWNJ; the token must match the
+        // same word written without one.
+        val withZwnj = "बिल‌खाता"
+        val withoutZwnj = "बिलखाता"
+        assertEquals(listOf(withoutZwnj), Tokenizer.tokenize(withZwnj))
+        assertEquals(Tokenizer.tokenize(withoutZwnj), Tokenizer.tokenize(withZwnj))
+    }
+
+    @Test
+    fun `zwj inside a word is dropped but does not split the token`() {
+        val withZwj = "क्‍ष"
+        val withoutZwj = "क्ष"
+        assertEquals(listOf(withoutZwj), Tokenizer.tokenize(withZwj))
+    }
 }

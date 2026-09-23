@@ -2,6 +2,7 @@ package app.dak.automation
 
 import app.dak.automations.action.SmsForwarder
 import app.dak.core.model.NO_SUB_ID
+import app.dak.safety.SendCostGuard
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.MessageSender
@@ -25,12 +26,15 @@ class AndroidSmsForwarder @Inject constructor(
     private val settings: SettingsStore,
     private val throttle: SendThrottle,
     private val scheduler: ScheduledSendScheduler,
+    private val costGuard: SendCostGuard,
 ) : SmsForwarder {
 
     override suspend fun forward(to: String, subId: Int?, text: String): Boolean {
         if (to.isBlank() || text.isEmpty()) return false
         val sub = resolveSub(subId) ?: return false
         val address = if (settings.get(DakSettings.numberNormalization)) normalizer.normalize(to, sub) else to
+        // Unattended: never forward to a premium-rate number the user has not approved (see SendCostGuard).
+        if (!costGuard.allowUnattended(address, sub)) return false
         val now = System.currentTimeMillis()
         val slot = throttle.reserve(now)
         if (slot > now + GRACE_MILLIS) {

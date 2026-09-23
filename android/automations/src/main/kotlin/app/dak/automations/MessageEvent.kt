@@ -22,4 +22,6 @@ public data class MessageEvent(
     val category: Category,
     val otp: OtpInfo? = null,
     val transaction: ExtractedTransaction? = null,
+    /** Display conversation id (`t:<threadId>` or `m:<mergeKey>`), when the index knows it. */
+    val conversationId: String? = null,
 )

@@ -66,6 +66,8 @@ import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
 import app.dak.telephony.MmsDownloadState
 import app.dak.ui.common.Avatar
+import app.dak.ui.common.text.BidiText
+import app.dak.ui.notifications.CustomNotifications
 import app.dak.ui.theme.DakTheme
 import kotlinx.coroutines.flow.Flow
 
@@ -141,7 +143,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             override fun onLink(item: MessageItem, link: ExtractedLink) {
                 val unknown = LinkSafety.UNKNOWN_SENDER_LINK_LABEL in item.labels
                 val warning = LinkSafety.warningFor(link, unknown)
-                if (warning != null) linkWarning = warning else LinkSafety.open(context, link.raw)
+                if (warning != null) linkWarning = warning.copy(messageKey = item.key.toString()) else LinkSafety.open(context, link.raw)
             }
             override fun onCopyOtp(item: MessageItem, code: String) {
                 copyToClipboard(context, code, sensitive = true)
@@ -168,10 +170,10 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Avatar(name = header.title, key = header.addresses.firstOrNull() ?: viewModel.conversationId, size = 36.dp, photoUri = header.photoUri, isBusiness = header.isBusiness)
                         Column {
-                            Text(header.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                            Text(BidiText.displaySafe(header.title), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                             val subtitle = header.addresses.singleOrNull()?.takeIf { it != header.title }
                                 ?: if (header.isGroup) stringResource(R.string.scr_conv_group_members, header.addresses.size) else null
-                            if (subtitle != null) Text(subtitle, maxLines = 1, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (subtitle != null) Text(BidiText.isolate(subtitle), maxLines = 1, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (prefs.pinned) Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.scr_pinned), modifier = Modifier.size(16.dp))
                         if (prefs.muted) Icon(Icons.Outlined.NotificationsOff, contentDescription = stringResource(R.string.scr_muted), modifier = Modifier.size(16.dp))
@@ -195,10 +197,15 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             onReplySim = { simDialog = true },
                             onBubbleColour = { styleDialog = true },
                             onFontSize = { fontDialog = true },
+                            onCustomNotifications = { CustomNotifications.open(context, viewModel.conversationId, header.title, header.addresses) },
                             onBlock = { viewModel.block() },
                             onReportSpam = {
                                 val latest = messages.itemSnapshotList.items.firstOrNull { it.box == MessageBox.INBOX }
                                 if (latest != null) navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(latest)))
+                            },
+                            onReportFraud = {
+                                val latest = messages.itemSnapshotList.items.firstOrNull { it.box == MessageBox.INBOX }
+                                navigator.navigate(Routes.fraudHelp(latest?.key?.toString()))
                             },
                         )
                     }
@@ -238,6 +245,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 onDelete = { viewModel.delete(item.key) },
                                 onRetry = if (item.box == MessageBox.FAILED) ({ viewModel.retrySend(item.key) }) else null,
                                 onReportSpam = if (!item.isOutgoing) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
+                                onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
                             )
                         }
                     }
@@ -252,6 +260,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             warning = warning,
             onOpen = { linkWarning = null; LinkSafety.open(context, warning.verdict.link.raw) },
             onDismiss = { linkWarning = null },
+            onReport = warning.messageKey?.let { key -> { linkWarning = null; navigator.navigate(Routes.fraudHelp(key)) } },
         )
     }
     if (simDialog) {
@@ -295,8 +304,10 @@ private fun ThreadMenu(
     onReplySim: () -> Unit,
     onBubbleColour: () -> Unit,
     onFontSize: () -> Unit,
+    onCustomNotifications: () -> Unit,
     onBlock: () -> Unit,
     onReportSpam: () -> Unit,
+    onReportFraud: () -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         @Composable
@@ -308,9 +319,11 @@ private fun ThreadMenu(
         if (canChooseSim) entry(R.string.scr_action_reply_sim, onReplySim)
         entry(R.string.scr_action_bubble_colour, onBubbleColour)
         entry(R.string.scr_action_text_size, onFontSize)
+        entry(R.string.ch_action_custom_notifications, onCustomNotifications)
         HorizontalDivider()
         entry(R.string.scr_action_block, onBlock)
         entry(R.string.scr_action_report_spam, onReportSpam)
+        entry(R.string.safe_action_report_fraud, onReportFraud)
     }
 }
 
@@ -325,6 +338,7 @@ private fun MessageMenu(
     onDelete: () -> Unit,
     onRetry: (() -> Unit)?,
     onReportSpam: (() -> Unit)?,
+    onReportFraud: (() -> Unit)? = null,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         @Composable
@@ -334,6 +348,7 @@ private fun MessageMenu(
         if (item.body.isNotEmpty()) entry(R.string.scr_action_forward, onForward)
         onRetry?.let { entry(R.string.scr_action_retry, it) }
         onReportSpam?.let { entry(R.string.scr_action_report_spam, it) }
+        onReportFraud?.let { entry(R.string.safe_action_report_fraud, it) }
         entry(R.string.scr_action_delete_to_bin, onDelete)
     }
 }

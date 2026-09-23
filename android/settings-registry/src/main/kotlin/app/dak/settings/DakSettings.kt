@@ -100,6 +100,12 @@ object DakSettings {
         "Alerts per category", "Choose which categories notify you, and how loudly.",
         keywords = listOf("personal", "transaction", "otp", "promotion", "spam", "sound"),
     )
+    val notificationChannels = actionSetting(
+        "notifications.channels", SettingsGroup.NOTIFICATIONS,
+        "Notification channels",
+        "Channels per category and SIM, custom conversation channels, and reset.",
+        keywords = listOf("channel", "sound", "vibration", "importance", "sim", "conversation", "priority"),
+    )
     val otpDisplaySize = choiceSetting(
         "notifications.otpDisplaySize", SettingsGroup.NOTIFICATIONS,
         "OTP display size", "How large the code appears on the notification and lock screen.",
@@ -284,6 +290,14 @@ object DakSettings {
         default = true,
         keywords = listOf("roaming", "billing", "warning"),
     )
+    val costWarnings = boolSetting(
+        "simsSending.costWarnings", SettingsGroup.SIMS_SENDING,
+        "Warn before costly SMS",
+        "Ask before texting premium-rate or unknown short codes, international numbers, or while roaming abroad. " +
+            "Automations never send to premium-rate numbers you haven't approved.",
+        default = true,
+        keywords = listOf("premium", "short code", "cost", "charges", "international", "roaming", "warning"),
+    )
     val deliveryReports = boolSetting(
         "simsSending.deliveryReports", SettingsGroup.SIMS_SENDING,
         "Delivery reports", "Ask the carrier to confirm each SMS was delivered. Uses a small amount of battery.",
@@ -428,11 +442,11 @@ object DakSettings {
 
     /** Every setting, in registry (declaration) order. Backs search indexing, group listing and reset. */
     val all: List<SettingDef<*>> = listOf(
-        perCategoryAlerts, otpDisplaySize, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
+        perCategoryAlerts, notificationChannels, otpDisplaySize, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
         quickActions, selfTest, soundPerSim, bubbles, lockScreenPrivacy,
         tabSet, senderMerges, blockList, autoArchivePromosDays, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
         accounts, homeCurrency, hideBalancesOnLock, ratesSource, reconciliationToleranceMinor,
-        sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings,
+        sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings, costWarnings,
         deliveryReports, sendRateSpreading, exactAlarmPermission,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup, indexSchedule, rebuildIndex,

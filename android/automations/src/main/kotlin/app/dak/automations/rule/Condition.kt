@@ -76,6 +76,29 @@ public sealed interface Condition {
     @SerialName("hasOtp")
     public data object HasOtp : Condition
 
+    /**
+     * Validity window on the message's own time: true when `startMillis <= dateMillis` and, if [endMillis] is set,
+     * `dateMillis <= endMillis` (both inclusive, epoch millis; the UI converts local calendar dates). A null
+     * [endMillis] means "until I stop". Used as a top-level conjunct it also marks the rule as expiring — see
+     * [activeWindow] / [isExpired].
+     */
+    @Serializable
+    @SerialName("activeBetween")
+    public data class ActiveBetween(val startMillis: Long, val endMillis: Long? = null) : Condition
+
+    /**
+     * The message belongs to one of the chosen channels: its sender merge group ([mergeKeys], e.g. `HDFCBK`), its
+     * display conversation ([conversationIds], `t:<threadId>` / `m:<mergeKey>`), or one of the raw sender
+     * [addresses] (phone numbers compare on their last 10 digits). Any one hit is enough.
+     */
+    @Serializable
+    @SerialName("senderInGroups")
+    public data class SenderInGroups(
+        val mergeKeys: List<String> = emptyList(),
+        val conversationIds: List<String> = emptyList(),
+        val addresses: List<String> = emptyList(),
+    ) : Condition
+
     /** Preserves an unrecognised condition type (from a newer app version) instead of failing to parse. */
     public data class Unknown(val type: String, val raw: JsonObject) : Condition
 }

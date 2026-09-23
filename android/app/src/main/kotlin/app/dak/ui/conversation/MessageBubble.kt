@@ -54,6 +54,7 @@ import app.dak.telephony.MmsDownloadState
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.TokenChip
 import app.dak.ui.common.rememberRelativeTimeFormatter
+import app.dak.ui.common.text.BidiText
 import app.dak.ui.theme.DakTheme
 import app.dak.ui.theme.TonalColors
 import coil.compose.AsyncImage
@@ -134,7 +135,7 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
     ) {
         if (decor.senderName != null && !outgoing) {
             Text(
-                decor.senderName,
+                BidiText.displaySafe(decor.senderName),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 12.dp, bottom = 2.dp),

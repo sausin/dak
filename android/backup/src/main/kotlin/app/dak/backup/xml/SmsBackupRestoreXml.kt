@@ -1,5 +1,7 @@
 package app.dak.backup.xml
 
+import app.dak.backup.format.ArchiveLimitException
+import app.dak.backup.format.ArchiveLimits
 import app.dak.backup.format.MessageRecord
 import app.dak.backup.importers.ImportedAttachment
 import app.dak.backup.importers.ImportedMessage
@@ -186,6 +188,7 @@ class SmsBackupRestoreXmlImporter : Importer {
         val toAddresses = mutableListOf<String>()
         val body = StringBuilder()
         val attachments = mutableListOf<ImportedAttachment>()
+        var partCount = 0
 
         while (true) {
             when (val token = tokenizer.next()) {
@@ -198,9 +201,13 @@ class SmsBackupRestoreXmlImporter : Importer {
                         val type = token.attributes["type"]?.toIntOrNull()
                         val address = token.attributes["address"].orEmpty()
                         if (type == ADDR_TYPE_FROM) fromAddress = address
-                        else if (type == ADDR_TYPE_TO || type == ADDR_TYPE_CC) toAddresses += address
+                        else if ((type == ADDR_TYPE_TO || type == ADDR_TYPE_CC) && toAddresses.size < ArchiveLimits.MAX_MMS_ADDRESSES) {
+                            toAddresses += address
+                        }
                     }
                     "part" -> {
+                        partCount++
+                        if (partCount > ArchiveLimits.MAX_MMS_PARTS) throw ArchiveLimitException("MMS with more than ${ArchiveLimits.MAX_MMS_PARTS} parts")
                         val ct = token.attributes["ct"].orEmpty()
                         val text = attrOrNull(token.attributes["text"])
                         val data = attrOrNull(token.attributes["data"])
@@ -210,7 +217,8 @@ class SmsBackupRestoreXmlImporter : Importer {
                                 body.append(text)
                             }
                             data != null -> {
-                                val decoded = Base64.getDecoder().decode(data)
+                                // Lenient (MIME) decoding: line breaks are tolerated; garbage drops the part, not the import.
+                                val decoded = runCatching { Base64.getMimeDecoder().decode(data) }.getOrNull() ?: continue
                                 attachmentSink(decoded)
                                 attachments += ImportedAttachment(
                                     mimeType = ct.ifEmpty { "application/octet-stream" },

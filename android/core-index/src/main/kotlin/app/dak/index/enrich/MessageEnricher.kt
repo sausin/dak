@@ -3,7 +3,6 @@ package app.dak.index.enrich
 import app.dak.classify.ClassifierPipeline
 import app.dak.classify.CloudClassifier
 import app.dak.classify.MessageModel
-import app.dak.classify.NaiveBayesModel
 import app.dak.classify.NoCloudClassifier
 import app.dak.classify.SenderId
 import app.dak.classify.SenderKind
@@ -38,6 +37,13 @@ interface MessageEnricher {
      * messages, never for backfill). Must be safe to call concurrently.
      */
     suspend fun enrich(message: Message, allowCloud: Boolean): Enrichment
+
+    /**
+     * Brand-level fold key of a sender channel (`SenderId.mergeKey` form): channels whose headers belong to one
+     * brand in the template bundle share it (e.g. `HDFC` and `HDFCBK` -> `HDFCBK`). Null when unknown. Must be cheap
+     * (called for every indexed message) and safe to call concurrently.
+     */
+    fun brandFoldKey(channel: String): String? = null
 }
 
 /**
@@ -50,8 +56,8 @@ interface MessageEnricher {
 class DefaultMessageEnricher(
     private val isContact: (String) -> Boolean,
     private val cloud: CloudClassifier = NoCloudClassifier,
-    private val modelLoader: () -> MessageModel = { NaiveBayesModel.loadDefault() },
-    initialTemplates: (() -> TemplateBundle) = { TemplateBundle.loadDefault() },
+    private val modelLoader: () -> MessageModel = { ClassifierAssets.model },
+    initialTemplates: (() -> TemplateBundle) = { ClassifierAssets.defaultTemplates },
 ) : MessageEnricher {
 
     private val mutex = Mutex()
@@ -84,6 +90,8 @@ class DefaultMessageEnricher(
         Enrichment(classification, transaction)
     }
 
+    override fun brandFoldKey(channel: String): String? = ensureState().templates.brandKey(channel)
+
     private fun ensureState(): State {
         state?.let { return it }
         synchronized(this) {
@@ -101,8 +109,11 @@ class DefaultMessageEnricher(
     }
 
     companion object {
-        /** Bump when enrichment logic in this module changes in a way that requires re-indexing. */
-        const val LOGIC_REVISION = 1
+        /**
+         * Bump when enrichment logic in this module changes in a way that requires re-indexing.
+         * 2: brand-level sender folding, repeat groups, account ids from all visible digits.
+         */
+        const val LOGIC_REVISION = 2
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

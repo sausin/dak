@@ -10,6 +10,8 @@ public const val CURRENT_RULE_SCHEMA_VERSION: Int = 1
  *
  * @param conditions defaults to [Condition.All] of an empty list, i.e. "always true", so a rule with no
  *   extra conditions fires on every event its [trigger] matches.
+ * @param meta free-form UI metadata (e.g. `kind = forwarding` plus display names), never evaluated. Additive:
+ *   older JSON without it decodes to an empty map, and older builds ignore it.
  */
 @Serializable
 public data class Rule(
@@ -22,4 +24,5 @@ public data class Rule(
     val createdAt: Long,
     val updatedAt: Long,
     val schemaVersion: Int = CURRENT_RULE_SCHEMA_VERSION,
+    val meta: Map<String, String> = emptyMap(),
 )

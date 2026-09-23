@@ -94,6 +94,7 @@ import app.dak.ui.common.EmptyState
 import app.dak.ui.common.LockChip
 import app.dak.ui.common.categoryLabel
 import app.dak.ui.common.relativeTime
+import app.dak.ui.common.text.BidiText
 import app.dak.ui.conversation.MessageTextColors
 import app.dak.ui.conversation.annotateMessage
 import app.dak.ui.settings.UpgradeSheet
@@ -404,7 +405,7 @@ private fun SearchResultRow(hit: SearchHit, onClick: () -> Unit) {
         overlineContent = if (hit.binId != null) { { Text(stringResource(R.string.scr_search_in_bin)) } } else null,
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(hit.conversationTitle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(BidiText.displaySafe(hit.conversationTitle), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (hit.message.category != Category.UNKNOWN && hit.message.enriched) CategoryChip(hit.message.category)
             }
         },

@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.dak.R
 import app.dak.core.model.SimInfo
+import app.dak.index.sync.BackgroundActivityLog
 import app.dak.notifications.NotificationChannels
 import app.dak.notifications.ReliabilityChecker
 import app.dak.notifications.ReliabilityReport
@@ -23,6 +24,7 @@ import app.dak.telephony.SendResult
 import app.dak.telephony.SimRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +43,8 @@ data class SelfTestUiState(
     val number: String = "",
     val sms: SmsTestState = SmsTestState.Idle,
     val localNotificationPosted: Boolean? = null,
+    /** Debug builds only: background wakeups/jobs per day (empty in release builds). */
+    val activity: List<BackgroundActivityLog.Day> = emptyList(),
 )
 
 sealed interface SmsTestState {
@@ -60,6 +64,7 @@ class SelfTestViewModel @Inject constructor(
     private val sims: SimRepository,
     private val sender: MessageSender,
     private val monitor: SelfTestMonitor,
+    private val activityLog: BackgroundActivityLog,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SelfTestUiState())
@@ -90,6 +95,12 @@ class SelfTestViewModel @Inject constructor(
 
     fun refresh() {
         _state.update { it.copy(report = checker.check()) }
+        if (activityLog.enabled) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val days = activityLog.days()
+                _state.update { it.copy(activity = days) }
+            }
+        }
     }
 
     fun selectSim(subId: Int) {

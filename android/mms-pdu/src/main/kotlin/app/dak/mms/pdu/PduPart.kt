@@ -20,6 +20,13 @@ data class PduPart(
     val fileName: String?
         get() = dispositionFileName ?: contentType.fileName ?: contentType.name ?: contentLocation
 
+    /**
+     * [fileName] made safe to show or to use as a file name: no path components, control or bidi characters,
+     * bounded length (see [MmsSafety.safeFileName]). Use this, never the raw values, whenever a name leaves the codec.
+     */
+    val safeFileName: String?
+        get() = MmsSafety.safeFileName(fileName)
+
     /** Charset MIBenum of this part, if declared. */
     val charset: Int? get() = contentType.charset
 

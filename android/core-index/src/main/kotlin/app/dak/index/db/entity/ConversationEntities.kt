@@ -32,6 +32,30 @@ data class SenderAlias(
     val updatedAt: Long,
 )
 
+/**
+ * A user fold rule for one sender channel (`SenderId.mergeKey` of an address: `HDFCBK` for `VM-HDFCBK`, the last
+ * 10 digits for a number). [groupKey] is the merge key of the group the channel is folded into; a rule whose
+ * [groupKey] equals [channel] means "unfolded": the channel stands alone even if the template bundle would fold it
+ * into its brand. Display-layer only; the provider is never touched. User data: survives index rebuilds.
+ */
+@Entity(tableName = Tables.SENDER_FOLD)
+data class SenderFold(
+    @PrimaryKey val channel: String,
+    val groupKey: String,
+    val updatedAt: Long,
+)
+
+/**
+ * A conversation id that no longer has messages because a fold/unfold (or a template update) moved them to
+ * [newId]. Lets notification and search deep links that carry the old id still open the right thread.
+ */
+@Entity(tableName = Tables.CONVERSATION_ALIAS)
+data class ConversationAlias(
+    @PrimaryKey val oldId: String,
+    val newId: String,
+    val createdAt: Long,
+)
+
 /** Per-conversation user settings. Survives index rebuilds (it is not derived from the provider). */
 @Entity(tableName = Tables.PREFS)
 data class ConversationPrefs(

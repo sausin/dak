@@ -21,6 +21,9 @@ object Tables {
     const val AUDIT_LOG = "audit_log"
     const val APP_SIGNATURE = "app_signature"
     const val BACKFILL_STATE = "backfill_state"
+    const val SENDER_FOLD = "sender_fold"
+    const val CONVERSATION_ALIAS = "conversation_alias"
+    const val ACCOUNT_ALIAS = "account_alias"
 }
 
 /** A SQL statement plus its positional bind arguments (only [String], [Long] and [Double] values). */

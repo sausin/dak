@@ -47,6 +47,8 @@ import app.dak.navigation.DakNavigator
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.EmptyState
 import app.dak.ui.common.rememberRelativeTimeFormatter
+import app.dak.ui.common.text.MoneyDisplay
+import app.dak.ui.common.text.rememberDisplayLocale
 import app.dak.ui.theme.DakTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Receipt
@@ -158,8 +160,16 @@ private fun MonthSummary(month: MonthlyTotal) {
         }
         val foreign = month.debitsByCurrency.keys.filter { it != month.debitsHome.currencyUpper }
         if (foreign.isNotEmpty()) {
+            val locale = rememberDisplayLocale()
             Text(
-                stringResource(R.string.scr_account_month_foreign, foreign.joinToString { month.debitsByCurrency.getValue(it).format() }),
+                // Foreign-currency amounts always show their ISO code (never a bare symbol like
+                // "$"), since it is ambiguous while travelling (USD/CAD/AUD/SGD/HKD/...).
+                stringResource(
+                    R.string.scr_account_month_foreign,
+                    foreign.joinToString {
+                        MoneyDisplay.format(month.debitsByCurrency.getValue(it), locale, homeCurrency = month.debitsHome.currencyUpper)
+                    },
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

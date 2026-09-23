@@ -17,7 +17,14 @@ data class MoneyOccurrence(val money: Money, val range: IntRange, val rawText: S
  */
 object MoneyParser {
 
-    private val numberFragment = """\d(?:[\d,.]*\d)?"""
+    // Digits plus every grouping/decimal separator we recognise: ASCII comma/dot, the Swiss
+    // apostrophe, NBSP/narrow-NBSP/thin-space (typical between a rupee sign and an Indian-grouped
+    // amount, or as a European thousands separator). Must start and end on a digit.
+    private val numberFragment = "\\d(?:[\\d,.'   ]*\\d)?"
+
+    // Whitespace allowed between a currency token and the amount: ASCII whitespace plus NBSP and
+    // narrow NBSP, which many banks use instead of a plain space ("₹ 500").
+    private const val CURRENCY_GAP = "[\\s  ]*"
 
     private val currencyTokens: List<String> =
         (CurrencyTable.defaultSymbolToCurrency.keys + CurrencyTable.knownIsoCodes)
@@ -34,7 +41,7 @@ object MoneyParser {
 
     /** Matches an optional currency token, a number, an optional trailing currency token, an optional "/-". */
     private val pattern = Regex(
-        "(?:$currencyCapture\\s*)?($numberFragment)(?:\\s*$currencyCapture)?(/-)?",
+        "(?:$currencyCapture$CURRENCY_GAP)?($numberFragment)(?:$CURRENCY_GAP$currencyCapture)?(/-)?",
         RegexOption.IGNORE_CASE,
     )
 
@@ -47,6 +54,9 @@ object MoneyParser {
         text: String,
         symbolMap: Map<String, String> = CurrencyTable.defaultSymbolToCurrency,
     ): List<MoneyOccurrence> {
+        // Normalise non-ASCII decimal digits first (1:1 per character, so match ranges into the
+        // original text stay valid) so amounts written in any Indic/Arabic digit script parse.
+        val text = DigitNormalizer.normalizeDigits(text)
         val results = mutableListOf<MoneyOccurrence>()
         for (match in pattern.findAll(text)) {
             val prefix = match.groups[1]?.value
@@ -94,7 +104,11 @@ object MoneyParser {
         return Money.ofMajor(BigDecimal(cleaned), currency)
     }
 
-    private fun normalizeSeparators(raw: String, exponent: Int): String {
+    private fun normalizeSeparators(rawInput: String, exponent: Int): String {
+        // Apostrophe (Swiss grouping, "1'234.56"), NBSP/narrow-NBSP/thin-space (Indian or European
+        // grouping written with a non-breaking gap, "1 234,56") are always thousands
+        // separators, never decimal - strip them unconditionally before the comma/dot heuristics.
+        val raw = rawInput.replace("'", "").replace(" ", "").replace(" ", "").replace(" ", "")
         val commaCount = raw.count { it == ',' }
         val dotCount = raw.count { it == '.' }
         return when {

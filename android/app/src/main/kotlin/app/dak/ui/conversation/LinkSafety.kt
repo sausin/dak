@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -24,7 +25,12 @@ import app.dak.classify.LookalikeDomainChecker
 import app.dak.ui.theme.DakTheme
 
 /** A link the user tapped that needs a warning before it opens. */
-data class LinkWarning(val verdict: LinkVerdict, val unknownSender: Boolean)
+data class LinkWarning(
+    val verdict: LinkVerdict,
+    val unknownSender: Boolean,
+    /** Key of the message carrying the link, so the dialog can offer "Report" (Report fraud screen). */
+    val messageKey: String? = null,
+)
 
 /**
  * Link safety on bubbles: every tapped link is checked against the bundled official-domain, shortener and
@@ -58,7 +64,7 @@ object LinkSafety {
 
 /** Warning dialog shown before a risky link opens; "Open anyway" is the deliberate second tap. */
 @Composable
-fun LinkWarningDialog(warning: LinkWarning, onOpen: () -> Unit, onDismiss: () -> Unit) {
+fun LinkWarningDialog(warning: LinkWarning, onOpen: () -> Unit, onDismiss: () -> Unit, onReport: (() -> Unit)? = null) {
     val verdict = warning.verdict
     val reason = when (verdict.risk) {
         LinkRisk.LOOKALIKE -> stringResource(R.string.scr_link_lookalike, verdict.matchedBrand ?: verdict.link.host.orEmpty())
@@ -78,6 +84,11 @@ fun LinkWarningDialog(warning: LinkWarning, onOpen: () -> Unit, onDismiss: () ->
             }
         },
         confirmButton = { TextButton(onClick = onOpen) { Text(stringResource(R.string.scr_link_open_anyway)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.scr_action_dont_open)) } },
+        dismissButton = {
+            Row {
+                if (onReport != null) TextButton(onClick = onReport) { Text(stringResource(R.string.safe_link_report)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.scr_action_dont_open)) }
+            }
+        },
     )
 }

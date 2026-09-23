@@ -15,8 +15,8 @@ Depends on `:core-model`, `:classify`, `:finance`, `:search` (api) and `:core-te
    `IndexBindsModule`). :core-telephony must bind `ProviderReader`, `ProviderWriter`, `ProviderChanges`,
    `SimRepository`. This module contributes `IncomingIndexer` to `Set<IncomingMessageHandler>` (`@IntoSet`,
    priority 100); the receivers must inject that set as `Set<@JvmSuppressWildcards IncomingMessageHandler>`.
-2. **WorkManager + Hilt workers**: the workers (`BackfillWorker`, `ReconcileWorker`, `OtpDeleteWorker`,
-   `BinPurgeWorker`) are `@HiltWorker`. The `Application` must implement `androidx.work.Configuration.Provider`
+2. **WorkManager + Hilt workers**: the workers (`BackfillWorker`, `OtpSweepWorker`, `MaintenanceWorker`) are
+   `@HiltWorker`. The `Application` must implement `androidx.work.Configuration.Provider`
    with an injected `HiltWorkerFactory`, and remove the default initializer in the app manifest:
    ```xml
    <provider android:name="androidx.startup.InitializationProvider"
@@ -40,8 +40,11 @@ Depends on `:core-model`, `:classify`, `:finance`, `:search` (api) and `:core-te
    | `app.dak.index.repo.RatesSource` — `current(): RatesTable?` | bundled `RatesLoader.loadBundled()` |
    | `app.dak.classify.CloudClassifier` (premium only; must itself honour the opt-in) | `NoCloudClassifier` |
 
-7. The first injection of anything touching the database opens it (Keystore unwrap + SQLCipher open, a few ms).
-   `IndexSync.start()` does this on IO; avoid injecting repositories into objects created before it on main.
+7. Injecting the database or any repository is cheap on any thread: the Keystore unwrap and SQLCipher open are
+   deferred to the first real query, which Room runs on its background executor (`IndexDatabaseFactory`).
+   `OpenedIndex.ensureOpen()` is the explicit suspend opener; never call a blocking DAO method on main.
+8. **Periodic work**: do not enqueue your own periodic worker for housekeeping - contribute a `MaintenanceTask`
+   (see "Maintenance" below). See `docs/battery.md` for the background-work budget.
 
 ## Public API
 
@@ -119,7 +122,7 @@ suspend fun undo(receipt: BinReceipt): Int
 suspend fun restore(binId: Long): MessageKey?          // provider re-insert + re-index
 fun observe(): Flow<List<BinItem>>;  fun count(): Flow<Int>
 suspend fun deleteForever(binId: Long);  suspend fun empty(): Int
-suspend fun purgeExpired(nowMillis: Long = now): Int  // also run daily by BinPurgeWorker
+suspend fun purgeExpired(nowMillis: Long = now): Int  // also run by the daily maintenance job (BinPurgeTask)
 suspend fun message(binId: Long): Message?
 ```
 
@@ -137,7 +140,11 @@ fun cancel(key: MessageKey)
 ```
 
 Never deletes retroactively (an OTP discovered after its lifetime, e.g. from a restore, is left alone); starred
-messages are skipped.
+messages are skipped. Battery: pending deletes are queued (`OtpDeleteQueue`, a small SharedPreferences file) and
+ONE unique job (`dak-otp-sweep`, inexact, no alarm) is armed for the most urgent deadline; it deletes everything
+due in one batch and re-arms (`OtpSweepPlan`: consumed OTPs never early and at most 3 min late; 24 h deletes may
+run 45 min early / 15 min late so OTPs of the same hour share one wakeup). A policy switched off after queuing
+wins (the message stays).
 
 ### `signature.AppSignatureRegistry`
 
@@ -147,9 +154,11 @@ suspend fun consumerOf(otp: OtpInfo, refreshOnMiss: Boolean = true): String?
 suspend fun hashesOf(packageName: String): List<String>
 ```
 
+Also `suspend fun refreshIfNeverBuilt(): Int` (called by `IndexSync.start()`).
 Hashes via `app.dak.classify.AppSignatureHash` for every signing certificate (P+ `GET_SIGNING_CERTIFICATES`,
-`GET_SIGNATURES` below). Package broadcasts are not receivable on 8+, so it refreshes on app start
-(incremental by `lastUpdateTime`) and on an unknown hash (throttled to once a minute). Visibility comes from the
+`GET_SIGNATURES` below). Package broadcasts are not receivable on 8+; the table is persisted, built once on first
+start, refreshed incrementally (by `lastUpdateTime`) by the daily maintenance job, and on an unknown hash
+(throttled to once a minute; a hash still unknown after a refresh is not retried for 6 h, persisted). Visibility comes from the
 `<queries>` in this module's manifest (launcher apps, https browsers).
 
 ### `repo.LedgerRepository` (on `:finance`)
@@ -192,7 +201,9 @@ suspend fun undoSenderEdit(address: String): String?
 
 ### Sync (`sync`)
 
-- `IndexSync.start()`, `IndexSync.requestReconcile()`.
+- `IndexSync.start()`, `IndexSync.requestReconcile()` (coalesced with provider changes, 3 s window).
+- `sync.BackgroundActivityLog`: debug-build-only per-day counters (`record(source)`, `days()`), shown on the
+  self-test screen; no-op in release builds.
 - `IndexMaintenance`: `progress: Flow<BackfillProgress>`, `schedule`, `chooseSchedule(IndexSchedule)`,
   `requestReindex(reason, schedule? = null)` (after restore use `BackfillReason.RESTORE`), `rebuild()`,
   `installTemplates(bundle: TemplateBundle): Boolean` (verified OTA bundle; re-indexes if the version changed).
@@ -209,14 +220,27 @@ suspend fun undoSenderEdit(address: String): String?
   database is deleted, a new key made, and the index rebuilt from the provider.
 - **Backfill**: stage 1 in-process (`recentMessages(now - 30 d, 1000)`), stage 2 unique work
   `dak-index-backfill` in batches of 500 via `messagesBefore(cursor)`, cursor persisted in `backfill_state`.
-  NOW = no constraints (not expedited: a long job would exceed the expedited quota and needs a foreground
+  NOW = no constraints (the user's explicit choice; not expedited: a long job would exceed the expedited quota and needs a foreground
   notification below API 31); WHEN_CHARGING = `setRequiresCharging`; TONIGHT = initial delay to 01:00,
   `setRequiresDeviceIdle` + `setRequiresBatteryNotLow`, stops at 05:00 and re-enqueues for the next night.
   Re-index after template updates / restore reuses the same worker (rows are re-enriched when their
   `templateVersion` differs from `MessageEnricher.version`).
-- **Reconcile**: every `ProviderChanges` emission -> `messagesAfter(maxSmsId, maxMmsId)`, refresh of the 50 most
-  recent messages (sent/failed/read changes), deletion check when the provider count drops; plus
-  `dak-index-reconcile` every 6 h with a full deletion check. An empty provider key set never empties the index.
+- **Reconcile**: `ProviderChanges` emissions are coalesced (3 s) into one incremental run while the process is
+  alive -> `messagesAfter(maxSmsId, maxMmsId)`, refresh of the 20 most recent messages (sent/failed/read changes),
+  and at most every 30 min a provider count check (deletion check when it dropped). The daily maintenance job
+  runs a full reconcile whose deletion check is skipped when provider and index counts match. An empty provider
+  key set never empties the index.
+- **Maintenance** (`app.dak.index.maintenance`): ONE unique periodic job `dak-maintenance` (daily, 6 h flex,
+  device idle + battery not low; a catch-up run with battery-not-low only if it has not run for 3 days). It runs
+  every `MaintenanceTask` in the multibound `Set<MaintenanceTask>`:
+  ```kotlin
+  interface MaintenanceTask { val name: String; val order: Int get() = 100; suspend fun run() }
+  // contribute from any SingletonComponent module:
+  @Binds @IntoSet abstract fun myTask(impl: MyTask): MaintenanceTask
+  ```
+  Built-in: `BinPurgeTask` (10: bin purge + audit trim), `ProviderReconcileTask` (20), `SignatureRefreshTask` (30).
+  Features use order 100+, keep tasks short and idempotent, and only *re-arm* precise alarms here (birthday
+  messages, template refresh when OTA fetching lands). `MaintenanceScheduler.runSoon()` runs a pass on demand.
 - **FTS**: external-content FTS4 over `searchText`/`searchSender`; rows are written with insert-ignore + update
   (never REPLACE) so Room's content-sync triggers keep it consistent.
 - **Schema**: version 1, exported to `core-index/schemas`. The DB holds user data, so later versions need

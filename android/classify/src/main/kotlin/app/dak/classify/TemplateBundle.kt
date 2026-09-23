@@ -57,8 +57,21 @@ public class TemplateBundle private constructor(
     public val issuedAt: Long,
     private val sendersByHeader: Map<String, SenderEntry>,
     public val rules: List<TemplateRule>,
+    /** Brand -> the first header listed for it in the bundle (the brand's stable fold key). */
+    private val primaryHeaderByBrand: Map<String, String> = emptyMap(),
 ) {
     public fun sender(mergeKey: String): SenderEntry? = sendersByHeader[mergeKey.uppercase()]
+
+    /**
+     * The brand-level fold key of a sender: the first header the bundle lists for the same brand (e.g. `HDFCBK`
+     * for `HDFC`, `HDFCBK` or any other header of "HDFC Bank"), or null when the sender is unknown. Senders with
+     * the same brand share one key, so a UI can fold them into one conversation; the key is a real header, so the
+     * brand's main conversation keeps its id when more headers are added to the bundle.
+     */
+    public fun brandKey(mergeKey: String): String? {
+        val brand = sender(mergeKey)?.brand ?: return null
+        return primaryHeaderByBrand[brandNormal(brand)]
+    }
 
     public fun rulesFor(mergeKey: String?): List<TemplateRule> =
         rules.filter { it.senderHeaders.isEmpty() || (mergeKey != null && mergeKey.uppercase() in it.senderHeaders) }
@@ -106,6 +119,13 @@ public class TemplateBundle private constructor(
             issuedAt = payload.issuedAt,
             sendersByHeader = payload.senders.associateBy { it.header.uppercase() },
             rules = payload.rules.sortedByDescending { it.priority },
+            primaryHeaderByBrand = LinkedHashMap<String, String>().apply {
+                for (entry in payload.senders) {
+                    if (entry.brand.isNotBlank()) putIfAbsent(brandNormal(entry.brand), entry.header.uppercase())
+                }
+            },
         )
+
+        private fun brandNormal(brand: String): String = brand.trim().lowercase()
     }
 }

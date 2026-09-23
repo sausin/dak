@@ -11,6 +11,9 @@ object MmsPduDecoder {
 
     fun decode(bytes: ByteArray): PduDecodeResult {
         if (bytes.isEmpty()) return PduDecodeResult.Failure(PduError.Empty)
+        if (bytes.size > MmsLimits.MAX_PDU_BYTES) {
+            return PduDecodeResult.Failure(PduError.Malformed(0, "PDU of ${bytes.size} octets exceeds ${MmsLimits.MAX_PDU_BYTES}"))
+        }
         return try {
             val reader = WspReader(bytes)
             val headers = readHeaders(reader)
@@ -27,6 +30,8 @@ object MmsPduDecoder {
         } catch (e: RuntimeException) {
             // Defensive: any bug in a decoder branch must surface as a typed error, not a crash in a receiver.
             PduDecodeResult.Failure(PduError.Malformed(-1, e.toString()))
+        } catch (e: StackOverflowError) {
+            PduDecodeResult.Failure(PduError.Malformed(-1, "nesting too deep"))
         }
     }
 
@@ -42,13 +47,23 @@ object MmsPduDecoder {
     private class Headers {
         val values: MutableMap<Int, MutableList<Any>> = HashMap()
 
+        private var addresses = 0
+
         fun add(field: Int, value: Any) {
+            if (field == Field.TO || field == Field.CC || field == Field.BCC) {
+                // Hostile PDUs can repeat To thousands of times; each would become a thread member and addr row.
+                if (addresses >= MmsLimits.MAX_ADDRESSES) return
+                addresses++
+            }
             values.getOrPut(field) { ArrayList(1) }.add(value)
         }
 
         fun first(field: Int): Any? = values[field]?.firstOrNull()
         fun octet(field: Int): Int? = first(field) as? Int
         fun text(field: Int): String? = first(field) as? String
+
+        /** Human-readable header text (subject, status texts), truncated to [MmsLimits.MAX_HEADER_TEXT_CHARS]. */
+        fun displayText(field: Int): String? = text(field)?.take(MmsLimits.MAX_HEADER_TEXT_CHARS)
         fun number(field: Int): Long? = first(field) as? Long
         fun time(field: Int): MmsTime? = first(field) as? MmsTime
         fun texts(field: Int): List<String> = values[field]?.filterIsInstance<String>().orEmpty()
@@ -161,7 +176,7 @@ object MmsPduDecoder {
                 contentLocation = h.text(Field.CONTENT_LOCATION) ?: throw MissingHeaderException("X-Mms-Content-Location"),
                 transactionId = transactionId,
                 from = h.from()?.address,
-                subject = h.text(Field.SUBJECT),
+                subject = h.displayText(Field.SUBJECT),
                 messageClass = h.text(Field.MESSAGE_CLASS),
                 messageSize = h.number(Field.MESSAGE_SIZE) ?: 0L,
                 expiry = h.time(Field.EXPIRY),
@@ -180,13 +195,13 @@ object MmsPduDecoder {
                     from = h.from()?.address,
                     to = h.texts(Field.TO).map(MmsAddress::fromWire),
                     cc = h.texts(Field.CC).map(MmsAddress::fromWire),
-                    subject = h.text(Field.SUBJECT),
+                    subject = h.displayText(Field.SUBJECT),
                     messageClass = h.text(Field.MESSAGE_CLASS),
                     priority = h.octet(Field.PRIORITY),
                     deliveryReport = h.bool(Field.DELIVERY_REPORT),
                     readReport = h.bool(Field.READ_REPORT),
                     retrieveStatus = h.octet(Field.RETRIEVE_STATUS),
-                    retrieveText = h.text(Field.RETRIEVE_TEXT),
+                    retrieveText = h.displayText(Field.RETRIEVE_TEXT),
                     mmsVersion = version,
                 )
             }
@@ -200,7 +215,7 @@ object MmsPduDecoder {
                     cc = h.texts(Field.CC).map(MmsAddress::fromWire),
                     bcc = h.texts(Field.BCC).map(MmsAddress::fromWire),
                     from = h.from()?.address,
-                    subject = h.text(Field.SUBJECT),
+                    subject = h.displayText(Field.SUBJECT),
                     dateSeconds = h.number(Field.DATE),
                     messageClass = h.text(Field.MESSAGE_CLASS),
                     expiry = h.time(Field.EXPIRY),
@@ -214,7 +229,7 @@ object MmsPduDecoder {
                 responseStatus = h.octet(Field.RESPONSE_STATUS) ?: throw MissingHeaderException("X-Mms-Response-Status"),
                 transactionId = transactionId,
                 messageId = h.text(Field.MESSAGE_ID),
-                responseText = h.text(Field.RESPONSE_TEXT),
+                responseText = h.displayText(Field.RESPONSE_TEXT),
                 mmsVersion = version,
             )
             MessageType.NOTIFYRESP_IND -> NotifyRespInd(

@@ -145,6 +145,31 @@ class MmsMappingTest {
     }
 
     @Test
+    fun hostilePartNamesAreSanitisedBeforeStorage() {
+        val parts = MmsProviderMapping.partRows(
+            listOf(
+                PduPart(
+                    ContentType("image/jpeg", name = "../../../databases/index.db"),
+                    ByteArray(3),
+                    contentLocation = "../../shared_prefs/x.xml",
+                    contentDisposition = "attachment",
+                    dispositionFileName = "/data/data/app.dak/evil\u202Egpj.exe",
+                ),
+            ),
+        )
+        val values = parts.single().values
+        assertEquals("index.db", values["name"])
+        assertEquals("evilgpj.exe", values["fn"])
+        // Content-Location stays raw (SMIL references it); it is never used as a path.
+        assertEquals("../../shared_prefs/x.xml", values["cl"])
+
+        val (_, attachments) = MmsProviderMapping.bodyAndAttachments(
+            listOf(StoredPart(20, "image/png", null, null, null, "../../../../etc/passwd")),
+        )
+        assertEquals("passwd", attachments.single().name)
+    }
+
+    @Test
     fun downloadStateCodecRoundTrips() {
         val states = listOf(
             MmsDownloadState.Pending,

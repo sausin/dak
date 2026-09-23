@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class BackupCryptoTest {
 
     // Low iteration count so the test suite runs fast; production uses BackupCrypto.DEFAULT_ITERATIONS.
-    private val testIterations = 100
+    private val testIterations = BackupCrypto.MIN_ITERATIONS
 
     private fun encrypt(plaintext: ByteArray, passphrase: CharArray): Pair<ByteArray, String> {
         val out = ByteArrayOutputStream()

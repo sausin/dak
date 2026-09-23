@@ -5,6 +5,8 @@ import app.dak.automations.rule.Rule
 import app.dak.automations.rule.Trigger
 import app.dak.automations.rule.conditionsCanMatchOtp
 import app.dak.automations.rule.isForwardingOrRelay
+import app.dak.automations.safety.Addresses
+import app.dak.automations.safety.ForwardLoopGuard
 import app.dak.core.model.TransactionDirection
 import java.time.Instant
 import java.time.ZoneOffset
@@ -26,7 +28,7 @@ public object RuleEngine {
      * Rules are evaluated in list order; each enabled rule whose [Rule.trigger] matches [event] and whose
      * [Rule.conditions] hold contributes one [PlannedAction] per [Rule.actions] entry, in order.
      * [Trigger.Schedule] rules never match a message event (they are driven by a separate scheduler) and
-     * so never contribute here.
+     * so never contribute here. Forwards that would loop (see [ForwardLoopGuard]) are dropped.
      */
     public fun evaluate(event: MessageEvent, rules: List<Rule>): List<PlannedAction> {
         val planned = mutableListOf<PlannedAction>()
@@ -36,6 +38,7 @@ public object RuleEngine {
             if (!evaluateCondition(rule.conditions, event)) continue
             val requiresBiometric = conditionsCanMatchOtp(rule.conditions)
             for (action in rule.actions) {
+                if (ForwardLoopGuard.shouldSkip(action, event)) continue
                 val flag = requiresBiometric && action.isForwardingOrRelay()
                 planned += PlannedAction(rule.id, rule.name, action, requiresBiometricConfirmation = flag)
             }
@@ -67,7 +70,18 @@ public object RuleEngine {
         is Condition.TimeWindow -> withinTimeWindow(event.dateMillis, condition.fromMinuteOfDay, condition.toMinuteOfDay)
         is Condition.DirectionIs -> event.transaction?.direction == condition.direction
         is Condition.HasOtp -> event.otp != null
+        is Condition.ActiveBetween -> event.dateMillis >= condition.startMillis &&
+            (condition.endMillis == null || event.dateMillis <= condition.endMillis)
+        is Condition.SenderInGroups -> inGroups(condition, event)
         is Condition.Unknown -> false
+    }
+
+    private fun inGroups(condition: Condition.SenderInGroups, event: MessageEvent): Boolean {
+        val mergeKey = event.mergeKey
+        if (mergeKey != null && condition.mergeKeys.any { it.equals(mergeKey, ignoreCase = true) }) return true
+        val conversationId = event.conversationId
+        if (conversationId != null && conversationId in condition.conversationIds) return true
+        return condition.addresses.any { Addresses.same(it, event.address) }
     }
 
     private fun amountSatisfies(

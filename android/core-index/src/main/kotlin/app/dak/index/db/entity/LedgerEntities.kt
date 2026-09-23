@@ -30,6 +30,22 @@ data class AccountRow(
     val entryCount: Int,
     val lastActivityMillis: Long,
     val updatedAt: Long,
+    /** The number as the bank last showed it (e.g. `XX440065`), if the SMS showed a mask. */
+    val maskedNumber: String? = null,
+)
+
+/**
+ * A user decision about two ledger account ids (from an `AliasSuggestion` card or a manual merge):
+ * [same] = true merges [aliasId] into [canonicalId] (the ledger then posts the alias's messages to the canonical
+ * account); false records "different accounts" so the pair is never suggested again. User data: survives ledger
+ * recomputation and index rebuilds.
+ */
+@Entity(tableName = Tables.ACCOUNT_ALIAS, primaryKeys = ["aliasId", "canonicalId"])
+data class AccountAliasRow(
+    val aliasId: String,
+    val canonicalId: String,
+    val same: Boolean,
+    val decidedAt: Long,
 )
 
 /**

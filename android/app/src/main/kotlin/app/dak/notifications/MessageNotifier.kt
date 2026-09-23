@@ -4,6 +4,8 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.os.Bundle
+import android.service.notification.StatusBarNotification
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
@@ -11,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
+import androidx.core.content.LocusIdCompat
 import androidx.core.graphics.drawable.IconCompat
 import app.dak.R
 import app.dak.core.model.Category
@@ -26,6 +29,7 @@ import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.IncomingMessageHandler
 import app.dak.telephony.SimRepository
+import app.dak.ui.common.text.BidiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,7 +41,13 @@ import javax.inject.Singleton
  * - OTP: code large and bold (custom view), Copy / Delete now / Mark read, in-call security warning, and the quiet
  *   path for OTPs an app already consumed (Notifications → Advanced → Consumed OTP handling).
  * - Personal: MessagingStyle per conversation with inline Reply (RemoteInput) and Mark read.
- * - Other categories: their own channel (promotions quiet, spam silent) with Mark read / Delete.
+ * - Other categories: their own channel (promotions quiet, spam blocked by default) with Mark read / Delete.
+ * - Channels: per-SIM copies on multi-SIM devices and per-conversation custom channels ([NotificationChannels],
+ *   [ConversationChannels]); sound and vibration always come from the channel, never from code.
+ * - Repeats ([RepeatCollapse]): an identical (personal) or same-template (others) message within the window
+ *   updates the existing notification with "×N" instead of stacking, quietly; a resent OTP replaces the old one
+ *   with the latest code. More than three active notifications in a category get an InboxStyle summary
+ *   ([NotificationSummaries]).
  * Lock-screen privacy follows the registry setting.
  */
 @Singleton
@@ -50,6 +60,9 @@ class MessageNotifier @Inject constructor(
     private val settings: SettingsStore,
     private val sims: SimRepository,
     private val selfTest: SelfTestMonitor,
+    private val channels: NotificationChannels,
+    private val conversationChannels: ConversationChannels,
+    private val summaries: NotificationSummaries,
 ) : IncomingMessageHandler {
 
     override val priority: Int = 0
@@ -65,35 +78,64 @@ class MessageNotifier @Inject constructor(
         selfTest.onNotified(message, posted)
     }
 
-    /** Posts (or updates) the notification for [message]. Returns false when notifications are blocked. */
+    /**
+     * Posts (or updates) the notification for [message]. Returns false when notifications are blocked; true also
+     * when the message's channel is spam and blocked on purpose (spam is in-app only by default).
+     */
     fun post(message: Message, classification: Classification): Boolean {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return false
+        channels.ensureCreated()
         val sender = senderName(message, classification)
         val otp = classification.otp
-        val (target, notification) = if (classification.category == Category.OTP && otp != null) {
-            buildOtp(message, otp, sender)
-        } else if (classification.category == Category.PERSONAL || classification.category == Category.UNKNOWN) {
-            buildConversation(message, classification.category, sender)
+        val category = classification.category
+        val custom = conversationChannels.channelFor(message.address, message.threadId)
+        val built = if (category == Category.OTP && otp != null) {
+            buildOtp(message, otp, sender, custom?.first)
+        } else if (category == Category.PERSONAL || category == Category.UNKNOWN || custom != null) {
+            buildConversation(message, category, sender, custom)
         } else {
-            buildInformational(message, classification.category, sender)
+            buildInformational(message, category, sender)
         }
-        manager.notify(target.tag, target.id, notification)
+        if (channels.isBlocked(built.channelId)) return category == Category.SPAM
+        manager.notify(built.target.tag, built.target.id, built.notification)
+        summaries.refresh(category)
         return true
     }
 
     /** Cancels every notification belonging to provider thread [threadId] (call when the thread is read). */
     fun cancelForThread(threadId: Long) {
         val platform = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        platform.activeNotifications
+        val mine = platform.activeNotifications
             .filter { it.notification.extras.getLong(EXTRA_THREAD, Long.MIN_VALUE) == threadId }
-            .forEach { platform.cancel(it.tag, it.id) }
+        if (mine.isEmpty()) return
+        mine.forEach { platform.cancel(it.tag, it.id) }
+        summaries.refreshAll()
     }
+
+    /** Re-evaluates category summaries after notifications were cancelled outside [cancelForThread]. */
+    fun refreshSummaries() = summaries.refreshAll()
+
+    /** A notification ready to post, with the channel it resolves to. */
+    private class Built(val target: NotificationActions.Target, val notification: Notification, val channelId: String)
 
     // ------------------------------------------------------------------------------------------------ OTP
 
-    private fun buildOtp(message: Message, otp: OtpInfo, sender: String): Pair<NotificationActions.Target, Notification> {
-        val target = NotificationActions.Target(tag = "otp:${message.key}", id = ID_OTP)
+    private fun buildOtp(message: Message, otp: OtpInfo, sender: String, customChannel: String?): Built {
+        val template = RepeatCollapse.template(message.body)
+        val now = System.currentTimeMillis()
+        // A resent / duplicated OTP from the same thread replaces the previous one with the latest code.
+        val previous = active().firstOrNull { sbn ->
+            sbn.tag?.startsWith("otp:") == true &&
+                sbn.notification.extras.getLong(EXTRA_THREAD, Long.MIN_VALUE) == message.threadId &&
+                sbn.notification.extras.getString(EXTRA_REPEAT_KEY) == template
+        }
+        val repeat = previous != null && RepeatCollapse.isRepeat(
+            previous.notification.extras.getString(EXTRA_REPEAT_KEY), previous.notification.extras.getLong(EXTRA_REPEAT_AT), template, now,
+        )
+        val count = if (repeat) previous!!.notification.extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
+        val sameCode = repeat && previous!!.notification.extras.getString(EXTRA_OTP_CODE) == otp.code
+        val target = NotificationActions.Target(tag = if (repeat) previous!!.tag else "otp:${message.key}", id = ID_OTP)
         val consumer = consumedOtps.consumerOf(otp)
         val handling = settings.get(DakSettings.consumedOtpHandling)
         val quiet = consumer != null && handling != "normal"
@@ -101,11 +143,12 @@ class MessageNotifier @Inject constructor(
         val large = settings.get(DakSettings.otpDisplaySize) == "large"
         val warning = if (inCall) context.getString(R.string.otp_in_call_warning) else null
         val usedBy = consumer?.let { context.getString(R.string.otp_used_by, consumedOtps.labelOf(it)) }
+        val shownSender = RepeatCollapse.withCount(sender, count)
 
         val collapsed = RemoteViews(context.packageName, R.layout.notification_otp).apply {
             setTextViewText(R.id.otp_code, otp.code)
             setTextViewTextSize(R.id.otp_code, TypedValue.COMPLEX_UNIT_SP, if (large) 32f else 24f)
-            setTextViewText(R.id.otp_sender, warning ?: listOfNotNull(sender, usedBy).joinToString(" · "))
+            setTextViewText(R.id.otp_sender, warning ?: listOfNotNull(shownSender, usedBy).joinToString(" · "))
         }
         val expanded = RemoteViews(context.packageName, R.layout.notification_otp_big).apply {
             setTextViewText(R.id.otp_code, otp.code)
@@ -114,23 +157,25 @@ class MessageNotifier @Inject constructor(
                 setViewVisibility(R.id.otp_warning, View.VISIBLE)
                 setTextViewText(R.id.otp_warning, warning)
             }
-            setTextViewText(R.id.otp_sender, listOfNotNull(sender, usedBy).joinToString(" · "))
+            setTextViewText(R.id.otp_sender, listOfNotNull(shownSender, usedBy).joinToString(" · "))
             setTextViewText(R.id.otp_body, message.body)
         }
 
-        val builder = baseBuilder(
-            channel = if (quiet) NotificationChannels.OTP_CONSUMED else NotificationChannels.OTP,
-            message = message,
-            smallIcon = R.drawable.ic_stat_otp,
-        )
-            .setContentTitle("${otp.code} · $sender")
+        val channel = if (quiet) {
+            channels.channelFor(NotificationChannels.OTP_CONSUMED, message.subId, sims.sims.value)
+        } else {
+            customChannel ?: channels.channelFor(NotificationChannels.OTP, message.subId, sims.sims.value)
+        }
+        val builder = baseBuilder(channel = channel, message = message, smallIcon = R.drawable.ic_stat_otp, category = Category.OTP)
+            .setContentTitle("${otp.code} · $shownSender")
             .setContentText(warning ?: message.body)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsed)
             .setCustomBigContentView(expanded)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setSilent(quiet)
             .setPriority(if (quiet) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
+            // An exact duplicate (same code) updates quietly; a new code alerts as the channel says.
+            .setOnlyAlertOnce(sameCode)
             .addAction(0, context.getString(R.string.action_copy_code), NotificationActions.copyCode(context, target, otp.code))
             .addAction(0, context.getString(R.string.action_delete_now), NotificationActions.delete(context, target, message.key))
             .addAction(0, context.getString(R.string.action_mark_read), NotificationActions.markRead(context, target, message.key, message.threadId))
@@ -138,8 +183,12 @@ class MessageNotifier @Inject constructor(
         if (usedBy != null) builder.setSubText(usedBy)
         if (inCall) builder.setColor(ContextCompat.getColor(context, R.color.dak_notification_warning))
         otpTimeoutMillis(quiet && handling == "silentAutoDelete")?.let { builder.setTimeoutAfter(it) }
+        builder.extras.putString(EXTRA_REPEAT_KEY, template)
+        builder.extras.putLong(EXTRA_REPEAT_AT, now)
+        builder.extras.putInt(EXTRA_REPEAT_COUNT, count)
+        builder.extras.putString(EXTRA_OTP_CODE, otp.code)
         applyLockScreenPrivacy(builder, message, sender, isOtp = true)
-        return target to builder.build()
+        return Built(target, builder.build(), channel)
     }
 
     /** The notification disappears when the OTP is due to be auto-deleted. */
@@ -157,7 +206,7 @@ class MessageNotifier @Inject constructor(
 
     // ------------------------------------------------------------------------------------------------ Personal
 
-    private fun buildConversation(message: Message, category: Category, sender: String): Pair<NotificationActions.Target, Notification> {
+    private fun buildConversation(message: Message, category: Category, sender: String, custom: Pair<String, String>?): Built {
         val target = threadTarget(message)
         val contact = contacts.find(message.address)
         val me = Person.Builder().setName(context.getString(R.string.notification_you)).build()
@@ -166,19 +215,47 @@ class MessageNotifier @Inject constructor(
             .setKey(message.address)
             .apply { contact?.lookupKey?.let { setUri("content://com.android.contacts/contacts/lookup/$it") } }
             .build()
-        val style = existingMessagingStyle(target) ?: NotificationCompat.MessagingStyle(me)
+        val previous = activeTarget(target)
+        val style = previous?.let { NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification) }
+            ?: NotificationCompat.MessagingStyle(me)
         val isGroup = message.address.contains(' ')
         style.setGroupConversation(isGroup)
         if (isGroup) style.setConversationTitle(context.getString(R.string.notification_group_title))
-        style.addMessage(displayBody(message), message.dateMillis, from)
 
-        val builder = baseBuilder(NotificationChannels.forCategory(category), message, R.drawable.ic_stat_dak)
+        // Identical text from the same sender within the window: bump "×N" on the last line instead of a new one.
+        val body = displayBody(message)
+        val key = RepeatCollapse.exact(body)
+        val now = System.currentTimeMillis()
+        val extras = previous?.notification?.extras
+        val repeat = extras != null &&
+            extras.getString(EXTRA_REPEAT_SENDER) == message.address &&
+            RepeatCollapse.isRepeat(extras.getString(EXTRA_REPEAT_KEY), extras.getLong(EXTRA_REPEAT_AT), key, now) &&
+            removeLastMessage(style)
+        val count = if (repeat) extras!!.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
+        val shown = RepeatCollapse.withCount(body, count)
+        style.addMessage(shown, message.dateMillis, from)
+
+        val conversationId = custom?.second ?: ConversationChannels.conversationIdFor(message.address, message.threadId)
+        val channel = custom?.first ?: channels.channelFor(NotificationChannels.forCategory(category), message.subId, sims.sims.value)
+        val builder = baseBuilder(channel, message, R.drawable.ic_stat_dak, category)
             .setStyle(style)
             .setContentTitle(sender)
-            .setContentText(displayBody(message))
+            .setContentText(shown)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOnlyAlertOnce(false)
+            .setOnlyAlertOnce(repeat)
+        // Personal threads and custom channels are conversations: long-lived shortcut + shortcut/locus id on the
+        // notification, so Android 11+ lists them under Conversations (priority, per-conversation settings).
+        if (category == Category.PERSONAL || custom != null) {
+            val title = if (isGroup) context.getString(R.string.notification_group_title) else sender
+            conversationChannels.publishShortcut(conversationId, title, message.address.takeUnless { isGroup })
+            val shortcutId = ConversationChannels.shortcutIdFor(conversationId)
+            builder.setShortcutId(shortcutId).setLocusId(LocusIdCompat(shortcutId))
+        }
+        builder.extras.putString(EXTRA_REPEAT_SENDER, message.address)
+        builder.extras.putString(EXTRA_REPEAT_KEY, key)
+        builder.extras.putLong(EXTRA_REPEAT_AT, now)
+        builder.extras.putInt(EXTRA_REPEAT_COUNT, count)
 
         if (settings.get(DakSettings.quickActions)) {
             val reply = NotificationCompat.Action.Builder(
@@ -204,24 +281,42 @@ class MessageNotifier @Inject constructor(
                 .build(),
         )
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
-        return target to builder.build()
+        return Built(target, builder.build(), channel)
     }
 
-    private fun existingMessagingStyle(target: NotificationActions.Target): NotificationCompat.MessagingStyle? {
-        val platform = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return null
-        val active = platform.activeNotifications.firstOrNull { it.tag == target.tag && it.id == target.id } ?: return null
-        return NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(active.notification)
+    /** Drops the newest message of [style] (to re-add it with a count). False when the list cannot be edited. */
+    private fun removeLastMessage(style: NotificationCompat.MessagingStyle): Boolean = try {
+        val messages = style.messages
+        if (messages.isEmpty()) false else {
+            messages.removeAt(messages.lastIndex)
+            true
+        }
+    } catch (e: UnsupportedOperationException) {
+        false
     }
 
     // ------------------------------------------------------------------------------------------------ Other
 
-    private fun buildInformational(message: Message, category: Category, sender: String): Pair<NotificationActions.Target, Notification> {
+    private fun buildInformational(message: Message, category: Category, sender: String): Built {
         val target = threadTarget(message)
         val body = displayBody(message)
-        val builder = baseBuilder(NotificationChannels.forCategory(category), message, R.drawable.ic_stat_dak)
+        val now = System.currentTimeMillis()
+        val state = RepeatCollapse.next(readState(activeTarget(target)?.notification?.extras), body, RepeatCollapse.template(body), now)
+        val latest = RepeatCollapse.withCount(body, state.count)
+        val channel = channels.channelFor(NotificationChannels.forCategory(category), message.subId, sims.sims.value)
+        val style = if (state.lines.size > 1) {
+            NotificationCompat.InboxStyle()
+                .setBigContentTitle(sender)
+                .setSummaryText(context.resources.getQuantityString(R.plurals.ch_messages_count, state.total, state.total))
+                .also { inbox -> state.displayLines().forEach { inbox.addLine(it) } }
+        } else {
+            NotificationCompat.BigTextStyle().bigText(latest)
+        }
+        val builder = baseBuilder(channel, message, R.drawable.ic_stat_dak, category)
             .setContentTitle(sender)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentText(latest)
+            .setStyle(style)
+            .setNumber(state.total)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(
                 when (category) {
@@ -230,18 +325,42 @@ class MessageNotifier @Inject constructor(
                     else -> NotificationCompat.PRIORITY_DEFAULT
                 },
             )
-            .setSilent(category == Category.SPAM || category == Category.PROMOTION)
+            .setOnlyAlertOnce(state.isRepeat)
             .addAction(0, context.getString(R.string.action_mark_read), NotificationActions.markRead(context, target, message.key, message.threadId))
         if (settings.get(DakSettings.quickActions)) {
             builder.addAction(0, context.getString(R.string.action_delete), NotificationActions.delete(context, target, message.key))
         }
+        writeState(builder.extras, state)
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
-        return target to builder.build()
+        return Built(target, builder.build(), channel)
+    }
+
+    private fun readState(extras: Bundle?): RepeatCollapse.State? {
+        extras ?: return null
+        val lines = extras.getStringArray(EXTRA_LINES)?.toList() ?: return null
+        val counts = extras.getIntArray(EXTRA_LINE_COUNTS)?.toList() ?: List(lines.size) { 1 }
+        return RepeatCollapse.State(
+            key = extras.getString(EXTRA_REPEAT_KEY).orEmpty(),
+            count = extras.getInt(EXTRA_REPEAT_COUNT, 1),
+            atMillis = extras.getLong(EXTRA_REPEAT_AT),
+            lines = lines,
+            counts = counts,
+            total = extras.getInt(EXTRA_TOTAL, lines.size),
+        )
+    }
+
+    private fun writeState(extras: Bundle, state: RepeatCollapse.State) {
+        extras.putString(EXTRA_REPEAT_KEY, state.key)
+        extras.putInt(EXTRA_REPEAT_COUNT, state.count)
+        extras.putLong(EXTRA_REPEAT_AT, state.atMillis)
+        extras.putStringArray(EXTRA_LINES, state.lines.toTypedArray())
+        extras.putIntArray(EXTRA_LINE_COUNTS, state.counts.toIntArray())
+        extras.putInt(EXTRA_TOTAL, state.total)
     }
 
     // ------------------------------------------------------------------------------------------------ Shared
 
-    private fun baseBuilder(channel: String, message: Message, smallIcon: Int): NotificationCompat.Builder {
+    private fun baseBuilder(channel: String, message: Message, smallIcon: Int, category: Category): NotificationCompat.Builder {
         val route = Routes.conversation(ConversationIds.forThread(message.threadId), highlight = message.key.toString())
         val open = PendingIntent.getActivity(
             context,
@@ -256,6 +375,7 @@ class MessageNotifier @Inject constructor(
             .setShowWhen(true)
             .setAutoCancel(true)
             .setContentIntent(open)
+            .setGroup(NotificationSummaries.groupKey(category))
         builder.extras.putLong(EXTRA_THREAD, message.threadId)
         simLabel(message.subId)?.let { builder.setSubText(it) }
         return builder
@@ -285,10 +405,20 @@ class MessageNotifier @Inject constructor(
         }
     }
 
+    private fun active(): List<StatusBarNotification> {
+        val platform = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return emptyList()
+        return runCatching { platform.activeNotifications.toList() }.getOrDefault(emptyList())
+    }
+
+    private fun activeTarget(target: NotificationActions.Target): StatusBarNotification? =
+        active().firstOrNull { it.tag == target.tag && it.id == target.id }
+
     private fun threadTarget(message: Message) = NotificationActions.Target(tag = "thread:${message.threadId}", id = ID_CONVERSATION)
 
     private fun senderName(message: Message, classification: Classification): String =
-        contacts.displayName(message.address) ?: classification.canonicalSender ?: message.address
+        BidiText.sanitizeDisplayName(
+            contacts.displayName(message.address) ?: classification.canonicalSender ?: message.address,
+        )
 
     private fun displayBody(message: Message): String = when {
         message.body.isNotBlank() -> message.body
@@ -308,5 +438,13 @@ class MessageNotifier @Inject constructor(
         const val ID_CONVERSATION = 1
         const val ID_OTP = 2
         const val EXTRA_THREAD = "app.dak.notification.THREAD_ID"
+        const val EXTRA_REPEAT_KEY = "app.dak.notification.REPEAT_KEY"
+        const val EXTRA_REPEAT_AT = "app.dak.notification.REPEAT_AT"
+        const val EXTRA_REPEAT_COUNT = "app.dak.notification.REPEAT_COUNT"
+        const val EXTRA_REPEAT_SENDER = "app.dak.notification.REPEAT_SENDER"
+        const val EXTRA_OTP_CODE = "app.dak.notification.OTP_CODE"
+        const val EXTRA_LINES = "app.dak.notification.LINES"
+        const val EXTRA_LINE_COUNTS = "app.dak.notification.LINE_COUNTS"
+        const val EXTRA_TOTAL = "app.dak.notification.TOTAL"
     }
 }

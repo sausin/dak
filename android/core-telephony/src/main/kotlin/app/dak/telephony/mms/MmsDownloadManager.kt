@@ -16,7 +16,9 @@ import androidx.work.WorkManager
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
 import app.dak.mms.pdu.MessageType
+import app.dak.mms.pdu.MmsLimits
 import app.dak.mms.pdu.MmsPduDecoder
+import app.dak.mms.pdu.MmsSafety
 import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduDecodeResult
 import app.dak.mms.pdu.RetrieveConf
@@ -75,15 +77,27 @@ class MmsDownloadManager @Inject constructor(
 
     /** Handles a received m-notification-ind. */
     suspend fun onNotification(n: NotificationInd, subId: Int) {
+        // Anyone can send a WAP push. A notification whose content location is not a plain http(s) URL (file:,
+        // content:, loopback, …) cannot come from an MMSC: drop it without storing or fetching anything.
+        if (!MmsSafety.isDownloadableContentLocation(n.contentLocation)) {
+            Log.w(TAG, "dropping MMS notification with an unsafe content location")
+            return
+        }
         val existing = persister.findNotification(n.contentLocation, n.transactionId)
         val id = existing ?: persister.insertNotification(n, subId) ?: run {
             Log.e(TAG, "MMS notification could not be written to the provider")
             return
         }
         val roaming = sims.isRoaming(subId)
-        if (!settings.autoDownloadMms || (roaming && !settings.autoDownloadMmsWhenRoaming)) {
+        val tooLarge = n.messageSize > MmsLimits.MAX_PDU_BYTES
+        if (!settings.autoDownloadMms || (roaming && !settings.autoDownloadMmsWhenRoaming) || tooLarge) {
             if (existing == null) {
-                states.set(id, MmsDownloadState.Failed(if (roaming) "Roaming: tap to download" else "Tap to download", 0))
+                val reason = when {
+                    tooLarge -> "Very large message: tap to download"
+                    roaming -> "Roaming: tap to download"
+                    else -> "Tap to download"
+                }
+                states.set(id, MmsDownloadState.Failed(reason, 0))
                 notifyHandlers(id)
             }
             return
@@ -139,6 +153,11 @@ class MmsDownloadManager @Inject constructor(
         val nowSeconds = System.currentTimeMillis() / 1000
         if (info.expirySeconds in 1 until nowSeconds) {
             states.set(id, MmsDownloadState.Failed("Expired on the carrier's server", attempt))
+            notifyHandlers(id)
+            return DownloadAttemptResult.FAILURE
+        }
+        if (!MmsSafety.isDownloadableContentLocation(contentLocation)) {
+            states.set(id, MmsDownloadState.Failed("Invalid download link", attempt))
             notifyHandlers(id)
             return DownloadAttemptResult.FAILURE
         }
@@ -203,7 +222,9 @@ class MmsDownloadManager @Inject constructor(
         if (info == null || info.messageType != MessageType.NOTIFICATION_IND) {
             return DownloadOutcome.Success(states.replacement(id)?.let { MessageKey(MessageKind.MMS, it) })
         }
-        val bytes = withContext(Dispatchers.IO) { file?.takeIf { it.exists() && it.length() > 0 }?.readBytes() }
+        val length = withContext(Dispatchers.IO) { file?.takeIf { it.exists() }?.length() ?: 0L }
+        if (length > MmsLimits.MAX_PDU_BYTES) return DownloadOutcome.Failed("The message is too large", retryable = false)
+        val bytes = withContext(Dispatchers.IO) { file?.takeIf { length > 0 }?.readBytes() }
             ?: return DownloadOutcome.Failed("The carrier returned an empty message", retryable = true)
         val retrieved = when (val decoded = MmsPduDecoder.decode(bytes)) {
             is PduDecodeResult.Failure -> return DownloadOutcome.Failed("Unreadable MMS: ${decoded.error.message}", retryable = false)
@@ -231,6 +252,8 @@ class MmsDownloadManager @Inject constructor(
     }
 
     private fun startDownload(id: Long, contentLocation: String, subId: Int, attempt: Int): Boolean = try {
+        // Rows can predate Dak (written by another SMS app) or be retried later: re-check before every fetch.
+        require(MmsSafety.isDownloadableContentLocation(contentLocation)) { "unsafe content location" }
         val file = MmsFiles.newFile(context, "download-$id")
         val intent = Intent(context, MmsDownloadedReceiver::class.java)
             .setAction(MmsDownloadedReceiver.ACTION_MMS_DOWNLOADED)

@@ -39,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.core.model.TransactionDirection
+import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountType
 import app.dak.finance.ledger.LedgerEntry
 import app.dak.finance.money.Money
@@ -70,13 +71,24 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val monthly by viewModel.monthly.collectAsStateWithLifecycle()
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
     var statementDialog by remember { mutableStateOf(false) }
+    var mergeDialog by remember { mutableStateOf(false) }
+    val mergedIds by viewModel.mergedIds.collectAsStateWithLifecycle()
+    val mergeCandidates by viewModel.mergeCandidates.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     val account = summary?.account
     Scaffold(
         modifier = modifier,
         topBar = {
-            DakTopAppBar(title = account?.let { accountTitle(it) } ?: stringResource(R.string.scr_passbook_title), onBack = { navigator.back() })
+            DakTopAppBar(
+                title = account?.let { accountTitle(it) } ?: stringResource(R.string.scr_passbook_title),
+                onBack = { navigator.back() },
+                actions = {
+                    if (account != null) {
+                        TextButton(onClick = { mergeDialog = true }) { Text(stringResource(R.string.fold_alias_merge_with)) }
+                    }
+                },
+            )
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
@@ -96,6 +108,9 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             )
                         }
                     }
+                }
+                if (mergedIds.isNotEmpty()) {
+                    item { MergedNumbers(mergedIds, onUnmerge = viewModel::unmerge) }
                 }
                 val latestMonth = monthly.lastOrNull()
                 if (latestMonth != null) item { MonthSummary(latestMonth) }
@@ -119,12 +134,34 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
 
+    if (mergeDialog) {
+        MergeWithDialog(
+            candidates = mergeCandidates,
+            onPick = { mergeDialog = false; viewModel.mergeWith(it) },
+            onDismiss = { mergeDialog = false },
+        )
+    }
     if (statementDialog) {
         StatementDayDialog(
             current = account?.statementDay,
             onSave = { statementDialog = false; viewModel.setStatementDay(it) },
             onDismiss = { statementDialog = false },
         )
+    }
+}
+
+/** "Also includes A/c ••40065 [Unmerge]": other formats of this account's number the user merged in. */
+@Composable
+private fun MergedNumbers(aliasIds: List<String>, onUnmerge: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Text(stringResource(R.string.fold_alias_merged_header), style = MaterialTheme.typography.labelLarge)
+        for (id in aliasIds) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val digits = Account.partsOf(id)?.third ?: id
+                Text(stringResource(R.string.fold_alias_account_number, digits), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                TextButton(onClick = { onUnmerge(id) }) { Text(stringResource(R.string.fold_alias_unmerge)) }
+            }
+        }
     }
 }
 
@@ -136,7 +173,7 @@ private fun CardCycle(statementDay: Int?, outstanding: Money?, onEdit: () -> Uni
                 Text(stringResource(R.string.scr_account_statement_day_unknown), style = MaterialTheme.typography.bodyMedium)
             } else {
                 Text(stringResource(R.string.scr_account_outstanding), style = MaterialTheme.typography.labelLarge)
-                Text(outstanding?.format() ?: "—", style = DakTheme.typography.amount)
+                Text(outstanding?.let { moneyText(it) } ?: "—", style = DakTheme.typography.amount)
                 Text(stringResource(R.string.scr_account_statement_day, statementDay), style = MaterialTheme.typography.labelSmall)
             }
             TextButton(onClick = onEdit) { Text(stringResource(R.string.scr_account_set_statement_day)) }
@@ -151,11 +188,11 @@ private fun MonthSummary(month: MonthlyTotal) {
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             Column {
                 Text(stringResource(R.string.scr_account_spent), style = MaterialTheme.typography.labelSmall)
-                Text(month.debitsHome.format(), style = DakTheme.typography.amount, color = DakTheme.colors.financeDebit)
+                Text(moneyText(month.debitsHome), style = DakTheme.typography.amount, color = DakTheme.colors.financeDebit)
             }
             Column {
                 Text(stringResource(R.string.scr_account_received), style = MaterialTheme.typography.labelSmall)
-                Text(month.creditsHome.format(), style = DakTheme.typography.amount, color = DakTheme.colors.financeCredit)
+                Text(moneyText(month.creditsHome), style = DakTheme.typography.amount, color = DakTheme.colors.financeCredit)
             }
         }
         val foreign = month.debitsByCurrency.keys.filter { it != month.debitsHome.currencyUpper }
@@ -200,10 +237,10 @@ private fun EntryRow(
                 Text(formatter.formatAbsolute(entry.dateMillis), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text((if (debit) "−" else "+") + entry.original.format(), style = DakTheme.typography.amount, color = amountColor)
+                Text((if (debit) "−" else "+") + moneyText(entry.original, homeCurrency = entry.homeValue.currencyUpper), style = DakTheme.typography.amount, color = amountColor)
                 ForeignLine(entry)
                 entry.balanceAfter?.let {
-                    Text(stringResource(R.string.scr_account_balance_after, it.format()), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.scr_account_balance_after, moneyText(it)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -235,7 +272,7 @@ private fun ForeignLine(entry: LedgerEntry) {
         entry.settled -> {
             val markup = entry.effectiveMarkupPercent?.setScale(2, RoundingMode.HALF_UP)?.stripTrailingZeros()?.toPlainString()
             Text(
-                if (markup != null) stringResource(R.string.scr_account_settled_markup, home.format(), markup) else stringResource(R.string.scr_account_settled, home.format()),
+                if (markup != null) stringResource(R.string.scr_account_settled_markup, moneyText(home), markup) else stringResource(R.string.scr_account_settled, moneyText(home)),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
             )
@@ -244,7 +281,11 @@ private fun ForeignLine(entry: LedgerEntry) {
             val rate = entry.rate?.setScale(4, RoundingMode.HALF_UP)?.stripTrailingZeros()?.toPlainString()
             val date = entry.rateDateMillis?.let { formatter.formatAbsolute(it).substringBefore(',') }
             Text(
-                if (rate != null) stringResource(R.string.scr_account_indicative_rate, home.formatIndicative(), rate, date ?: "—") else home.formatIndicative(),
+                if (rate != null) {
+                    stringResource(R.string.scr_account_indicative_rate, moneyText(home, indicative = true), rate, date ?: "—")
+                } else {
+                    moneyText(home, indicative = true)
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
             )

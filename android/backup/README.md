@@ -36,13 +36,24 @@ for its JSON Schema.
 - **`SmsBackupRestoreXmlImporter`** (implements `Importer`) —
   `import(input): Sequence<ImportedMessage>` or `importWithAttachments(input, attachmentSink: (ByteArray) -> Unit)`.
 
+## Safety limits (`app.dak.backup.format.ArchiveLimits`)
+
+All import and restore input is treated as attacker-controlled. `DakExportReader` accepts attachment entries
+only when the name is 64 lower-case hex characters (so it can never be a path), caps every entry while it
+inflates, and caps the total size and the entry count. The importers cap whole-file JSON (128 MiB), JSON depth
+(64, via `checkJsonDepth`) and parts/addresses per MMS. `XmlTokenizer` never expands DTD entities and caps
+names, attribute counts, attribute values and text runs (`XmlLimits`). `BackupEngine.restore` rejects
+parent-id cycles, chains longer than 10k snapshots and snapshot ids with path syntax. Exceeding a limit throws
+`ArchiveLimitException` (an `IOException`). `LimitedInputStream` / `readBounded` are public helpers.
+
 ## `app.dak.backup.crypto` — end-to-end encryption envelope
 
 - **`RecoveryCode`** — `generate(random: SecureRandom = SecureRandom()): Generated(secret, formatted)`,
   `format(secret: ByteArray): String`, `parse(input: String): Result<ByteArray>` (24-char grouped
   Crockford base32 with a mod-37 check character; tolerant of case/spacing/`I`/`L`/`O` typos).
 - **`BackupCrypto`** — passphrase or recovery code, either unlocks a backup; PBKDF2-HMAC-SHA256 KDF
-  (`DEFAULT_ITERATIONS = 310_000`, configurable), AES-256-GCM STREAM segments (`SEGMENT_SIZE = 64
+  (`DEFAULT_ITERATIONS = 310_000`, configurable within `MIN_ITERATIONS..MAX_ITERATIONS` = 100k..5M,
+  enforced on write and on read so a crafted header cannot demand 2^31 iterations), AES-256-GCM STREAM segments (`SEGMENT_SIZE = 64
   KiB`) with a final-segment flag that turns truncation into a detected authentication failure.
   - `encryptingOutputStream(rawOutput, passphrase: CharArray, iterations = DEFAULT_ITERATIONS, random = SecureRandom()): EncryptResult(recoveryCode, output)`
   - `decryptingInputStream(rawInput, passphrase: CharArray): InputStream` — throws `WrongPassphraseException`

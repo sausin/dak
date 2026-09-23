@@ -19,13 +19,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -47,8 +51,15 @@ import app.dak.ui.theme.DakTheme
 fun PassbookScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val viewModel: PassbookViewModel = hiltViewModel()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val aliasSuggestions by viewModel.aliasSuggestions.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(viewModel) {
+        viewModel.merged.collect { snackbar.showSnackbar(context.getString(R.string.fold_alias_merged_snack)) }
+    }
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = { DakTopAppBar(title = stringResource(R.string.scr_passbook_title), onBack = { navigator.back() }) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
@@ -65,6 +76,14 @@ fun PassbookScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         list.sortedByDescending { it.lastActivityMillis }.groupBy { it.account.type }
                     }
                     LazyColumn(Modifier.fillMaxSize()) {
+                        items(aliasSuggestions, key = { "alias:" + it.a.account.id + "|" + it.b.account.id }) { suggestion ->
+                            AccountAliasCard(
+                                suggestion = suggestion,
+                                sample = viewModel::sample,
+                                onSame = { viewModel.confirmSame(suggestion) },
+                                onDifferent = { viewModel.confirmDifferent(suggestion) },
+                            )
+                        }
                         for (type in listOf(AccountType.BANK_ACCOUNT, AccountType.CREDIT_CARD, AccountType.WALLET, AccountType.UNKNOWN)) {
                             val inGroup = groups[type].orEmpty()
                             if (inGroup.isEmpty()) continue
@@ -118,7 +137,8 @@ fun accountTitle(account: Account): String {
             AccountType.UNKNOWN -> R.string.scr_passbook_kind_other
         },
     )
-    val last4 = account.last4?.let { " ••$it" }.orEmpty()
+    // Every digit the bank shows (e.g. ••440065), so two formats of one number are told apart.
+    val last4 = account.visibleDigits?.let { " ••$it" }.orEmpty()
     return "${account.institution} $kind$last4"
 }
 
@@ -133,7 +153,7 @@ fun BalanceLine(balance: BalanceState, prominent: Boolean = false) {
     when (balance) {
         BalanceState.NoInfo -> Text(stringResource(R.string.scr_passbook_no_balance), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         is BalanceState.Known -> Column {
-            Text(balance.balance.format(), style = style.merge(DakTheme.typography.amount.copy(fontSize = style.fontSize)))
+            Text(moneyText(balance.balance), style = style.merge(DakTheme.typography.amount.copy(fontSize = style.fontSize)))
             Text(
                 stringResource(R.string.scr_passbook_balance_as_of, formatter.formatAbsolute(balance.asOfMillis)),
                 style = MaterialTheme.typography.labelSmall,
@@ -148,7 +168,7 @@ fun BalanceLine(balance: BalanceState, prominent: Boolean = false) {
             )
             balance.lastKnown?.let { known ->
                 Text(
-                    stringResource(R.string.scr_passbook_last_stated, known.balance.format(), formatter.formatAbsolute(known.asOfMillis)),
+                    stringResource(R.string.scr_passbook_last_stated, moneyText(known.balance), formatter.formatAbsolute(known.asOfMillis)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

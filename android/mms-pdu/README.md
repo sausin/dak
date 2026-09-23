@@ -45,6 +45,17 @@ All modelled PDU types are encodable (useful for fixtures). `Smil.build(items)` 
 Image-over-Text layout, one `<par>` per media item, text last. File names are sanitised to `[A-Za-z0-9._-]` and
 de-duplicated; they become each part's Content-Location, name parameter and `<Content-ID>`.
 
+## Safety (hostile input)
+
+- `MmsLimits`: `MAX_PDU_BYTES` (16 MiB, larger input is rejected), `MAX_PARTS` (256 after flattening),
+  `MAX_ADDRESSES` (100 To/Cc/Bcc kept), `MAX_HEADER_TEXT_CHARS` (subject / status texts truncated to 1024).
+- `MmsSafety.isDownloadableContentLocation(url)`: true only for absolute http(s) URLs with a host, no userinfo,
+  no whitespace/control/non-ASCII, not loopback, ≤ 1024 chars. Check it before handing a content location to the
+  platform.
+- `MmsSafety.safeFileName(raw)` / `PduPart.safeFileName`: a part name with path components, control/bidi/
+  zero-width characters and leading dots removed, capped at 128 chars. Use it whenever a part name is stored as a
+  file name, shown, or saved. The raw `contentLocation` stays available for SMIL matching.
+
 ## Constants
 
 `MessageType` (octets = provider `m_type`), `MmsVersion`, `ResponseStatus` (+ `describe`, `isTransient`),
@@ -53,5 +64,6 @@ de-duplicated; they become each part's Content-Location, name parameter and `<Co
 ## Tests
 
 Hand-built byte fixtures per PDU type, exact-byte encoder checks, round trips, charset cases, and truncation /
-random-mutation fuzzing that asserts no internal error escapes:
+random-mutation fuzzing that asserts no internal error escapes, and `SecurityFuzzTest` (seeded structure-aware
+mutation fuzzing, ≥100k iterations under a time cap, plus limit and sanitiser cases):
 `DAK_JVM_HARNESS_DIR=<dir> GRADLE=... scripts/jvm-test.sh :mms-pdu:test`.

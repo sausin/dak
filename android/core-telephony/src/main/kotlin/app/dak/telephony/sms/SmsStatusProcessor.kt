@@ -18,8 +18,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Applies SMS sent / delivered results to the provider: OUTBOX -> SENT (all parts sent) or QUEUED + automatic
- * retry (retryable radio/network failures) or FAILED; delivery reports set `status` COMPLETE / PENDING / FAILED.
+ * Applies SMS sent / delivered results to the provider once every part of an attempt has reported: OUTBOX -> SENT
+ * (all parts sent), QUEUED + automatic retry (no part sent, retryable radio/network failure), or FAILED (permanent
+ * failure, retries used up, or only some parts sent: see [markPartlySent]); delivery reports set `status`
+ * COMPLETE / PENDING / FAILED.
  */
 @Singleton
 class SmsStatusProcessor @Inject constructor(
@@ -37,18 +39,37 @@ class SmsStatusProcessor @Inject constructor(
         val deliveryRequested = intent.getBooleanExtra(SmsStatusReceiver.EXTRA_DELIVERY_REQUESTED, false)
         val key = MessageKey(MessageKind.SMS, id)
 
-        if (resultCode == Activity.RESULT_OK) {
-            if (progress.recordSent(id, part, count)) {
+        val ok = resultCode == Activity.RESULT_OK
+        if (!ok) {
+            val errorCode = intent.getIntExtra(EXTRA_ERROR_CODE, 0)
+            Log.w(TAG, "SMS part ${part + 1}/$count failed: result=$resultCode errorCode=$errorCode attempt=$attempt")
+        }
+        // Decide only once the whole attempt has reported: acting on the first failed part would resend parts that
+        // are still on their way (or already delivered).
+        val settled = progress.recordSendResult(id, part, count, attempt, ok, resultCode) ?: return
+        when (settled.outcome) {
+            SendAttemptOutcome.SENT -> {
                 writer.markSmsStatus(key, OutgoingStatus.SENT)
                 failures.clear(key)
                 if (!deliveryRequested) progress.clear(id)
             }
-        } else {
-            if (!progress.recordFailure(id, count)) return
-            val errorCode = intent.getIntExtra(EXTRA_ERROR_CODE, 0)
-            Log.w(TAG, "SMS send failed: result=$resultCode errorCode=$errorCode attempt=$attempt")
-            handleFailure(key, attempt, resultCode)
+            SendAttemptOutcome.ALL_FAILED -> handleFailure(key, attempt, settled.failureCode)
+            SendAttemptOutcome.PARTIAL -> markPartlySent(key, settled)
+            SendAttemptOutcome.IN_FLIGHT -> Unit
         }
+    }
+
+    /**
+     * Some parts went out, some did not. SMS has no way to send just the missing parts (a resend is a new
+     * concatenated message with a new reference, so the recipient's phone cannot merge it with the parts it already
+     * has), and an automatic whole-message resend would show the recipient those parts twice. So: FAILED with an
+     * accurate reason and no automatic retry; the user's "retry" resends the whole message knowingly.
+     * The progress record is kept so late delivery reports cannot flip the message to delivered.
+     */
+    private suspend fun markPartlySent(key: MessageKey, settled: PartProgress) {
+        failures.set(key, SmsResultCodes.describePartial(settled.sentParts.size, settled.partCount))
+        writer.markSmsFailed(key.providerId, settled.failureCode)
+        scheduler.cancel(key)
     }
 
     /**

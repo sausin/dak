@@ -39,6 +39,10 @@ import kotlinx.coroutines.withContext
  * the journal entry is removed only once the row exists. A failed insert is retried by [SmsJournalReplayWorker]
  * ([replayJournal]); replays are idempotent (an existing identical inbox row is reused, never duplicated).
  *
+ * Special TP-PID / DCS handling ([IncomingSmsPolicy]): type 0 (PID 0x40) is dropped; class 0 ("flash") is shown by
+ * [FlashMessages] and stored only on the user's "Save" (it is not announced to the handlers); "Replace Short
+ * Message" types (PID 0x41–0x47) overwrite the earlier message from the same sender with the same PID.
+ *
  * Blocked senders are not filtered here: since API 24 the platform drops blocked numbers before delivering to
  * the default SMS app.
  */
@@ -48,6 +52,7 @@ class IncomingSmsProcessor @Inject constructor(
     private val writer: TelephonyProviderWriter,
     private val reader: TelephonyProviderReader,
     private val dispatcher: IncomingDispatcher,
+    private val flash: FlashMessages,
 ) {
     private val journal: SmsJournal by lazy { journalFor(context) }
 
@@ -76,14 +81,23 @@ class IncomingSmsProcessor @Inject constructor(
                     }
                     return@withLock null
                 }
-                // Message-waiting indications flagged "do not store" carry no user content (voicemail lamp control).
-                if (parts.all { it.isMwiDontStore }) {
-                    written?.let { journal.remove(it.key) }
-                    return@withLock null
-                }
                 val sms = incomingOf(parts, subId, receivedAt)
+                val handling = handlingOf(intent.getStringExtra(EXTRA_FORMAT), parts)
+                when (handling) {
+                    // Type 0 and "do not store" message-waiting indications carry nothing to show or keep.
+                    IncomingHandling.DROP_TYPE_ZERO, IncomingHandling.DROP_MWI -> {
+                        written?.let { journal.remove(it.key) }
+                        return@withLock null
+                    }
+                    // Class 0: shown now, stored only on "Save". Stored normally if it cannot be shown.
+                    IncomingHandling.FLASH -> if (flash.show(sms)) {
+                        written?.let { journal.remove(it.key) }
+                        return@withLock null
+                    }
+                    IncomingHandling.REPLACE, IncomingHandling.STORE -> Unit
+                }
                 val existing = if (written?.alreadyPresent == true) existingInboxRow(sms, matchDateSent = true) else null
-                val key = existing ?: writer.insertIncoming(sms)
+                val key = existing ?: storeNew(sms, handling)
                 when {
                     written == null -> Unit
                     key != null -> journal.remove(written.key)
@@ -148,16 +162,24 @@ class IncomingSmsProcessor @Inject constructor(
             UnsavedSmsNotification.post(context, journal.quarantinedCount())
             return null
         }
-        if (parts.all { it.isMwiDontStore }) {
-            journal.remove(entry.key)
-            return null
-        }
         val sms = incomingOf(parts, entry.subId, entry.receivedAtMillis)
+        val handling = handlingOf(entry.format, parts)
+        when (handling) {
+            IncomingHandling.DROP_TYPE_ZERO, IncomingHandling.DROP_MWI -> {
+                journal.remove(entry.key)
+                return null
+            }
+            IncomingHandling.FLASH -> if (flash.show(sms)) {
+                journal.remove(entry.key)
+                return null
+            }
+            IncomingHandling.REPLACE, IncomingHandling.STORE -> Unit
+        }
         existingInboxRow(sms, matchDateSent = true)?.let {
             journal.remove(entry.key)
             return null
         }
-        val key = writer.insertIncoming(sms)
+        val key = storeNew(sms, handling)
         if (key != null) {
             journal.remove(entry.key)
         } else if (!journal.recordFailure(entry.key)) {
@@ -165,6 +187,16 @@ class IncomingSmsProcessor @Inject constructor(
             UnsavedSmsNotification.post(context, journal.quarantinedCount())
         }
         return key
+    }
+
+    /**
+     * Writes a message that is not in the inbox yet: a "Replace Short Message" type overwrites the earlier message
+     * from the same sender with the same TP-PID (falling back to an insert when there is none), anything else is
+     * inserted.
+     */
+    private suspend fun storeNew(sms: IncomingSms, handling: IncomingHandling): MessageKey? {
+        if (handling == IncomingHandling.REPLACE) writer.replaceIncoming(sms)?.let { return it }
+        return writer.insertIncoming(sms)
     }
 
     /**
@@ -203,6 +235,14 @@ class IncomingSmsProcessor @Inject constructor(
             (intent.getSerializableExtra(EXTRA_PDUS) as? Array<*>)?.mapNotNull { it as? ByteArray }?.takeIf { it.isNotEmpty() }
         } catch (e: Exception) {
             null
+        }
+
+        /** Type 0 / MWI / class 0 / replace / normal, from the first part's TP-PID and DCS (see [IncomingSmsPolicy]). */
+        private fun handlingOf(format: String?, parts: List<SmsMessage>): IncomingHandling {
+            val first = parts[0]
+            val pid = runCatching { first.protocolIdentifier }.getOrDefault(0)
+            val classZero = runCatching { first.messageClass == SmsMessage.MessageClass.CLASS_0 }.getOrDefault(false)
+            return IncomingSmsPolicy.handling(format, pid, classZero, allMwiDontStore = parts.all { it.isMwiDontStore })
         }
 
         private fun incomingOf(parts: List<SmsMessage>, subId: Int, receivedAt: Long): IncomingSms {

@@ -20,6 +20,7 @@ import app.dak.telephony.mms.MmsDownloadManager
 import app.dak.telephony.provider.MmsColumns
 import app.dak.telephony.provider.ProviderUris
 import app.dak.telephony.provider.SmsColumns
+import app.dak.telephony.role.SmsRoleMonitor
 import app.dak.telephony.send.SendFailureStore
 import app.dak.telephony.send.SendScheduler
 import app.dak.telephony.sms.SmsJournalReplayWorker
@@ -42,6 +43,7 @@ class OutboxRecovery @Inject constructor(
     private val scheduler: SendScheduler,
     private val failures: SendFailureStore,
     private val downloads: MmsDownloadManager,
+    private val role: SmsRoleMonitor,
 ) {
     suspend fun recover() {
         withContext(Dispatchers.IO) {
@@ -81,6 +83,8 @@ class OutboxRecovery @Inject constructor(
             }
         }
         downloads.resumePending()
+        // Sends held while another app was the default SMS app, if the role came back while the phone was off.
+        role.resumeIfDefault()
     }
 
     private companion object {

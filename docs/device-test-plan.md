@@ -59,6 +59,34 @@ If the app crashes, `adb logcat -b crash` output (or a screenshot of the crash d
     history also shows rules that were deleted.
 19. Battery: after a normal day, Settings → Battery → Dak should be negligible.
 
+## Standards checks on the emulator (SMS/MMS P1 fixes)
+Use `android/scripts/sms-pdu.py` (prints `adb emu sms pdu …` lines, or runs them with `--send`). Dak must be the
+default SMS app unless a step says otherwise.
+20. **Flash (class 0) SMS**: `./sms-pdu.py --send --flash +919876543210 "Flash test"`. A heads-up "Flash message from
+    +919876543210" appears with the full text and Save / Dismiss; nothing new in the inbox. Tap the notification →
+    dialog with the text (links not clickable). Dismiss → still nothing stored. Send again, tap **Save** → one row,
+    already read, no second notification. Turn Dak's notifications off and send once more → stored as a normal SMS.
+21. **Replace short message**: `./sms-pdu.py --send --pid 41 +919876543210 "Balance Rs 900"`, then
+    `./sms-pdu.py --send --pid 41 +919876543210 "Balance Rs 750"`. The thread holds **one** message, now "Balance Rs
+    750", unread. A `--pid 42` message from the same number, or `--pid 41` from another number, adds a new row.
+22. **Silent (type 0) SMS**: `./sms-pdu.py --send --pid 40 +919876543210 "silent"`. No notification, no row
+    (normally dropped by the platform before Dak sees it).
+23. **Multipart partial failure**: needs a fault (no emulator console command fails one part). On a device: send a
+    ~400-character SMS and toggle airplane mode right after tapping send. Expected: either the whole message is
+    retried (nothing went out) or it shows "Only k of n parts were sent…" with no automatic resend; tapping retry
+    resends the whole text once.
+24. **Losing the default role**: make another app (Google Messages) the default. Open a conversation in Dak: the
+    composer is read-only with "Dak is not your default SMS app" and **Make Dak your default SMS app**. Schedule a
+    text a few minutes out *before* switching; when it comes due it waits (not failed). A new message to `112` stays
+    sendable. Tap the button (or switch back in Settings) → the scheduled text goes out, the composer unlocks, a
+    pending MMS download resumes.
+25. **Group MMS off**: on a carrier / emulator config with `enableGroupMms=false` (e.g. `adb shell cmd
+    phone cc set-value -p enableGroupMms false`, verify the syntax for the Android version), a text to two people
+    says "each recipient gets their own copy" and creates two 1:1 SMS rows; a photo to two people sends two MMS.
+26. **MMS answers**: with auto-download off, receive an MMS (needs a real carrier or an MMSC test setup; the emulator
+    cannot inject WAP push). The MMSC log / `adb logcat -s DakTelephony` shows an m-notifyresp-ind Deferred; tapping
+    to download then sends m-acknowledge-ind. With auto-download on, the answer is notifyresp Retrieved.
+
 ## Known limitations going in
 - SMS Organizer import is heuristic until tested with a real backup file.
 - Premium features show as locked; that's expected.

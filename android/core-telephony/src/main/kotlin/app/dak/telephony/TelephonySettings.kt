@@ -39,11 +39,14 @@ class TelephonySettings @Inject constructor(@ApplicationContext context: Context
         set(value) = prefs.edit().putBoolean(KEY_MMS_DELIVERY_REPORTS, value).apply()
 
     /**
-     * Send m-notifyresp-ind to the MMSC after a successful download (default off). The platform's download API
-     * does not send it; most MMSCs do not require it, a few re-send notifications without it.
+     * Answer the MMSC as OMA MMS-CTR expects (default on, as AOSP does): m-notifyresp-ind Retrieved after a download,
+     * Deferred when a download waits for a tap, m-acknowledge-ind after a deferred download, Unrecognised for an
+     * unreadable notification. The platform's download API sends none of these; without them some MMSCs re-send
+     * notifications or keep messages until they expire. Where they go (MMSC or the notification's URL) follows the
+     * carrier's `enabledNotifyWapMMSC` config. Kept as a switch for carriers whose MMSC misbehaves with them.
      */
     var sendMmsNotifyResponse: Boolean
-        get() = prefs.getBoolean(KEY_MMS_NOTIFY_RESPONSE, false)
+        get() = prefs.getBoolean(KEY_MMS_NOTIFY_RESPONSE, true)
         set(value) = prefs.edit().putBoolean(KEY_MMS_NOTIFY_RESPONSE, value).apply()
 
     /** User-corrected home country (ISO 3166-1 alpha-2) for a SIM, overriding what the SIM reports. */

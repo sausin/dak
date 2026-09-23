@@ -1,5 +1,6 @@
 package app.dak.ui.conversation
 
+import android.content.Context
 import android.net.Uri
 import android.telephony.SmsMessage
 import app.dak.safety.SendCostGuard
@@ -12,9 +13,20 @@ import app.dak.telephony.OutgoingMmsPart
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.SendResult
 import app.dak.telephony.SimRepository
+import app.dak.telephony.carrier.CarrierConfigRepository
+import app.dak.telephony.carrier.CarrierMessagingConfig
+import app.dak.telephony.carrier.SendBlock
+import app.dak.telephony.carrier.SendMode
+import app.dak.telephony.carrier.SendModePolicy
+import app.dak.telephony.carrier.SendPlan
 import app.dak.telephony.cost.CostVerdict
+import app.dak.telephony.cost.EmergencyNumberCheck
+import app.dak.telephony.role.SmsRoleMonitor
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.StateFlow
+import app.dak.telephony.R as TelephonyR
 
 /** One item in the composer's attachment tray. Either [uri] (read lazily) or [bytes] (already in memory). */
 data class ComposerAttachment(
@@ -33,7 +45,7 @@ data class ComposerAttachment(
 data class SegmentInfo(val segments: Int, val remainingInSegment: Int)
 
 /** Why a send did not go out. */
-enum class SendProblem { NO_RECIPIENT, NO_SIM, ATTACHMENT_TOO_LARGE, ATTACHMENT_UNREADABLE, PLATFORM }
+enum class SendProblem { NO_RECIPIENT, NO_SIM, ATTACHMENT_TOO_LARGE, ATTACHMENT_UNREADABLE, PLATFORM, NOT_DEFAULT_APP, CARRIER_LIMIT }
 
 sealed interface SendOutcome {
     data object Sent : SendOutcome
@@ -41,24 +53,64 @@ sealed interface SendOutcome {
 }
 
 /**
- * The one send path behind every composer: picks SMS or MMS automatically (media, group recipients or very long
- * text go as MMS; everything else as SMS, concatenated when long), normalises recipients to E.164 with the sending
- * SIM's home country when enabled, and compresses media to the carrier limit off the main thread. Cost
- * confirmations (premium / short codes / international / roaming) are asked by the composer via [costWarnings]
- * before [send].
+ * The one send path behind every composer: picks SMS or MMS from the carrier's rules ([SendModePolicy] over the SIM's
+ * [CarrierMessagingConfig]: media, group recipients when the carrier allows group MMS, or text past the carrier's
+ * SMS→MMS threshold go as MMS; everything else as SMS, concatenated when long; a group without group MMS goes as
+ * individual messages), normalises recipients to E.164 with the sending SIM's home country when enabled, and
+ * compresses media to the carrier limit off the main thread. Cost confirmations (premium / short codes /
+ * international / roaming) are asked by the composer via [costWarnings] before [send].
+ *
+ * While Dak is not the default SMS app ([isDefaultSmsApp]) only texts to emergency numbers are sent; the composer is
+ * read-only otherwise.
  */
 @Singleton
 class MessageSendController @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val sender: MessageSender,
     private val normalizer: NumberNormalizer,
     private val settings: SettingsStore,
     private val compressor: MmsMediaCompressor,
     private val sims: SimRepository,
     private val costGuard: SendCostGuard,
+    private val carrierConfig: CarrierConfigRepository,
+    private val role: SmsRoleMonitor,
+    private val emergency: EmergencyNumberCheck,
 ) {
+    /** True while Dak holds the default SMS role. */
+    val isDefaultSmsApp: StateFlow<Boolean> get() = role.isDefault
+
+    /** Re-reads the role (after the system role dialog, on resume). */
+    fun refreshRole() {
+        role.refresh()
+    }
+
+    /**
+     * While Dak is not the default SMS app: true when a text to [addresses] may still be sent, i.e. every recipient
+     * is an emergency number (texts to emergency services are never held). Call off the main thread.
+     */
+    fun sendableWithoutRole(addresses: List<String>, subId: Int): Boolean {
+        val sendSubId = sendSubIdFor(subId) ?: return false
+        return runCatching { emergency.allEmergency(addresses.map { it.trim() }.filter { it.isNotEmpty() }, sendSubId) }.getOrDefault(false)
+    }
+
+    /** The carrier rules of the SIM a send from [subId] uses. */
+    fun carrierConfig(subId: Int): CarrierMessagingConfig =
+        sendSubIdFor(subId)?.let { carrierConfig.forSubscription(it) } ?: CarrierMessagingConfig.DEFAULTS
+
+    /** How a message would go out (SMS, group MMS or one MMS each) and whether the carrier refuses it as composed. */
+    fun plan(recipientCount: Int, text: String, attachments: List<ComposerAttachment>, subId: Int): SendPlan =
+        SendModePolicy.plan(
+            recipientCount = recipientCount,
+            segments = segments(text).segments,
+            textLength = text.length,
+            textBytes = text.toByteArray(Charsets.UTF_8).size,
+            hasAttachments = attachments.isNotEmpty(),
+            config = carrierConfig(subId),
+        )
+
     /** True when this message will go as MMS (shown as the "MMS" chip on the send button). */
-    fun isMms(recipientCount: Int, text: String, attachments: List<ComposerAttachment>): Boolean =
-        attachments.isNotEmpty() || recipientCount > 1 || segments(text).segments > MMS_TEXT_SEGMENT_THRESHOLD
+    fun isMms(recipientCount: Int, text: String, attachments: List<ComposerAttachment>, subId: Int = -1): Boolean =
+        plan(recipientCount, text, attachments, subId).isMms
 
     fun segments(text: String): SegmentInfo {
         if (text.isEmpty()) return SegmentInfo(0, 0)
@@ -103,21 +155,52 @@ class MessageSendController @Inject constructor(
         // No system default SMS SIM (dual-SIM "ask every time"): send from the first active SIM instead of failing.
         val sendSubId = sendSubIdFor(subId) ?: return SendOutcome.Failed(SendProblem.NO_SIM)
         val targets = recipients.map { normalized(it, sendSubId) }
-        val result = if (!isMms(targets.size, text, attachments)) {
-            sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = settings.get(DakSettings.deliveryReports)))
-        } else {
-            val parts = buildParts(text, attachments, sendSubId) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
-            sender.sendMms(OutgoingMms(targets, text.ifEmpty { null }, sendSubId, parts, threadId = threadId, requestDeliveryReport = settings.get(DakSettings.deliveryReports)))
+        val deliveryReports = settings.get(DakSettings.deliveryReports)
+        if (!role.isDefaultNow()) {
+            // Only emergency texts go out without the role (the sender hands them straight to the platform).
+            if (attachments.isNotEmpty() || !sendableWithoutRole(recipients, sendSubId)) {
+                return SendOutcome.Failed(SendProblem.NOT_DEFAULT_APP, context.getString(TelephonyR.string.dak_telephony_not_default_title))
+            }
+            return outcomeOf(sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = deliveryReports)))
         }
-        return when (result) {
-            is SendResult.Queued -> SendOutcome.Sent
-            is SendResult.Failed -> SendOutcome.Failed(SendProblem.PLATFORM, result.reason)
+        val config = carrierConfig.forSubscription(sendSubId)
+        val plan = plan(targets.size, text, attachments, sendSubId)
+        plan.block?.let { return SendOutcome.Failed(SendProblem.CARRIER_LIMIT, blockText(it, config)) }
+        return when (plan.mode) {
+            SendMode.SMS ->
+                outcomeOf(sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = deliveryReports)))
+            SendMode.MMS -> {
+                val parts = buildParts(text, attachments, sendSubId, config) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
+                outcomeOf(sender.sendMms(OutgoingMms(targets, text.ifEmpty { null }, sendSubId, parts, threadId = threadId, requestDeliveryReport = deliveryReports)))
+            }
+            SendMode.MMS_PER_RECIPIENT -> {
+                // Carrier without group MMS: one MMS per recipient, each filed in its own 1:1 thread.
+                val parts = buildParts(text, attachments, sendSubId, config) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
+                val failures = targets.mapNotNull { to ->
+                    val result = sender.sendMms(OutgoingMms(listOf(to), text.ifEmpty { null }, sendSubId, parts, threadId = null, requestDeliveryReport = deliveryReports))
+                    (result as? SendResult.Failed)?.reason
+                }
+                if (failures.isEmpty()) SendOutcome.Sent else SendOutcome.Failed(SendProblem.PLATFORM, failures.first())
+            }
         }
     }
 
-    private suspend fun buildParts(text: String, attachments: List<ComposerAttachment>, subId: Int): List<OutgoingMmsPart>? {
+    private fun outcomeOf(result: SendResult): SendOutcome = when (result) {
+        is SendResult.Queued -> SendOutcome.Sent
+        is SendResult.Failed -> SendOutcome.Failed(SendProblem.PLATFORM, result.reason)
+    }
+
+    private fun blockText(block: SendBlock, config: CarrierMessagingConfig): String = when (block) {
+        SendBlock.MMS_DISABLED -> context.getString(TelephonyR.string.dak_telephony_mms_disabled)
+        SendBlock.TOO_MANY_RECIPIENTS -> context.getString(TelephonyR.string.dak_telephony_too_many_recipients, config.recipientLimit ?: 0)
+        SendBlock.TEXT_TOO_LONG -> context.getString(TelephonyR.string.dak_telephony_mms_text_too_long)
+    }
+
+    private suspend fun buildParts(text: String, attachments: List<ComposerAttachment>, subId: Int, config: CarrierMessagingConfig): List<OutgoingMmsPart>? {
         if (attachments.isEmpty()) return emptyList()
-        val limit = (compressor.messageLimitBytes(subId) * HEADROOM).toInt() - text.toByteArray(Charsets.UTF_8).size
+        // The carrier's maxMessageSize from CarrierConfigManager, never above what the compressor already assumes.
+        val messageLimit = minOf(compressor.messageLimitBytes(subId), config.maxMessageSizeBytes)
+        val limit = (messageLimit * HEADROOM).toInt() - text.toByteArray(Charsets.UTF_8).size
         val budget = (limit / attachments.size).coerceAtLeast(MIN_PART_BUDGET)
         return attachments.mapIndexed { index, a ->
             val prepared = when {
@@ -133,24 +216,58 @@ class MessageSendController @Inject constructor(
         }
     }
 
-    private fun fileNameFor(index: Int, a: ComposerAttachment, mime: String): String {
-        val base = a.name?.substringBeforeLast('.')?.filter { it.isLetterOrDigit() || it == '_' || it == '-' }?.take(40)
+    private fun fileNameFor(index: Int, a: ComposerAttachment, mime: String): String = MmsPartNames.fileName(index, a.name, mime)
+
+    private companion object {
+        const val HEADROOM = 0.9
+        const val MIN_PART_BUDGET = 16 * 1024
+    }
+}
+
+/**
+ * File names for outgoing MMS parts (Content-Location / name). The extension follows the part's **final** content
+ * type, after compression or transcoding (a voice note recorded as `.amr` but transcoded to AAC in MP4 goes out as
+ * `.m4a`): receiving phones pick a player by extension as often as by MIME type. The original extension is used only
+ * for types not listed here. Pure, for tests.
+ */
+internal object MmsPartNames {
+    fun fileName(index: Int, originalName: String?, mimeType: String): String {
+        val base = originalName?.substringBeforeLast('.')?.filter { it.isLetterOrDigit() || it == '_' || it == '-' }?.take(40)
             ?.ifBlank { null } ?: "part${index + 1}"
-        val ext = when {
-            mime == "image/jpeg" -> "jpg"
-            mime == "image/png" -> "png"
-            mime == "image/gif" -> "gif"
-            mime.startsWith("video/") -> "mp4"
-            mime.contains("vcard") -> "vcf"
-            else -> a.name?.substringAfterLast('.', "")?.ifBlank { null } ?: "bin"
-        }
+        val ext = extensionFor(mimeType)
+            ?: originalName?.takeIf { '.' in it }?.substringAfterLast('.')?.filter { it.isLetterOrDigit() }?.take(8)?.lowercase()?.ifBlank { null }
+            ?: "bin"
         return "$base.$ext"
     }
 
-    private companion object {
-        /** Beyond this many segments carriers usually convert anyway; sending MMS keeps the text in one piece. */
-        const val MMS_TEXT_SEGMENT_THRESHOLD = 10
-        const val HEADROOM = 0.9
-        const val MIN_PART_BUDGET = 16 * 1024
+    /** Extension for a content type (parameters such as `; codecs=` ignored), or null when not a known MMS type. */
+    fun extensionFor(mimeType: String): String? = when (mimeType.substringBefore(';').trim().lowercase()) {
+        "image/jpeg", "image/jpg", "image/pjpeg" -> "jpg"
+        "image/png" -> "png"
+        "image/gif" -> "gif"
+        "image/webp" -> "webp"
+        "image/heic", "image/heif" -> "heic"
+        "image/bmp", "image/x-ms-bmp" -> "bmp"
+        "image/vnd.wap.wbmp" -> "wbmp"
+        "video/mp4" -> "mp4"
+        "video/3gpp" -> "3gp"
+        "video/3gpp2" -> "3g2"
+        "video/webm" -> "webm"
+        "video/quicktime" -> "mov"
+        "audio/mp4", "audio/m4a", "audio/x-m4a", "audio/mp4a-latm" -> "m4a"
+        "audio/aac", "audio/aacp" -> "aac"
+        "audio/amr" -> "amr"
+        "audio/amr-wb" -> "awb"
+        "audio/3gpp" -> "3gp"
+        "audio/mpeg", "audio/mp3" -> "mp3"
+        "audio/ogg", "audio/opus" -> "ogg"
+        "audio/wav", "audio/x-wav", "audio/wave" -> "wav"
+        "audio/midi", "audio/mid", "audio/sp-midi" -> "mid"
+        "text/x-vcard", "text/vcard" -> "vcf"
+        "text/x-vcalendar" -> "vcs"
+        "text/calendar" -> "ics"
+        "text/plain" -> "txt"
+        "application/pdf" -> "pdf"
+        else -> null
     }
 }

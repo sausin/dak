@@ -10,6 +10,12 @@ sealed interface PduDecodeResult {
     fun getOrNull(): MmsPdu? = (this as? Success)?.pdu
 }
 
+/**
+ * The first headers of a PDU, as far as they could be read ([MmsPduDecoder.peekPreamble]). Any field may be null.
+ * [mmsVersion] is `(major shl 4) or minor`, as in [MmsVersion].
+ */
+data class PduPreamble(val messageType: Int?, val transactionId: String?, val mmsVersion: Int?)
+
 /** Why a PDU could not be decoded. */
 sealed interface PduError {
     val message: String

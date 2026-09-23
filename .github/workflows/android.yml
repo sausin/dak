@@ -26,19 +26,19 @@ defaults:
 jobs:
   build:
     name: Test and build APKs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       DAK_VERSION_CODE: ${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Offline baseline guard (no runtime AI/network deps in free tier)
         run: scripts/check-offline-baseline.sh
@@ -68,7 +68,7 @@ jobs:
         run: ./gradlew --stacktrace assembleFreeRelease assemblePremiumRelease
 
       - name: Upload debug APKs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dak-debug-apks-${{ github.run_number }}
           path: android/app/build/outputs/apk/*/debug/*.apk
@@ -76,14 +76,14 @@ jobs:
 
       - name: Upload release APKs
         if: steps.keystore.outputs.path != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dak-release-apks-${{ github.run_number }}
           path: android/app/build/outputs/apk/*/release/*.apk
 
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-${{ github.run_number }}
           path: android/**/build/reports/tests/
@@ -91,7 +91,7 @@ jobs:
 
       - name: Attach APKs to GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             android/app/build/outputs/apk/*/debug/*.apk

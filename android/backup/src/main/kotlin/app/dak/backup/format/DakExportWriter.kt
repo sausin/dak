@@ -23,7 +23,8 @@ import kotlinx.serialization.json.Json
  * 2. `messages/NNNN.jsonl` chunks (via [writeMessages])
  * 3. `threads.json` (via [writeThreads])
  * 4. `settings.json` (via [writeSettings])
- * 5. `manifest.json`, written last by [finish] once every other part's size and SHA-256 are known.
+ * 5. `automation_runs.jsonl` (optional, via [writeAutomationRuns])
+ * 6. `manifest.json`, written last by [finish] once every other part's size and SHA-256 are known.
  *
  * Not thread-safe; call the `write*` methods in the order above, then [finish], then [close].
  */
@@ -38,6 +39,7 @@ class DakExportWriter(
     private var messageCount = 0
     private var threadCount = 0
     private var attachmentCount = 0
+    private var automationRunCount = 0
     private var finished = false
 
     /** Writes one content-addressed attachment blob. [sha256] must be the lower-case hex digest of [bytes]. */
@@ -87,6 +89,23 @@ class DakExportWriter(
         writeEntry("settings.json") { it.write(settingsJson.toByteArray(Charsets.UTF_8)) }
     }
 
+    /**
+     * Writes the automation run history as `automation_runs.jsonl`, one [AutomationRunRecord] per line, at most
+     * [ArchiveLimits.MAX_AUTOMATION_RUNS] rows (pass the newest first if there could be more). Consumed lazily.
+     */
+    fun writeAutomationRuns(runs: Sequence<AutomationRunRecord>) {
+        writeEntry(AUTOMATION_RUNS_ENTRY) { out ->
+            val writer = BufferedWriter(OutputStreamWriter(out, Charsets.UTF_8))
+            for (run in runs) {
+                if (automationRunCount >= ArchiveLimits.MAX_AUTOMATION_RUNS) break
+                writer.write(json.encodeToString(run))
+                writer.write("\n")
+                automationRunCount++
+            }
+            writer.flush() // never close: that would close the shared zip stream
+        }
+    }
+
     /** Writes the trailer `manifest.json` entry and returns the [Manifest] that was written. */
     fun finish(meta: ManifestMeta): Manifest {
         check(!finished) { "finish() already called" }
@@ -94,7 +113,7 @@ class DakExportWriter(
             createdAt = meta.createdAt,
             appVersion = meta.appVersion,
             device = meta.device,
-            counts = ManifestCounts(messageCount, threadCount, attachmentCount),
+            counts = ManifestCounts(messageCount, threadCount, attachmentCount, automationRunCount),
             parts = parts.toList(),
             id = meta.id,
             parentId = meta.parentId,
@@ -144,6 +163,7 @@ class DakExportWriter(
 
     companion object {
         const val DEFAULT_CHUNK_SIZE = 1000
+        const val AUTOMATION_RUNS_ENTRY = "automation_runs.jsonl"
         internal val defaultJson = Json { encodeDefaults = true; ignoreUnknownKeys = true }
     }
 }

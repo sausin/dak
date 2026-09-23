@@ -9,8 +9,12 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Direct battery-optimisation exemption prompt: timely OTP/bank-alert delivery is the core function. -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Not requested: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS is Play-restricted and a default SMS app is already woken
+         for SMS_DELIVER / WAP_PUSH_DELIVER. Dak opens the battery-optimisation settings list instead (no permission
+         needed). tools:node="remove" keeps a library from merging it back in. See docs/play-submission.md. -->
+    <uses-permission
+        android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        tools:node="remove" />
 
     <!-- Share location as a maps link from the composer. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -107,6 +111,15 @@
                 <data android:mimeType="video/*" />
             </intent-filter>
         </activity>
+
+        <!-- Settings → Privacy: policy (offline), data-sharing consents, export and delete of Dak's own data.
+             Not exported: only Dak's own screens open it. -->
+        <activity
+            android:name=".ui.privacy.PrivacyActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/privacy_title"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- Notification actions (copy code, delete, mark read, reply). Only our own PendingIntents reach it. -->
         <receiver

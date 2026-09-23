@@ -43,6 +43,21 @@ object ArchiveLimits {
     /** Incremental chain length followed on restore (also stops parent-id cycles). */
     const val MAX_CHAIN_LENGTH: Int = 10_000
 
+    /** Rows of automation run history carried in one archive (the app keeps a year, at least 5,000 rows). */
+    const val MAX_AUTOMATION_RUNS: Int = 100_000
+
+    /** Uncompressed bytes of `automation_runs.jsonl`. */
+    const val MAX_AUTOMATION_RUNS_BYTES: Long = 128L * 1024 * 1024
+
+    /** Characters in one `automation_runs.jsonl` line. */
+    const val MAX_AUTOMATION_RUN_LINE_CHARS: Int = 64 * 1024
+
+    /** Characters kept per string field of a restored automation run (longer values are cut). */
+    const val MAX_AUTOMATION_RUN_FIELD_CHARS: Int = 2_000
+
+    /** Restored runs dated later than now plus this are dropped (a future row would skew per-rule counters). */
+    const val MAX_AUTOMATION_RUN_CLOCK_SKEW_MILLIS: Long = 24L * 60 * 60 * 1000
+
     /** Parts and addresses kept per imported MMS. */
     const val MAX_MMS_PARTS: Int = 256
     const val MAX_MMS_ADDRESSES: Int = 100

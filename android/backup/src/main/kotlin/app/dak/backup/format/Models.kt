@@ -84,7 +84,57 @@ data class ManifestCounts(
     val messages: Int,
     val threads: Int,
     val attachments: Int,
+    /** Rows in `automation_runs.jsonl`; 0 (and the entry absent) in archives written before it existed. */
+    val automationRuns: Int = 0,
 )
+
+/**
+ * One row of the automation run history (`core-index` `automation_run`, DB v5): what a rule sent, failed to send or
+ * skipped, for which message and to where. Carried in backups so "what left my phone" survives a restore; it is a
+ * log only — restoring it never recreates a rule or sends anything (see [AutomationRunRestore]).
+ *
+ * Field meanings match `AutomationRunRow`; the database id is not carried (restore assigns new ones).
+ */
+@Serializable
+data class AutomationRunRecord(
+    val ruleId: String,
+    val ruleName: String,
+    val atMillis: Long,
+    val messageKey: String? = null,
+    val conversationId: String? = null,
+    val sourceLabel: String? = null,
+    val actionKind: String,
+    val destinationLabel: String? = null,
+    val destination: String? = null,
+    /** `SENT`, `FAILED` or `SKIPPED`. */
+    val outcome: String,
+    val reason: String? = null,
+    /** One-line preview, OTP codes already masked by the app when the row was written. */
+    val textPreview: String? = null,
+) {
+    /** Identity used to skip rows already present on restore (the database id differs across installs). */
+    fun dedupeKey(): String = listOf(ruleId, atMillis.toString(), actionKind, messageKey.orEmpty(), destination.orEmpty(), outcome)
+        .joinToString("\u0001")
+
+    /** Every string cut to [ArchiveLimits.MAX_AUTOMATION_RUN_FIELD_CHARS] (rows come from an untrusted file). */
+    fun bounded(): AutomationRunRecord {
+        val max = ArchiveLimits.MAX_AUTOMATION_RUN_FIELD_CHARS
+        fun String.cut() = if (length <= max) this else take(max)
+        return copy(
+            ruleId = ruleId.cut(),
+            ruleName = ruleName.cut(),
+            messageKey = messageKey?.cut(),
+            conversationId = conversationId?.cut(),
+            sourceLabel = sourceLabel?.cut(),
+            actionKind = actionKind.cut(),
+            destinationLabel = destinationLabel?.cut(),
+            destination = destination?.cut(),
+            outcome = outcome.cut(),
+            reason = reason?.cut(),
+            textPreview = textPreview?.cut(),
+        )
+    }
+}
 
 @Serializable
 enum class ManifestKind { FULL, INCREMENTAL }

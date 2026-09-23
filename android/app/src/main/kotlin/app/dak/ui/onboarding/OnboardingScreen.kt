@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.ui.lock.AppLockOnboardingCard
+import app.dak.ui.privacy.PrivacyActivity
 import app.dak.ui.theme.DakTheme
 
 /**
@@ -60,7 +61,9 @@ import app.dak.ui.theme.DakTheme
  * 2. the default-SMS role request;
  * 3. only then notifications, contacts and phone permissions;
  * 4. when to index the full history (recent messages are indexed immediately);
- * 5. battery-optimisation exemption and OEM background-killer guidance, plus the (optional) app-lock recommendation.
+ * 5. battery-optimisation settings (the list, not the restricted direct prompt) and OEM background-killer guidance,
+ *    plus the (optional) app-lock recommendation.
+ * The privacy policy is linked from the first step.
  */
 @Composable
 fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, viewModel: OnboardingViewModel = hiltViewModel()) {
@@ -112,8 +115,9 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, view
                     OnboardingStep.RELIABILITY -> ReliabilityStep(
                         state = state,
                         onBattery = {
-                            val launched = runCatching { batteryLauncher.launch(BatteryOptimization.requestIntent(context)) }.isSuccess
-                            if (!launched) context.startSafely(BatteryOptimization.settingsIntent())
+                            // The settings list, never the direct exemption prompt (Play-restricted; see SystemHelpers).
+                            val launched = runCatching { batteryLauncher.launch(BatteryOptimization.settingsIntent()) }.isSuccess
+                            if (!launched) context.startSafely(appDetailsIntent(context))
                         },
                         onOemSettings = { state.oem?.open(context) },
                         onFinish = { viewModel.finish(onFinished) },
@@ -196,6 +200,11 @@ private fun WelcomeStep(onContinue: () -> Unit) {
             }
         }
         Bullet(Icons.Outlined.Info, stringResource(R.string.onboarding_private_title), stringResource(R.string.onboarding_private_body))
+        // The privacy policy, readable before anything is granted (bundled, works offline).
+        val context = LocalContext.current
+        TextButton(onClick = { context.startActivity(PrivacyActivity.intent(context, PrivacyActivity.Start.POLICY)) }) {
+            Text(stringResource(R.string.onboarding_privacy_policy))
+        }
     }
 }
 
@@ -301,6 +310,11 @@ private fun ReliabilityStep(state: OnboardingUiState, onBattery: () -> Unit, onO
                 )
                 if (!state.batteryOptimizationIgnored) {
                     OutlinedButton(onClick = onBattery) { Text(stringResource(R.string.onboarding_battery_button)) }
+                    Text(
+                        stringResource(R.string.battery_settings_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 if (state.backgroundRestricted) {
                     Text(

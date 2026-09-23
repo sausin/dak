@@ -47,7 +47,7 @@ internal fun SourcePickerDialog(
     onDone: (checkedIds: Set<String>, loaded: Map<String, ConversationSummary>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val items = viewModel.sourceCandidates.collectAsLazyPagingItems()
+    val candidates = viewModel.sourceCandidates.collectAsLazyPagingItems()
     var query by remember { mutableStateOf("") }
     // Checked conversations by id; ones already chosen start checked (their summary arrives when they scroll in).
     val checked = remember { mutableStateMapOf<String, ConversationSummary?>().apply { selectedIds.forEach { put(it, null) } } }
@@ -75,8 +75,8 @@ internal fun SourcePickerDialog(
                     label = { Text(stringResource(R.string.fw_search_channels)) },
                 )
                 LazyColumn(Modifier.weight(1f)) {
-                    items(count = items.itemCount) { index ->
-                        val summary = items[index] ?: return@items
+                    items(count = candidates.itemCount) { index ->
+                        val summary = candidates[index] ?: return@items
                         val isChecked = checked.containsKey(summary.conversationId)
                         ListItem(
                             modifier = Modifier.clickable {

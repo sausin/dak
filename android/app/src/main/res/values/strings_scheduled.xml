@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scheduled messages: heads-up before a send goes out, emergency-number refusal, scheduled list (prefix sched_). -->
+<resources>
+    <!-- Channel -->
+    <string name="sched_channel_name">Scheduled messages</string>
+    <string name="sched_channel_desc">A heads-up shortly before a scheduled message or automatic birthday wish goes out, with Send now, Delay and Cancel</string>
+
+    <!-- Heads-up notification. %1$s = recipient(s), %2$s = time -->
+    <string name="sched_hu_title">To %1$s · %2$s</string>
+    <string name="sched_hu_title_birthday">Birthday wish to %1$s · %2$s</string>
+    <string name="sched_hu_title_broadcast">Broadcast to %1$s · %2$s</string>
+    <plurals name="sched_hu_broadcast_recipients">
+        <item quantity="one">%1$s (%2$d person)</item>
+        <item quantity="other">%1$s (%2$d people)</item>
+    </plurals>
+    <string name="sched_hu_public_text">A scheduled message goes out soon</string>
+    <string name="sched_hu_public_text_at">Goes out at %1$s</string>
+    <string name="sched_hu_delay_prompt">Delay until when?</string>
+    <string name="sched_hu_action_send_now">Send now</string>
+    <string name="sched_hu_action_delay">Delay</string>
+    <string name="sched_hu_action_delay_hour">+1 hour</string>
+    <string name="sched_hu_action_delay_tomorrow">Tomorrow, same time</string>
+    <string name="sched_hu_action_pick_time">Pick time</string>
+    <string name="sched_hu_action_cancel">Cancel</string>
+
+    <!-- Group summary -->
+    <plurals name="sched_hu_summary_title">
+        <item quantity="one">%d scheduled message goes out soon</item>
+        <item quantity="other">%d scheduled messages go out soon</item>
+    </plurals>
+    <string name="sched_hu_summary_line">%1$s · %2$s</string>
+    <plurals name="sched_hu_summary_more">
+        <item quantity="one">+%d more</item>
+        <item quantity="other">+%d more</item>
+    </plurals>
+
+    <!-- Emergency numbers -->
+    <string name="sched_emergency_refused">Emergency services need to hear from you now — send it instead of scheduling.</string>
+    <string name="sched_emergency_cancelled_title">Scheduled text to %1$s not sent</string>
+    <string name="sched_emergency_cancelled_text">Texts to emergency numbers can’t be scheduled, so this one was cancelled. If you still need help, contact emergency services now.</string>
+
+    <!-- Scheduled list -->
+    <string name="sched_focus_title">From your notification</string>
+    <string name="sched_focus_gone">This message has already been sent or cancelled.</string>
+    <string name="sched_action_change_time">Change time</string>
+    <string name="sched_time_in_past">Pick a time in the future.</string>
+    <string name="sched_moved">Moved to %1$s</string>
+</resources>

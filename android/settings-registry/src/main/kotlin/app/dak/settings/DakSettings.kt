@@ -538,6 +538,15 @@ object DakSettings {
         "automations.scheduledSends", SettingsGroup.AUTOMATIONS,
         "Scheduled sends", "Messages queued to send at a later time.",
     )
+    val scheduledHeadsUp = choiceSetting(
+        "automations.scheduledHeadsUp", SettingsGroup.AUTOMATIONS,
+        "Heads-up before scheduled messages",
+        "A notification shortly before a scheduled message or automatic birthday wish goes out, with Send now, Delay " +
+            "and Cancel. Automatic birthday wishes sent later in the day also get a morning heads-up.",
+        default = ScheduledHeadsUpLead.DEFAULT,
+        options = ScheduledHeadsUpLead.options,
+        keywords = listOf("scheduled", "reminder", "heads up", "before sending", "birthday", "send later", "notification"),
+    )
     val forwarding = actionSetting(
         "automations.forwarding", SettingsGroup.AUTOMATIONS,
         "Auto-forwarding", "Forward chosen senders to someone for a period, e.g. bank alerts to your CA. Free: sent from your own SIM.",
@@ -608,7 +617,7 @@ object DakSettings {
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup,
         privacyCenter, privacyPolicy, dataSharingChoices, exportMyData, deleteMyData,
         appLock, autoLockAfter, lockOnScreenOff, hideInRecents, protectSensitiveScreens, indexSchedule, rebuildIndex,
-        rulesList, scheduledSends, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,
+        rulesList, scheduledSends, scheduledHeadsUp, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,
         translationLanguages, autoTranslateRules, downloadedPacks, freeTasterPack, packStorageLocation,
     )
 

@@ -1,6 +1,7 @@
 package app.dak.ui.automations
 
 import android.content.Intent
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.dak.automation.ForwardingHold
@@ -10,6 +11,7 @@ import app.dak.automation.OtpForwardConfirmations
 import app.dak.automation.OutboundAutomationGuard
 import app.dak.automation.RuleEntry
 import app.dak.automation.RuleRepository
+import app.dak.automation.ScheduledSendHeadsUpActions
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.presets.Presets
 import app.dak.automations.rule.Rule
@@ -22,6 +24,7 @@ import app.dak.automations.safety.ValidationIssue
 import app.dak.core.model.SimInfo
 import app.dak.index.repo.ScheduledSend
 import app.dak.index.repo.ScheduledSendStore
+import app.dak.navigation.Routes
 import app.dak.premium.Entitlements
 import app.dak.premium.Feature
 import app.dak.telephony.SimRepository
@@ -76,13 +79,30 @@ class AutomationsViewModel @Inject constructor(
     private val forwardingStatus: ForwardingStatusNotifier,
     private val outboundGuard: OutboundAutomationGuard,
     private val holds: ForwardingHolds,
+    private val scheduledActions: ScheduledSendHeadsUpActions,
+    private val savedState: SavedStateHandle,
 ) : ViewModel() {
+
+    /** The scheduled send a heads-up notification opened this screen on ([Routes.SCHEDULED_SENDS]), if any. */
+    val focusScheduledId: Long? = savedState.get<String>(Routes.ARG_SCHEDULED_ID)?.toLongOrNull()
+
+    /** True once: the heads-up's "Pick time" opens the date and time pickers for [focusScheduledId]. */
+    fun consumePickTime(): Boolean {
+        if (savedState.get<String>(Routes.ARG_PICK_TIME) != "1" || savedState.get<Boolean>(KEY_PICK_CONSUMED) == true) return false
+        savedState[KEY_PICK_CONSUMED] = true
+        return true
+    }
 
     val entries: StateFlow<List<RuleEntry>?> = rules.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val scheduled: StateFlow<List<ScheduledSend>> = scheduledSends.pending()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** True when the send the screen was opened on is no longer pending (sent or cancelled meanwhile). */
+    val focusGone: StateFlow<Boolean> = scheduledSends.pending()
+        .map { list -> focusScheduledId != null && list.none { it.id == focusScheduledId } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val simList: StateFlow<List<SimInfo>> = sims.sims
 
@@ -179,7 +199,17 @@ class AutomationsViewModel @Inject constructor(
         }
     }
 
+    /** Cancels one scheduled send (a broadcast copy alone); a birthday wish counts as handled for this year. */
     fun cancelScheduled(send: ScheduledSend) {
-        viewModelScope.launch { scheduler.cancel(send.id) }
+        viewModelScope.launch { scheduledActions.cancel(send, wholeBroadcast = false) }
+    }
+
+    /** "Change time": moves [send] to [atMillis]; [onResult] gets false for a time in the past or a send that is gone. */
+    fun moveScheduled(send: ScheduledSend, atMillis: Long, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch { onResult(scheduledActions.moveTo(send.id, atMillis)) }
+    }
+
+    private companion object {
+        const val KEY_PICK_CONSUMED = "scheduled_pick_consumed"
     }
 }

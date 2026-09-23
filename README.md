@@ -137,6 +137,12 @@ Country-specific data for other markets comes later; the region seam is already 
   (replies come back 1:1), hard caps of 50/broadcast and 100/day, a versioned acceptable-use
   agreement on first use, an on-device spam-risk check with an extra confirmation, and a TRAI/1909
   note — see [`docs/terms-acceptable-use.md`](docs/terms-acceptable-use.md).
+- **Scheduled messages with a heads-up**: shortly before a scheduled text, broadcast or automatic
+  birthday wish goes out (15 minutes by default; off / 5 / 15 / 60 in Settings → Automations, plus a
+  morning heads-up for a wish sent later that day), a notification offers **Send now**, **Delay**
+  (+1 hour, tomorrow same time, or pick a time) and **Cancel**. Several are grouped under one summary;
+  Send now goes through the same checks as the scheduled send (app lock, premium-rate guard, daily
+  cap). Texts to emergency numbers cannot be scheduled — send them straight away instead.
 - Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA until 5:30 pm") to
   saved contacts only (re-checked before every forward; a deleted contact pauses the rule), one
   hour by default; longer or open-ended periods, extensions, OTPs and risky-looking recipients

@@ -64,7 +64,14 @@ class ScheduledSendRoleGateTest {
     }
 
     @Test
-    fun `an emergency text never waits for the role`() {
-        assertNull(ScheduledSendRoleGate.waitUntil(isDefaultSmsApp = { false }, nowMillis = 0L, toEmergency = { true }))
+    fun `there is no emergency exemption from the role hold`() {
+        // Scheduled texts to emergency numbers are refused when scheduling and cancelled when due
+        // (ScheduledEmergencyPolicy), so the role gate treats every row alike.
+        assertEquals(RECHECK, ScheduledSendRoleGate.waitUntil(isDefaultSmsApp = { false }, nowMillis = 0L))
+        assertTrue(ScheduledEmergencyPolicy.refuses(listOf("112")) { it == "112" })
+    }
+
+    private companion object {
+        const val RECHECK = ScheduledSendRoleGate.RECHECK_MILLIS
     }
 }

@@ -74,6 +74,37 @@ If the app crashes, `adb logcat -b crash` output (or a screenshot of the crash d
     receiving phone (stock Messages / iPhone) plays it with sound, and the file is under the carrier limit. A
     2-minute video shows "Too large for MMS on this SIM…" without a crash. Attach a long voice recording (audio file)
     and check that it is shrunk or refused cleanly.
+18j. Scheduled-message heads-up: long-press Send → **Send in 1 hour**, then move it to 20 minutes out with
+    Automations → Scheduled sends → **Change time** (or shift the device clock). 15 minutes before, a "Scheduled messages" notification shows "To <name> · <time>" with
+    **Send now**, **Delay**, **Cancel** (check the channel exists under App in system notification settings, default
+    importance). Delay → the actions change to **+1 hour**, **Tomorrow, same time**, **Pick time**; +1 hour moves
+    the text in Automations → Scheduled sends and the heads-up comes back 15 minutes before the new time. Pick time
+    opens Automations with the text highlighted at the top and the date/time pickers open. Cancel removes it from
+    the list. Send now sends it at once; for an auto-reply with app lock switched off it is cancelled ("no app
+    lock") exactly as when it falls due. Tapping the notification opens the list on that text.
+18k. Late and grouped heads-ups: schedule a text 5 minutes out: the heads-up appears at once. Schedule one 1 minute
+    out: no heads-up. Schedule 7 texts a few minutes apart: at most 5 show individually under one summary ("7
+    scheduled messages go out soon", lines "To Mom · 9:00 AM"), the rest only in the summary; as each goes out its
+    notification disappears and the next one moves out of the summary silently. Swiping one away does not bring it
+    back. Settings → Automations → Heads-up before scheduled messages → Off removes all of them; 60 minutes re-plans
+    the queued ones. With Do Not Disturb on, the heads-up does not make a sound (no bypass). Lock-screen privacy
+    "Sender only" shows recipient and time but no text on the lock screen; "Hide sender and message" shows only
+    "A scheduled message goes out soon".
+18l. Reboot with a text scheduled 30 minutes out: the heads-up still arrives 15 minutes before (boot re-arm).
+18m. Birthday heads-up: Birthdays → Send automatically (app lock on), a contact's wish at 18:00 today (set the
+    device clock before 08:00): a "Birthday wish to <name> · 6:00 PM" heads-up arrives at 08:00. With the wish at
+    08:05 it arrives at 07:50. Delay → Tomorrow, same time: the wish moves to tomorrow 18:00 and stays there after
+    opening the Birthdays screen (not pulled back, not dropped to next year). Cancel: nothing is sent this year.
+    Switch app lock off before the wish is due: the heads-up disappears and only the Send / Edit / Skip prompt
+    shows (never both). "Ask me first" wishes get no heads-up, only their prompt on the day.
+18n. Broadcast heads-up: schedule a broadcast to 3 people for 20 minutes out: one heads-up "Broadcast to <list>
+    (3 people)", not three. Delay +1 hour moves all copies (the broadcast screen shows the new time); Cancel
+    cancels the whole broadcast; tapping opens the broadcast list.
+18o. Emergency numbers cannot be scheduled: in a conversation with 112 (or 100 / 911), Send in 1 hour → "Emergency
+    services need to hear from you now — send it instead of scheduling." and nothing is queued; plain Send still
+    works (also without the default-SMS role). An auto-reply rule replying to 112 queues nothing. A legacy scheduled
+    row to an emergency number (insert one with an older build, then upgrade) is cancelled when due, never sent, and
+    one "Scheduled text to 112 not sent" notification appears; tapping it opens the composer with the text.
 19. Battery: after a normal day, Settings → Battery → Dak should be negligible.
 
 ## Standards checks on the emulator (SMS/MMS P1 fixes)

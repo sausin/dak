@@ -1,5 +1,6 @@
 package app.dak.broadcast
 
+import app.dak.automation.EmergencyScheduleRefusedException
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.broadcast.BroadcastLimits
 import app.dak.automations.broadcast.BroadcastList
@@ -131,6 +132,9 @@ class BroadcastService @Inject constructor(
         if (!plan.canSend) return null
         val now = System.currentTimeMillis()
         if (BroadcastQuota.remaining(store.records.value, now, limits) < plan.copies.size) return null
+        // The plan already leaves out emergency numbers (isRefused); copies after the first go straight into the store,
+        // so the scheduler's own refusal is repeated here for all of them.
+        if (plan.copies.any { scheduler.refusesEmergency(listOf(it.member.address), preview.subId) }) return null
         val recordId = UUID.randomUUID().toString()
         val record = BroadcastRecord(
             id = recordId,
@@ -213,13 +217,17 @@ class BroadcastService @Inject constructor(
             }
         }
         val now = System.currentTimeMillis()
-        val id = scheduler.schedule(
-            addresses = listOf(recipient.address),
-            body = recipient.text,
-            subId = record.subId,
-            atMillis = now,
-            ruleId = BroadcastTag(recordId, index).encode(),
-        )
+        val id = try {
+            scheduler.schedule(
+                addresses = listOf(recipient.address),
+                body = recipient.text,
+                subId = record.subId,
+                atMillis = now,
+                ruleId = BroadcastTag(recordId, index).encode(),
+            )
+        } catch (e: EmergencyScheduleRefusedException) {
+            return false
+        }
         store.updateRecipient(recordId, index) {
             it.copy(status = RecipientStatus.SCHEDULED, scheduledSendId = id, messageKey = null, sendAtMillis = now)
         }

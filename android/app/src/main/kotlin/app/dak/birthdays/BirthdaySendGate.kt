@@ -1,5 +1,7 @@
 package app.dak.birthdays
 
+import app.dak.automation.EmergencyScheduleRefusedException
+import app.dak.automation.ScheduledSendHeadsUp
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.birthdays.WishTag
 import app.dak.index.repo.AuditLogRepository
@@ -20,6 +22,9 @@ import javax.inject.Singleton
  *   instead, so the user can still send it with one tap ([askInstead]). The executor's premium-rate guard applies as
  *   to every tagged send;
  * - after a wish went out (or was prompted), the next year's occurrence is scheduled.
+ * Heads-ups ([ScheduledSendHeadsUp]): an automatic wish gets one (a morning heads-up when it goes out later that
+ * day); an "Ask me first" wish gets none, since its prompt is the notification. When an automatic wish turns into a
+ * prompt here, its heads-up is taken down first, so the user never sees two notifications for one wish.
  * Every other scheduled send passes straight through.
  */
 @Singleton
@@ -30,6 +35,7 @@ class BirthdaySendGate @Inject constructor(
     private val notifications: BirthdayNotifications,
     private val scheduler: ScheduledSendScheduler,
     private val auditLog: AuditLogRepository,
+    private val headsUp: ScheduledSendHeadsUp,
 ) {
 
     /**
@@ -73,6 +79,8 @@ class BirthdaySendGate @Inject constructor(
     }
 
     private suspend fun prompt(send: ScheduledSend, tag: WishTag, name: String, nowMillis: Long, reason: String) {
+        // One notification per wish: an automatic wish's heads-up gives way to the prompt that replaces it.
+        headsUp.dismiss(send.id, send.ruleId)
         val number = send.addresses.firstOrNull()
         if (number != null) notifications.prompt(tag, name, number, send.body, send.subId)
         sends.markStatus(send.id, ScheduledSendStatus.CANCELLED, reason)
@@ -95,8 +103,12 @@ class BirthdaySendGate @Inject constructor(
         val tag = WishTag.decode(tagText) ?: return false
         if (store.isWished(tag.dedupeKey)) return false
         // Confirmed by the user's tap: an attended send, not held to the app-lock and unattended-cap rules.
-        scheduler.schedule(listOf(number), body, subId, nowMillis, ruleId = tag.copy(ask = false, confirmed = true).encode())
-        return true
+        return try {
+            scheduler.schedule(listOf(number), body, subId, nowMillis, ruleId = tag.copy(ask = false, confirmed = true).encode())
+            true
+        } catch (e: EmergencyScheduleRefusedException) {
+            false
+        }
     }
 
     /** The prompt's "Skip": this year counts as handled; nothing more is sent until next year. */

@@ -81,6 +81,12 @@ fun DakNavHost(navController: NavHostController, startDestination: String, modif
         composable(Routes.AUTOMATIONS) {
             SensitiveScreenGate(stringResource(R.string.scr_automations_title), onBack = { navigator.back() }) { AutomationsScreen(navigator) }
         }
+        composable(
+            Routes.SCHEDULED_SENDS,
+            arguments = listOf(optionalString(Routes.ARG_SCHEDULED_ID), optionalString(Routes.ARG_PICK_TIME)),
+        ) {
+            SensitiveScreenGate(stringResource(R.string.scr_automations_title), onBack = { navigator.back() }) { AutomationsScreen(navigator) }
+        }
         composable(Routes.BACKUP) {
             SensitiveScreenGate(stringResource(R.string.scr_backup_title), onBack = { navigator.back() }) { BackupScreen(navigator) }
         }

@@ -15,6 +15,7 @@ import app.dak.core.model.NO_SUB_ID
 import app.dak.index.repo.ScheduledSendStatus
 import app.dak.index.repo.ScheduledSendStore
 import app.dak.telephony.SimRepository
+import app.dak.telephony.cost.EmergencyNumberCheck
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
@@ -28,6 +29,11 @@ import javax.inject.Singleton
  *   [ScheduledSendReceiver];
  * - a WorkManager one-time job with the same delay as a safety net that survives reboots and alarm loss.
  * [ScheduledSendExecutor] is idempotent (it only sends rows still pending), so whichever fires first wins.
+ *
+ * Every change also refreshes the heads-up notifications ([ScheduledSendHeadsUp]) that come shortly before a send.
+ * Texts to emergency numbers are never scheduled ([ScheduledEmergencyPolicy]): [schedule] throws
+ * [EmergencyScheduleRefusedException] and [scheduleReply] returns false; callers that talk to the user check
+ * [refusesEmergency] first to show why.
  */
 @Singleton
 class ScheduledSendScheduler @Inject constructor(
@@ -35,12 +41,15 @@ class ScheduledSendScheduler @Inject constructor(
     private val store: ScheduledSendStore,
     private val sims: SimRepository,
     private val limits: UnattendedSendLimits,
+    private val emergency: EmergencyNumberCheck,
+    private val headsUp: ScheduledSendHeadsUp,
 ) : ReplyScheduler {
 
     private val flags by lazy { context.getSharedPreferences(FLAGS_PREFS, Context.MODE_PRIVATE) }
 
     override suspend fun scheduleReply(to: String, subId: Int?, text: String, atMillis: Long): Boolean {
         if (to.isBlank()) return false
+        if (refusesEmergency(listOf(to), subId)) return false
         // Unattended: one reply per sender per cooldown (no ping-pong between two auto-repliers) within the daily cap,
         // and tagged as rule-driven so the executor applies the premium-rate guard.
         if (!limits.allowReply(to) || !limits.tryConsume("auto-reply")) return false
@@ -48,7 +57,20 @@ class ScheduledSendScheduler @Inject constructor(
         return true
     }
 
-    /** Records and arms a scheduled send; returns its id. A null or unknown [subId] uses the default SMS SIM. */
+    /**
+     * True when [addresses] include an emergency number, which may never be scheduled (checked against the SIM that
+     * would send: [subId], or the default SMS SIM).
+     */
+    fun refusesEmergency(addresses: List<String>, subId: Int?): Boolean {
+        val sub = subId?.takeIf { it != NO_SUB_ID } ?: sims.defaultSmsSubId()
+        return ScheduledEmergencyPolicy.refuses(addresses) { emergency.isEmergency(it, sub) }
+    }
+
+    /**
+     * Records and arms a scheduled send; returns its id. A null or unknown [subId] uses the default SMS SIM.
+     *
+     * @throws EmergencyScheduleRefusedException when a recipient is an emergency number.
+     */
     suspend fun schedule(
         addresses: List<String>,
         body: String,
@@ -58,29 +80,45 @@ class ScheduledSendScheduler @Inject constructor(
         ruleId: String? = null,
     ): Long {
         val sub = subId?.takeIf { it != NO_SUB_ID } ?: sims.defaultSmsSubId()
+        if (refusesEmergency(addresses, sub)) throw EmergencyScheduleRefusedException()
         val id = store.schedule(addresses, body, sub, atMillis, conversationId = conversationId, ruleId = ruleId)
         flags.edit().putBoolean(KEY_MIGHT_HAVE_PENDING, true).apply()
         arm(id, atMillis)
+        refreshHeadsUps()
         return id
     }
 
-    /** Moves a pending send to [atMillis] and re-arms it. */
-    suspend fun reschedule(id: Long, atMillis: Long) {
+    /**
+     * Moves a pending send to [atMillis] and re-arms it. A move by the user (Delay, Change time) refreshes the
+     * heads-ups, so the moved send is announced again before its new time; the executor's own holds pass
+     * [refreshHeadsUps] = false and report the send to [ScheduledSendHeadsUp.markHandled] instead.
+     */
+    suspend fun reschedule(id: Long, atMillis: Long, refreshHeadsUps: Boolean = true) {
         store.edit(id, sendAtMillis = atMillis)
         arm(id, atMillis)
+        if (refreshHeadsUps) refreshHeadsUps()
     }
 
-    /** Cancels a pending send (kept in the store as CANCELLED so the list can show it). */
+    /** Cancels a pending send (kept in the store as CANCELLED so the list can show it); its heads-up goes away. */
     suspend fun cancel(id: Long) {
         store.markStatus(id, ScheduledSendStatus.CANCELLED)
         disarm(id)
+        refreshHeadsUps()
     }
 
-    /** Re-arms every pending send (after a reboot, a time change, or when a run finished). */
+    /**
+     * Re-arms every pending send (after a reboot, a time change, or when a run finished), and the heads-up wakeup
+     * with them (alarms do not survive a reboot).
+     */
     suspend fun rearmPending() {
         val pending = store.pending().first()
         if (pending.isEmpty()) flags.edit().putBoolean(KEY_MIGHT_HAVE_PENDING, false).apply()
         for (send in pending) arm(send.id, send.sendAtMillis)
+        refreshHeadsUps()
+    }
+
+    private suspend fun refreshHeadsUps() {
+        runCatching { headsUp.refresh() }.onFailure { Log.w(TAG, "heads-up refresh failed", it) }
     }
 
     /**

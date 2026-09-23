@@ -40,6 +40,8 @@ class AndroidSmsForwarder @Inject constructor(
         val now = System.currentTimeMillis()
         val slot = throttle.reserve(now)
         if (slot > now + GRACE_MILLIS) {
+            // A forward to an emergency number is never held for later (ScheduledEmergencyPolicy).
+            if (scheduler.refusesEmergency(listOf(address), sub)) return false
             // Tagged as rule-driven so the executor re-checks the premium-rate guard when it finally sends.
             scheduler.schedule(listOf(address), text, sub, slot, ruleId = ScheduledSendScheduler.AUTO_FORWARD_TAG)
             return true

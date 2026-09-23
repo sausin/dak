@@ -138,6 +138,13 @@
             </intent-filter>
         </receiver>
 
+        <!-- Heads-up before a scheduled message goes out: its wakeup alarm and its Send now / Delay / Cancel actions.
+             No intent filter: only our own explicit, immutable PendingIntents (carrying the scheduled-send id) reach it.
+             Reboots are covered by ScheduledSendReceiver, which re-arms the heads-up with the sends. -->
+        <receiver
+            android:name=".automation.ScheduledSendHeadsUpReceiver"
+            android:exported="false" />
+
         <!-- "Turn off" on the "Was this you?" security alert for auto-forwarding. Only our own PendingIntent reaches it. -->
         <receiver
             android:name=".automation.OutboundRuleReceiver"

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import app.dak.automation.OutboundAutomationGuard
+import app.dak.automation.ScheduledHeadsUpSettingsWatcher
 import app.dak.di.IndexControl
 import app.dak.notifications.NotificationChannels
 import app.dak.settings.TelephonySettingsSync
@@ -24,6 +25,7 @@ class DakApplication : Application(), Configuration.Provider {
     @Inject lateinit var indexControl: IndexControl
     @Inject lateinit var outboundGuard: OutboundAutomationGuard.Starter
     @Inject lateinit var telephonySettingsSync: TelephonySettingsSync
+    @Inject lateinit var scheduledHeadsUpSettings: ScheduledHeadsUpSettingsWatcher
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -40,6 +42,8 @@ class DakApplication : Application(), Configuration.Provider {
         outboundGuard.start()
         // MMS read-receipt / report-allowed choices into the telephony layer's synchronous settings.
         telephonySettingsSync.start()
+        // Re-plans scheduled-message heads-ups when their lead time is changed in Settings.
+        scheduledHeadsUpSettings.start()
         // Incoming SMS journaled but not yet in the inbox (the process died mid-write): replay them.
         SmsJournalReplayWorker.scheduleIfPending(this)
     }

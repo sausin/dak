@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
+import app.dak.automation.EmergencyScheduleRefusedException
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.core.model.NO_SUB_ID
 import app.dak.telephony.SimRepository
@@ -25,6 +26,9 @@ sealed interface ComposerEvent {
     data class SendFailed(val problem: SendProblem, val detail: String?) : ComposerEvent
     data class Scheduled(val atMillis: Long) : ComposerEvent
     data object ScheduleTextOnly : ComposerEvent
+
+    /** Texts to emergency numbers cannot be scheduled: "send it instead". */
+    data object ScheduleEmergencyRefused : ComposerEvent
 }
 
 /**
@@ -206,6 +210,11 @@ class ComposerDelegate(
         if (to.isEmpty()) return
         val sub = subId.value
         scope.launch {
+            // Refused before the cost dialog: emergency services need the text now, not later.
+            if (refusesEmergency(to, sub)) {
+                onEvent(ComposerEvent.ScheduleEmergencyRefused)
+                return@launch
+            }
             val warnings = costWarnings(to, sub)
             if (warnings.isNotEmpty()) costPrompt.value = CostPrompt(warnings, sub, scheduleAtMillis = atMillis) else scheduleNow(atMillis)
         }
@@ -215,10 +224,19 @@ class ComposerDelegate(
         val body = text.value.trim()
         val to = recipients.value
         if (body.isEmpty() || to.isEmpty()) return
-        scheduler.schedule(to, body, subId.value.takeIf { it != NO_SUB_ID }, atMillis, conversationId = conversationId())
+        try {
+            scheduler.schedule(to, body, subId.value.takeIf { it != NO_SUB_ID }, atMillis, conversationId = conversationId())
+        } catch (e: EmergencyScheduleRefusedException) {
+            onEvent(ComposerEvent.ScheduleEmergencyRefused)
+            return
+        }
         onTextChange("")
         onEvent(ComposerEvent.Scheduled(atMillis))
     }
+
+    private suspend fun refusesEmergency(to: List<String>, sub: Int): Boolean = runCatching {
+        withContext(Dispatchers.Default) { scheduler.refusesEmergency(to, sub.takeIf { it != NO_SUB_ID }) }
+    }.getOrDefault(false)
 
     private fun normalizationHint(to: List<String>, sub: Int): String? {
         if (to.size != 1 || sub == NO_SUB_ID || !hints.shouldShowNormalizationHint()) return null

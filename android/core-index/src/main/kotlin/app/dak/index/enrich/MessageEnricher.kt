@@ -209,8 +209,10 @@ class DefaultMessageEnricher(
          *    numeric DLT headers).
          * 9: UTS #46 link hosts and UTS #39 sender checks: mixed-script / look-alike (non-ASCII) senders get the
          *    unknown-sender-link and spoofing labels, non-ASCII "DLT headers" are no longer DLT headers.
+         * 10: investments (template bundle 4): mutual fund / demat instruments, investment labels, SIP own-account
+         *    transfers excluded from spending; ledger schema 5 -> 6 refilled by this re-index.
          */
-        const val LOGIC_REVISION = 9
+        const val LOGIC_REVISION = 10
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

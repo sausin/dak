@@ -13,3 +13,7 @@ captures/
 !android/app/debug.keystore
 # OS
 .DS_Store
+
+# Python (android/scripts tests)
+__pycache__/
+.pytest_cache/

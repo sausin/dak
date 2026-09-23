@@ -12,6 +12,7 @@ import app.dak.premium.Entitlements
 import app.dak.premium.Feature
 import app.dak.premium.PremiumGateway
 import app.dak.premium.WebhookRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -62,8 +63,14 @@ public class DefaultActionRegistry : ActionRegistry {
         PREMIUM_FEATURE[action.javaClass]?.let { feature ->
             if (!context.entitlements.has(feature)) return ActionResult.Locked(feature)
         }
-        val outcome = runCatching { runAction(action, event, context) }
-            .getOrElse { ActionResult.Failed(it.message ?: it::class.simpleName ?: "unknown error") }
+        val outcome = try {
+            runAction(action, event, context)
+        } catch (e: CancellationException) {
+            // Cancellation (the worker was stopped) is not a failed run: let it propagate, and do not audit.
+            throw e
+        } catch (e: Throwable) {
+            ActionResult.Failed(e.message ?: e::class.simpleName ?: "unknown error")
+        }
         recordAudit(planned, event, outcome, context)
         return outcome
     }

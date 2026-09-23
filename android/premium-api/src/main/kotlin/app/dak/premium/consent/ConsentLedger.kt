@@ -75,8 +75,9 @@ class ConsentLedger(
 
     /** Forgets everything (used by "Delete my Dak data"). */
     fun clear() = synchronized(lock) {
-        storage.write(encode(emptyList()))
+        // Forget in memory first: even if the write fails (and throws), nothing stays allowed for this process.
         state.value = emptyList()
+        storage.write(encode(emptyList()))
     }
 
     /** The records as pretty JSON, for the data export. */
@@ -93,8 +94,15 @@ class ConsentLedger(
             source = source.take(MAX_SOURCE_CHARS),
         )
         val next = trimmed(state.value + record)
-        storage.write(encode(next))
-        state.value = next
+        if (granted) {
+            // A grant only counts once it is on disk: a failed write throws and leaves the flow off.
+            storage.write(encode(next))
+            state.value = next
+        } else {
+            // A withdrawal or decline takes effect at once, even if the write then fails (and throws): fail closed.
+            state.value = next
+            storage.write(encode(next))
+        }
         record
     }
 

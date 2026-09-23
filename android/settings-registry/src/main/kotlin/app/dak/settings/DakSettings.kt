@@ -50,7 +50,9 @@ private fun intSetting(
     key = key, group = group, title = title, summary = summary,
     control = ControlType.Slider(range, step), default = default, keywords = keywords, tier = tier,
     advanced = advanced, visible = visible,
-    serialize = { it.toString() }, deserialize = { it.toIntOrNull() },
+    // Out-of-range values (a hand-edited or older export, a corrupt store) read as unset rather than bypassing the
+    // slider's bounds, e.g. a 0-minute consumed-OTP window or an unlimited cloud-classification cap.
+    serialize = { it.toString() }, deserialize = { raw -> raw.toIntOrNull()?.takeIf { it in range } },
 )
 
 private fun choiceSetting(

@@ -75,24 +75,31 @@ internal object ConditionSerializer : KSerializer<Condition> {
     override fun deserialize(decoder: Decoder): Condition {
         val json = asJsonDecoder(decoder)
         val obj = json.decodeJsonElement() as? JsonObject ?: return Condition.Unknown("", JsonObject(emptyMap()))
-        return when (val type = obj.typeTag()) {
-            "all" -> json.decodeTagged(obj, Condition.All.serializer())
-            "any" -> json.decodeTagged(obj, Condition.Any.serializer())
-            "not" -> json.decodeTagged(obj, Condition.Not.serializer())
-            "senderIs" -> json.decodeTagged(obj, Condition.SenderIs.serializer())
-            "senderMatches" -> json.decodeTagged(obj, Condition.SenderMatches.serializer())
-            "categoryIs" -> json.decodeTagged(obj, Condition.CategoryIs.serializer())
-            "simIs" -> json.decodeTagged(obj, Condition.SimIs.serializer())
-            "bodyContains" -> json.decodeTagged(obj, Condition.BodyContains.serializer())
-            "bodyMatches" -> json.decodeTagged(obj, Condition.BodyMatches.serializer())
-            "amountAtLeast" -> json.decodeTagged(obj, Condition.AmountAtLeast.serializer())
-            "amountAtMost" -> json.decodeTagged(obj, Condition.AmountAtMost.serializer())
-            "timeWindow" -> json.decodeTagged(obj, Condition.TimeWindow.serializer())
-            "directionIs" -> json.decodeTagged(obj, Condition.DirectionIs.serializer())
-            "hasOtp" -> json.decodeTagged(obj, Condition.HasOtp.serializer())
-            "activeBetween" -> json.decodeTagged(obj, Condition.ActiveBetween.serializer())
-            "senderInGroups" -> json.decodeTagged(obj, Condition.SenderInGroups.serializer())
-            else -> Condition.Unknown(type.ifEmpty { "unknown" }, obj)
+        val type = obj.typeTag()
+        // A known tag whose fields this build cannot read (an enum value added later, a missing field) is kept
+        // as Unknown too, instead of failing the whole rule list.
+        return try {
+            when (type) {
+                "all" -> json.decodeTagged(obj, Condition.All.serializer())
+                "any" -> json.decodeTagged(obj, Condition.Any.serializer())
+                "not" -> json.decodeTagged(obj, Condition.Not.serializer())
+                "senderIs" -> json.decodeTagged(obj, Condition.SenderIs.serializer())
+                "senderMatches" -> json.decodeTagged(obj, Condition.SenderMatches.serializer())
+                "categoryIs" -> json.decodeTagged(obj, Condition.CategoryIs.serializer())
+                "simIs" -> json.decodeTagged(obj, Condition.SimIs.serializer())
+                "bodyContains" -> json.decodeTagged(obj, Condition.BodyContains.serializer())
+                "bodyMatches" -> json.decodeTagged(obj, Condition.BodyMatches.serializer())
+                "amountAtLeast" -> json.decodeTagged(obj, Condition.AmountAtLeast.serializer())
+                "amountAtMost" -> json.decodeTagged(obj, Condition.AmountAtMost.serializer())
+                "timeWindow" -> json.decodeTagged(obj, Condition.TimeWindow.serializer())
+                "directionIs" -> json.decodeTagged(obj, Condition.DirectionIs.serializer())
+                "hasOtp" -> json.decodeTagged(obj, Condition.HasOtp.serializer())
+                "activeBetween" -> json.decodeTagged(obj, Condition.ActiveBetween.serializer())
+                "senderInGroups" -> json.decodeTagged(obj, Condition.SenderInGroups.serializer())
+                else -> Condition.Unknown(type.ifEmpty { "unknown" }, obj)
+            }
+        } catch (e: IllegalArgumentException) {
+            Condition.Unknown(type.ifEmpty { "unknown" }, obj)
         }
     }
 }
@@ -113,11 +120,18 @@ internal object TriggerSerializer : KSerializer<Trigger> {
     override fun deserialize(decoder: Decoder): Trigger {
         val json = asJsonDecoder(decoder)
         val obj = json.decodeJsonElement() as? JsonObject ?: return Trigger.Unknown("", JsonObject(emptyMap()))
-        return when (val type = obj.typeTag()) {
-            "messageReceived" -> json.decodeTagged(obj, Trigger.MessageReceived.serializer())
-            "schedule" -> json.decodeTagged(obj, Trigger.Schedule.serializer())
-            "keyword" -> json.decodeTagged(obj, Trigger.Keyword.serializer())
-            else -> Trigger.Unknown(type.ifEmpty { "unknown" }, obj)
+        val type = obj.typeTag()
+        // A known tag whose fields this build cannot read (an enum value added later, a missing field) is kept
+        // as Unknown too, instead of failing the whole rule list.
+        return try {
+            when (type) {
+                "messageReceived" -> json.decodeTagged(obj, Trigger.MessageReceived.serializer())
+                "schedule" -> json.decodeTagged(obj, Trigger.Schedule.serializer())
+                "keyword" -> json.decodeTagged(obj, Trigger.Keyword.serializer())
+                else -> Trigger.Unknown(type.ifEmpty { "unknown" }, obj)
+            }
+        } catch (e: IllegalArgumentException) {
+            Trigger.Unknown(type.ifEmpty { "unknown" }, obj)
         }
     }
 }
@@ -137,10 +151,17 @@ internal object ScheduleSpecSerializer : KSerializer<ScheduleSpec> {
     override fun deserialize(decoder: Decoder): ScheduleSpec {
         val json = asJsonDecoder(decoder)
         val obj = json.decodeJsonElement() as? JsonObject ?: return ScheduleSpec.Unknown("", JsonObject(emptyMap()))
-        return when (val type = obj.typeTag()) {
-            "oneShot" -> json.decodeTagged(obj, ScheduleSpec.OneShot.serializer())
-            "recurring" -> json.decodeTagged(obj, ScheduleSpec.Recurring.serializer())
-            else -> ScheduleSpec.Unknown(type.ifEmpty { "unknown" }, obj)
+        val type = obj.typeTag()
+        // A known tag whose fields this build cannot read (an enum value added later, a missing field) is kept
+        // as Unknown too, instead of failing the whole rule list.
+        return try {
+            when (type) {
+                "oneShot" -> json.decodeTagged(obj, ScheduleSpec.OneShot.serializer())
+                "recurring" -> json.decodeTagged(obj, ScheduleSpec.Recurring.serializer())
+                else -> ScheduleSpec.Unknown(type.ifEmpty { "unknown" }, obj)
+            }
+        } catch (e: IllegalArgumentException) {
+            ScheduleSpec.Unknown(type.ifEmpty { "unknown" }, obj)
         }
     }
 }
@@ -161,11 +182,18 @@ internal object RecurrenceSerializer : KSerializer<Recurrence> {
     override fun deserialize(decoder: Decoder): Recurrence {
         val json = asJsonDecoder(decoder)
         val obj = json.decodeJsonElement() as? JsonObject ?: return Recurrence.Unknown("", JsonObject(emptyMap()))
-        return when (val type = obj.typeTag()) {
-            "daily" -> json.decodeTagged(obj, Recurrence.Daily.serializer())
-            "weekly" -> json.decodeTagged(obj, Recurrence.Weekly.serializer())
-            "monthly" -> json.decodeTagged(obj, Recurrence.Monthly.serializer())
-            else -> Recurrence.Unknown(type.ifEmpty { "unknown" }, obj)
+        val type = obj.typeTag()
+        // A known tag whose fields this build cannot read (an enum value added later, a missing field) is kept
+        // as Unknown too, instead of failing the whole rule list.
+        return try {
+            when (type) {
+                "daily" -> json.decodeTagged(obj, Recurrence.Daily.serializer())
+                "weekly" -> json.decodeTagged(obj, Recurrence.Weekly.serializer())
+                "monthly" -> json.decodeTagged(obj, Recurrence.Monthly.serializer())
+                else -> Recurrence.Unknown(type.ifEmpty { "unknown" }, obj)
+            }
+        } catch (e: IllegalArgumentException) {
+            Recurrence.Unknown(type.ifEmpty { "unknown" }, obj)
         }
     }
 }
@@ -193,18 +221,25 @@ internal object ActionSpecSerializer : KSerializer<ActionSpec> {
     override fun deserialize(decoder: Decoder): ActionSpec {
         val json = asJsonDecoder(decoder)
         val obj = json.decodeJsonElement() as? JsonObject ?: return ActionSpec.Unknown("", JsonObject(emptyMap()))
-        return when (val type = obj.typeTag()) {
-            "label" -> json.decodeTagged(obj, ActionSpec.Label.serializer())
-            "archive" -> json.decodeTagged(obj, ActionSpec.Archive.serializer())
-            "notify" -> json.decodeTagged(obj, ActionSpec.Notify.serializer())
-            "forwardSms" -> json.decodeTagged(obj, ActionSpec.ForwardSms.serializer())
-            "scheduleReply" -> json.decodeTagged(obj, ActionSpec.ScheduleReply.serializer())
-            "launchIntent" -> json.decodeTagged(obj, ActionSpec.LaunchIntent.serializer())
-            "delete" -> json.decodeTagged(obj, ActionSpec.Delete.serializer())
-            "webhook" -> json.decodeTagged(obj, ActionSpec.Webhook.serializer())
-            "relayToWebClient" -> json.decodeTagged(obj, ActionSpec.RelayToWebClient.serializer())
-            "relayRule" -> json.decodeTagged(obj, ActionSpec.RelayRule.serializer())
-            else -> ActionSpec.Unknown(type.ifEmpty { "unknown" }, obj)
+        val type = obj.typeTag()
+        // A known tag whose fields this build cannot read (an enum value added later, a missing field) is kept
+        // as Unknown too, instead of failing the whole rule list.
+        return try {
+            when (type) {
+                "label" -> json.decodeTagged(obj, ActionSpec.Label.serializer())
+                "archive" -> json.decodeTagged(obj, ActionSpec.Archive.serializer())
+                "notify" -> json.decodeTagged(obj, ActionSpec.Notify.serializer())
+                "forwardSms" -> json.decodeTagged(obj, ActionSpec.ForwardSms.serializer())
+                "scheduleReply" -> json.decodeTagged(obj, ActionSpec.ScheduleReply.serializer())
+                "launchIntent" -> json.decodeTagged(obj, ActionSpec.LaunchIntent.serializer())
+                "delete" -> json.decodeTagged(obj, ActionSpec.Delete.serializer())
+                "webhook" -> json.decodeTagged(obj, ActionSpec.Webhook.serializer())
+                "relayToWebClient" -> json.decodeTagged(obj, ActionSpec.RelayToWebClient.serializer())
+                "relayRule" -> json.decodeTagged(obj, ActionSpec.RelayRule.serializer())
+                else -> ActionSpec.Unknown(type.ifEmpty { "unknown" }, obj)
+            }
+        } catch (e: IllegalArgumentException) {
+            ActionSpec.Unknown(type.ifEmpty { "unknown" }, obj)
         }
     }
 }

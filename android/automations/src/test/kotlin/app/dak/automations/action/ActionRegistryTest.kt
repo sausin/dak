@@ -119,7 +119,7 @@ class ActionRegistryTest {
     }
 
     @Test
-    fun `premium action is Locked on free entitlements and audited without executing`() = runTest {
+    fun `premium action is Locked on free entitlements and neither executed nor audited`() = runTest {
         val ctx = FakeContext(entitlements = FreeEntitlements)
         val action = ActionSpec.Webhook(url = "https://example.com", secretRef = "s")
         val result = registry.execute(planned(action), event, ctx)

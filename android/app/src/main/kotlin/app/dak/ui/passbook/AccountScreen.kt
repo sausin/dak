@@ -45,6 +45,7 @@ import app.dak.finance.ledger.LedgerEntry
 import app.dak.finance.money.Money
 import app.dak.finance.passbook.MonthlyTotal
 import app.dak.navigation.DakNavigator
+import app.dak.navigation.Routes
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.EmptyState
 import app.dak.ui.common.rememberRelativeTimeFormatter
@@ -72,6 +73,8 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
     var statementDialog by remember { mutableStateOf(false) }
     var mergeDialog by remember { mutableStateOf(false) }
+    var typeDialog by remember { mutableStateOf(false) }
+    val linked by viewModel.linked.collectAsStateWithLifecycle()
     val mergedIds by viewModel.mergedIds.collectAsStateWithLifecycle()
     val mergeCandidates by viewModel.mergeCandidates.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -98,8 +101,14 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             } else LazyColumn(Modifier.fillMaxSize()) {
                 item {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.scr_account_balance), style = MaterialTheme.typography.labelLarge)
-                        summary?.let { BalanceLine(it.balance, prominent = true) }
+                        summary?.let { s ->
+                            TypeRow(s, onChange = { typeDialog = true })
+                            AccountHeader(
+                                summary = s,
+                                linked = linked,
+                                onOpenLinked = { id -> navigator.navigate(Routes.passbookAccount(id)) },
+                            )
+                        }
                         if (account != null && account.type == AccountType.CREDIT_CARD) {
                             CardCycle(
                                 statementDay = account.statementDay,
@@ -139,6 +148,14 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             candidates = mergeCandidates,
             onPick = { mergeDialog = false; viewModel.mergeWith(it) },
             onDismiss = { mergeDialog = false },
+        )
+    }
+    if (typeDialog && summary != null) {
+        TypeDialog(
+            current = summary?.account?.instrument,
+            overridden = summary?.typeOverridden == true,
+            onPick = { typeDialog = false; viewModel.setType(it) },
+            onDismiss = { typeDialog = false },
         )
     }
     if (statementDialog) {
@@ -235,6 +252,13 @@ private fun EntryRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(formatter.formatAbsolute(entry.dateMillis), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                entry.viaAccountId?.let { via ->
+                    Text(
+                        stringResource(R.string.inst_row_via, viaLabel(via)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text((if (debit) "−" else "+") + moneyText(entry.original, homeCurrency = entry.homeValue.currencyUpper), style = DakTheme.typography.amount, color = amountColor)

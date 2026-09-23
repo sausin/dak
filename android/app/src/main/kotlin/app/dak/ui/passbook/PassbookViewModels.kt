@@ -4,12 +4,15 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.dak.core.model.InstrumentType
 import app.dak.core.model.MessageKey
 import app.dak.finance.ledger.LedgerEntry
 import app.dak.finance.money.Money
+import app.dak.finance.passbook.AccountGroup
 import app.dak.finance.passbook.MonthlyTotal
 import app.dak.index.MessageItem
 import app.dak.index.repo.AccountAliasSuggestion
+import app.dak.index.repo.AccountGroupItem
 import app.dak.index.repo.AccountSummary
 import app.dak.index.repo.ConversationRepository
 import app.dak.index.repo.LedgerRepository
@@ -39,6 +42,10 @@ class PassbookViewModel @Inject constructor(
 ) : ViewModel() {
     /** Null while loading. */
     val accounts: StateFlow<List<AccountSummary>?> = ledger.accounts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Accounts grouped by instrument (Bank accounts, Credit cards, Debit cards, ...), with header totals; null while loading. */
+    val groups: StateFlow<List<AccountGroup<AccountGroupItem>>?> = ledger.accountGroups()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Pending same-account questions, best first. */
@@ -100,6 +107,16 @@ class AccountViewModel @Inject constructor(
         val key: MessageKey = ledger.messageKeyOf(entry) ?: return null
         val conversationId = conversations.conversationIdOf(key) ?: return null
         return Routes.conversation(conversationId, highlight = key.toString())
+    }
+
+    /** The bank account a debit card's / loan's SMS named, when known. */
+    val linked: StateFlow<AccountSummary?> = account
+        .flatMapLatest { s -> s?.account?.linkedAccountId?.let { ledger.account(it) } ?: flowOf(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** "This is a credit card": sets the account's type by hand, or back to the detected type with null. */
+    fun setType(instrument: InstrumentType?) {
+        viewModelScope.launch { runCatching { ledger.setAccountType(accountId, instrument) } }
     }
 
     fun setStatementDay(day: Int?) {

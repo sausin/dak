@@ -76,7 +76,7 @@ import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.theme.DakTheme
 
 /**
- * Report fraud: "lost money? call 1930" first, then — when opened for a message — the report flows for it (TRAI
+ * Report fraud: "lost money? call 1930" first (in India; elsewhere "call your bank's fraud line"), then — when opened for a message — the report flows for it (TRAI
  * 1909 complaint via the composer, Chakshu / cybercrime.gov.in with the details copied, block sender, copy
  * details), then quick-dial tiles for the official helplines and the user's own bank number.
  */
@@ -144,8 +144,12 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ui.urgent?.let { urgent ->
+            val urgent = ui.urgent
+            if (urgent != null) {
                 item(key = "urgent") { UrgentCard(urgent, onCall = { openHelpline(urgent) }) }
+            } else {
+                // No verified national fraud line for this region: point to the user's bank, never an invented number.
+                item(key = "urgent-generic") { GenericUrgentCard() }
             }
             val message = ui.message
             if (message != null) {
@@ -176,6 +180,11 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             item(key = "helplines-title") { SectionTitle(stringResource(R.string.safe_section_helplines)) }
             items(ui.helplines, key = { "h:" + it.id }) { helpline ->
                 HelplineTile(helpline, onOpen = { openHelpline(helpline) }, onSource = { FraudIntents.openUrl(context, helpline.sourceUrl) })
+            }
+            items(ui.emergencyNumbers, key = { "e:$it" }) { number ->
+                EmergencyTile(number, onCall = {
+                    if (!FraudIntents.dial(context, number)) Toast.makeText(context, R.string.safe_no_app, Toast.LENGTH_SHORT).show()
+                })
             }
             item(key = "bank-title") { SectionTitle(stringResource(R.string.safe_section_bank)) }
             items(ui.userHelplines, key = { "u:" + it.id }) { mine ->
@@ -236,6 +245,32 @@ private fun UrgentCard(helpline: Helpline, onCall: () -> Unit) {
 }
 
 @Composable
+private fun GenericUrgentCard() {
+    val scheme = MaterialTheme.colorScheme
+    Card(colors = CardDefaults.cardColors(containerColor = scheme.errorContainer, contentColor = scheme.onErrorContainer)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.ww_urgent_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.ww_urgent_body), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** A general emergency number (from libphonenumber's data), labelled as such: never presented as a fraud line. */
+@Composable
+private fun EmergencyTile(number: String, onCall: () -> Unit) {
+    Card(onClick = onCall, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(Icons.Outlined.Call, contentDescription = null, modifier = Modifier.padding(top = 2.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.ww_emergency_title, number), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.safe_call_n, number), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.ww_emergency_body), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ReportCard(
     ui: FraudHelpUi,
     message: ReportedMessage,
@@ -254,7 +289,7 @@ private fun ReportCard(
                 Text("${message.sender} · $date", style = MaterialTheme.typography.labelLarge)
                 Text(message.body, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
-            if (message.isIncoming) {
+            if (message.isIncoming && ui.reportsToTrai) {
                 ActionRow(
                     icon = Icons.Outlined.Sms,
                     title = stringResource(R.string.safe_report_trai),

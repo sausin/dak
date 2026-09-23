@@ -15,6 +15,7 @@ import app.dak.index.InboxTab
 import app.dak.index.bin.BinReceipt
 import app.dak.index.bin.DeletedBy
 import app.dak.index.bin.RecycleBin
+import app.dak.index.otp.OtpLifecycle
 import app.dak.index.repo.ConversationRepository
 import app.dak.index.repo.FoldReceipt
 import app.dak.index.repo.SavedSearchItem
@@ -48,6 +49,12 @@ sealed interface InboxEvent {
     /** Conversations were folded together; offer undo. */
     data class Folded(val receipt: FoldReceipt) : InboxEvent
     data object FoldFailed : InboxEvent
+    /** Several conversations were archived from the selection bar; offer undo. */
+    data class ArchivedMany(val conversationIds: List<String>) : InboxEvent
+    /** Conversations were pinned ([pinned]) or unpinned; offer undo. */
+    data class Pinned(val conversationIds: List<String>, val pinned: Boolean) : InboxEvent
+    /** Conversations were marked read. */
+    data class MarkedRead(val count: Int) : InboxEvent
 }
 
 /**
@@ -63,6 +70,7 @@ class InboxViewModel @Inject constructor(
     private val bin: RecycleBin,
     private val undoCenter: AutomationUndoCenter,
     private val folds: SenderMergeRepository,
+    private val otpLifecycle: OtpLifecycle,
     sims: SimRepository,
     maintenance: IndexMaintenance,
     savedSearches: SavedSearchRepository,
@@ -157,6 +165,83 @@ class InboxViewModel @Inject constructor(
 
     fun undoFold(receipt: FoldReceipt) {
         viewModelScope.launch { runCatching { folds.undo(receipt) } }
+    }
+
+    // ---------------------------------------------------------------- Selection bar (bulk actions)
+
+    /** Archives every selected conversation, or unarchives them all when every one is archived already. */
+    fun archiveAll(items: List<ConversationSummary>) {
+        if (items.isEmpty()) return
+        val archive = items.any { !it.archived }
+        viewModelScope.launch {
+            items.forEach { conversations.setArchived(it.conversationId, archive) }
+            if (archive) eventChannel.trySend(InboxEvent.ArchivedMany(items.map { it.conversationId }))
+        }
+    }
+
+    fun unarchiveAll(conversationIds: List<String>) {
+        viewModelScope.launch { conversationIds.forEach { conversations.setArchived(it, false) } }
+    }
+
+    /** Moves every message of the selected conversations to the recycle bin as one undoable step. */
+    fun deleteAll(items: List<ConversationSummary>) {
+        if (items.isEmpty()) return
+        viewModelScope.launch {
+            val keys = items.flatMap { keysOf(it) }
+            if (keys.isEmpty()) {
+                eventChannel.trySend(InboxEvent.DeleteFailed)
+                return@launch
+            }
+            val receipt = bin.moveToBin(keys, DeletedBy.Manual)
+            eventChannel.trySend(if (receipt.binIds.isEmpty()) InboxEvent.DeleteFailed else InboxEvent.Deleted(receipt))
+        }
+    }
+
+    fun markReadAll(items: List<ConversationSummary>) {
+        val unread = items.filter { it.unreadCount > 0 }
+        if (unread.isEmpty()) return
+        viewModelScope.launch {
+            unread.forEach { runCatching { conversations.markRead(it.conversationId) } }
+            eventChannel.trySend(InboxEvent.MarkedRead(unread.size))
+        }
+    }
+
+    /** Pins every selected conversation, or unpins them all when every one is pinned already. */
+    fun pinAll(items: List<ConversationSummary>) {
+        if (items.isEmpty()) return
+        val pin = items.any { !it.pinned }
+        val ids = items.map { it.conversationId }
+        viewModelScope.launch {
+            ids.forEach { conversations.setPinned(it, pin) }
+            eventChannel.trySend(InboxEvent.Pinned(ids, pin))
+        }
+    }
+
+    /** Undo for [pinAll]: restores the opposite pin state on the same conversations. */
+    fun setPinnedAll(conversationIds: List<String>, pinned: Boolean) {
+        viewModelScope.launch { conversationIds.forEach { conversations.setPinned(it, pinned) } }
+    }
+
+    /** Mutes every selected conversation, or unmutes them all when every one is muted already. */
+    fun muteAll(items: List<ConversationSummary>) {
+        if (items.isEmpty()) return
+        val mute = items.any { !it.muted }
+        viewModelScope.launch { items.forEach { conversations.setMuted(it.conversationId, mute) } }
+    }
+
+    /**
+     * The inbox "Copy code" chip copied [code]: like copying it inside the thread, that keeps the OTP (cancels its
+     * pending auto-delete). The newest message in the conversation containing the code is the one kept.
+     */
+    fun onOtpCopied(conversation: ConversationSummary, code: String) {
+        viewModelScope.launch {
+            val message = conversation.threadIds
+                .flatMap { threadId -> runCatching { reader.messagesInThread(threadId) }.getOrDefault(emptyList()) }
+                .filter { it.body.contains(code) }
+                .maxByOrNull { it.dateMillis }
+                ?: return@launch
+            runCatching { otpLifecycle.cancel(message.key) }
+        }
     }
 
     private suspend fun keysOf(conversation: ConversationSummary): List<MessageKey> =

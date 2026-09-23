@@ -31,6 +31,7 @@ import app.dak.telephony.MmsDownloadState
 import app.dak.telephony.MmsDownloads
 import app.dak.telephony.SendResult
 import app.dak.telephony.SimRepository
+import app.dak.telephony.region.RegionProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -106,6 +107,7 @@ class ConversationViewModel @Inject constructor(
     controller: MessageSendController,
     scheduler: ScheduledSendScheduler,
     hints: ComposerHints,
+    private val regions: RegionProvider,
 ) : ViewModel() {
 
     val conversationId: String = Uri.decode(savedState.get<String>(Routes.ARG_CONVERSATION_ID).orEmpty())
@@ -253,6 +255,12 @@ class ConversationViewModel @Inject constructor(
             eventChannel.trySend(if (done > 0) ConversationEvent.Blocked(done) else ConversationEvent.BlockFailed)
         }
     }
+
+    /**
+     * True when spam from SIM [subId] can be reported to TRAI's 1909 short code: only for Indian SIMs (elsewhere the
+     * Report fraud screen offers blocking and copying the details instead).
+     */
+    fun reportsSpamToTrai(subId: Int): Boolean = regions.forSubId(subId).isIndia
 
     /**
      * Body for a TRAI 1909 spam report of [message] ("<message>,<sender>,<dd/mm/yy>"), to send from the composer so

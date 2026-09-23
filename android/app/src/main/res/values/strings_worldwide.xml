@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Region-aware copy for countries without a curated profile (agent "worldwide"). All names prefixed ww_. -->
+<resources>
+    <string name="ww_urgent_title">Lost money to a scam?</string>
+    <string name="ww_urgent_body">Call your bank\'s fraud line right away, using the number on the back of your card or on the bank\'s official website, and ask them to block your card or account. Then report it to the police.</string>
+    <string name="ww_emergency_title">Emergency · %1$s</string>
+    <string name="ww_emergency_body">Emergency number (police, ambulance, fire). For immediate danger only: it is not a fraud or bank line.</string>
+</resources>

@@ -403,6 +403,59 @@ object DakSettings {
         default = true,
         keywords = listOf("recycle bin", "privacy", "backup"),
     )
+
+    // Privacy and security (app lock). Rows live in this group to keep seven groups; the lock method row opens the
+    // App lock screen (setup and verification happen there, never through a plain value editor).
+    val appLock = choiceSetting(
+        "privacy.appLock", SettingsGroup.BACKUP_DATA,
+        "App lock",
+        "Ask for your fingerprint, face or PIN to open Dak: your phone's screen lock or a separate app PIN.",
+        default = "off",
+        options = listOf(
+            ChoiceOption("off", "Off"),
+            ChoiceOption("device", "Phone screen lock"),
+            ChoiceOption("appPin", "App PIN"),
+        ),
+        keywords = listOf("app lock", "lock", "pin", "fingerprint", "face", "biometric", "password", "security", "privacy", "passcode"),
+    )
+    val autoLockAfter = choiceSetting(
+        "privacy.autoLockAfter", SettingsGroup.BACKUP_DATA,
+        "Auto-lock", "How long Dak can stay in the background before it asks again.",
+        default = "immediately",
+        options = listOf(
+            ChoiceOption("immediately", "Immediately"),
+            ChoiceOption("30s", "After 30 seconds"),
+            ChoiceOption("1m", "After 1 minute"),
+            ChoiceOption("5m", "After 5 minutes"),
+            ChoiceOption("15m", "After 15 minutes"),
+        ),
+        keywords = listOf("app lock", "timeout", "auto lock", "security"),
+    )
+    val lockOnScreenOff = boolSetting(
+        "privacy.lockOnScreenOff", SettingsGroup.BACKUP_DATA,
+        "Lock when the screen turns off", "Lock Dak as soon as the screen goes off, whatever the auto-lock time.",
+        default = true,
+        keywords = listOf("app lock", "screen off", "security"),
+    )
+    val hideInRecents = choiceSetting(
+        "privacy.hideInRecents", SettingsGroup.BACKUP_DATA,
+        "Hide content in Recents",
+        "Blank Dak's preview in the recent-apps list. This also blocks screenshots of Dak.",
+        default = "whenLockOn",
+        options = listOf(
+            ChoiceOption("whenLockOn", "When app lock is on"),
+            ChoiceOption("always", "Always"),
+            ChoiceOption("never", "Never"),
+        ),
+        keywords = listOf("recents", "screenshot", "privacy", "flag secure", "app switcher"),
+    )
+    val protectSensitiveScreens = boolSetting(
+        "privacy.protectSensitiveScreens", SettingsGroup.BACKUP_DATA,
+        "Protect sensitive screens",
+        "Ask to unlock before opening the recycle bin, passbook, backup, automations and forwarding, even with app lock off.",
+        default = false,
+        keywords = listOf("app lock", "passbook", "recycle bin", "backup", "automations", "forwarding", "security", "privacy"),
+    )
     val indexSchedule = choiceSetting(
         "backupData.indexSchedule", SettingsGroup.BACKUP_DATA,
         "Index schedule", "When the encrypted search index rebuilds itself.",
@@ -492,7 +545,8 @@ object DakSettings {
         sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings, costWarnings,
         enterToSend, deliveryReports, sendRateSpreading, exactAlarmPermission,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
-        otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup, indexSchedule, rebuildIndex,
+        otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup,
+        appLock, autoLockAfter, lockOnScreenOff, hideInRecents, protectSensitiveScreens, indexSchedule, rebuildIndex,
         rulesList, scheduledSends, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,
         translationLanguages, autoTranslateRules, downloadedPacks, freeTasterPack, packStorageLocation,
     )

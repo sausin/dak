@@ -71,6 +71,9 @@ class WorldwideFinanceTest {
         assertEquals("IN", InstitutionTable.countryOf("state bank of india"))
         assertNull(InstitutionTable.countryOf("Monzo"))
         assertNull(InstitutionTable.countryOf(null))
+        // An Indian card used abroad keeps INR as home, even if every SMS so far was in USD.
+        val abroad = listOf(LedgerInput("a", 1, txn("USD", "HDFC Bank")), LedgerInput("b", 2, txn("USD", "HDFC Bank")))
+        assertEquals("INR", Ledger.apply(abroad).single().account.homeCurrency)
     }
 
     @Test

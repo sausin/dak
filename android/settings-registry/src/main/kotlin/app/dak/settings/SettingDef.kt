@@ -12,7 +12,7 @@ enum class SettingsGroup(val displayName: String) {
     CATEGORIES_SPAM("Categories and spam"),
     FINANCE("Finance"),
     SIMS_SENDING("SIMs and sending"),
-    BACKUP_DATA("Backup and data"),
+    BACKUP_DATA("Backup, data and privacy"),
     AUTOMATIONS("Automations"),
     TRANSLATION("Translation"),
 }

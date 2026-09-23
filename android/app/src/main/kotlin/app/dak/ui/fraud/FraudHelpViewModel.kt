@@ -12,12 +12,17 @@ import app.dak.safety.helplines.Helpline
 import app.dak.safety.helplines.HelplineAction
 import app.dak.safety.helplines.HelplineCategory
 import app.dak.safety.helplines.HelplineRepository
+import app.dak.safety.helplines.RegionalHelplines
 import app.dak.safety.helplines.UserHelpline
 import app.dak.safety.helplines.UserHelplines
 import app.dak.telephony.BlockedNumbers
 import app.dak.telephony.ProviderReader
 import app.dak.telephony.SimRepository
+import app.dak.telephony.region.EmergencyNumbers
+import app.dak.telephony.region.RegionProfile
+import app.dak.telephony.region.RegionProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +32,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /** The message being reported (from the `message` route argument). */
@@ -42,8 +48,15 @@ data class ReportedMessage(
 /** Everything the Report fraud screen shows. */
 data class FraudHelpUi(
     val loading: Boolean = true,
-    /** Official helplines from the bundle, in bundle order. */
+    /** Official helplines from the bundle for [countryIso], in bundle order (India's today; none elsewhere). */
     val helplines: List<Helpline> = emptyList(),
+    /** ISO country of the region profile (the reported message's SIM, else the default SMS SIM); null if unknown. */
+    val countryIso: String? = null,
+    /**
+     * General emergency numbers (from libphonenumber's data) when the bundle has none for this country. Shown as
+     * emergency numbers only, never as fraud lines.
+     */
+    val emergencyNumbers: List<String> = emptyList(),
     /** Numbers the user added (e.g. their bank's card-block line); always unverified. */
     val userHelplines: List<UserHelpline> = emptyList(),
     val message: ReportedMessage? = null,
@@ -56,6 +69,9 @@ data class FraudHelpUi(
     val traiSms: Helpline? get() = helplines.firstOrNull { it.category == HelplineCategory.SPAM && it.action == HelplineAction.SMS }
     val chakshu: Helpline? get() = helplines.firstOrNull { it.category == HelplineCategory.FRAUD_COMMUNICATION && it.action == HelplineAction.URL }
     val cyberPortal: Helpline? get() = helplines.firstOrNull { it.category == HelplineCategory.CYBERCRIME && it.action == HelplineAction.URL }
+
+    /** TRAI's 1909 complaint applies: India only. */
+    val reportsToTrai: Boolean get() = countryIso == RegionProfile.INDIA
 }
 
 /** One-off outcomes shown as snackbars. */
@@ -63,8 +79,9 @@ enum class FraudHelpEvent { BLOCKED, BLOCK_FAILED, HELPLINE_ADDED, HELPLINE_INVA
 
 /**
  * Report fraud: official helplines (bundled, signature-verifiable for OTA refresh), user-added bank numbers, and —
- * when opened with a `message` key — the report flows for that message (TRAI 1909 complaint, Chakshu /
- * cybercrime.gov.in with the details copied, block sender).
+ * when opened with a `message` key — the report flows for that message (block sender, copy details, and in India the
+ * TRAI 1909 complaint and Chakshu / cybercrime.gov.in). Helplines follow the region profile; countries without
+ * verified entries get their general emergency numbers and the user's own bank number only.
  */
 @HiltViewModel
 class FraudHelpViewModel @Inject constructor(
@@ -74,6 +91,7 @@ class FraudHelpViewModel @Inject constructor(
     private val reader: ProviderReader,
     private val blocked: BlockedNumbers,
     private val sims: SimRepository,
+    private val regions: RegionProvider,
 ) : ViewModel() {
 
     private val messageKey: MessageKey? = savedState.get<String>(Routes.ARG_MESSAGE)
@@ -95,9 +113,20 @@ class FraudHelpViewModel @Inject constructor(
                 ReportedMessage(it.key, it.address, it.body, it.dateMillis, it.subId, isIncoming = it.box == MessageBox.INBOX)
             }
             val isBlocked = reported?.let { r -> runCatching { blocked.isBlocked(r.sender) }.getOrDefault(false) } ?: false
+            // Helplines follow the region of the reported message's SIM (else the default SMS SIM's), never a fixed one.
+            val country = runCatching { (reported?.let { regions.forSubId(it.subId) } ?: regions.current()).countryIso }.getOrNull()
+            val regional = bundle?.let { RegionalHelplines.forCountry(it, country) }.orEmpty()
+            val emergency = if (RegionalHelplines.hasEmergency(regional)) {
+                emptyList()
+            } else {
+                // libphonenumber loads its short-number metadata on first use: keep that off the main thread.
+                withContext(Dispatchers.Default) { EmergencyNumbers.forRegion(country) }
+            }
             base.value = base.value.copy(
                 loading = false,
-                helplines = bundle?.helplines.orEmpty() + bundle?.bankCardBlock.orEmpty(),
+                helplines = regional,
+                countryIso = country,
+                emergencyNumbers = emergency,
                 message = reported,
                 messageMissing = messageKey != null && reported == null,
                 senderBlocked = isBlocked,
@@ -108,6 +137,7 @@ class FraudHelpViewModel @Inject constructor(
     /** Compose route for the TRAI 1909 complaint about the reported message (the user reviews it before sending). */
     fun traiComplaintRoute(): String? {
         val state = base.value
+        if (!state.reportsToTrai) return null
         val message = state.message ?: return null
         val number = state.traiSms?.target ?: TRAI_FALLBACK_NUMBER
         val body = FraudReport.traiComplaintBody(message.body, message.sender, message.dateMillis, state.traiSms?.smsFormat)

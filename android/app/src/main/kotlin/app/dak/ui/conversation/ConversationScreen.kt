@@ -230,10 +230,15 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             onBlock = { viewModel.block() },
                             onFoldInto = { foldIntoDialog = true },
                             onUnfold = if (foldChannels.size > 1) ({ unfoldDialog = true }) else null,
-                            onReportSpam = {
-                                val latest = messages.itemSnapshotList.items.firstOrNull { it.box == MessageBox.INBOX }
-                                if (latest != null) navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(latest)))
-                            },
+                            // TRAI's 1909 complaint exists only in India; elsewhere "Report fraud" covers block / copy.
+                            onReportSpam = messages.itemSnapshotList.items.firstOrNull { it.box == MessageBox.INBOX }
+                                ?.takeIf { viewModel.reportsSpamToTrai(it.subId) }
+                                ?.let { latest ->
+                                    val report: () -> Unit = {
+                                        navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(latest)))
+                                    }
+                                    report
+                                },
                             onReportFraud = {
                                 val latest = messages.itemSnapshotList.items.firstOrNull { it.box == MessageBox.INBOX }
                                 navigator.navigate(Routes.fraudHelp(latest?.key?.toString()))
@@ -281,7 +286,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                     onForward = { navigator.navigate(Routes.compose(body = item.body)) },
                                     onDelete = { viewModel.delete(item.key) },
                                     onRetry = if (item.box == MessageBox.FAILED) ({ viewModel.retrySend(item.key) }) else null,
-                                    onReportSpam = if (!item.isOutgoing) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
+                                    onReportSpam = if (!item.isOutgoing && viewModel.reportsSpamToTrai(item.subId)) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
                                     onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
                                 )
                             }
@@ -353,7 +358,7 @@ private fun ThreadMenu(
     onBlock: () -> Unit,
     onFoldInto: (() -> Unit)? = null,
     onUnfold: (() -> Unit)? = null,
-    onReportSpam: () -> Unit,
+    onReportSpam: (() -> Unit)?,
     onReportFraud: () -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
@@ -371,7 +376,7 @@ private fun ThreadMenu(
         onUnfold?.let { entry(R.string.fold_action_unfold_channel, it) }
         HorizontalDivider()
         entry(R.string.scr_action_block, onBlock)
-        entry(R.string.scr_action_report_spam, onReportSpam)
+        onReportSpam?.let { entry(R.string.scr_action_report_spam, it) }
         entry(R.string.safe_action_report_fraud, onReportFraud)
     }
 }

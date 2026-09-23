@@ -57,13 +57,11 @@
     <string name="inst_balance_upi">UPI payments</string>
     <string name="inst_upi_note">UPI messages that do not name a bank account. Balances are shown on the account itself when a message names it.</string>
     <string name="inst_loan_no_outstanding">No message has stated the outstanding amount yet.</string>
-    <string name="inst_loan_emis">EMI payments</string>
     <string name="inst_loan_paid_from">EMIs paid from %1$s</string>
     <string name="inst_debit_linked_header">Linked bank account</string>
     <string name="inst_debit_unlinked">No message has named the account this card debits yet, so its spends are shown here without a balance.</string>
     <string name="inst_debit_stated_balance">Available balance stated with a card spend (the bank account\'s, not the card\'s)</string>
     <string name="inst_open_linked">Open account</string>
-    <string name="inst_spent_this_month">Spent this month</string>
 
     <!-- Manual type -->
     <string name="inst_type_label">Type</string>

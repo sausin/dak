@@ -49,7 +49,7 @@ object TransactionParser {
     )
 
     private val balanceContextPattern = Regex(
-        """av[ai]{0,2}l\.?\s*bal|available balance|(?:clr|clear)\s*bal|balance is|bal is|remaining balance|\bbalance\s*[:\-]""",
+        """av[ai]{0,2}l\.?\s*bal|available balance|(?:clr|clear)\s*bal|balance is|bal is|remaining balance|\bbalance\s*[:\-]|\bbal(?:ance)?\.?\s*[:\-]?\s*(?:inr|rs\.?|₹)""",
         RegexOption.IGNORE_CASE,
     )
 

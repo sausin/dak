@@ -111,5 +111,7 @@ class AccountMatcherTest {
         assertEquals(listOf("440065", "1234"), MaskedNumbers.findAll("A/c XX440065 to card **1234, ref XX440065"))
         assertEquals(listOf("7788"), MaskedNumbers.findAll("Card ending in 7788"))
         assertTrue(MaskedNumbers.findAll("Rs 500 at 12:30").isEmpty())
+        assertEquals(listOf("5073"), MaskedNumbers.findAll("Credited INR 50,000.00 to A/c X5073 on 06-AUG-2026"))
+        assertTrue(MaskedNumbers.findAll("order X12345 shipped").isEmpty())
     }
 }

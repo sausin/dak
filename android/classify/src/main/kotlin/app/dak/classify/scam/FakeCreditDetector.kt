@@ -353,7 +353,11 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
             O,
         )
 
-        private val MASK = GatedRegex("""(?:(?<![x*])[x*]{2,}+|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""", O)
+        private val MASK = GatedRegex(
+            // A single mask character only after an account keyword ("A/c X5073", AU Bank).
+            """(?:\b(?:a\s?/\s?c|acc?t|account)\.?\s*(?:no\.?\s*)?[x*]|(?<![x*])[x*]{2,}+|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""",
+            O,
+        )
 
         internal fun amountsIn(text: String): Set<Long> {
             val out = HashSet<Long>()

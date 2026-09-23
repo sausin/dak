@@ -29,7 +29,8 @@ internal object InstrumentDetector {
 
     private data class NumberRef(val kind: RefKind, val masked: String, val range: IntRange)
 
-    private const val NUMBER = """(?:([x*]{2,}\s*\d{4,})|ending\s+(?:with\s+|in\s+)?(\d{4,}))"""
+    // Always follows a card / loan / account keyword, so a single mask character is enough ("A/c X5073", AU Bank).
+    private const val NUMBER = """(?:([x*]+\s*\d{4,})|ending\s+(?:with\s+|in\s+)?(\d{4,}))"""
     private const val NO = """(?:(?:no\.?|number)\s*)?"""
 
     private val cardRef = Regex(

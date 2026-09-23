@@ -41,6 +41,11 @@ object InstitutionTable {
         "SCBANK" to "Standard Chartered",
         "CITIBK" to "Citibank",
         "HSBCIN" to "HSBC",
+        "AUBANK" to "AU Small Finance Bank",
+        "BOBTXN" to "Bank of Baroda",
+        "BOBSMS" to "Bank of Baroda",
+        "CENTBK" to "Central Bank of India",
+        "BKOFIN" to "Bank of India",
     )
 
     /**

@@ -124,14 +124,20 @@ object AccountMatcher {
     }
 }
 
-/** Finds masked account/card numbers (`XX1234`, `**440065`, `A/c ending 1234`) in a message body. */
+/** Finds masked account/card numbers (`XX1234`, `**440065`, `A/c X5073`, `A/c ending 1234`) in a message body. */
 object MaskedNumbers {
     private val masked = Regex("""[xX*]{2,}\s*(\d{4,})""")
+
+    /** A single mask character only counts right after an account/card keyword (`A/c X5073`). */
+    private val keyedSingle = Regex(
+        """\b(?:a\s?/\s?c|account|acct|card)\.?\s*(?:(?:no\.?|number)\s*)?[x*](\d{4,})""",
+        RegexOption.IGNORE_CASE,
+    )
     private val ending = Regex("""ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE)
 
     /** The visible digits of every masked number in [body], in order of appearance, without duplicates. */
     fun findAll(body: String): List<String> =
-        (masked.findAll(body) + ending.findAll(body))
+        (masked.findAll(body) + keyedSingle.findAll(body) + ending.findAll(body))
             .sortedBy { it.range.first }
             .map { it.groupValues[1] }
             .distinct()

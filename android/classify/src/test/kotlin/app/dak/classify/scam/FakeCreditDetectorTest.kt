@@ -259,6 +259,8 @@ class FakeCreditDetectorTest {
         assertEquals(setOf(300_000L), FakeCreditDetector.amountsIn("रु 3,000 जमा"))
         assertEquals(setOf(150_000L), FakeCreditDetector.amountsIn("1500/- sent"))
         assertEquals("1234", FakeCreditDetector.maskIn("A/c XX1234 credited"))
+        assertEquals("5073", FakeCreditDetector.maskIn("Credited INR 50,000.00 to A/c X5073 on 06-AUG-2026"))
+        assertEquals(null, FakeCreditDetector.maskIn("order X12345 shipped"))
         assertTrue(FakeCreditDetector.digitsMatch("001234", "1234"))
         assertFalse(FakeCreditDetector.digitsMatch("1234", "9999"))
     }

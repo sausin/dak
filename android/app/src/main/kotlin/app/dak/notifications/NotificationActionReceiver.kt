@@ -19,6 +19,7 @@ import app.dak.index.bin.RecycleBin
 import app.dak.index.otp.OtpLifecycle
 import app.dak.di.ApplicationScope
 import app.dak.safety.SendCostGuard
+import app.dak.telephony.BlockedNumbers
 import app.dak.telephony.MessageSender
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.ProviderWriter
@@ -43,6 +44,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
     @Inject lateinit var recycleBin: RecycleBin
     @Inject lateinit var notifier: MessageNotifier
     @Inject lateinit var costGuard: SendCostGuard
+    @Inject lateinit var blockedNumbers: BlockedNumbers
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -52,6 +54,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             NotificationActions.ACTION_DELETE -> runAsync(context) { delete(context, intent, target) }
             NotificationActions.ACTION_MARK_READ -> runAsync(context) { markRead(context, intent, target) }
             NotificationActions.ACTION_REPLY -> runAsync(context) { reply(context, intent, target) }
+            NotificationActions.ACTION_BLOCK -> runAsync(context) { block(context, intent, target) }
         }
     }
 
@@ -96,6 +99,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
         } else {
             toast(context, R.string.toast_delete_failed)
         }
+    }
+
+    private suspend fun block(context: Context, intent: Intent, target: NotificationActions.Target) {
+        val address = intent.getStringExtra(NotificationActions.EXTRA_ADDRESS)
+        if (address.isNullOrBlank()) return
+        val ok = runCatching { blockedNumbers.block(address) }.getOrDefault(false)
+        if (ok) {
+            NotificationManagerCompat.from(context).cancel(target.tag, target.id)
+            notifier.refreshSummaries()
+        }
+        toast(context, if (ok) R.string.scam_toast_blocked else R.string.scam_toast_block_failed)
     }
 
     private suspend fun markRead(context: Context, intent: Intent, target: NotificationActions.Target) {

@@ -20,6 +20,9 @@ public enum class ScamReason(public val code: String, public val weight: Int) {
     /** A bank-style credit alert from a 10-digit mobile / long-code number: banks never send alerts from these. */
     CREDIT_ALERT_FROM_PHONE_NUMBER("phone-credit-alert", 45),
 
+    /** Outside India: a credit/debit alert from a sender that is neither a known bank nor a saved contact. */
+    UNKNOWN_SENDER_ALERT("unknown-sender-alert", 20),
+
     /** A bank-style debit alert from a phone number (fake debits push victims to call a "helpline"). */
     DEBIT_ALERT_FROM_PHONE_NUMBER("phone-debit-alert", 30),
 

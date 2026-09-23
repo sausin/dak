@@ -13,6 +13,7 @@ object NotificationActions {
     const val ACTION_DELETE = "app.dak.notification.DELETE"
     const val ACTION_MARK_READ = "app.dak.notification.MARK_READ"
     const val ACTION_REPLY = "app.dak.notification.REPLY"
+    const val ACTION_BLOCK = "app.dak.notification.BLOCK"
 
     const val EXTRA_TAG = "tag"
     const val EXTRA_ID = "id"
@@ -31,6 +32,10 @@ object NotificationActions {
 
     fun delete(context: Context, target: Target, key: MessageKey): PendingIntent =
         broadcast(context, ACTION_DELETE, target) { putExtra(EXTRA_MESSAGE_KEY, key.toString()) }
+
+    /** Adds [address] to the system block list (fake-credit warning's "Block"). */
+    fun block(context: Context, target: Target, address: String): PendingIntent =
+        broadcast(context, ACTION_BLOCK, target) { putExtra(EXTRA_ADDRESS, address) }
 
     fun markRead(context: Context, target: Target, key: MessageKey, threadId: Long): PendingIntent =
         broadcast(context, ACTION_MARK_READ, target) {

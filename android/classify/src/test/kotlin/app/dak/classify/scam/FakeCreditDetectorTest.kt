@@ -280,6 +280,46 @@ class FakeCreditDetectorTest {
     }
 
     @Test
+    fun `outside india only generic signals apply`() {
+        // A US bank alert from a short code / long code is normal there.
+        val genuineUs = detector.evaluate("+14155550123", "Chase: A deposit of $1,250.00 was credited to your account ending 1234.", dateMillis = now, region = "US")
+        assertEquals(ScamLevel.NONE, genuineUs.level, genuineUs.toString())
+        val genuineUk = detector.evaluate("HSBC", "HSBC: GBP 300.00 has been received into your account ending 5678.", dateMillis = now, region = "GB")
+        assertEquals(ScamLevel.NONE, genuineUk.level)
+        // Unknown sender + credit + return urgency is still a likely scam anywhere.
+        val scam = detector.evaluate(
+            "+14155550199",
+            "Your account ending 1234 was credited with USD 900.00 by mistake. Please send it back to 4155550199 today.",
+            dateMillis = now,
+            region = "US",
+        )
+        assertEquals(ScamLevel.LIKELY_SCAM, scam.level, scam.toString())
+        assertTrue(ScamReason.UNKNOWN_SENDER_ALERT in scam.reasons)
+        // India-only rules do not fire elsewhere.
+        val india = detector.evaluate("+919876512345", "Your A/c XX1234 credited with Rs 25,000.00 -SBI", dateMillis = now)
+        val abroad = detector.evaluate("+919876512345", "Your A/c XX1234 credited with Rs 25,000.00 -SBI", dateMillis = now, region = "AE")
+        assertEquals(ScamLevel.LIKELY_SCAM, india.level)
+        assertEquals(ScamLevel.NONE, abroad.level)
+        assertEquals(ScamLevel.LIKELY_SCAM, detector.evaluate("+14155550123", "Tap the link and enter UPI PIN to receive $500 cashback", dateMillis = now, region = "US").level)
+    }
+
+    @Test
+    fun `cheap pre-checks agree with evaluate`() {
+        assertFalse(detector.isCandidate("VM-HDFCBK-S", "INR 500 credited to A/c XX1234"))
+        assertFalse(detector.isCandidate("+919812345678", "Hi, reached home"))
+        assertTrue(detector.isCandidate("+919812345678", "Rs 500 credited to your a/c XX1234"))
+        assertTrue(detector.needsRecentMessages("+917000022222", "maine galti se 15000 bhej diya, wapas kar do"))
+        assertFalse(detector.needsRecentMessages("+917000022222", "Rs 500 credited to your a/c XX1234"))
+        assertFalse(detector.needsRecentMessages("VM-HDFCBK-S", "I sent Rs 500 by mistake"))
+        val flagged = ScamLabels.toLabels(detector.evaluate("+919876512345", "Your A/c XX1234 credited with Rs 25,000.00 -SBI", dateMillis = now))
+        assertTrue(ScamLabels.isFlaggedCredit(flagged))
+        val followUp = ScamLabels.toLabels(detector.evaluate("+919999912345", "Sir I sent 2000 rupees to you by mistake, please return", dateMillis = now))
+        assertTrue(ScamLabels.isFlagged(followUp))
+        assertFalse(ScamLabels.isFlaggedCredit(followUp))
+        assertEquals("%\"scam:likely-fake-credit\"%", ScamLabels.likePattern(ScamLabels.LIKELY))
+    }
+
+    @Test
     fun `stays fast on hostile bodies`() {
         val hostile = listOf(
             "x".repeat(50_000), "X".repeat(50_000) + "1", "*".repeat(50_000), "1".repeat(50_000), "rs ".repeat(20_000),

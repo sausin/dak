@@ -61,6 +61,7 @@ public object ScamLabels {
 
     private val CREDIT_REASONS = setOf(
         ScamReason.CREDIT_ALERT_FROM_PHONE_NUMBER,
+        ScamReason.UNKNOWN_SENDER_ALERT,
         ScamReason.LOOKALIKE_SENDER,
         ScamReason.UNVERIFIED_SENDER,
         ScamReason.UNPREFIXED_BANK_HEADER,

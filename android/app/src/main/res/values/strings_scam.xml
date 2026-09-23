@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fake credit alert warnings (docs/security/fake-credit-scams.md) -->
+    <string name="scam_notification_title">⚠ Possible fake credit alert · %1$s</string>
+    <string name="scam_notification_text">Check your bank app before sending any money back</string>
+    <string name="scam_action_report">Report</string>
+    <string name="scam_action_block">Block</string>
+    <string name="scam_toast_blocked">Sender blocked</string>
+    <string name="scam_toast_block_failed">Couldn\'t block this sender</string>
+
+    <string name="scam_banner_title_likely">Possible fake credit alert</string>
+    <string name="scam_banner_title_suspicious">Be careful with this message</string>
+    <string name="scam_banner_claims">It claims to be from %1$s.</string>
+    <string name="scam_banner_verify">Verify in your bank app before you send any money back.</string>
+    <string name="scam_banner_advice">Banks never ask you to return money to a mobile number or UPI ID. If money really arrived by mistake, the sender\'s bank reverses it; you never need to pay it back yourself.</string>
+    <string name="scam_banner_report">Report fraud</string>
+    <string name="scam_banner_block">Block sender</string>
+    <string name="scam_banner_blocked">Sender blocked</string>
+    <string name="scam_banner_not_scam">Not a scam</string>
+    <string name="scam_inbox_chip">Possible scam</string>
+
+    <!-- One plain-language line per reason (app.dak.classify.scam.ScamReason) -->
+    <string name="scam_reason_phone_credit_alert">A bank credit alert from a personal mobile number. Real banks send alerts from registered sender names, never from 10-digit numbers.</string>
+    <string name="scam_reason_phone_debit_alert">A bank debit alert from a personal mobile number. Real banks never send alerts from 10-digit numbers.</string>
+    <string name="scam_reason_phone_claims_bank">A mobile number is pretending to be a bank.</string>
+    <string name="scam_reason_unknown_sender_alert">A money alert from a sender that isn\'t a known bank or one of your contacts.</string>
+    <string name="scam_reason_lookalike_sender">The sender name only looks like a bank\'s. Real bank alerts come from registered senders like XX-HDFCBK-S.</string>
+    <string name="scam_reason_unverified_sender">The sender isn\'t one of the bank\'s registered senders.</string>
+    <string name="scam_reason_unprefixed_header">The sender name is missing the registered prefix real bank alerts carry.</string>
+    <string name="scam_reason_promotional_route">A credit alert sent as an advertisement. Banks send alerts as transactional messages.</string>
+    <string name="scam_reason_brand_mismatch">The bank named in the message isn\'t the company that sent it.</string>
+    <string name="scam_reason_unknown_account">The account number doesn\'t match any of your accounts at this bank.</string>
+    <string name="scam_reason_no_account_at_bank">You don\'t seem to have an account at this bank.</string>
+    <string name="scam_reason_return_request">It asks you to return money \"sent by mistake\". This is a common scam.</string>
+    <string name="scam_reason_mobile_in_alert">It includes a mobile number to call or pay. Banks never ask this.</string>
+    <string name="scam_reason_payment_handle">It gives a UPI ID or payment link to send the money back to.</string>
+    <string name="scam_reason_link_in_alert">It contains a link. Banks don\'t send links in credit alerts.</string>
+    <string name="scam_reason_pin_to_receive">It asks for your UPI PIN to receive money. A PIN is only ever needed to pay, never to receive.</string>
+    <string name="scam_reason_collect_request">Approving a \"request\" to receive money actually sends money from your account.</string>
+    <string name="scam_reason_follow_up">It arrived soon after a suspicious credit alert, asking about the same money.</string>
+    <string name="scam_reason_return_after_credit">It asks you to return a recent credit. Ask the sender to contact their bank instead; never send it back yourself.</string>
+</resources>

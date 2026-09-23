@@ -36,6 +36,10 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
      * @param isSavedContact the sender is in the user's contacts.
      * @param recentMessages incoming messages from the last 48 h (same sender, plus already-flagged credits).
      * @param dateMillis when this message arrived (anchors the follow-up window).
+     * @param region ISO 3166 country of the receiving SIM (e.g. from a region profile); null when unknown. India's
+     *   DLT rules (registered `XX-BRAND-S` headers, no bank alerts from mobile numbers) apply only for `"IN"`;
+     *   elsewhere only generic signals are used (unknown sender + credit + return urgency, payment handles, PIN /
+     *   collect bait, a known non-bank brand claiming a bank).
      */
     public fun evaluate(
         address: String,
@@ -45,10 +49,12 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         isSavedContact: Boolean = false,
         recentMessages: List<RecentMessage> = emptyList(),
         dateMillis: Long = System.currentTimeMillis(),
+        region: String? = INDIA,
     ): ScamVerdict {
         val text = normalize(body)
         if (text.isBlank()) return ScamVerdict.None
-        val sender = senderOf(address)
+        val india = isIndia(region)
+        val sender = senderOf(address, india)
         if (sender.verified) return ScamVerdict.None
 
         val amounts = amountsIn(text) + listOfNotNull(hint?.amountMinor)
@@ -69,7 +75,14 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         var capAtSuspicious = false
 
         // --- Sender vs. claim
-        if (alert != null) {
+        if (alert != null && !india) {
+            // Outside India banks legitimately use long codes, short codes and bare alphanumeric names.
+            if (sender.inTable && sender.knownFamily == null && claimed != null) {
+                reasons += ScamReason.BRAND_MISMATCH
+            } else if (!isSavedContact) {
+                reasons += ScamReason.UNKNOWN_SENDER_ALERT
+            }
+        } else if (alert != null) {
             when (sender.kind) {
                 SenderKind.PHONE_NUMBER -> {
                     reasons += if (alert == Alert.CREDIT) ScamReason.CREDIT_ALERT_FROM_PHONE_NUMBER else ScamReason.DEBIT_ALERT_FROM_PHONE_NUMBER
@@ -108,7 +121,8 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
 
         // --- Content
         if (returnRequest) reasons += ScamReason.RETURN_REQUEST
-        if (alert != null && MOBILE.containsMatchIn(text)) reasons += ScamReason.MOBILE_NUMBER_IN_ALERT
+        // Indian mobile numbers are recognisable; elsewhere a number in an alert only counts next to a return request.
+        if (alert != null && (india || returnRequest) && MOBILE.containsMatchIn(text)) reasons += ScamReason.MOBILE_NUMBER_IN_ALERT
         val hasLink = LinkExtractor.extract(text).isNotEmpty() || UPI_LINK.containsMatchIn(text)
         if (returnRequest && (hasLink || VPA.containsMatchIn(text))) {
             reasons += ScamReason.PAYMENT_HANDLE_WITH_RETURN
@@ -133,7 +147,7 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
                 if (alertKind(recentText, recentAmounts.isNotEmpty(), null) != Alert.CREDIT) continue
                 val mentioned = amounts + bareAmounts
                 val sameAmount = mentioned.isEmpty() || recentAmounts.any { it in mentioned }
-                if (senderOf(recent.address).verified) {
+                if (senderOf(recent.address, india).verified) {
                     if (sameAmount) genuineCredit = true
                 } else if (sameAmount) {
                     unverifiedCredit = true
@@ -164,9 +178,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
      * Cheap pre-check: false when [evaluate] would certainly return [ScamVerdict.None] (a verified sender, or no money
      * / PIN / collect wording at all), so callers can skip loading contacts, accounts and history.
      */
-    public fun isCandidate(address: String, body: String): Boolean {
+    public fun isCandidate(address: String, body: String, region: String? = INDIA): Boolean {
         val text = normalize(body)
-        if (text.isBlank() || senderOf(address).verified) return false
+        if (text.isBlank() || senderOf(address, isIndia(region)).verified) return false
         return amountsIn(text).isNotEmpty() || MONEY_WORDS.containsMatchIn(text) || PIN_TO_RECEIVE.containsMatchIn(text) ||
             COLLECT.containsMatchIn(text) || TRANSFER_MENTION.containsMatchIn(text)
     }
@@ -175,9 +189,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
      * True when [evaluate] would use `recentMessages` for this message (an unverified sender talking about sending /
      * returning money without being an alert itself), so callers can skip loading history for everything else.
      */
-    public fun needsRecentMessages(address: String, body: String): Boolean {
+    public fun needsRecentMessages(address: String, body: String, region: String? = INDIA): Boolean {
         val text = normalize(body)
-        if (text.isBlank() || senderOf(address).verified) return false
+        if (text.isBlank() || senderOf(address, isIndia(region)).verified) return false
         val amounts = amountsIn(text)
         val transferMention = TRANSFER_MENTION.containsMatchIn(text)
         val hasMoney = amounts.isNotEmpty() || MONEY_WORDS.containsMatchIn(text) || (transferMention && bareAmountsIn(text).isNotEmpty())
@@ -202,13 +216,23 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         val verified: Boolean,
     )
 
-    private fun senderOf(address: String): Sender {
+    private fun isIndia(region: String?): Boolean = region.equals(INDIA, ignoreCase = true)
+
+    /**
+     * In India a sender is verified only as a registered DLT header of a known bank/wallet off the promotional route.
+     * Elsewhere any sender whose name is in the bank table counts (alphanumeric names are normal there).
+     */
+    private fun senderOf(address: String, india: Boolean): Sender {
         val kind = SenderId.classify(address)
         val key = SenderId.mergeKey(address)
         val header = if (kind == SenderKind.DLT_HEADER) SenderId.parseDltHeader(address) else null
         val entry = if (kind == SenderKind.DLT_HEADER || kind == SenderKind.ALPHANUMERIC) templates.sender(key) else null
         val family = entry?.brand?.let { BankNames.familyIn(it) }
-        val verified = kind == SenderKind.DLT_HEADER && family != null && header?.trafficType != TrafficType.PROMOTIONAL
+        val verified = if (india) {
+            kind == SenderKind.DLT_HEADER && family != null && header?.trafficType != TrafficType.PROMOTIONAL
+        } else {
+            family != null && header?.trafficType != TrafficType.PROMOTIONAL
+        }
         return Sender(kind, key, header?.trafficType, entry != null, entry?.brand, family, verified)
     }
 
@@ -237,9 +261,12 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         public const val SUSPICIOUS_THRESHOLD: Int = 30
         public const val FOLLOW_UP_WINDOW_MILLIS: Long = 48L * 60 * 60 * 1000
 
+        /** Region code whose DLT sender rules the detector knows (the default region). */
+        public const val INDIA: String = "IN"
+
         private val O = setOf(RegexOption.IGNORE_CASE)
 
-        private val AMOUNT_BEFORE = Regex("""(?:\brs\.?|\binr|₹|\brupees?|रु\.?|रू\.?)\s?(\d[\d,]{0,14}(?:\.\d{1,2})?)""", O)
+        private val AMOUNT_BEFORE = Regex("""(?:\brs\.?|\binr|₹|\brupees?|रु\.?|रू\.?|\$|€|£|₦|₱|\b(?:usd|eur|gbp|aed|sar|qar|kwd|omr|bhd|sgd|myr|aud|cad|ngn|kes|zar|php|idr|pkr|bdt|lkr|npr))\s?(\d[\d,]{0,14}(?:\.\d{1,2})?)""", O)
         private val AMOUNT_AFTER = Regex("""(?<![\d.])(\d[\d,]{0,14}(?:\.\d{1,2})?)\s?(?:/-|rs\b|rupees?\b|रुपये|रु\.?|rupaye\b|rupay\b)""", O)
 
         private val MONEY_WORDS = Regex(

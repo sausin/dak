@@ -10,7 +10,7 @@ val ciVersionCode = (System.getenv("DAK_VERSION_CODE") ?: "1").toInt()
 
 android {
     namespace = "app.dak"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "app.dak"

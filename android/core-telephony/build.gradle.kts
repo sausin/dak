@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "app.dak.telephony"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 26
         consumerProguardFiles("consumer-rules.pro")

@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "app.dak.index"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 26
         consumerProguardFiles("consumer-rules.pro")

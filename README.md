@@ -306,7 +306,7 @@ in the JVM modules where logic can be checked without a device or emulator.
 
 ## Build
 
-Requires JDK 17 and the Android SDK (`compileSdk 36`, `targetSdk 35`, `minSdk 26`).
+Requires JDK 17 and the Android SDK (`compileSdk 37`, `targetSdk 35`, `minSdk 26`).
 
 ```sh
 cd android

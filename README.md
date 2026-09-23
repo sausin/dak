@@ -29,7 +29,7 @@ Dak is a ground-up rebuild in Kotlin + Jetpack Compose that starts from the one 
 incumbents got right — **the messages that matter are OTPs, bank alerts, and tickets, not chats**
 — and takes reliability, privacy and India-specific fraud defence as seriously as any feature.
 
-## What "epic" means here, concretely
+## What sets Dak apart
 
 - **Privacy by architecture, not by policy.** The free tier cannot phone home even if it wanted
   to — this is enforced in CI (see [Security & privacy](#security--privacy)), not just promised.

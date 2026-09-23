@@ -70,6 +70,50 @@ class FtsSqlRendererTest {
     }
 
     @Test
+    fun hostileInputNeverReachesTheSqlTextAndOnlyYieldsWellFormedMatchStrings() {
+        val hostile = listOf(
+            "OR", "AND", "NOT", "NEAR", "NEAR/3", "a OR b", "x AND y", "-foo", "+bar", "^start", "col:value",
+            "searchText:secret", "\"unbalanced", "a\"b\"c", "(((", ")) OR 1=1 --", "'; DROP TABLE indexed_message; --",
+            "*", "a*b*", "%_\\", "\u0000nul", "\u202Ertl", "e\u0301", "\uFF2F\uFF32", "🙂 or 😀", "x".repeat(500),
+        )
+        for (input in hostile) {
+            for (expr in listOf(term(input), TextExpr.Phrase(input), TextExpr.Or(term(input), term("upi")), TextExpr.Not(term(input)))) {
+                val q = fts.toSql(expr) ?: continue
+                // The SQL is built only from the predicate and fixed keywords; user text travels as bound arguments.
+                assertTrue(q.sql.replace("F(?)", "").all { it in "()ANDORT " }, "sql for <$input>: ${q.sql}")
+                assertEquals(q.sql.count { it == '?' }, q.args.size)
+                for (arg in q.args) assertWellFormedMatch(arg as String, input)
+            }
+        }
+    }
+
+    /** Implicit-AND / OR sequence of `token`, `token*` and `"token token"` items; tokens carry no FTS syntax. */
+    private fun assertWellFormedMatch(match: String, input: String) {
+        val item = Regex("(\"[^\"*():^\\-+ ]+( [^\"*():^\\-+ ]+)*\"|[^\"*():^\\-+ ]+\\*)")
+        val grammar = Regex("${item.pattern}(( OR)? ${item.pattern})*")
+        assertTrue(grammar.matches(match), "match for <$input>: <$match>")
+        // Upper case only ever appears as our own OR operator: a user's "OR" / "NEAR" is a lower-case term.
+        assertTrue(match.replace(" OR ", " ").none { it.isUpperCase() }, "match for <$input>: <$match>")
+    }
+
+    @Test
+    fun likeModeEscapesWildcardsFromTheUser() {
+        val like = FtsSqlRenderer(FtsSqlRenderer.Mode.Like("c"))
+        for (input in listOf("100%", "a_b", "back\\slash", "%_%")) {
+            val q = like.toSql(term(input)) ?: continue
+            val pattern = q.args.single() as String
+            // `%` also separates tokens, but a `_` wildcard can only come from the user and must be escaped.
+            val inner = pattern.removePrefix("%").removeSuffix("%")
+            var i = 0
+            while (i < inner.length) {
+                if (inner[i] == '\\') { i += 2; continue }
+                assertTrue(inner[i] != '_', "unescaped _ in <$pattern> for <$input>")
+                i++
+            }
+        }
+    }
+
+    @Test
     fun devanagariTermsStayWhole() {
         val m = fts.matchStringOrNull(term("नमस्ते"))!!
         assertTrue(m.startsWith("नमस्ते"), m)

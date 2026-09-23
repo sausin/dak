@@ -71,6 +71,26 @@ class CarrierMessagingConfigTest {
     }
 
     @Test
+    fun numericValuesOfAnyBoxedTypeAreRead() {
+        // PersistableBundle may hand back Long (or, from a vendor overlay, Double) for an int key.
+        val c = config("maxMessageSize" to 1_048_576L, "recipientLimit" to 10.0, "maxImageWidth" to 1_024.toShort())
+        assertEquals(1_048_576, c.maxMessageSizeBytes)
+        assertEquals(10, c.recipientLimit)
+        assertEquals(1_024, c.maxImageWidth)
+        assertEquals(CarrierMessagingConfig.MIN_SANE_MESSAGE_SIZE, config("maxMessageSize" to CarrierMessagingConfig.MIN_SANE_MESSAGE_SIZE).maxMessageSizeBytes)
+        assertEquals(CarrierMessagingConfig.DEFAULT_MAX_MESSAGE_SIZE, config("maxMessageSize" to CarrierMessagingConfig.MIN_SANE_MESSAGE_SIZE - 1).maxMessageSizeBytes)
+    }
+
+    @Test
+    fun onlyTheFailingKeyFallsBack() {
+        val c = CarrierMessagingConfig.fromLookup { key ->
+            if (key == "enableGroupMms") throw SecurityException("no permission") else mapOf("recipientLimit" to 7)[key]
+        }
+        assertTrue(c.groupMmsEnabled)
+        assertEquals(7, c.recipientLimit)
+    }
+
+    @Test
     fun aThrowingLookupIsTreatedAsMissing() {
         assertEquals(CarrierMessagingConfig.DEFAULTS, CarrierMessagingConfig.fromLookup { throw IllegalStateException("vendor bug") })
     }
@@ -138,6 +158,26 @@ class SendModePolicyTest {
         assertEquals(SendBlock.TEXT_TOO_LONG, plan(media = true, bytes = 1_001, config = limited).block)
         // The MMS text limit does not apply to SMS.
         assertNull(plan(bytes = 5_000, config = limited).block)
+    }
+
+    @Test
+    fun blockPrecedenceAndPerRecipientTextLimit() {
+        val limited = defaults.copy(recipientLimit = 2, maxTextBytes = 100)
+        // Too many recipients is reported before a too-long text (the user must fix the recipients either way).
+        assertEquals(SendBlock.TOO_MANY_RECIPIENTS, plan(recipients = 3, media = true, bytes = 500, config = limited).block)
+        // One MMS each: no recipient limit, but each copy still carries the whole text.
+        assertEquals(
+            SendPlan(SendMode.MMS_PER_RECIPIENT, SendBlock.TEXT_TOO_LONG),
+            plan(recipients = 3, media = true, bytes = 500, config = limited.copy(groupMmsEnabled = false)),
+        )
+        assertTrue(plan(recipients = 3, media = true, bytes = 500, config = limited).isMms)
+        assertFalse(plan(config = limited).isMms)
+    }
+
+    @Test
+    fun aGroupTextOverTheRecipientLimitIsBlockedNotSilentlySplit() {
+        val limited = defaults.copy(recipientLimit = 2)
+        assertEquals(SendPlan(SendMode.MMS, SendBlock.TOO_MANY_RECIPIENTS), plan(recipients = 3, config = limited))
     }
 
     @Test

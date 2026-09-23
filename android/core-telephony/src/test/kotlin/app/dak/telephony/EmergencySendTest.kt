@@ -50,4 +50,24 @@ class EmergencySendTest {
         assertFalse(EmergencyDestinations.isEmergency("HDFCBK", "IN", "IN"))
         assertFalse(EmergencyDestinations.isEmergency("", null, null))
     }
+
+    @Test
+    fun emergencyNumbersAreRecognisedWhateverTheSpacing() {
+        // A text to an emergency number must never wait, however the number was typed.
+        for (spelling in listOf("1-1-2", "1 1 2", " 9-1-1 ", "11 2")) {
+            assertTrue(EmergencyDestinations.isEmergency(spelling, "US", "US"), spelling)
+        }
+        // The same digits inside a longer number are not an emergency number.
+        assertFalse(EmergencyDestinations.isEmergency("1120", "US", "US"))
+        assertFalse(EmergencyDestinations.isEmergency("+1112", "US", "US"))
+        assertFalse(EmergencyDestinations.isEmergency("9111234567", "US", "US"))
+    }
+
+    @Test
+    fun visitedNetworkEmergencyNumbersCountWhileRoaming() {
+        // An Indian SIM in the UK: 999 is the local emergency number.
+        assertTrue(EmergencyDestinations.isEmergency("999", "IN", "GB"))
+        // Garbage country codes do not throw.
+        assertFalse(EmergencyDestinations.isEmergency("57575", "??", "123"))
+    }
 }

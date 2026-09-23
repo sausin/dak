@@ -70,6 +70,23 @@ class EnrichmentHelpersTest {
     }
 
     @Test
+    fun transactionParsingGateCoversEveryCategory() {
+        for (category in Category.entries) {
+            val expectedForBank = category == Category.TRANSACTION || category == Category.UNKNOWN
+            assertEquals(expectedForBank, DefaultMessageEnricher.shouldParseTransaction("VM-HDFCBK", category), "$category")
+            // A person's message is parsed only when the classifier itself said TRANSACTION.
+            assertEquals(category == Category.TRANSACTION, DefaultMessageEnricher.shouldParseTransaction("+919876543210", category), "$category")
+        }
+    }
+
+    @Test
+    fun cloudStageNeverSeesPeopleFromAnyCountry() {
+        for (person in listOf("+447911123456", "919876543210", " +919876543210 ", "+14155552671")) {
+            assertFalse(DefaultMessageEnricher.cloudEligibleSender(person), person)
+        }
+    }
+
+    @Test
     fun cloudStageNeverSeesPeople() {
         assertTrue(DefaultMessageEnricher.cloudEligibleSender("VM-HDFCBK-T"))
         assertTrue(DefaultMessageEnricher.cloudEligibleSender("56070"))
@@ -91,11 +108,12 @@ class EnrichmentHelpersTest {
             dateMillis = 0,
         )
         val e = enricher.enrich(debit, allowCloud = false)
-        if (e.classification.category == Category.TRANSACTION || e.classification.category == Category.UNKNOWN) {
-            val txn = assertNotNull(e.transaction)
-            assertEquals(TransactionDirection.DEBIT, txn.direction)
-            assertEquals(125000L, txn.amountMinor)
-            assertEquals("INR", txn.currency)
-        }
+        // Unconditional: a bank debit from a DLT header must reach the transaction parser whatever the templates say
+        // (TRANSACTION, or UNKNOWN for a header the templates do not know yet).
+        assertTrue(e.classification.category in setOf(Category.TRANSACTION, Category.UNKNOWN), "${e.classification.category}")
+        val txn = assertNotNull(e.transaction)
+        assertEquals(TransactionDirection.DEBIT, txn.direction)
+        assertEquals(125000L, txn.amountMinor)
+        assertEquals("INR", txn.currency)
     }
 }

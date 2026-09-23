@@ -9,6 +9,7 @@ import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduPart
 import app.dak.mms.pdu.RetrieveConf
 import app.dak.telephony.mms.AddrRow
+import app.dak.telephony.mms.MmsDeliveryReportCodec
 import app.dak.telephony.mms.MmsDownloadStateCodec
 import app.dak.telephony.mms.MmsProviderMapping
 import app.dak.telephony.mms.StoredPart
@@ -181,6 +182,83 @@ class MmsMappingTest {
         for (s in states) assertEquals(s, MmsDownloadStateCodec.decode(MmsDownloadStateCodec.encode(s)))
         assertNull(MmsDownloadStateCodec.decode("f|x|y"))
         assertNull(MmsDownloadStateCodec.decode("?"))
+    }
+
+    @Test
+    fun threadRecipientsIgnoreTokensBlanksAndCaseDuplicates() {
+        val token = "insert-address-token"
+        // A missing / token sender adds nothing; the token and blanks among recipients are never thread members.
+        assertEquals(
+            setOf("+15552222222", "+15553333333"),
+            MmsProviderMapping.threadRecipients(token, listOf(token, " ", "+15552222222", "+15553333333"), emptyList()) { false },
+        )
+        assertEquals(emptySet(), MmsProviderMapping.threadRecipients(" ", listOf("+15559999999"), emptyList()) { false })
+        // E-mail members differing only in case are one member.
+        assertEquals(
+            setOf("A@x.com", "b@y.com"),
+            MmsProviderMapping.threadRecipients("A@x.com", listOf("a@X.com", "b@y.com", "B@Y.COM"), emptyList()) { false },
+        )
+        // Our own number is dropped from a group even when listed in Cc.
+        assertEquals(
+            setOf("+15551111111", "+15552222222"),
+            MmsProviderMapping.threadRecipients("+15551111111", listOf("+15552222222"), listOf("+15550000000")) { it == "+15550000000" },
+        )
+    }
+
+    @Test
+    fun reportFlagsAndDefaultsOnRows() {
+        val r = RetrieveConf(
+            contentType = ContentType("application/vnd.wap.multipart.mixed"),
+            parts = listOf(PduPart(ContentType.of(ContentType.TEXT_PLAIN, MmsCharset.UTF_8), "hi".toByteArray())),
+            deliveryReport = true,
+            readReport = false,
+            priority = 0x82,
+        )
+        val row = MmsProviderMapping.retrievedRow(r, subId = 0, threadId = 1, nowMillis = now)
+        assertEquals(0x80, row["d_rpt"])
+        assertEquals(0x81, row["rr"])
+        assertEquals(0x82, row["pri"])
+        assertEquals(0L, row["date_sent"], "no Date header")
+        assertEquals(1, row["text_only"])
+        assertEquals(2L, row["m_size"])
+        assertEquals(0, row["sub_id"], "sub id 0 is a real subscription")
+        assertTrue("m_id" !in row && "retr_st" !in row && "sub" !in row)
+        // A message without From still gets its From row (the provider needs one), as the address token.
+        assertEquals(listOf(AddrRow("insert-address-token", 137)), MmsProviderMapping.retrievedAddresses(r))
+
+        val req = MmsMessageBuilder.build(to = listOf("+15551234567"), text = "hi", attachments = emptyList(), transactionId = "T1")
+        val out = MmsProviderMapping.outgoingRow(req.copy(priority = null, deliveryReport = null, readReport = true, bcc = listOf("+15550000001")), 1, 2, now, 10)
+        assertEquals(0x81, out["pri"], "normal priority when unset")
+        assertEquals(0x81, out["d_rpt"])
+        assertEquals(0x80, out["rr"])
+        assertEquals(
+            listOf(AddrRow("insert-address-token", 137), AddrRow("+15551234567", 151), AddrRow("+15550000001", 129)),
+            MmsProviderMapping.outgoingAddresses(req.copy(bcc = listOf("+15550000001"))),
+        )
+    }
+
+    @Test
+    fun everyPartKeepsItsRowWhenTheTextBudgetIsSpent() {
+        val text = { n: Int -> PduPart(ContentType.of(ContentType.TEXT_PLAIN, MmsCharset.UTF_8), ByteArray(n) { 'c'.code.toByte() }) }
+        val parts = List(4) { text(MmsLimits.MAX_INLINE_TEXT_CHARS) } + PduPart(ContentType("image/png"), byteArrayOf(1))
+        val rows = MmsProviderMapping.partRows(parts)
+        assertEquals(5, rows.size, "no part is dropped, so seq numbers and SMIL references stay valid")
+        assertEquals(listOf(0, 1, 2, 3, 4), rows.map { it.values["seq"] })
+        assertEquals(MmsLimits.MAX_MESSAGE_TEXT_CHARS, rows.sumOf { it.text?.length ?: 0 })
+        assertEquals("", rows[3].text, "over budget: an empty text, not null (it is still a text part)")
+        assertContentEquals(byteArrayOf(1), rows[4].data)
+    }
+
+    @Test
+    fun deliveryReportKeysCannotForgeEntries() {
+        val encoded = MmsDeliveryReportCodec.encode(5L, mapOf("a|b" to 1, "c,d=e" to 2, "" to 3))
+        val (at, reports) = MmsDeliveryReportCodec.decode(encoded)!!
+        assertEquals(5L, at)
+        assertEquals(mapOf("a_b" to 1, "c_d_e" to 2, "?" to 3), reports)
+        // Entries without a number are skipped, not thrown.
+        assertEquals(mapOf("x" to 1), MmsDeliveryReportCodec.decode("7|x=1,y=z,,w")!!.second)
+        assertNull(MmsDeliveryReportCodec.decode("abc|x=1"))
+        assertEquals(emptyMap(), MmsDeliveryReportCodec.decode("7|")!!.second)
     }
 
     @Test

@@ -91,9 +91,110 @@ class SmsJournalTest {
         val j = journal(maxAttempts = 1, maxQuarantined = 3)
         repeat(10) { i ->
             val key = j.write("3gpp", listOf(byteArrayOf(i.toByte(), 9)), 1, i.toLong())!!.key
-            j.recordFailure(key)
+            assertFalse(j.recordFailure(key), "maxAttempts = 1: the first failure gives up")
         }
-        assertTrue(j.quarantinedCount() <= 3)
+        // Bounded, but never emptier than the bound: the user is still told about the latest ones.
+        assertEquals(3, j.quarantinedCount())
+        assertFalse(j.hasPending())
+    }
+
+    @Test
+    fun pendingIsOrderedOldestFirstWhateverTheWriteOrder() {
+        val j = journal()
+        val times = listOf(50L, 10L, 40L, 20L, 30L)
+        times.forEachIndexed { i, t -> j.write("3gpp", listOf(byteArrayOf(i.toByte(), 3)), 1, t) }
+        assertEquals(times.sorted(), j.pending().map { it.receivedAtMillis })
+    }
+
+    @Test
+    fun aRedeliveryIsRecognisedEvenWhenTheJournalIsFull() {
+        val j = journal(maxPending = 1)
+        val first = assertNotNull(j.write("3gpp", pdus, 1, 10))
+        // Full: a different broadcast is not journaled...
+        assertNull(j.write("3gpp", listOf(byteArrayOf(9, 9)), 1, 11))
+        // ...but the platform re-delivering the journaled one must still be told it is already present, or the
+        // receiver would insert a second inbox row.
+        val again = assertNotNull(j.write("3gpp", pdus, 1, 12))
+        assertTrue(again.alreadyPresent)
+        assertEquals(first.key, again.key)
+    }
+
+    @Test
+    fun aCorruptEntryIsReplacedByTheRedelivery() {
+        val j = journal()
+        val key = j.write("3gpp", pdus, 1, 10)!!.key
+        File(File(tmp.root, "pending"), "$key.sms").writeBytes(byteArrayOf(1, 2, 3))
+        val again = assertNotNull(j.write("3gpp", pdus, 1, 20))
+        assertFalse(again.alreadyPresent, "nothing usable was stored before")
+        val entry = j.pending().single()
+        assertEquals(20, entry.receivedAtMillis)
+        assertEquals(0, j.quarantinedCount())
+    }
+
+    @Test
+    fun removedEntryIsGoneForGoodAndLaterCallsAreHarmless() {
+        val j = journal()
+        val key = j.write("3gpp", pdus, 1, 10)!!.key
+        j.remove(key)
+        j.remove(key)
+        assertFalse(j.recordFailure(key), "no entry: nothing to retry")
+        j.quarantine(key)
+        assertEquals(0, j.quarantinedCount(), "a removed (stored) message is never reported as lost")
+        // The same PDUs arriving again later are a new entry.
+        assertFalse(j.write("3gpp", pdus, 1, 30)!!.alreadyPresent)
+    }
+
+    @Test
+    fun explicitQuarantineTakesTheEntryOutOfReplay() {
+        val j = journal()
+        val bad = j.write("3gpp", pdus, 1, 10)!!.key
+        val good = j.write("3gpp", listOf(byteArrayOf(5, 5)), 1, 11)!!.key
+        j.quarantine(bad)
+        assertEquals(listOf(good), j.pending().map { it.key })
+        assertEquals(1, j.quarantinedCount())
+    }
+
+    @Test
+    fun failureCountSurvivesARestart() {
+        val key = journal(maxAttempts = 3).write("3gpp", pdus, 1, 10)!!.key
+        assertTrue(journal(maxAttempts = 3).recordFailure(key))
+        assertTrue(journal(maxAttempts = 3).recordFailure(key))
+        // A new process sees two failures already: the third one gives up instead of retrying forever.
+        assertFalse(journal(maxAttempts = 3).recordFailure(key))
+        assertEquals(1, journal().quarantinedCount())
+    }
+
+    @Test
+    fun leftoverTempFilesAreNeitherPendingNorQuarantined() {
+        val j = journal()
+        val pendingDir = File(tmp.root, "pending").apply { mkdirs() }
+        File(pendingDir, "a".repeat(40) + ".sms.tmp").writeBytes(ByteArray(10))
+        assertFalse(j.hasPending())
+        assertTrue(j.pending().isEmpty())
+        assertEquals(0, j.quarantinedCount())
+    }
+
+    @Test
+    fun keysSeparateFormatAndPartBoundaries() {
+        val ab = listOf(byteArrayOf(1, 2), byteArrayOf(3))
+        val a = listOf(byteArrayOf(1), byteArrayOf(2, 3))
+        assertTrue(SmsJournal.keyOf("3gpp", ab) != SmsJournal.keyOf("3gpp", a), "parts are length-prefixed")
+        assertTrue(SmsJournal.keyOf("3gpp", ab) != SmsJournal.keyOf("3gpp2", ab), "format is part of the key")
+        assertTrue(SmsJournal.keyOf("3gpp", ab) != SmsJournal.keyOf("3gpp", ab.reversed()), "order matters")
+        assertEquals(SmsJournal.keyOf("3gpp", ab), SmsJournal.keyOf("3gpp", listOf(byteArrayOf(1, 2), byteArrayOf(3))))
+    }
+
+    @Test
+    fun largestJournalableBroadcastRoundTrips() {
+        val j = journal()
+        val big = List(SmsJournal.MAX_PDUS) { i -> ByteArray(SmsJournal.MAX_PDU_BYTES) { (i + it).toByte() } }
+        val format = "x".repeat(SmsJournal.MAX_FORMAT_CHARS)
+        val key = assertNotNull(j.write(format, big, 7, 1)).key
+        val entry = j.pending().single()
+        assertEquals(key, entry.key)
+        assertEquals(SmsJournal.MAX_PDUS, entry.pdus.size)
+        assertTrue(entry.pdus.zip(big).all { (x, y) -> x.contentEquals(y) })
+        assertEquals(0, j.quarantinedCount())
     }
 
     @Test

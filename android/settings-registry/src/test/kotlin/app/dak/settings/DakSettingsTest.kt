@@ -80,6 +80,25 @@ class DakSettingsTest {
     }
 
     @Test
+    fun `app lock rows default to off and live in the privacy group`() {
+        assertEquals("off", DakSettings.appLock.default)
+        assertEquals(
+            listOf("off", "device", "appPin"),
+            (DakSettings.appLock.control as ControlType.SingleChoice).options.map { it.value },
+        )
+        assertEquals(
+            listOf("immediately", "30s", "1m", "5m", "15m"),
+            (DakSettings.autoLockAfter.control as ControlType.SingleChoice).options.map { it.value },
+        )
+        assertEquals(false, DakSettings.protectSensitiveScreens.default)
+        listOf(DakSettings.appLock, DakSettings.autoLockAfter, DakSettings.lockOnScreenOff, DakSettings.hideInRecents, DakSettings.protectSensitiveScreens)
+            .forEach {
+                assertEquals(SettingsGroup.BACKUP_DATA, it.group)
+                assertTrue(it in DakSettings.all, "${it.key} missing from all")
+            }
+    }
+
+    @Test
     fun `otp related settings carry otp synonyms`() {
         val otpKeywords = setOf("one time password", "code", "verification")
         assertTrue(DakSettings.otpDisplaySize.keywords.any { it in otpKeywords })

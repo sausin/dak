@@ -23,6 +23,7 @@ import app.dak.telephony.internal.string
 import app.dak.telephony.internal.toContentValues
 import app.dak.telephony.internal.updateTolerant
 import app.dak.telephony.number.TelephonyNumberNormalizer
+import app.dak.telephony.provider.DeliveryStatusMapping
 import app.dak.telephony.provider.MmsAddrColumns
 import app.dak.telephony.provider.MmsColumns
 import app.dak.telephony.provider.MmsPartColumns
@@ -65,6 +66,7 @@ class MmsPersister @Inject constructor(
     private val writer: TelephonyProviderWriter,
     private val sims: SimRepository,
     private val normalizer: TelephonyNumberNormalizer,
+    private val deliveryReports: MmsDeliveryReportStore,
 ) {
     private val resolver get() = context.contentResolver
 
@@ -180,9 +182,38 @@ class MmsPersister @Inject constructor(
         }
     }
 
-    /** m-delivery-ind: sets `st` on our sent message with that Message-ID. */
-    suspend fun applyDeliveryReport(messageId: String, status: Int) {
-        updateByMessageId(messageId, ContentValues().apply { put(MmsColumns.STATUS, status) })
+    /**
+     * m-delivery-ind: sets `st` on our sent message with that Message-ID. The report is per recipient ([to]); for a
+     * group MMS the stored `st` is the aggregate (Retrieved only once every recipient was delivered, see
+     * [DeliveryStatusMapping.aggregateMmsSt]), so a double tick never shows while someone is still pending.
+     */
+    suspend fun applyDeliveryReport(messageId: String, status: Int, to: List<String> = emptyList()) {
+        val st = withContext(Dispatchers.IO) {
+            val row = resolver.safeQuery(
+                ProviderUris.MMS, arrayOf(MmsColumns.ID, MmsColumns.SUBSCRIPTION_ID), "${MmsColumns.MESSAGE_ID} = ?", arrayOf(messageId),
+            )?.use { c -> if (c.moveToFirst()) c.long(MmsColumns.ID) to c.int(MmsColumns.SUBSCRIPTION_ID, -1) else null }
+            val recipients = row?.let { recipientCount(it.first) } ?: 0
+            if (row == null || recipients <= 1) return@withContext status
+            val recipientKey = to.firstOrNull()?.let { normalizer.matchKey(it, row.second) } ?: "?"
+            val reports = deliveryReports.record(messageId, recipientKey, status, System.currentTimeMillis())
+            DeliveryStatusMapping.aggregateMmsSt(recipients, reports)
+        }
+        updateByMessageId(messageId, ContentValues().apply { put(MmsColumns.STATUS, st) })
+    }
+
+    /** Distinct To/Cc/Bcc recipients of a stored message (our own "insert-address-token" excluded). */
+    private fun recipientCount(id: Long): Int {
+        val out = HashSet<String>()
+        resolver.safeQuery(ProviderUris.mmsAddresses(id))?.use { c ->
+            while (c.moveToNext()) {
+                val address = c.string(MmsAddrColumns.ADDRESS)?.trim().orEmpty()
+                if (address.isEmpty() || address == MmsAddrColumns.INSERT_ADDRESS_TOKEN) continue
+                when (c.int(MmsAddrColumns.TYPE)) {
+                    MmsAddrColumns.TYPE_TO, MmsAddrColumns.TYPE_CC, MmsAddrColumns.TYPE_BCC -> out += address
+                }
+            }
+        }
+        return out.size
     }
 
     /** m-read-orig-ind: sets `read_status` on our sent message with that Message-ID. */

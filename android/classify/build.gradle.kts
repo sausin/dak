@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kover)
 }
 
 java {
@@ -39,5 +40,12 @@ tasks.test {
         providers.gradleProperty("dak.bench.jfr").orNull?.let { jvmArgs("-XX:FlightRecorderOptions:stackdepth=2048", "-XX:StartFlightRecording=filename=$it,settings=profile") }
     } else {
         exclude("**/bench/*Benchmark*")
+    }
+}
+
+// Coverage (docs/testing.md): the "coverage" variant is what the root merges and CI gates on. Pure-JVM module: its `test` task.
+kover {
+    currentProject {
+        createVariant("coverage") { add("jvm") }
     }
 }

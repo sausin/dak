@@ -64,8 +64,52 @@ jobs:
           "$RUNNER_TEMP/pdu-venv/bin/pip" install --quiet pytest==9.1.1 python-gsmmodem-new==0.13.0 smspdudecoder==2.2.0
           "$RUNNER_TEMP/pdu-venv/bin/python" -m pytest -q -p no:cacheprovider scripts/tests
 
-      - name: Unit tests (JVM + Android modules)
-        run: ./gradlew --continue test
+      - name: Unit tests (JVM + Android modules) with coverage
+        # One test run: Kover instruments the test tasks, and the "coverage" report variant (jvm / debug / freeDebug
+        # per module, merged at the root) is built from the same run. docs/testing.md.
+        run: ./gradlew --continue test koverXmlReportCoverage koverHtmlReportCoverage
+
+      - name: Coverage summary and floors
+        # Per-module line/branch table in the job summary, badge JSON, and a failure if any module drops below
+        # its floor in coverage-floors.json.
+        run: python3 scripts/coverage-summary.py --badge "$RUNNER_TEMP/coverage.json"
+
+      - name: Upload coverage report (HTML + XML)
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report-${{ github.run_number }}
+          path: |
+            android/build/reports/kover/
+            android/*/build/reports/kover/
+          if-no-files-found: ignore
+
+      - name: Publish coverage badge (main only)
+        # Commits coverage.json to the orphan `badges` branch, read by the README badge via shields.io's endpoint
+        # badge. Never runs for pull requests; a failure here only loses a badge update, not the build.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/badges"
+          rm -rf "$dir" && git init -q "$dir" && cd "$dir"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+          if git -c http.extraheader="$auth" fetch -q --depth=1 origin badges 2>/dev/null; then
+            git checkout -q -b badges FETCH_HEAD
+          else
+            git checkout -q --orphan badges
+          fi
+          cp "$RUNNER_TEMP/coverage.json" coverage.json
+          git add coverage.json
+          if git diff --cached --quiet; then echo "Badge unchanged."; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "coverage: $(python3 -c 'import json;print(json.load(open("coverage.json"))["message"])') (${GITHUB_SHA::7})"
+          git -c http.extraheader="$auth" push -q origin HEAD:refs/heads/badges
+          cat coverage.json
 
       - name: Build debug APKs (free + premium) and unsigned release builds (R8 check)
         # Release builds run R8 (minify + resource shrinking); a missing class or bad keep rule fails this step.

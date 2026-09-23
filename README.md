@@ -10,6 +10,7 @@ masked message, AI search of your typed query) ask for explicit consent first an
 (see the [privacy policy](docs/privacy-policy.md)).
 
 [![CI](https://github.com/sausin/dak/actions/workflows/android.yml/badge.svg)](https://github.com/sausin/dak/actions/workflows/android.yml)
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/sausin/dak/badges/coverage.json)](docs/testing.md)
 ![offline-first](https://img.shields.io/badge/free%20tier-offline--first-brightgreen)
 ![minSdk](https://img.shields.io/badge/minSdk-26-blue)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF)
@@ -353,6 +354,17 @@ flavours (uploaded as workflow artifacts, `dak-debug-apks-<run>`). Tags matching
 to a GitHub release. Signed release APKs build automatically when the repository secrets
 `DAK_KEYSTORE_BASE64`, `DAK_KEYSTORE_PASSWORD`, `DAK_KEY_ALIAS` and `DAK_KEY_PASSWORD` are set.
 Play Store `.aab` publishing is a later step.
+
+### Testing & coverage
+
+Unit tests run on the JVM (JUnit, Robolectric for the Android modules). CI measures line coverage with
+[Kover](https://github.com/Kotlin/kotlinx-kover), posts a per-module line/branch table to the job summary,
+uploads the HTML report, and fails if any module drops below its floor in
+[`android/coverage-floors.json`](android/coverage-floors.json). The badge above is the merged line coverage from
+the latest `main` build. Generated code (Hilt/Dagger, Room, `BuildConfig`/`R`, serializers) and `@Composable` UI
+functions are excluded, since Compose UI is not unit-tested; ViewModels and other UI-package logic still count.
+Locally: `./gradlew test koverHtmlReportCoverage`, or `scripts/jvm-test.sh koverXmlReportCoverage` without the
+Android SDK. Details: [`docs/testing.md`](docs/testing.md).
 
 ### Free vs. premium seam
 

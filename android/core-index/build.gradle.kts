@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -52,4 +53,11 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// Coverage (docs/testing.md): the "coverage" variant is what the root merges and CI gates on. Android library: the debug unit tests.
+kover {
+    currentProject {
+        createVariant("coverage") { add("debug") }
+    }
 }

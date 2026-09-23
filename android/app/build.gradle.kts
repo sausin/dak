@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kover)
 }
 
 val ciVersionCode = (System.getenv("DAK_VERSION_CODE") ?: "1").toInt()
@@ -139,4 +140,13 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// Coverage (docs/testing.md): the "coverage" variant is what the root merges and CI gates on. One flavour only:
+// free and premium compile the same shared classes (which cannot be merged), so premium-only code (src/premium)
+// is not in the metric.
+kover {
+    currentProject {
+        createVariant("coverage") { add("freeDebug") }
+    }
 }

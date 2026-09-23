@@ -3,7 +3,11 @@ package app.dak.index.repo
 import androidx.room.withTransaction
 import app.dak.core.model.MessageKey
 import app.dak.finance.ledger.Account
+import app.dak.finance.ledger.AccountAliases
 import app.dak.finance.ledger.AccountLedger
+import app.dak.finance.ledger.AccountMatcher
+import app.dak.finance.ledger.AccountObservation
+import app.dak.finance.ledger.AliasReason
 import app.dak.finance.ledger.BalanceState
 import app.dak.finance.ledger.BillingCycle
 import app.dak.finance.ledger.Ledger
@@ -16,6 +20,7 @@ import app.dak.finance.rates.RatesLoader
 import app.dak.finance.rates.RatesTable
 import app.dak.finance.reconcile.Reconciler
 import app.dak.index.db.DakIndexDatabase
+import app.dak.index.db.entity.AccountAliasRow
 import app.dak.index.db.entity.AccountRow
 import app.dak.index.db.entity.LedgerEntryRow
 import app.dak.index.sync.IndexRowMapper
@@ -35,6 +40,18 @@ import javax.inject.Singleton
 fun interface RatesSource {
     fun current(): RatesTable?
 }
+
+/**
+ * A probable same-account pair for the Passbook confirmation card: "Is A/c ••40065 the same as ••440065 (HDFC
+ * Bank)?". [sampleA]/[sampleB] are the newest SMS of each, to show one tap away.
+ */
+data class AccountAliasSuggestion(
+    val a: AccountSummary,
+    val b: AccountSummary,
+    val reason: AliasReason,
+    val sampleA: MessageKey?,
+    val sampleB: MessageKey?,
+)
 
 /** An account with its honest balance, for the Passbook list. */
 data class AccountSummary(
@@ -57,6 +74,7 @@ class LedgerRepository @Inject constructor(
 ) {
     private val ledgerDao = db.ledgerDao()
     private val messageDao = db.messageDao()
+    private val aliasDao = db.accountAliasDao()
     private val mutex = Mutex()
     private val rates: RatesSource = ratesSource.orElse(BundledRates)
 
@@ -99,24 +117,42 @@ class LedgerRepository @Inject constructor(
         recompute(listOf(accountId))
     }
 
-    /** Recomputes the given accounts from their indexed transaction messages. */
+    /** Recomputes the given accounts from their indexed transaction messages (merged accounts included). */
     suspend fun recompute(accountIds: Collection<String>) {
         if (accountIds.isEmpty()) return
         mutex.withLock {
-            for (id in accountIds.distinct()) recomputeLocked(id)
+            val aliases = loadAliases()
+            recomputeLocked(accountIds, aliases)
         }
     }
 
-    /** Recomputes every account (after a rebuild, restore or rates update). */
+    /** Recomputes every account (after a rebuild, restore, rates update or account merge). */
     suspend fun recomputeAll() {
         mutex.withLock {
             val ids = (messageDao.accountIds() + ledgerDao.accountIds()).distinct()
-            for (id in ids) recomputeLocked(id)
+            recomputeLocked(ids, loadAliases())
         }
     }
 
-    private suspend fun recomputeLocked(accountId: String) {
-        val rows = messageDao.byAccount(accountId)
+    private suspend fun recomputeLocked(accountIds: Collection<String>, aliases: AccountAliases) {
+        val canonical = LinkedHashSet<String>()
+        for (id in accountIds.distinct()) {
+            val target = aliases.resolve(id)
+            if (target != id) {
+                // Merged into another account: its own ledger row goes; the canonical account absorbs its entries.
+                db.withTransaction {
+                    ledgerDao.deleteEntries(id)
+                    ledgerDao.deleteAccount(id)
+                }
+            }
+            canonical += target
+        }
+        for (id in canonical) recomputeCanonical(id, aliases)
+    }
+
+    private suspend fun recomputeCanonical(accountId: String, aliases: AccountAliases) {
+        val members = aliases.membersOf(accountId).toList()
+        val rows = if (members.size <= 1) messageDao.byAccount(accountId) else messageDao.byAccounts(members)
         val inputs = rows.mapNotNull { row ->
             IndexRowMapper.transaction(row)?.let { LedgerInput(IndexRowMapper.key(row).toString(), row.dateMillis, it) }
         }
@@ -128,7 +164,7 @@ class LedgerRepository @Inject constructor(
             }
             return
         }
-        val built = Ledger.apply(inputs, rates.current(), statementDayFor = { previous?.statementDay })
+        val built = Ledger.apply(inputs, rates.current(), statementDayFor = { previous?.statementDay }, aliases = aliases)
             .firstOrNull { it.account.id == accountId } ?: return
         val reconciled = AccountLedger(built.account, Reconciler.reconcile(built.entries).entries)
         val now = System.currentTimeMillis()
@@ -141,6 +177,123 @@ class LedgerRepository @Inject constructor(
         }
     }
 
+    private suspend fun loadAliases(): AccountAliases =
+        AccountAliases(aliasDao.all().filter { it.same }.associate { it.aliasId to it.canonicalId })
+
+    // ---- account aliases (user-confirmed "same account" merges) ----
+
+    /**
+     * Probable same-account pairs for the user to confirm ("Is A/c XX40065 the same as XX440065?"), best first.
+     * Recomputed whenever accounts or decisions change; pairs already answered are never suggested again.
+     */
+    fun aliasSuggestions(): Flow<List<AccountAliasSuggestion>> =
+        combine(ledgerDao.observeAccounts(), aliasDao.observeAll()) { accounts, decisions -> accounts to decisions }
+            .map { (accounts, decisions) -> computeSuggestions(accounts, decisions) }
+            .flowOn(Dispatchers.IO)
+
+    /** The user says [aliasId] and [otherId] are one account: merges them (the id showing more digits is kept). */
+    suspend fun confirmSameAccount(aliasId: String, otherId: String): String {
+        val spans = messageDao.accountSpans().associateBy { it.accountId }
+        val canonical = AccountAliases.canonicalOf(aliasId, otherId) { spans[it]?.firstSeen }
+        val alias = if (canonical == aliasId) otherId else aliasId
+        mergeAccounts(alias, canonical)
+        return canonical
+    }
+
+    /** The user says the two are different accounts: remembered so the pair is never suggested again. */
+    suspend fun confirmDifferentAccounts(a: String, b: String) {
+        db.withTransaction {
+            aliasDao.deletePair(a, b)
+            aliasDao.put(AccountAliasRow(aliasId = minOf(a, b), canonicalId = maxOf(a, b), same = false, decidedAt = System.currentTimeMillis()))
+        }
+    }
+
+    /** Merges [aliasId] into [intoAccountId] (manual "Merge with…" or a confirmed suggestion) and recomputes both. */
+    suspend fun mergeAccounts(aliasId: String, intoAccountId: String) {
+        require(aliasId != intoAccountId) { "cannot merge an account into itself" }
+        val target = loadAliases().resolve(intoAccountId)
+        require(target != aliasId) { "merge would create a cycle" }
+        db.withTransaction {
+            aliasDao.deleteMergesOf(aliasId)
+            aliasDao.deletePair(aliasId, target)
+            aliasDao.put(AccountAliasRow(aliasId = aliasId, canonicalId = target, same = true, decidedAt = System.currentTimeMillis()))
+        }
+        recompute(listOf(aliasId, target))
+    }
+
+    /**
+     * Undoes a merge of [aliasId]: it becomes its own account again and the pair is remembered as different (so it
+     * is not suggested again right away). Returns false when it was not merged.
+     */
+    suspend fun unmergeAccount(aliasId: String): Boolean {
+        val rows = aliasDao.all().filter { it.aliasId == aliasId && it.same }
+        if (rows.isEmpty()) return false
+        db.withTransaction {
+            aliasDao.deleteMergesOf(aliasId)
+            for (row in rows) {
+                aliasDao.put(AccountAliasRow(aliasId = minOf(aliasId, row.canonicalId), canonicalId = maxOf(aliasId, row.canonicalId), same = false, decidedAt = System.currentTimeMillis()))
+            }
+        }
+        recompute(listOf(aliasId) + rows.map { it.canonicalId })
+        return true
+    }
+
+    /** Account ids merged into [accountId] (not including itself), live. */
+    fun mergedInto(accountId: String): Flow<List<String>> = aliasDao.observeAll().map { rows ->
+        val aliases = AccountAliases(rows.filter { it.same }.associate { it.aliasId to it.canonicalId })
+        aliases.membersOf(accountId).filter { it != accountId }.sorted()
+    }
+
+    /** Accounts [accountId] could be merged with by hand: same institution and kind, not already merged. */
+    fun mergeCandidates(accountId: String): Flow<List<AccountSummary>> = accounts().map { list ->
+        val self = list.firstOrNull { it.account.id == accountId }?.account ?: return@map emptyList()
+        list.filter {
+            it.account.id != accountId &&
+                it.account.institution.equals(self.institution, ignoreCase = true) &&
+                it.account.type == self.type
+        }
+    }
+
+    /** Newest message of a raw account id (an alias's own messages included), to show as a sample. */
+    suspend fun sampleMessageOf(accountId: String): MessageKey? =
+        messageDao.latestKeyOfAccount(accountId)?.let { MessageKey(it.kind, it.providerId) }
+
+    private suspend fun computeSuggestions(accounts: List<AccountRow>, decisions: List<AccountAliasRow>): List<AccountAliasSuggestion> {
+        if (accounts.size < 2) return emptyList()
+        val spans = messageDao.accountSpans().associateBy { it.accountId }
+        val observations = accounts.map { row ->
+            val account = toAccount(row)
+            AccountObservation(
+                accountId = row.id,
+                institution = row.institution,
+                type = account.type,
+                visibleDigits = Account.partsOf(row.id)?.third?.takeIf { d -> d.all { it.isDigit() } } ?: account.visibleDigits,
+                firstSeenMillis = spans[row.id]?.firstSeen ?: row.lastActivityMillis,
+                lastSeenMillis = row.lastActivityMillis,
+            )
+        }
+        val aliases = AccountAliases(decisions.filter { it.same }.associate { it.aliasId to it.canonicalId })
+        val decided = decisions.mapTo(HashSet()) { AccountMatcher.pairKey(it.aliasId, it.canonicalId) }
+        val raw = AccountMatcher.suggest(observations, decidedPairs = decided, aliases = aliases)
+        if (raw.isEmpty()) return emptyList()
+        val involved = raw.flatMap { listOf(it.accountA, it.accountB) }.distinct()
+        val bodies = aliases.let { a -> involved.flatMap { a.membersOf(it) }.distinct() }
+            .chunked(CHUNK).flatMap { messageDao.bodiesOfAccounts(it, CO_OCCURRENCE_SCAN) }
+        val coOccurring = AccountMatcher.coOccurringPairs(observations.filter { it.accountId in involved }, bodies.asSequence())
+        val byId = accounts.associateBy { it.id }
+        return raw.filter { it.pairKey !in coOccurring }.mapNotNull { s ->
+            val a = byId[s.accountA] ?: return@mapNotNull null
+            val b = byId[s.accountB] ?: return@mapNotNull null
+            AccountAliasSuggestion(
+                a = toSummary(a),
+                b = toSummary(b),
+                reason = s.reason,
+                sampleA = sampleMessageOf(a.id),
+                sampleB = sampleMessageOf(b.id),
+            )
+        }
+    }
+
     private object BundledRates : RatesSource {
         private val table: RatesTable by lazy { RatesLoader.loadBundled() }
         override fun current(): RatesTable = table
@@ -148,6 +301,7 @@ class LedgerRepository @Inject constructor(
 
     internal companion object {
         private const val CHUNK = 300
+        private const val CO_OCCURRENCE_SCAN = 200
 
         fun toAccount(row: AccountRow): Account = Account(
             id = row.id,
@@ -156,6 +310,7 @@ class LedgerRepository @Inject constructor(
             last4 = row.last4,
             homeCurrency = row.homeCurrency,
             statementDay = row.statementDay,
+            maskedNumber = row.maskedNumber,
         )
 
         fun toSummary(row: AccountRow): AccountSummary =
@@ -200,6 +355,7 @@ class LedgerRepository @Inject constructor(
                 entryCount = ledger.entries.size,
                 lastActivityMillis = ledger.entries.maxOfOrNull { it.dateMillis } ?: 0L,
                 updatedAt = nowMillis,
+                maskedNumber = ledger.account.maskedNumber,
             )
         }
 

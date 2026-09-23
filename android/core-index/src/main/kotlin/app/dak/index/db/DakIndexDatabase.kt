@@ -20,6 +20,7 @@ import app.dak.index.db.dao.ConversationAliasDao
 import app.dak.index.db.dao.SenderFoldDao
 import app.dak.index.db.entity.AccountAliasRow
 import app.dak.index.db.entity.AccountRow
+import app.dak.index.db.entity.AccountTypeOverrideRow
 import app.dak.index.db.entity.AppSignatureRow
 import app.dak.index.db.entity.AuditLogRow
 import app.dak.index.db.entity.AutomationRuleRow
@@ -65,8 +66,9 @@ import app.dak.index.db.entity.SenderMergeGroup
         SenderFold::class,
         ConversationAlias::class,
         AccountAliasRow::class,
+        AccountTypeOverrideRow::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(IndexConverters::class)

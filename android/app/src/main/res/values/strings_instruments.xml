@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Passbook instrument groups (agent I "instruments") -->
+    <string name="inst_group_bank_accounts">Bank accounts</string>
+    <string name="inst_group_credit_cards">Credit cards</string>
+    <string name="inst_group_debit_cards">Debit cards</string>
+    <string name="inst_group_wallets">Wallets</string>
+    <string name="inst_group_upi">UPI</string>
+    <string name="inst_group_prepaid">Prepaid &amp; forex cards</string>
+    <string name="inst_group_loans">Loans</string>
+    <string name="inst_group_other">Other</string>
+    <string name="inst_group_header">%1$s · %2$d</string>
+    <string name="inst_group_expand">Show %1$s</string>
+    <string name="inst_group_collapse">Hide %1$s</string>
+
+    <!-- Header totals, per currency, never converted -->
+    <string name="inst_total_balance">Balance %1$s</string>
+    <string name="inst_total_outstanding">Outstanding %1$s</string>
+    <string name="inst_total_spent">Spent this month %1$s</string>
+    <string name="inst_total_nothing_spent">Nothing spent this month</string>
+    <string name="inst_total_no_balance">No balance stated yet</string>
+    <string name="inst_total_no_outstanding">Set statement days to see outstanding</string>
+    <string name="inst_total_missing">%1$d not known</string>
+
+    <!-- Account title kinds ("HDFC Bank debit card ••1234") -->
+    <string name="inst_kind_account">account</string>
+    <string name="inst_kind_credit_card">credit card</string>
+    <string name="inst_kind_debit_card">debit card</string>
+    <string name="inst_kind_wallet">wallet</string>
+    <string name="inst_kind_upi">UPI</string>
+    <string name="inst_kind_prepaid">prepaid card</string>
+    <string name="inst_kind_loan">loan</string>
+    <string name="inst_kind_other">account</string>
+
+    <!-- Type chips -->
+    <string name="inst_chip_account">Account</string>
+    <string name="inst_chip_credit_card">Credit card</string>
+    <string name="inst_chip_debit_card">Debit card</string>
+    <string name="inst_chip_wallet">Wallet</string>
+    <string name="inst_chip_upi">UPI</string>
+    <string name="inst_chip_prepaid">Prepaid</string>
+    <string name="inst_chip_loan">Loan</string>
+    <string name="inst_chip_other">Other</string>
+
+    <!-- Account rows -->
+    <string name="inst_row_spent_month">This month %1$s</string>
+    <string name="inst_row_outstanding">Outstanding %1$s</string>
+    <string name="inst_row_linked_to">Linked to %1$s</string>
+    <string name="inst_row_card_no_balance">Card spends only; no balance of its own</string>
+    <string name="inst_row_via">via %1$s</string>
+
+    <!-- Account screen per type -->
+    <string name="inst_balance_account">Balance</string>
+    <string name="inst_balance_wallet">Wallet balance</string>
+    <string name="inst_balance_prepaid">Card balance</string>
+    <string name="inst_balance_loan">Outstanding (as stated)</string>
+    <string name="inst_balance_upi">UPI payments</string>
+    <string name="inst_upi_note">UPI messages that do not name a bank account. Balances are shown on the account itself when a message names it.</string>
+    <string name="inst_loan_no_outstanding">No message has stated the outstanding amount yet.</string>
+    <string name="inst_loan_emis">EMI payments</string>
+    <string name="inst_loan_paid_from">EMIs paid from %1$s</string>
+    <string name="inst_debit_linked_header">Linked bank account</string>
+    <string name="inst_debit_unlinked">No message has named the account this card debits yet, so its spends are shown here without a balance.</string>
+    <string name="inst_debit_stated_balance">Available balance stated with a card spend (the bank account\'s, not the card\'s)</string>
+    <string name="inst_open_linked">Open account</string>
+    <string name="inst_spent_this_month">Spent this month</string>
+
+    <!-- Manual type -->
+    <string name="inst_type_label">Type</string>
+    <string name="inst_type_detected">Detected from messages</string>
+    <string name="inst_type_set_by_you">Set by you</string>
+    <string name="inst_type_change">Change type</string>
+    <string name="inst_type_dialog_title">What is this?</string>
+    <string name="inst_type_reset">Use detected type</string>
+    <string name="inst_type_option_account">A bank account</string>
+    <string name="inst_type_option_credit_card">This is a credit card</string>
+    <string name="inst_type_option_debit_card">This is a debit card</string>
+    <string name="inst_type_option_wallet">A wallet</string>
+    <string name="inst_type_option_upi">UPI payments</string>
+    <string name="inst_type_option_prepaid">A prepaid, forex or gift card</string>
+    <string name="inst_type_option_loan">A loan or EMI account</string>
+    <string name="inst_type_option_other">Something else</string>
+</resources>

@@ -24,6 +24,7 @@ object Tables {
     const val SENDER_FOLD = "sender_fold"
     const val CONVERSATION_ALIAS = "conversation_alias"
     const val ACCOUNT_ALIAS = "account_alias"
+    const val ACCOUNT_TYPE_OVERRIDE = "account_type_override"
 }
 
 /** A SQL statement plus its positional bind arguments (only [String], [Long] and [Double] values). */

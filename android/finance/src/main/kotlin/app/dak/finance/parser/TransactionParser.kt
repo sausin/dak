@@ -3,6 +3,7 @@ package app.dak.finance.parser
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.InstrumentType
 import app.dak.core.model.TransactionDirection
+import app.dak.finance.money.CurrencyTable
 import app.dak.finance.money.DigitNormalizer
 import app.dak.finance.money.MoneyOccurrence
 import app.dak.finance.money.MoneyParser
@@ -72,8 +73,16 @@ object TransactionParser {
         Regex("""txn\s*id\s*[:\-]?\s*(\w+)""", RegexOption.IGNORE_CASE),
     )
 
-    /** Parses [body] from [sender] into an [ExtractedTransaction], or null if it is not a completed transaction. */
-    fun parse(sender: String, rawBody: String): ExtractedTransaction? {
+    /**
+     * Parses [rawBody] from [sender] into an [ExtractedTransaction], or null if it is not a completed transaction.
+     * [symbolMap] resolves symbols such as a bare `$`; pass `CurrencyTable.symbolMapFor(homeCurrency)` so `$` reads
+     * as CAD for a Canadian SIM, SGD for a Singaporean one, and so on (the default reads it as USD).
+     */
+    fun parse(
+        sender: String,
+        rawBody: String,
+        symbolMap: Map<String, String> = CurrencyTable.defaultSymbolToCurrency,
+    ): ExtractedTransaction? {
         // Normalise non-ASCII decimal digits (Devanagari, Bengali, Arabic-Indic, full-width, ...)
         // once up front so every `\d` regex below (last4, reference, amounts) matches regardless
         // of the digit script the SMS was written in.
@@ -93,7 +102,7 @@ object TransactionParser {
             else -> return null
         }
 
-        val occurrences = MoneyParser.findAll(body)
+        val occurrences = MoneyParser.findAll(body, symbolMap)
         if (occurrences.isEmpty()) return null
 
         val detected = InstrumentDetector.detect(sender, body)
@@ -129,10 +138,14 @@ object TransactionParser {
     }
 
     /** Parses [body] as a bill/statement-due reminder, or null if it doesn't look like one. */
-    fun parseBillReminder(sender: String, rawBody: String): BillReminder? {
+    fun parseBillReminder(
+        sender: String,
+        rawBody: String,
+        symbolMap: Map<String, String> = CurrencyTable.defaultSymbolToCurrency,
+    ): BillReminder? {
         val body = DigitNormalizer.normalizeDigits(rawBody)
         if (!billReminderPattern.containsMatchIn(body)) return null
-        val amount = MoneyParser.findAll(body).firstOrNull() ?: return null
+        val amount = MoneyParser.findAll(body, symbolMap).firstOrNull() ?: return null
         val dueHint = Regex("""due on[^.,\n]*""", RegexOption.IGNORE_CASE).find(body)?.value
         return BillReminder(
             amountMinor = amount.money.amountMinor,

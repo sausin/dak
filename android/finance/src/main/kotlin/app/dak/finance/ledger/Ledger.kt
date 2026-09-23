@@ -1,5 +1,6 @@
 package app.dak.finance.ledger
 
+import app.dak.finance.parser.InstitutionTable
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.InstrumentType
 import app.dak.core.model.TransactionDirection
@@ -64,10 +65,10 @@ object Ledger {
      *
      * @param rates used to compute an indicative home-currency value for a foreign-currency entry;
      *   when null (or the pair is not covered), foreign entries are posted with no indicative value.
-     * @param defaultHomeCurrency the account's home currency when no balance-bearing SMS states one, e.g. INR for
-     *   an Indian institution or the currency of the user's region (see `CurrencyTable.symbolMapFor`); null when
-     *   unknown, in which case the currency most of the account's own transactions are in is used. Never assumes a
-     *   country.
+     * @param defaultHomeCurrency the account's home currency when no balance-bearing SMS states one; null when
+     *   unknown, in which case the currency most of the account's own transactions are in is used. The default,
+     *   [institutionHomeCurrency], knows only the institution's own country (INR for an Indian bank); callers add the
+     *   user's region currency as the next fallback. Never assumes a country.
      * @param statementDayFor supplies a credit card's configured statement day; null leaves it unset.
      * @param aliases user-confirmed merges: inputs of an alias id are posted to the account it resolves to.
      * @param instrumentOverride the user's manual type for an account ("This is a credit card"), by canonical id;
@@ -81,7 +82,7 @@ object Ledger {
     fun apply(
         inputs: List<LedgerInput>,
         rates: RatesTable? = null,
-        defaultHomeCurrency: (institution: String?) -> String? = { null },
+        defaultHomeCurrency: (institution: String?) -> String? = ::institutionHomeCurrency,
         statementDayFor: (Account) -> Int? = { null },
         aliases: AccountAliases = AccountAliases.NONE,
         instrumentOverride: (accountId: String) -> InstrumentType? = { null },
@@ -132,6 +133,10 @@ object Ledger {
         )
         return listOf(Posting(primary), Posting(input.copy(transaction = bankTxn), viaAccountId = aliases.resolve(Account.idOf(txn))))
     }
+
+    /** The currency of [institution]'s home country when [InstitutionTable] knows it (INR for Indian banks), else null. */
+    fun institutionHomeCurrency(institution: String?): String? =
+        if (InstitutionTable.countryOf(institution) == "IN") "INR" else null
 
     /** The currency most of [inputs] are in (ties: the earliest seen), from the SMS themselves. */
     private fun dominantCurrency(inputs: List<LedgerInput>): String =

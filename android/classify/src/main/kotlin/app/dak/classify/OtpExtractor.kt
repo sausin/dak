@@ -33,14 +33,18 @@ public object OtpExtractor {
     private val otpKeywordEn = "otp|one[- ]?time password|verification code|security code|passcode|auth(?:entication)? code|login code"
     private val otpKeywordHi = "ओटीपी|सत्यापन कोड|वन टाइम पासवर्ड"
 
-    // "OTP is 123456", "OTP: 123456", "your OTP for login is 123456"
+    // Arabic (Gulf / MENA banks): "verification code", "activation code", "one-time password / code".
+    private val otpKeywordAr = "رمز التحقق|رمز التفعيل|كلمة المرور لمرة واحدة|رمز لمرة واحدة|الرمز السري المؤقت"
+
+    // "OTP is 123456", "OTP: 123456", "your OTP for login is 123456", "OTP for ADCB login is 348201" (the code must
+    // contain a digit, so a brand name in between is skipped rather than ending the search).
     private val codeAfterKeyword = Regex(
-        """(?i)(?:$otpKeywordEn|$otpKeywordHi)[^\n]{0,40}?\b([A-Z0-9]{4,8})\b""",
+        """(?i)(?:$otpKeywordEn|$otpKeywordHi|$otpKeywordAr)[^\n]{0,40}?\b((?=[A-Z]*\d)[A-Z0-9]{4,8})\b""",
     )
 
-    // "123456 is your OTP", "123456 is the verification code"
+    // "123456 is your OTP", "123456 is the verification code", "G-123456 is your Google verification code"
     private val codeBeforeKeyword = Regex(
-        """\b([A-Z0-9]{4,8})\b[^0-9A-Za-z]{0,15}?is\s+(?:your|the)?\s*(?:$otpKeywordEn)""",
+        """\b([A-Z0-9]{4,8})\b[^0-9A-Za-z]{0,15}?is\s+(?:your|the)?\s*(?:[\p{L}\d&'.-]{1,24}\s+){0,3}?(?:$otpKeywordEn)""",
         RegexOption.IGNORE_CASE,
     )
 

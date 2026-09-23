@@ -9,6 +9,7 @@ import app.dak.di.AndroidContactLookup
 import app.dak.index.enrich.ClassifierAssets
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
+import app.dak.telephony.region.RegionProvider
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +25,7 @@ import javax.inject.Singleton
 class FakeCreditCheck @Inject constructor(
     private val contacts: AndroidContactLookup,
     private val settings: SettingsStore,
+    private val regions: RegionProvider,
 ) {
     private val detector: FakeCreditDetector by lazy { FakeCreditDetector(ClassifierAssets.defaultTemplates) }
 
@@ -34,7 +36,9 @@ class FakeCreditCheck @Inject constructor(
     fun verdictFor(message: Message): ScamVerdict {
         if (message.box != MessageBox.INBOX || !warningsEnabled()) return ScamVerdict.None
         return try {
-            if (!detector.isCandidate(message.address, message.body)) {
+            // India's DLT rules only for messages on an Indian SIM; null (unknown region) means generic rules.
+            val region = regions.forSubId(message.subId).countryIso
+            if (!detector.isCandidate(message.address, message.body, region)) {
                 ScamVerdict.None
             } else {
                 detector.evaluate(
@@ -42,6 +46,7 @@ class FakeCreditCheck @Inject constructor(
                     body = message.body,
                     isSavedContact = contacts.isContact(message.address),
                     dateMillis = message.dateMillis,
+                    region = region,
                 )
             }
         } catch (e: RuntimeException) {

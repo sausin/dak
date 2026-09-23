@@ -40,5 +40,36 @@ object IndexMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2)
+    /** SQL of [MIGRATION_2_3], exposed for tests. */
+    val SQL_2_3: List<String> = listOf(
+        // AccountRow.linkedAccountId (debit card / loan -> the bank account an SMS named with it).
+        "ALTER TABLE `${Tables.ACCOUNT}` ADD COLUMN `linkedAccountId` TEXT",
+        // LedgerEntryRow is derived data: recreated with the (accountId, messageKey) key and viaAccountId, and
+        // refilled by the re-index (enricher LOGIC_REVISION 4) that ships with this version.
+        "DROP TABLE IF EXISTS `${Tables.LEDGER_ENTRY}`",
+        "CREATE TABLE IF NOT EXISTS `${Tables.LEDGER_ENTRY}` (`messageKey` TEXT NOT NULL, `accountId` TEXT NOT NULL, " +
+            "`dateMillis` INTEGER NOT NULL, `direction` TEXT NOT NULL, `originalMinor` INTEGER NOT NULL, " +
+            "`originalCurrency` TEXT NOT NULL, `indicativeMinor` INTEGER, `indicativeCurrency` TEXT, `rate` TEXT, " +
+            "`rateDateMillis` INTEGER, `settled` INTEGER NOT NULL, `markupPercent` TEXT, `balanceAfterMinor` INTEGER, " +
+            "`balanceAfterCurrency` TEXT, `merchant` TEXT, `reference` TEXT, `viaAccountId` TEXT, " +
+            "PRIMARY KEY(`accountId`, `messageKey`))",
+        "CREATE INDEX IF NOT EXISTS `index_${Tables.LEDGER_ENTRY}_accountId_dateMillis` ON `${Tables.LEDGER_ENTRY}` " +
+            "(`accountId`, `dateMillis`)",
+        // AccountTypeOverrideRow (user data).
+        "CREATE TABLE IF NOT EXISTS `${Tables.ACCOUNT_TYPE_OVERRIDE}` (`accountId` TEXT NOT NULL, " +
+            "`instrument` TEXT NOT NULL, `decidedAt` INTEGER NOT NULL, PRIMARY KEY(`accountId`))",
+    )
+
+    /**
+     * 2 -> 3: account instrument groups (debit/prepaid/loan). Adds the linked bank account of a debit card or loan,
+     * the user's manual account types, and re-keys the derived ledger entries so one message can post to a card and
+     * the bank account it names. Only derived data (ledger entries) is dropped; user data is untouched.
+     */
+    val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (sql in SQL_2_3) db.execSQL(sql)
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 }

@@ -54,7 +54,9 @@ class RegexSafetyTest {
                 val start = System.nanoTime()
                 pattern.matcher(body).find()
                 val ms = (System.nanoTime() - start) / 1_000_000
-                assertTrue(ms < 500, "'$p' took ${ms}ms")
+                // Accepted patterns may be polynomial (e.g. a+b+c+ is quadratic: ~100 ms on a laptop at the 4k cap),
+                // so the budget targets exponential blowup, which takes seconds to hours, not CI-runner speed.
+                assertTrue(ms < 3_000, "'$p' took ${ms}ms")
             }
         }
     }

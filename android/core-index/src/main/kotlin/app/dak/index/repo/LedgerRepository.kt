@@ -2,12 +2,14 @@ package app.dak.index.repo
 
 import androidx.room.withTransaction
 import app.dak.classify.scam.ScamLabels
+import app.dak.core.model.InstrumentType
 import app.dak.core.model.MessageKey
 import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountAliases
 import app.dak.finance.ledger.AccountLedger
 import app.dak.finance.ledger.AccountMatcher
 import app.dak.finance.ledger.AccountObservation
+import app.dak.finance.ledger.AccountType
 import app.dak.finance.ledger.AliasReason
 import app.dak.finance.ledger.BalanceState
 import app.dak.finance.ledger.BillingCycle
@@ -15,7 +17,9 @@ import app.dak.finance.ledger.Ledger
 import app.dak.finance.ledger.LedgerEntry
 import app.dak.finance.ledger.LedgerInput
 import app.dak.finance.money.Money
-import app.dak.finance.parser.InstitutionTable
+import app.dak.finance.passbook.AccountFacts
+import app.dak.finance.passbook.AccountGroup
+import app.dak.finance.passbook.AccountGroups
 import app.dak.finance.passbook.MonthlyTotal
 import app.dak.finance.passbook.Passbook
 import app.dak.finance.rates.RatesLoader
@@ -24,6 +28,7 @@ import app.dak.finance.reconcile.Reconciler
 import app.dak.index.db.DakIndexDatabase
 import app.dak.index.db.entity.AccountAliasRow
 import app.dak.index.db.entity.AccountRow
+import app.dak.index.db.entity.AccountTypeOverrideRow
 import app.dak.index.db.entity.LedgerEntryRow
 import app.dak.index.sync.IndexRowMapper
 import app.dak.telephony.region.RegionProfile
@@ -66,6 +71,8 @@ data class AccountSummary(
     val balance: BalanceState,
     val entryCount: Int,
     val lastActivityMillis: Long,
+    /** True when the user set this account's type by hand ([LedgerRepository.setAccountType]). */
+    val typeOverridden: Boolean = false,
 )
 
 /**
@@ -88,11 +95,59 @@ class LedgerRepository @Inject constructor(
     private val rates: RatesSource = ratesSource.orElse(BundledRates)
 
     fun accounts(): Flow<List<AccountSummary>> =
-        ledgerDao.observeAccounts().map { rows -> rows.map { toSummary(it) } }.flowOn(Dispatchers.Default)
+        combine(ledgerDao.observeAccounts(), overriddenIds()) { rows, overridden -> rows.map { toSummary(it, it.id in overridden) } }
+            .flowOn(Dispatchers.Default)
 
     /** One account; an id merged into another account shows that (canonical) account. */
     fun account(accountId: String): Flow<AccountSummary?> =
-        canonicalId(accountId).flatMapLatest { id -> ledgerDao.observeAccount(id) }.map { it?.let { row -> toSummary(row) } }
+        canonicalId(accountId).flatMapLatest { id -> combine(ledgerDao.observeAccount(id), overriddenIds()) { row, o -> row to o } }
+            .map { (row, overridden) -> row?.let { toSummary(it, it.id in overridden) } }
+
+    private fun overriddenIds(): Flow<Set<String>> =
+        ledgerDao.observeTypeOverrides().map { rows -> rows.mapTo(HashSet()) { it.accountId } }.distinctUntilChanged()
+
+    /**
+     * The Passbook's sections: Bank accounts, Credit cards, Debit cards, Wallets, UPI, Prepaid & forex cards, Loans,
+     * Other (empty ones left out), each with header totals per currency (see `AccountGroups`). Each item carries its
+     * spend this month (UTC, as of [nowMillis]), a credit card's cycle outstanding when its statement day is known,
+     * and a debit card's / loan's linked bank account when an SMS named one.
+     */
+    fun accountGroups(nowMillis: Long = System.currentTimeMillis()): Flow<List<AccountGroup<AccountGroupItem>>> =
+        combine(accounts(), ledgerDao.observeDebitsSince(AccountGroups.monthStartUtc(nowMillis))) { summaries, debits -> summaries to debits }
+            .map { (summaries, debits) ->
+                val spend = debits.groupBy { it.accountId }
+                    .mapValues { (_, rows) -> AccountGroups.sum(rows.map { Money(it.totalMinor, it.currency) }) }
+                val byId = summaries.associateBy { it.account.id }
+                val items = summaries.map { s ->
+                    val day = s.account.statementDay
+                    val outstanding = if (s.account.type == AccountType.CREDIT_CARD && day != null) {
+                        AccountLedger(s.account, ledgerDao.entries(s.account.id).map { toEntry(it) }).cardOutstanding(nowMillis, BillingCycle(day))
+                    } else {
+                        null
+                    }
+                    AccountGroupItem(s, spend[s.account.id].orEmpty(), outstanding, s.account.linkedAccountId?.let { byId[it] })
+                }
+                AccountGroups.group(
+                    items,
+                    facts = { AccountFacts(it.summary.account, it.summary.balance, it.spentThisMonth, it.outstanding) },
+                    lastActivity = { it.summary.lastActivityMillis },
+                )
+            }
+            .flowOn(Dispatchers.IO)
+
+    /**
+     * Sets [accountId]'s type by hand ("This is a credit card"), or clears it with null (back to the type detected
+     * from its SMS). Persisted as user data; the account keeps its id and is recomputed.
+     */
+    suspend fun setAccountType(accountId: String, instrument: InstrumentType?) {
+        val id = loadAliases().resolve(accountId)
+        if (instrument == null) {
+            ledgerDao.deleteTypeOverride(id)
+        } else {
+            ledgerDao.putTypeOverride(AccountTypeOverrideRow(id, instrument, System.currentTimeMillis()))
+        }
+        recompute(listOf(id))
+    }
 
     /** Entries of one account (merged accounts included), newest first. */
     fun entries(accountId: String): Flow<List<LedgerEntry>> =
@@ -153,6 +208,7 @@ class LedgerRepository @Inject constructor(
     }
 
     private suspend fun recomputeLocked(accountIds: Collection<String>, aliases: AccountAliases) {
+        val overrides = ledgerDao.typeOverrides().associate { it.accountId to it.instrument }
         val canonical = LinkedHashSet<String>()
         for (id in accountIds.distinct()) {
             val target = aliases.resolve(id)
@@ -165,23 +221,51 @@ class LedgerRepository @Inject constructor(
             }
             canonical += target
         }
-        for (id in canonical) recomputeCanonical(id, aliases)
+        // Debit cards and loans first: their SMS can name a bank account, which is then recomputed after them so it
+        // picks up the card's postings (and drops them when the link went away).
+        val (linkers, others) = canonical.partition { isLinker(it) }
+        val done = HashSet<String>()
+        val linkedTargets = LinkedHashSet<String>()
+        for (id in linkers) {
+            linkedTargets += recomputeCanonical(id, aliases, overrides)
+            done += id
+        }
+        for (id in others + linkedTargets.map { aliases.resolve(it) }) {
+            if (done.add(id)) recomputeCanonical(id, aliases, overrides)
+        }
     }
 
-    private suspend fun recomputeCanonical(accountId: String, aliases: AccountAliases) {
+    /** Whether [accountId]'s id says debit card or loan (the instruments whose SMS may name a bank account). */
+    private fun isLinker(accountId: String): Boolean =
+        Account.partsOf(accountId)?.second.let { it == InstrumentType.DEBIT_CARD.name || it == InstrumentType.LOAN.name }
+
+    /**
+     * Rebuilds one canonical account. Returns the bank account ids linked to it before and after (for a debit card or
+     * loan), which the caller recomputes next.
+     */
+    private suspend fun recomputeCanonical(
+        accountId: String,
+        aliases: AccountAliases,
+        overrides: Map<String, InstrumentType>,
+    ): List<String> {
         val members = aliases.membersOf(accountId).toList()
-        val rows = if (members.size <= 1) messageDao.byAccount(accountId) else messageDao.byAccounts(members)
+        val ownRows = if (members.size <= 1) messageDao.byAccount(accountId) else messageDao.byAccounts(members)
+        // Spends of debit cards / loans whose SMS named this account post here too (Ledger.apply keeps only the
+        // postings that resolve to this account).
+        val linkers = ledgerDao.accountsLinkedTo(members).flatMap { aliases.membersOf(it) }.distinct().filter { it !in members }
+        val rows = if (linkers.isEmpty()) ownRows else ownRows + linkers.chunked(CHUNK).flatMap { messageDao.byAccounts(it) }
         // Likely fake credit alerts never create entries or move balances (docs/security/fake-credit-scams.md).
         val inputs = rows.filterNot { ScamLabels.excludedFromLedger(it.labels) }.mapNotNull { row ->
             IndexRowMapper.transaction(row)?.let { LedgerInput(IndexRowMapper.key(row).toString(), row.dateMillis, it) }
         }
         val previous = ledgerDao.account(accountId)
+        val previousLinked = listOfNotNull(previous?.linkedAccountId)
         if (inputs.isEmpty()) {
             db.withTransaction {
                 ledgerDao.deleteEntries(accountId)
                 ledgerDao.deleteAccount(accountId)
             }
-            return
+            return previousLinked
         }
         val region = regions.current()
         val built = Ledger.apply(
@@ -190,8 +274,9 @@ class LedgerRepository @Inject constructor(
             defaultHomeCurrency = { institution -> defaultHomeCurrency(institution, region) },
             statementDayFor = { previous?.statementDay },
             aliases = aliases,
+            instrumentOverride = { overrides[it] },
         )
-            .firstOrNull { it.account.id == accountId } ?: return
+            .firstOrNull { it.account.id == accountId } ?: return previousLinked
         val reconciled = AccountLedger(built.account, Reconciler.reconcile(built.entries).entries)
         val now = System.currentTimeMillis()
         val accountRow = toAccountRow(reconciled, previous?.statementDay, now)
@@ -201,6 +286,7 @@ class LedgerRepository @Inject constructor(
             entryRows.chunked(CHUNK).forEach { ledgerDao.putEntries(it) }
             ledgerDao.putAccount(accountRow)
         }
+        return (previousLinked + listOfNotNull(reconciled.account.linkedAccountId)).distinct()
     }
 
     /**
@@ -209,7 +295,7 @@ class LedgerRepository @Inject constructor(
      * of the account's transactions are in) when the region is unknown.
      */
     private fun defaultHomeCurrency(institution: String?, region: RegionProfile): String? =
-        InstitutionTable.countryOf(institution)?.let { RegionProfile.currencyOf(it) } ?: region.homeCurrency
+        Ledger.institutionHomeCurrency(institution) ?: region.homeCurrency
 
     private suspend fun loadAliases(): AccountAliases =
         AccountAliases(aliasDao.all().filter { it.same }.associate { it.aliasId to it.canonicalId })
@@ -284,7 +370,7 @@ class LedgerRepository @Inject constructor(
         list.filter {
             it.account.id != accountId &&
                 it.account.institution.equals(self.institution, ignoreCase = true) &&
-                it.account.type == self.type
+                it.account.type.aliasFamily == self.type.aliasFamily
         }
     }
 
@@ -346,10 +432,11 @@ class LedgerRepository @Inject constructor(
             homeCurrency = row.homeCurrency,
             statementDay = row.statementDay,
             maskedNumber = row.maskedNumber,
+            linkedAccountId = row.linkedAccountId,
         )
 
-        fun toSummary(row: AccountRow): AccountSummary =
-            AccountSummary(toAccount(row), balanceOf(row), row.entryCount, row.lastActivityMillis)
+        fun toSummary(row: AccountRow, typeOverridden: Boolean = false): AccountSummary =
+            AccountSummary(toAccount(row), balanceOf(row), row.entryCount, row.lastActivityMillis, typeOverridden)
 
         fun balanceOf(row: AccountRow): BalanceState {
             val known = if (row.balanceMinor != null && row.balanceCurrency != null && row.balanceAsOfMillis != null) {
@@ -391,6 +478,7 @@ class LedgerRepository @Inject constructor(
                 lastActivityMillis = ledger.entries.maxOfOrNull { it.dateMillis } ?: 0L,
                 updatedAt = nowMillis,
                 maskedNumber = ledger.account.maskedNumber,
+                linkedAccountId = ledger.account.linkedAccountId,
             )
         }
 
@@ -411,6 +499,7 @@ class LedgerRepository @Inject constructor(
             balanceAfterCurrency = e.balanceAfter?.currencyUpper,
             merchant = e.merchant,
             reference = e.reference,
+            viaAccountId = e.viaAccountId,
         )
 
         fun toEntry(row: LedgerEntryRow): LedgerEntry = LedgerEntry(
@@ -434,6 +523,7 @@ class LedgerRepository @Inject constructor(
             },
             merchant = row.merchant,
             reference = row.reference,
+            viaAccountId = row.viaAccountId,
         )
 
         private fun decimalOrNull(s: String): BigDecimal? = runCatching { BigDecimal(s) }.getOrNull()

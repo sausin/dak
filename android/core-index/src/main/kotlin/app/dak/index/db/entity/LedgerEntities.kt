@@ -32,6 +32,20 @@ data class AccountRow(
     val updatedAt: Long,
     /** The number as the bank last showed it (e.g. `XX440065`), if the SMS showed a mask. */
     val maskedNumber: String? = null,
+    /** For a debit card or loan: the bank account an SMS named alongside it (`Account.linkedAccountId`). */
+    val linkedAccountId: String? = null,
+)
+
+/**
+ * The user's manual type for a ledger account ("This is a credit card"): [instrument] replaces the detected
+ * instrument of [accountId] (its canonical id) in the ledger and Passbook groups. User data: survives ledger
+ * recomputation and index rebuilds.
+ */
+@Entity(tableName = Tables.ACCOUNT_TYPE_OVERRIDE)
+data class AccountTypeOverrideRow(
+    @PrimaryKey val accountId: String,
+    val instrument: InstrumentType,
+    val decidedAt: Long,
 )
 
 /**
@@ -50,12 +64,18 @@ data class AccountAliasRow(
 
 /**
  * One posted ledger entry (see `app.dak.finance.ledger.LedgerEntry`). Derived from the index; recomputed per
- * account whenever a message of that account is (re)indexed. Decimal values are stored as plain strings.
+ * account whenever a message of that account is (re)indexed. Decimal values are stored as plain strings. One message
+ * can be posted to two accounts (a debit-card spend also appears on the bank account it names), hence the
+ * `(accountId, messageKey)` key.
  */
-@Entity(tableName = Tables.LEDGER_ENTRY, indices = [Index(value = ["accountId", "dateMillis"])])
+@Entity(
+    tableName = Tables.LEDGER_ENTRY,
+    primaryKeys = ["accountId", "messageKey"],
+    indices = [Index(value = ["accountId", "dateMillis"])],
+)
 data class LedgerEntryRow(
     /** Source message key, `MessageKey.toString()` form (e.g. `sms:42`). */
-    @PrimaryKey val messageKey: String,
+    val messageKey: String,
     val accountId: String,
     val dateMillis: Long,
     val direction: TransactionDirection,
@@ -71,4 +91,6 @@ data class LedgerEntryRow(
     val balanceAfterCurrency: String?,
     val merchant: String?,
     val reference: String?,
+    /** The debit card / loan this entry was posted through (`LedgerEntry.viaAccountId`), for a linked bank account. */
+    val viaAccountId: String? = null,
 )

@@ -18,6 +18,7 @@ import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.Message
 import app.dak.core.model.MessageBox
 import app.dak.core.model.TransactionDirection
+import app.dak.finance.money.CurrencyTable
 import app.dak.finance.parser.TransactionParser
 import app.dak.index.scam.ScamContextSource
 import app.dak.telephony.region.RegionProfile
@@ -102,7 +103,9 @@ class DefaultMessageEnricher(
             val pipeline = if (allowCloud) s.withCloud else s.local
             val classification = pipeline.classify(message.address, message.body, message.subId)
             val transaction = if (shouldParseTransaction(message.address, classification.category)) {
-                TransactionParser.parse(message.address, message.body)
+                // A bare "$" reads as the SIM region's own dollar (CAD, AUD, SGD...), else USD.
+                val home = runCatching { regionFor(message.subId).homeCurrency }.getOrNull()
+                TransactionParser.parse(message.address, message.body, CurrencyTable.symbolMapFor(home))
             } else {
                 null
             }
@@ -118,10 +121,12 @@ class DefaultMessageEnricher(
      */
     private suspend fun withScamLabels(message: Message, base: Enrichment, detector: FakeCreditDetector): Enrichment {
         if (message.box != MessageBox.INBOX) return base
+        // India's DLT-based rules apply only to messages on an Indian SIM; null (unknown) means generic rules.
+        val region = runCatching { regionFor(message.subId).countryIso }.getOrNull()
         val labels: Set<String> = try {
             when {
                 scamContext.isDismissed(message.key) -> setOf(ScamLabels.DISMISSED)
-                !detector.isCandidate(message.address, message.body) -> emptySet()
+                !detector.isCandidate(message.address, message.body, region) -> emptySet()
                 else -> {
                     val hint = base.transaction?.let {
                         TransactionHint(
@@ -130,7 +135,7 @@ class DefaultMessageEnricher(
                             last4 = it.last4,
                         )
                     }
-                    val recent = if (detector.needsRecentMessages(message.address, message.body)) {
+                    val recent = if (detector.needsRecentMessages(message.address, message.body, region)) {
                         scamContext.recentMessages(message)
                     } else {
                         emptyList()
@@ -143,6 +148,7 @@ class DefaultMessageEnricher(
                         isSavedContact = isContact(message.address),
                         recentMessages = recent,
                         dateMillis = message.dateMillis,
+                        region = region,
                     )
                     ScamLabels.toLabels(verdict)
                 }
@@ -182,8 +188,10 @@ class DefaultMessageEnricher(
          * Bump when enrichment logic in this module changes in a way that requires re-indexing.
          * 2: brand-level sender folding, repeat groups, account ids from all visible digits.
          * 3: fake-credit scam labels (`app.dak.classify.scam`).
+         * 4: instrument groups (debit / prepaid / loan / UPI-vs-account detection, linked bank accounts); ledger
+         *    entries are re-keyed by DB migration 2 -> 3 and refilled by this re-index.
          */
-        const val LOGIC_REVISION = 3
+        const val LOGIC_REVISION = 4
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

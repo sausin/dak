@@ -178,6 +178,24 @@ object DakSettings {
         "categoriesSpam.tabSet", SettingsGroup.CATEGORIES_SPAM,
         "Inbox tabs", "Choose which category tabs appear on the inbox.",
     )
+    val swipeRight = choiceSetting(
+        "categoriesSpam.swipeRight", SettingsGroup.CATEGORIES_SPAM,
+        "Swipe right on a conversation", "What swiping a conversation to the right does in the inbox.",
+        default = SwipeActions.ARCHIVE, options = SwipeActions.options,
+        keywords = listOf("swipe", "gesture", "archive", "delete", "pin", "read"),
+    )
+    val swipeLeft = choiceSetting(
+        "categoriesSpam.swipeLeft", SettingsGroup.CATEGORIES_SPAM,
+        "Swipe left on a conversation", "What swiping a conversation to the left does in the inbox. Deleting offers undo.",
+        default = SwipeActions.DELETE, options = SwipeActions.options,
+        keywords = listOf("swipe", "gesture", "archive", "delete", "pin", "read", "bin"),
+    )
+    val inboxOtpCopy = boolSetting(
+        "categoriesSpam.inboxOtpCopy", SettingsGroup.CATEGORIES_SPAM,
+        "Copy code from the inbox", "Show a \"Copy code\" button on conversations with an OTP from the last 10 minutes.",
+        default = true,
+        keywords = listOf("one time password", "otp", "code", "copy", "verification"),
+    )
     val senderMerges = actionSetting(
         "categoriesSpam.senderMerges", SettingsGroup.CATEGORIES_SPAM,
         "Sender merges", "Group different sender IDs for the same brand into one.",
@@ -306,6 +324,12 @@ object DakSettings {
             "Automations never send to premium-rate numbers you haven't approved.",
         default = true,
         keywords = listOf("premium", "short code", "cost", "charges", "international", "roaming", "warning"),
+    )
+    val enterToSend = boolSetting(
+        "simsSending.enterToSend", SettingsGroup.SIMS_SENDING,
+        "Enter key sends", "The keyboard's Enter key sends the message instead of starting a new line.",
+        default = false,
+        keywords = listOf("keyboard", "enter", "return", "ime", "send button", "new line"),
     )
     val deliveryReports = boolSetting(
         "simsSending.deliveryReports", SettingsGroup.SIMS_SENDING,
@@ -463,10 +487,10 @@ object DakSettings {
     val all: List<SettingDef<*>> = listOf(
         perCategoryAlerts, notificationChannels, otpDisplaySize, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
         quickActions, selfTest, soundPerSim, bubbles, lockScreenPrivacy,
-        tabSet, senderMerges, blockList, autoArchivePromosDays, fakeCreditWarnings, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
+        tabSet, swipeRight, swipeLeft, inboxOtpCopy, senderMerges, blockList, autoArchivePromosDays, fakeCreditWarnings, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
         accounts, homeCurrency, hideBalancesOnLock, ratesSource, reconciliationToleranceMinor,
         sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings, costWarnings,
-        deliveryReports, sendRateSpreading, exactAlarmPermission,
+        enterToSend, deliveryReports, sendRateSpreading, exactAlarmPermission,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup, indexSchedule, rebuildIndex,
         rulesList, scheduledSends, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,

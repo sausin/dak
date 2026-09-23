@@ -16,23 +16,54 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Checks that [IndexMigrations.MIGRATION_1_2] produces exactly the schema Room generates for version 2 (the same
- * comparison Room makes when it opens a migrated database). Version 1 is reconstructed from Room's version-2 DDL
- * minus what the migration adds, so the test needs no exported schema file.
+ * Checks that [IndexMigrations.MIGRATION_1_2] + [IndexMigrations.MIGRATION_2_3] (from version 1) and
+ * [IndexMigrations.MIGRATION_2_3] alone (from version 2) produce exactly the schema Room generates for version 3 (the
+ * same comparison Room makes when it opens a migrated database). Older versions are reconstructed from Room's
+ * version-3 DDL minus what the migrations add, so the test needs no exported schema file.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class IndexMigrationSchemaTest {
 
-    private val newTables = setOf(Tables.SENDER_FOLD, Tables.CONVERSATION_ALIAS, Tables.ACCOUNT_ALIAS)
-    private val newIndices = setOf("index_${Tables.MESSAGE}_repeatGroup")
-    private val newColumns = mapOf(
-        Tables.MESSAGE to ", `repeatGroup` TEXT",
-        Tables.ACCOUNT to ", `maskedNumber` TEXT",
+    /** What each migration adds: new tables, new indices, new columns (DDL fragments), replaced table DDL. */
+    private class Delta(
+        val tables: Set<String>,
+        val indices: Set<String> = emptySet(),
+        val columns: Map<String, List<String>> = emptyMap(),
+        val replacedTables: Map<String, String> = emptyMap(),
+    )
+
+    private val delta12 = Delta(
+        tables = setOf(Tables.SENDER_FOLD, Tables.CONVERSATION_ALIAS, Tables.ACCOUNT_ALIAS),
+        indices = setOf("index_${Tables.MESSAGE}_repeatGroup"),
+        columns = mapOf(
+            Tables.MESSAGE to listOf(", `repeatGroup` TEXT"),
+            Tables.ACCOUNT to listOf(", `maskedNumber` TEXT"),
+        ),
+    )
+
+    private val delta23 = Delta(
+        tables = setOf(Tables.ACCOUNT_TYPE_OVERRIDE),
+        columns = mapOf(Tables.ACCOUNT to listOf(", `linkedAccountId` TEXT")),
+        // Versions 1-2 keyed ledger entries by message alone and had no viaAccountId.
+        replacedTables = mapOf(
+            Tables.LEDGER_ENTRY to "CREATE TABLE IF NOT EXISTS `${Tables.LEDGER_ENTRY}` (`messageKey` TEXT NOT NULL, " +
+                "`accountId` TEXT NOT NULL, `dateMillis` INTEGER NOT NULL, `direction` TEXT NOT NULL, " +
+                "`originalMinor` INTEGER NOT NULL, `originalCurrency` TEXT NOT NULL, `indicativeMinor` INTEGER, " +
+                "`indicativeCurrency` TEXT, `rate` TEXT, `rateDateMillis` INTEGER, `settled` INTEGER NOT NULL, " +
+                "`markupPercent` TEXT, `balanceAfterMinor` INTEGER, `balanceAfterCurrency` TEXT, `merchant` TEXT, " +
+                "`reference` TEXT, PRIMARY KEY(`messageKey`))",
+        ),
     )
 
     @Test
-    fun migratedVersion1MatchesRoomVersion2() {
+    fun migratedVersion1MatchesRoomVersion3() =
+        assertMigrates(listOf(delta12, delta23), listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3))
+
+    @Test
+    fun migratedVersion2MatchesRoomVersion3() = assertMigrates(listOf(delta23), listOf(IndexMigrations.MIGRATION_2_3))
+
+    private fun assertMigrates(deltas: List<Delta>, migrations: List<androidx.room.migration.Migration>) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val room = Room.inMemoryDatabaseBuilder(context, DakIndexDatabase::class.java).allowMainThreadQueries().build()
         val fresh = room.openHelper.writableDatabase
@@ -48,20 +79,25 @@ class IndexMigrationSchemaTest {
                 .build(),
         ).writableDatabase
 
+        val newTables = deltas.flatMap { it.tables }.toSet()
+        val newIndices = deltas.flatMap { it.indices }.toSet()
         val ordered = schema.filter { it.type == "table" } + schema.filter { it.type == "index" } + schema.filter { it.type == "trigger" }
         for (row in ordered) {
             if (row.name in newTables || row.name in newIndices) continue
             var sql = row.sql
-            newColumns[row.name]?.let { column ->
-                assertTrue(sql.contains(column), "Room DDL of ${row.name} no longer contains $column: $sql")
-                sql = sql.replace(column, "")
+            for (delta in deltas) {
+                delta.replacedTables[row.name]?.let { sql = it }
+                for (column in delta.columns[row.name].orEmpty()) {
+                    assertTrue(sql.contains(column), "Room DDL of ${row.name} no longer contains $column: $sql")
+                    sql = sql.replace(column, "")
+                }
             }
             old.execSQL(sql)
         }
-        IndexMigrations.MIGRATION_1_2.migrate(old)
+        for (migration in migrations) migration.migrate(old)
 
         val tables = schema.filter { it.type == "table" && !it.sql.startsWith("CREATE VIRTUAL", ignoreCase = true) }.map { it.name }
-        assertTrue(tables.containsAll(newTables + Tables.MESSAGE + Tables.ACCOUNT))
+        assertTrue(tables.containsAll(newTables + Tables.MESSAGE + Tables.ACCOUNT + Tables.LEDGER_ENTRY))
         for (table in tables) {
             assertEquals(TableInfo.read(fresh, table), TableInfo.read(old, table), "table $table")
         }

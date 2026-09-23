@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import app.dak.index.db.entity.AccountRow
+import app.dak.index.db.entity.AccountTypeOverrideRow
 import app.dak.index.db.entity.LedgerEntryRow
 import kotlinx.coroutines.flow.Flow
 
@@ -45,4 +46,36 @@ interface LedgerDao {
 
     @Query("DELETE FROM ledger_entry")
     suspend fun clearEntries(): Int
+
+    /** Debit cards / loans whose linked bank account is one of [accountIds]. */
+    @Query("SELECT id FROM ledger_account WHERE linkedAccountId IN (:accountIds)")
+    suspend fun accountsLinkedTo(accountIds: List<String>): List<String>
+
+    /** Debits dated on/after [sinceMillis], summed per account and original currency (for Passbook group totals). */
+    @Query(
+        "SELECT accountId, originalCurrency AS currency, SUM(originalMinor) AS totalMinor FROM ledger_entry " +
+            "WHERE direction = 'DEBIT' AND dateMillis >= :sinceMillis GROUP BY accountId, originalCurrency",
+    )
+    fun observeDebitsSince(sinceMillis: Long): Flow<List<AccountCurrencyTotalRow>>
+
+    // ---- manual account types (user data) ----
+
+    @Query("SELECT * FROM account_type_override")
+    fun observeTypeOverrides(): Flow<List<AccountTypeOverrideRow>>
+
+    @Query("SELECT * FROM account_type_override")
+    suspend fun typeOverrides(): List<AccountTypeOverrideRow>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putTypeOverride(row: AccountTypeOverrideRow)
+
+    @Query("DELETE FROM account_type_override WHERE accountId = :accountId")
+    suspend fun deleteTypeOverride(accountId: String): Int
 }
+
+/** One `(account, currency)` total of [LedgerDao.observeDebitsSince]. */
+data class AccountCurrencyTotalRow(
+    val accountId: String,
+    val currency: String,
+    val totalMinor: Long,
+)

@@ -31,6 +31,12 @@ data class LedgerEntry(
     val balanceAfter: Money? = null,
     val merchant: String? = null,
     val reference: String? = null,
+    /**
+     * Set when this entry was posted to a bank account through another account whose SMS named it: the id of that
+     * debit card or loan (e.g. a card spend "debited from A/c XX1234 using Debit Card XX5678" appears on the card and,
+     * with this set to the card's id, on the account). Null for the account's own SMS.
+     */
+    val viaAccountId: String? = null,
 ) {
     val isForeign: Boolean get() = original.currencyUpper != (indicativeHome?.currencyUpper ?: original.currencyUpper)
 

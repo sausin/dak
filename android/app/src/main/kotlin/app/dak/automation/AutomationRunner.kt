@@ -21,6 +21,8 @@ import app.dak.automations.action.ActionResult
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.rule.ActionSpec
 import app.dak.automations.rule.Rule
+import app.dak.classify.scam.ScamLabels
+import app.dak.classify.scam.ScamLevel
 import app.dak.core.model.Category
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.Message
@@ -34,6 +36,7 @@ import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.ConversationRepository
 import app.dak.premium.Entitlements
 import app.dak.premium.PremiumGateway
+import app.dak.safety.FakeCreditCheck
 import app.dak.telephony.IncomingMessageHandler
 import app.dak.telephony.SimRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -77,6 +80,7 @@ class AutomationRunner @Inject constructor(
     private val bin: RecycleBin,
     private val undoCenter: AutomationUndoCenter,
     private val housekeeping: DailyHousekeeping,
+    private val fakeCredit: FakeCreditCheck,
     @ApplicationContext private val context: Context,
     @ApplicationScope private val scope: CoroutineScope,
 ) : IncomingMessageHandler {
@@ -97,9 +101,14 @@ class AutomationRunner @Inject constructor(
         if (enabled.isEmpty()) return
         val item = withTimeoutOrNull(INDEX_WAIT_MILLIS) { conversations.message(message.key).filterNotNull().first() }
         val event = eventOf(message, item)
+        val scam = scamLevelOf(message, item)
         val byId = enabled.associateBy(Rule::id)
         for (planned in RuleEngine.evaluate(event, enabled)) {
             val rule = byId[planned.ruleId] ?: continue
+            if (blockedByScamFlag(scam, planned.action)) {
+                audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "skipped: possible fake credit")
+                continue
+            }
             if (planned.requiresBiometricConfirmation && !confirmations.isConfirmed(rule)) {
                 audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "OTP forwarding not confirmed")
                 continue
@@ -107,6 +116,22 @@ class AutomationRunner @Inject constructor(
             val result = registry.execute(planned, event, contextFor(planned, event))
             if (result is ActionResult.Success) labelForward(rule, planned.action, event.messageKey)
         }
+    }
+
+    /**
+     * Fake-credit level of [message] (docs/security/fake-credit-scams.md): from the index labels when indexed (a
+     * "Not a scam" dismissal clears it), else straight from the detector.
+     */
+    private fun scamLevelOf(message: Message, item: MessageItem?): ScamLevel =
+        if (item != null) ScamLabels.fromLabels(item.labels)?.level ?: ScamLevel.NONE
+        else fakeCredit.verdictFor(message).level
+
+    /** Likely fakes run no automation at all; suspicious ones never leave the device (forward, reply, relay). */
+    private fun blockedByScamFlag(level: ScamLevel, action: ActionSpec): Boolean = when (level) {
+        ScamLevel.LIKELY_SCAM -> true
+        ScamLevel.SUSPICIOUS -> action is ActionSpec.ForwardSms || action is ActionSpec.ScheduleReply ||
+            action is ActionSpec.Webhook || action is ActionSpec.RelayToWebClient
+        ScamLevel.NONE -> false
     }
 
     /** Marks a message forwarded by a forwarding rule with a persistent label naming the recipient. */

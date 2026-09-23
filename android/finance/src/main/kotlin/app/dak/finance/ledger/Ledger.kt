@@ -1,6 +1,7 @@
 package app.dak.finance.ledger
 
 import app.dak.core.model.ExtractedTransaction
+import app.dak.core.model.InstrumentType
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.money.Money
 import app.dak.finance.rates.RatesTable
@@ -67,6 +68,13 @@ object Ledger {
      *   (defaults to INR, matching Indian institutions per the product spec).
      * @param statementDayFor supplies a credit card's configured statement day; null leaves it unset.
      * @param aliases user-confirmed merges: inputs of an alias id are posted to the account it resolves to.
+     * @param instrumentOverride the user's manual type for an account ("This is a credit card"), by canonical id;
+     *   it changes the account's [Account.instrument] (and so its type and group) but never its id.
+     *
+     * A debit-card or loan transaction whose SMS also names the bank account the money moved from
+     * ([ExtractedTransaction.linkedMaskedNumber]) is posted twice: to the card/loan (without the balance, which is
+     * the bank account's) and to that bank account (with the balance, [LedgerEntry.viaAccountId] = the card/loan), so
+     * the spend reduces the right balance. Without a named account nothing is linked and no balance is moved.
      */
     fun apply(
         inputs: List<LedgerInput>,
@@ -74,28 +82,52 @@ object Ledger {
         defaultHomeCurrency: (institution: String?) -> String = { "INR" },
         statementDayFor: (Account) -> Int? = { null },
         aliases: AccountAliases = AccountAliases.NONE,
+        instrumentOverride: (accountId: String) -> InstrumentType? = { null },
     ): List<AccountLedger> {
-        val grouped = inputs.groupBy { aliases.resolve(Account.idOf(it.transaction)) }
+        val grouped = inputs.flatMap { postingsOf(it, aliases) }.groupBy { aliases.resolve(Account.idOf(it.input.transaction)) }
         return grouped.map { (id, group) ->
-            val sorted = group.sortedBy { it.dateMillis }
+            val sorted = group.sortedBy { it.input.dateMillis }
             // Describe the account by its own (canonical) messages when there are any, newest first, so a merged
-            // alias never renames it; fall back to the newest merged message.
-            val own = sorted.filter { Account.idOf(it.transaction) == id }.ifEmpty { sorted }
-            val sample = own.last().transaction
-            val homeCurrency = sorted.firstNotNullOfOrNull { it.transaction.balanceCurrency }
+            // alias never renames it; fall back to entries posted through a linked card, then to merged messages.
+            val canonical = sorted.filter { Account.idOf(it.input.transaction) == id }
+            val own = canonical.filter { it.viaAccountId == null }.ifEmpty { canonical }.ifEmpty { sorted }
+            val sample = own.last().input.transaction
+            val homeCurrency = sorted.firstNotNullOfOrNull { it.input.transaction.balanceCurrency }
                 ?: defaultHomeCurrency(sample.institution)
+            val linked = own.lastOrNull { it.viaAccountId == null && Account.linkedIdOf(it.input.transaction) != null }
+                ?.let { Account.linkedIdOf(it.input.transaction) }
+                ?.let { aliases.resolve(it) }
             var account = Account(
                 id = id,
                 institution = sample.institution ?: "Unknown",
-                instrument = sample.instrument,
+                instrument = instrumentOverride(id) ?: sample.instrument,
                 last4 = sample.last4,
                 homeCurrency = homeCurrency,
-                maskedNumber = own.lastOrNull { it.transaction.maskedNumber != null }?.transaction?.maskedNumber,
+                maskedNumber = own.lastOrNull { it.input.transaction.maskedNumber != null }?.input?.transaction?.maskedNumber,
+                linkedAccountId = linked,
             )
             account = account.copy(statementDay = statementDayFor(account))
-            val entries = sorted.map { buildEntry(it, homeCurrency, rates) }
+            val entries = sorted.map { buildEntry(it.input, homeCurrency, rates).copy(viaAccountId = it.viaAccountId) }
             AccountLedger(account, entries)
         }
+    }
+
+    /** One input posted to one account; [viaAccountId] is set on the copy posted to a linked bank account. */
+    private data class Posting(val input: LedgerInput, val viaAccountId: String? = null)
+
+    private fun postingsOf(input: LedgerInput, aliases: AccountAliases): List<Posting> {
+        val txn = input.transaction
+        if (Account.linkedIdOf(txn) == null) return listOf(Posting(input))
+        val linkedMasked = txn.linkedMaskedNumber ?: return listOf(Posting(input))
+        // The stated balance is the bank account's: keep it off the card/loan.
+        val primary = input.copy(transaction = txn.copy(balanceMinor = null, balanceCurrency = null))
+        val bankTxn = txn.copy(
+            instrument = InstrumentType.BANK_ACCOUNT,
+            maskedNumber = linkedMasked,
+            last4 = linkedMasked.filter { it.isDigit() }.takeLast(4),
+            linkedMaskedNumber = null,
+        )
+        return listOf(Posting(primary), Posting(input.copy(transaction = bankTxn), viaAccountId = aliases.resolve(Account.idOf(txn))))
     }
 
     private fun buildEntry(input: LedgerInput, homeCurrency: String, rates: RatesTable?): LedgerEntry {

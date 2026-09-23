@@ -3,8 +3,8 @@
 Dak is the default SMS app, so it parses more attacker-controlled input than almost anything else on the phone,
 and it holds the SMS role and the Telephony provider. SMS/MMS parsers have a long history of remote bugs
 (Stagefright, iMessage zero-click, MMS parser crashes, WAP push abuse, Unicode crash strings), so this document
-lists every input surface, what protects it, and what is still open. It covers the wave-2a red-team pass. The
-app-UI hardening items at the end go to a later pass.
+lists every input surface, what protects it, and what is still open. It covers the wave-2a red-team pass and the
+wave-2b app UI and IPC hardening.
 
 ## Security baseline: the free tier works offline
 
@@ -125,35 +125,35 @@ text, vCard and media) and the three platform-guarded telephony components. Not 
 and notification-action receiver, both FileProviders (`cache/camera/` and `cache/dak_mms/` only), and the
 startup provider. `allowBackup=false`. The mutable PendingIntents are all explicit.
 
-## App-UI findings for the follow-up pass (reported, not fixed here)
+## App UI and IPC hardening (wave 2b, all fixed)
 
-1. **Intent route injection:** `navigation/IntentRoutes.kt:33` accepts `EXTRA_ROUTE` from *any* caller of the
-   exported `MainActivity`. Another app can open any screen with arbitrary arguments (a conversation, forwarding,
-   automations, backup) and combine that with tapjacking. Proposed fix: honour `EXTRA_ROUTE` only when the intent
-   also carries a per-install random token extra that only Dak's own PendingIntents include, or when the data URI
-   is `dak://route/…` *and* the extra matches it. Otherwise accept only COMPOSE derived from SENDTO/SEND.
-2. **Confused-deputy `EXTRA_STREAM`:** `navigation/IntentRoutes.kt:77-90` → `PendingShare` → composer reads any
-   shared URI with Dak's own identity. A local app can share `file:///data/data/app.dak/...`,
-   `content://app.dak.dakfiles/...`, `content://app.dak.dak.mms/...` or `content://mms/part/N` (Dak holds
-   READ_SMS) and prefill `address`, which turns Dak into a one-tap exfiltration tool. Proposed fix: accept only
-   `content://` URIs; reject any authority starting with `${packageName}.` and the `mms`, `sms`, `mms-sms` and
-   `telephony` authorities; reject `file://`. Also cap the size read in `MmsMediaCompressor.kt:47`
-   (`readBytes()` with no bound).
-3. **`LinkSafety.open` (`ui/conversation/LinkSafety.kt:47-50`):** `raw.contains("://")` also matches
-   `www.x/intent://…`, which then opens without a scheme. Proposed fix: open only when the parsed scheme is
-   `http`/`https`, prefixing `https://` only for `www.` links. Show `link.asciiHost` (punycode) rather than the
-   Unicode host in `LinkWarningDialog` (line 64) so homographs are visible.
-4. **`openAttachment` (`ui/conversation/MessageBubble.kt:301-312`):** passes the sender-chosen MIME type to
-   ACTION_VIEW with a read grant. `application/vnd.android.package-archive`, `text/html` and similar hand an
-   attacker file to the installer or browser. Proposed fix: allow `image/*`, `video/*`, `audio/*`,
-   `text/plain`, `text/x-vcard` / `text/vcard`; open anything else as `application/octet-stream` or offer
-   "Save" instead. Use `ExtractedLink`/`MmsSafety` sanitised names for display.
-5. **Restore temp files:** `backup/BackupManager.kt:297-299` uses `File(tempDir, sha)`. `:backup` now guarantees
-   that `sha` is 64 hex characters, but check it here too (defence in depth). Import attachments already use
-   random UUID names.
-6. **Automation "open link" action:** `automation/AutomationNotifications.kt:51-60` launches any scheme the rule
-   author typed. That is acceptable (user-authored), but restrict it to `http`, `https`, `tel`, `geo` and
-   `whatsapp` so a shared or imported rule cannot target `content:` or `intent:` URIs.
+1. **Intent route injection: fixed.** `MainActivity` is exported, and it used to accept `EXTRA_ROUTE` from any
+   caller, so another app could open any screen with any arguments. `IntentRoutes.routeFor(context, intent)` now
+   honours `EXTRA_ROUTE` only together with a per-install random token (`navigation/RouteToken.kt`: 32 random
+   bytes in private prefs, compared in constant time). Only `IntentRoutes.open()` adds the token, and only Dak's
+   own notification and alarm PendingIntents use it; other apps cannot read their extras.
+   - Launchers can read shortcut intents, so shortcuts never carry the token. Conversation shortcuts use
+     `IntentRoutes.openConversationShortcut` (`dak://conversation/<id>`), which can only open that conversation.
+   - The static "Report fraud" shortcut maps its own action (`app.dak.action.REPORT_FRAUD`) to fraud help with no
+     arguments.
+   - Without the token, other apps get only what the platform contracts allow: compose from SENDTO/VIEW/SEND,
+     fraud help, and opening a conversation by id.
+2. **Confused-deputy `EXTRA_STREAM`: fixed.** `IntentRoutes.sharedStreams(context, intent)` keeps only
+   `content://` URIs. It rejects `file://`, Dak's own authorities (`<applicationId>` and `<applicationId>.*`) and
+   the Telephony provider authorities (`mms`, `sms`, `mms-sms`, `telephony`, …), and accepts at most 10 URIs per
+   share. `MmsMediaCompressor` reads at most the MMS budget (not `readBytes()`), refuses images over 200 MP before
+   decoding, and handles provider exceptions.
+3. **Link opening: fixed.** `LinkSafety.open` launches only parsed `http`/`https` URIs (`https://` is prefixed only
+   to `www.` links), as `CATEGORY_BROWSABLE`. For IDN hosts and links with userinfo, the warning dialog shows the
+   host that will actually open, in punycode (`asciiHost`).
+4. **Attachments: fixed.** The sender-chosen MIME type no longer picks the handler.
+   `ui/conversation/AttachmentOpener.kt` opens only image (not SVG), video and audio, `text/plain`, vCard and
+   vCalendar with ACTION_VIEW. Anything else (APK, HTML, …) goes to a "Save or share" chooser as
+   `application/octet-stream`.
+5. **Restore temp files: fixed.** `BackupManager` checks that the attachment name is 64 lower-case hex characters
+   before `File(tempDir, sha)`, in addition to the check in `:backup`.
+6. **Automation "open" action: fixed.** `AutomationNotifications.postOpen` allows only `http`, `https`, `tel`,
+   `geo`, `mailto`, `sms`, `smsto` and `whatsapp`.
 7. There is no WebView, `Html.fromHtml` or `Linkify` in the app. `annotateMessage` builds links only from
    `LinkExtractor`, so `tel:` and `intent:` auto-linking cannot happen.
 
@@ -175,5 +175,5 @@ startup provider. `allowBackup=false`. The mutable PendingIntents are all explic
 - **The SMS Organizer importer** buffers up to 128 MiB and parses in memory. That is acceptable for a
   user-initiated import, but low-RAM devices may still hit OOM near the cap.
 - **Network permissions** (see the baseline section) stay declared until the device test.
-- **Not yet verified on a device:** `:core-telephony` and `:core-index` changes compile only in CI, and their
+- **Not yet verified on a device:** the `:app`, `:core-telephony` and `:core-index` changes compile only in CI, and their
   JVM tests (`MmsMappingTest`, `LinkDetectorSecurityTest`) run there.

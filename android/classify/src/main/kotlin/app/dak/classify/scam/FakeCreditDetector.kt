@@ -161,6 +161,17 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
     }
 
     /**
+     * Cheap pre-check: false when [evaluate] would certainly return [ScamVerdict.None] (a verified sender, or no money
+     * / PIN / collect wording at all), so callers can skip loading contacts, accounts and history.
+     */
+    public fun isCandidate(address: String, body: String): Boolean {
+        val text = normalize(body)
+        if (text.isBlank() || senderOf(address).verified) return false
+        return amountsIn(text).isNotEmpty() || MONEY_WORDS.containsMatchIn(text) || PIN_TO_RECEIVE.containsMatchIn(text) ||
+            COLLECT.containsMatchIn(text) || TRANSFER_MENTION.containsMatchIn(text)
+    }
+
+    /**
      * True when [evaluate] would use `recentMessages` for this message (an unverified sender talking about sending /
      * returning money without being an alert itself), so callers can skip loading history for everything else.
      */

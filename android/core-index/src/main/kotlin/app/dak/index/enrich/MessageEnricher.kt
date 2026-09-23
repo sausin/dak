@@ -7,11 +7,18 @@ import app.dak.classify.NoCloudClassifier
 import app.dak.classify.SenderId
 import app.dak.classify.SenderKind
 import app.dak.classify.TemplateBundle
+import app.dak.classify.scam.FakeCreditDetector
+import app.dak.classify.scam.HintDirection
+import app.dak.classify.scam.ScamLabels
+import app.dak.classify.scam.TransactionHint
 import app.dak.core.model.Category
 import app.dak.core.model.Classification
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.Message
+import app.dak.core.model.MessageBox
+import app.dak.core.model.TransactionDirection
 import app.dak.finance.parser.TransactionParser
+import app.dak.index.scam.ScamContextSource
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -58,6 +65,7 @@ class DefaultMessageEnricher(
     private val cloud: CloudClassifier = NoCloudClassifier,
     private val modelLoader: () -> MessageModel = { ClassifierAssets.model },
     initialTemplates: (() -> TemplateBundle) = { ClassifierAssets.defaultTemplates },
+    private val scamContext: ScamContextSource = ScamContextSource.None,
 ) : MessageEnricher {
 
     private val mutex = Mutex()
@@ -66,7 +74,12 @@ class DefaultMessageEnricher(
     @Volatile
     private var state: State? = null
 
-    private class State(val templates: TemplateBundle, val local: ClassifierPipeline, val withCloud: ClassifierPipeline)
+    private class State(
+        val templates: TemplateBundle,
+        val local: ClassifierPipeline,
+        val withCloud: ClassifierPipeline,
+        val scam: FakeCreditDetector,
+    )
 
     override val version: Int
         get() = versionOf(ensureState().templates)
@@ -78,16 +91,62 @@ class DefaultMessageEnricher(
         versionOf(ensureState().templates)
     }
 
-    override suspend fun enrich(message: Message, allowCloud: Boolean): Enrichment = mutex.withLock {
-        val s = ensureState()
-        val pipeline = if (allowCloud) s.withCloud else s.local
-        val classification = pipeline.classify(message.address, message.body, message.subId)
-        val transaction = if (shouldParseTransaction(message.address, classification.category)) {
-            TransactionParser.parse(message.address, message.body)
-        } else {
-            null
+    override suspend fun enrich(message: Message, allowCloud: Boolean): Enrichment {
+        val (base, detector) = mutex.withLock {
+            val s = ensureState()
+            val pipeline = if (allowCloud) s.withCloud else s.local
+            val classification = pipeline.classify(message.address, message.body, message.subId)
+            val transaction = if (shouldParseTransaction(message.address, classification.category)) {
+                TransactionParser.parse(message.address, message.body)
+            } else {
+                null
+            }
+            Enrichment(classification, transaction) to s.scam
         }
-        Enrichment(classification, transaction)
+        // Outside the mutex: the detector is thread-safe and its context may hit the database.
+        return withScamLabels(message, base, detector)
+    }
+
+    /**
+     * Adds fake-credit scam labels (`ScamLabels`) to incoming messages; see docs/security/fake-credit-scams.md.
+     * Likely fakes keep their parsed transaction (for display) but the ledger skips them (`ScamLabels.excludedFromLedger`).
+     */
+    private suspend fun withScamLabels(message: Message, base: Enrichment, detector: FakeCreditDetector): Enrichment {
+        if (message.box != MessageBox.INBOX) return base
+        val labels: Set<String> = try {
+            when {
+                scamContext.isDismissed(message.key) -> setOf(ScamLabels.DISMISSED)
+                !scamContext.enabled() || !detector.isCandidate(message.address, message.body) -> emptySet()
+                else -> {
+                    val hint = base.transaction?.let {
+                        TransactionHint(
+                            direction = if (it.direction == TransactionDirection.CREDIT) HintDirection.CREDIT else HintDirection.DEBIT,
+                            amountMinor = it.amountMinor,
+                            last4 = it.last4,
+                        )
+                    }
+                    val recent = if (detector.needsRecentMessages(message.address, message.body)) {
+                        scamContext.recentMessages(message)
+                    } else {
+                        emptyList()
+                    }
+                    val verdict = detector.evaluate(
+                        address = message.address,
+                        body = message.body,
+                        hint = hint,
+                        knownAccounts = scamContext.knownAccounts(),
+                        isSavedContact = isContact(message.address),
+                        recentMessages = recent,
+                        dateMillis = message.dateMillis,
+                    )
+                    ScamLabels.toLabels(verdict)
+                }
+            }
+        } catch (e: RuntimeException) {
+            emptySet() // never let a warning heuristic break indexing
+        }
+        if (labels.isEmpty()) return base
+        return base.copy(classification = base.classification.copy(labels = base.classification.labels + labels))
     }
 
     override fun brandFoldKey(channel: String): String? = ensureState().templates.brandKey(channel)
@@ -102,6 +161,7 @@ class DefaultMessageEnricher(
                 templates = templates,
                 local = ClassifierPipeline(templates, model, NoCloudClassifier, isContact),
                 withCloud = ClassifierPipeline(templates, model, cloud, isContact),
+                scam = FakeCreditDetector(templates),
             )
             state = created
             return created
@@ -112,8 +172,9 @@ class DefaultMessageEnricher(
         /**
          * Bump when enrichment logic in this module changes in a way that requires re-indexing.
          * 2: brand-level sender folding, repeat groups, account ids from all visible digits.
+         * 3: fake-credit scam labels (`app.dak.classify.scam`).
          */
-        const val LOGIC_REVISION = 2
+        const val LOGIC_REVISION = 3
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

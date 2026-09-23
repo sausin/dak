@@ -50,7 +50,9 @@ class AutomationNotifications @Inject constructor(@ApplicationContext private va
     /** Posts "tap to open" for [uri]; false when the URI is unusable or notifications are off. */
     fun postOpen(uri: String, title: String): Boolean {
         val parsed = runCatching { Uri.parse(uri) }.getOrNull() ?: return false
-        if (parsed.scheme.isNullOrBlank()) return false
+        // Rules can be imported/shared, and relay URIs embed message text: only open schemes that lead to an app
+        // screen the user then acts in, never content:, file:, intent: or other app-internal URIs.
+        if (parsed.scheme?.lowercase() !in OPENABLE_SCHEMES) return false
         val intent = Intent(Intent.ACTION_VIEW, parsed).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val pending = PendingIntent.getActivity(
             context,
@@ -79,5 +81,8 @@ class AutomationNotifications @Inject constructor(@ApplicationContext private va
     private companion object {
         const val TAG = "automation"
         const val BASE_ID = 40_000
+
+        /** Schemes the "open" action may launch (see [postOpen]). */
+        val OPENABLE_SCHEMES = setOf("http", "https", "tel", "geo", "mailto", "sms", "smsto", "whatsapp")
     }
 }

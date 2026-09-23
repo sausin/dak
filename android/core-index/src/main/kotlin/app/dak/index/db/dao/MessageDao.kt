@@ -299,6 +299,30 @@ interface MessageDao {
     )
     suspend fun mergeKeysMatching(like: String): List<String>
 
+    // ---- fake-credit scam checks (labels hold `app.dak.classify.scam.ScamLabels`; patterns from `likePattern`) ----
+
+    /** Incoming rows in [fromMillis]..[toMillis] from [address], or carrying either scam level label (newest first). */
+    @Query(
+        "SELECT * FROM indexed_message WHERE box = 'INBOX' AND dateMillis >= :fromMillis AND dateMillis <= :toMillis " +
+            "AND (address = :address OR labels LIKE :likely OR labels LIKE :suspicious) " +
+            "ORDER BY dateMillis DESC LIMIT :limit",
+    )
+    suspend fun recentForScamCheck(
+        address: String,
+        fromMillis: Long,
+        toMillis: Long,
+        likely: String,
+        suspicious: String,
+        limit: Int,
+    ): List<IndexedMessage>
+
+    /** Conversations with a message since [sinceMillis] whose labels match [likely] or [suspicious]. */
+    @Query(
+        "SELECT DISTINCT conversationId FROM indexed_message WHERE dateMillis >= :sinceMillis " +
+            "AND (labels LIKE :likely OR labels LIKE :suspicious)",
+    )
+    fun observeScamFlaggedConversations(sinceMillis: Long, likely: String, suspicious: String): Flow<List<String>>
+
     // ---- per-message user flags (survive rebuilds) ----
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

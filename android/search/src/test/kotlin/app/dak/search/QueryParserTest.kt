@@ -127,8 +127,22 @@ class QueryParserTest {
         assertEquals(startOfDay(2026, 1, 15), before.endMillis)
         assertNull(before.startMillis)
 
-        val after = QueryParser.parse("after:15/01/2026", now).filters.single() as Filter.DateRange
+        val after = QueryParser.parse("after:15/01/2026", now, java.util.Locale("en", "IN")).filters.single() as Filter.DateRange
         assertEquals(startOfDay(2026, 1, 15), after.startMillis)
+    }
+
+    @Test
+    fun `numeric slash dates follow the locale's day-month order`() {
+        fun start(q: String, locale: java.util.Locale) =
+            (QueryParser.parse(q, now, locale).filters.single() as Filter.DateRange).startMillis
+        // India / UK: day first.
+        assertEquals(startOfDay(2026, 4, 3), start("after:03/04/2026", java.util.Locale("en", "IN")))
+        assertEquals(startOfDay(2026, 4, 3), start("after:03/04/2026", java.util.Locale.UK))
+        // US: month first.
+        assertEquals(startOfDay(2026, 3, 4), start("after:03/04/2026", java.util.Locale.US))
+        // Only valid the other way round: still accepted.
+        assertEquals(startOfDay(2026, 12, 25), start("after:25/12/2026", java.util.Locale.US))
+        assertEquals(startOfDay(2026, 12, 25), start("after:12/25/2026", java.util.Locale.UK))
     }
 
     @Test

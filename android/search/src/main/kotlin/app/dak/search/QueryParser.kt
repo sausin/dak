@@ -7,6 +7,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.util.Locale
 import kotlin.math.roundToLong
 
 /**
@@ -21,8 +22,13 @@ object QueryParser {
         "from", "category", "sim", "has", "amount", "before", "after", "during", "in", "is",
     )
 
-    /** @param now used to resolve relative dates (`during:"last week"`, `before:yesterday`, ...). */
-    fun parse(input: String, now: ZonedDateTime): SearchQuery {
+    /**
+     * @param now used to resolve relative dates (`during:"last week"`, `before:yesterday`, ...).
+     * @param locale decides how a numeric `before:03/04/2026` is read: month first where the locale writes dates
+     *   that way (en-US), else day first (en-IN, en-GB, most of the world). A date that is only valid the other way
+     *   round (`25/12/2026` in the US) is still accepted.
+     */
+    fun parse(input: String, now: ZonedDateTime, locale: Locale = Locale.getDefault()): SearchQuery {
         val tokens = tokenize(input)
         val filters = mutableListOf<Filter>()
         // Alternating list of text atoms and the connector ("AND" implicit, or "OR") before them.
@@ -48,7 +54,7 @@ object QueryParser {
             val filter: Filter? = if (operatorMatch != null) {
                 val key = operatorMatch.groupValues[1].lowercase()
                 if (key in OPERATOR_KEYS) {
-                    parseOperator(key, unquote(operatorMatch.groupValues[2]), now)
+                    parseOperator(key, unquote(operatorMatch.groupValues[2]), now, locale)
                 } else null
             } else null
 
@@ -112,7 +118,7 @@ object QueryParser {
         return tokens
     }
 
-    private fun parseOperator(key: String, value: String, now: ZonedDateTime): Filter? {
+    private fun parseOperator(key: String, value: String, now: ZonedDateTime, locale: Locale): Filter? {
         if (value.isBlank() && key != "amount") return null
         return when (key) {
             "from" -> Filter.From(value)
@@ -137,8 +143,8 @@ object QueryParser {
                 else -> null
             }
             "amount" -> parseAmount(value)
-            "before" -> parseSingleDateMillis(value, now)?.let { Filter.DateRange(null, it) }
-            "after" -> parseSingleDateMillis(value, now)?.let { Filter.DateRange(it, null) }
+            "before" -> parseSingleDateMillis(value, now, locale)?.let { Filter.DateRange(null, it) }
+            "after" -> parseSingleDateMillis(value, now, locale)?.let { Filter.DateRange(it, null) }
             "during" -> parseDuring(value, now)
             else -> null
         }
@@ -175,12 +181,23 @@ object QueryParser {
 
     private val ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE
     private val DD_MM_YYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    private val MM_DD_YYYY = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+
+    /** True when [locale]'s short date format puts the month before the day (e.g. `M/d/yy` for en-US). */
+    private fun monthFirst(locale: Locale): Boolean {
+        val pattern = runCatching {
+            (java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT, locale) as? java.text.SimpleDateFormat)?.toPattern()
+        }.getOrNull() ?: return false
+        val month = pattern.indexOf('M')
+        val day = pattern.indexOf('d')
+        return month >= 0 && day >= 0 && month < day
+    }
     private val MONTHS = listOf(
         "january", "february", "march", "april", "may", "june",
         "july", "august", "september", "october", "november", "december",
     )
 
-    private fun resolveDate(value: String, now: ZonedDateTime): LocalDate? {
+    private fun resolveDate(value: String, now: ZonedDateTime, locale: Locale): LocalDate? {
         val v = value.trim().lowercase()
         val today = now.toLocalDate()
         return when (v) {
@@ -189,19 +206,22 @@ object QueryParser {
             else -> try {
                 LocalDate.parse(value.trim(), ISO_DATE)
             } catch (e: DateTimeParseException) {
-                try {
-                    LocalDate.parse(value.trim(), DD_MM_YYYY)
-                } catch (e2: DateTimeParseException) {
-                    null
+                val order = if (monthFirst(locale)) listOf(MM_DD_YYYY, DD_MM_YYYY) else listOf(DD_MM_YYYY, MM_DD_YYYY)
+                order.firstNotNullOfOrNull { format ->
+                    try {
+                        LocalDate.parse(value.trim(), format)
+                    } catch (e2: DateTimeParseException) {
+                        null
+                    }
                 }
             }
         }
     }
 
-    private fun parseSingleDateMillis(value: String, now: ZonedDateTime): Long? {
+    private fun parseSingleDateMillis(value: String, now: ZonedDateTime, locale: Locale): Long? {
         // Support round-tripping our own emitted epoch-millis form ("before:169...").
         value.trim().toLongOrNull()?.let { return it }
-        val date = resolveDate(value, now) ?: return null
+        val date = resolveDate(value, now, locale) ?: return null
         return startOfDay(date, now.zone)
     }
 

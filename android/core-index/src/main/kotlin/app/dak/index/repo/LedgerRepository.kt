@@ -15,6 +15,7 @@ import app.dak.finance.ledger.Ledger
 import app.dak.finance.ledger.LedgerEntry
 import app.dak.finance.ledger.LedgerInput
 import app.dak.finance.money.Money
+import app.dak.finance.parser.InstitutionTable
 import app.dak.finance.passbook.MonthlyTotal
 import app.dak.finance.passbook.Passbook
 import app.dak.finance.rates.RatesLoader
@@ -25,6 +26,8 @@ import app.dak.index.db.entity.AccountAliasRow
 import app.dak.index.db.entity.AccountRow
 import app.dak.index.db.entity.LedgerEntryRow
 import app.dak.index.sync.IndexRowMapper
+import app.dak.telephony.region.RegionProfile
+import app.dak.telephony.region.RegionProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -76,6 +79,7 @@ data class AccountSummary(
 class LedgerRepository @Inject constructor(
     private val db: DakIndexDatabase,
     ratesSource: Optional<RatesSource>,
+    private val regions: RegionProvider,
 ) {
     private val ledgerDao = db.ledgerDao()
     private val messageDao = db.messageDao()
@@ -179,7 +183,14 @@ class LedgerRepository @Inject constructor(
             }
             return
         }
-        val built = Ledger.apply(inputs, rates.current(), statementDayFor = { previous?.statementDay }, aliases = aliases)
+        val region = regions.current()
+        val built = Ledger.apply(
+            inputs,
+            rates.current(),
+            defaultHomeCurrency = { institution -> defaultHomeCurrency(institution, region) },
+            statementDayFor = { previous?.statementDay },
+            aliases = aliases,
+        )
             .firstOrNull { it.account.id == accountId } ?: return
         val reconciled = AccountLedger(built.account, Reconciler.reconcile(built.entries).entries)
         val now = System.currentTimeMillis()
@@ -191,6 +202,14 @@ class LedgerRepository @Inject constructor(
             ledgerDao.putAccount(accountRow)
         }
     }
+
+    /**
+     * Home currency of an account whose SMS never state a balance: INR for a known Indian institution (wherever the
+     * user is now), else the currency of the default SMS SIM's region; null (the ledger then uses the currency most
+     * of the account's transactions are in) when the region is unknown.
+     */
+    private fun defaultHomeCurrency(institution: String?, region: RegionProfile): String? =
+        InstitutionTable.countryOf(institution)?.let { RegionProfile.currencyOf(it) } ?: region.homeCurrency
 
     private suspend fun loadAliases(): AccountAliases =
         AccountAliases(aliasDao.all().filter { it.same }.associate { it.aliasId to it.canonicalId })

@@ -7,6 +7,7 @@ import app.dak.automations.rule.Rule
 import app.dak.automations.rule.ScheduleSpec
 import app.dak.automations.rule.Trigger
 import app.dak.core.model.Category
+import java.time.ZoneId
 
 /**
  * A handful of built-in example rules, exportable/importable via `app.dak.automations.rule.RuleCodec`
@@ -19,13 +20,14 @@ public object Presets {
      * Archives promotional messages on arrival. "Older than N days" (as named in the build plan) is a
      * sweep over already-indexed messages, not a per-arrival condition the current AST expresses; the
      * daily [ScheduleSpec] trigger documents the intended cadence for that sweep, run by whatever
-     * component walks the index (outside this module's pure-evaluation scope).
+     * component walks the index (outside this module's pure-evaluation scope). [zoneId] is the time zone the 03:00
+     * runs in (the device's by default).
      */
-    public fun archiveOldPromotions(now: Long): Rule = Rule(
+    public fun archiveOldPromotions(now: Long, zoneId: String = ZoneId.systemDefault().id): Rule = Rule(
         id = "preset-archive-old-promotions",
         name = "Archive promotions older than 14 days",
         trigger = Trigger.Schedule(
-            ScheduleSpec.Recurring(Recurrence.Daily(hour = 3, minute = 0, zoneId = "Asia/Kolkata")),
+            ScheduleSpec.Recurring(Recurrence.Daily(hour = 3, minute = 0, zoneId = zoneId)),
         ),
         conditions = Condition.CategoryIs(Category.PROMOTION),
         actions = listOf(ActionSpec.Archive),

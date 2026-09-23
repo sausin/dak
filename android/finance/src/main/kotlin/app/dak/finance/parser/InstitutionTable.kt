@@ -44,6 +44,16 @@ object InstitutionTable {
     )
 
     /**
+     * Home country (ISO 3166-1 alpha-2) of an institution display name from this table, or null if unknown. Every
+     * entry today is an Indian DLT header (international brands here are their Indian arms: `HSBCIN`, `CITIBK`), so
+     * a known name means "IN"; used to default such an account's home currency to INR wherever the user is.
+     */
+    fun countryOf(institution: String?): String? {
+        val name = institution?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        return if (table.values.any { it.equals(name, ignoreCase = true) }) "IN" else null
+    }
+
+    /**
      * Resolves an institution name from a raw SMS sender, e.g. `VM-HDFCBK`, `AD-HDFCBK-S`,
      * `HDFCBK`, or a plain phone number (returns null for the latter).
      */

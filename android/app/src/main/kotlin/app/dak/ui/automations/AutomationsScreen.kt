@@ -1,6 +1,11 @@
 package app.dak.ui.automations
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
+import android.content.Context
+import android.text.format.DateFormat
+import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +39,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -45,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,6 +92,7 @@ import app.dak.ui.forwarding.AppLockNeededDialog
 import app.dak.ui.settings.UpgradeSheet
 import app.dak.ui.theme.DakTheme
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 /**
  * Automations: rules with enable toggles, a simple rule editor for the common triggers and actions, presets,
@@ -99,6 +107,9 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val scheduled by viewModel.scheduled.collectAsStateWithLifecycle()
+    val focusGone by viewModel.focusGone.collectAsStateWithLifecycle()
+    val focusId = viewModel.focusScheduledId
+    val focused = focusId?.let { id -> scheduled.firstOrNull { it.id == id } }
     val sims by viewModel.simList.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -119,6 +130,27 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 AuthResult.DENIED -> Unit
             }
         }
+    }
+
+    /** Date and time pickers, then moves [send] ("Change time", or the heads-up's "Pick time"). */
+    fun changeTime(send: ScheduledSend) {
+        pickDateTime(context, send.sendAtMillis) { at ->
+            viewModel.moveScheduled(send, at) { moved ->
+                val text = if (moved) {
+                    context.getString(
+                        R.string.sched_moved,
+                        DateUtils.formatDateTime(context, at, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME),
+                    )
+                } else {
+                    context.getString(R.string.sched_time_in_past)
+                }
+                scope.launch { snackbar.showSnackbar(text) }
+            }
+        }
+    }
+
+    LaunchedEffect(focused?.id) {
+        if (focused != null && viewModel.consumePickTime()) changeTime(focused)
     }
 
     fun turnOn(entry: RuleEntry) {
@@ -157,6 +189,30 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            // Opened from a scheduled message's heads-up: that send first, highlighted.
+            if (focusId != null) {
+                item(key = "focus-title") { SectionTitle(R.string.sched_focus_title) }
+                if (focused != null) {
+                    item(key = "focus-row") {
+                        ScheduledRow(
+                            send = focused,
+                            sims = sims,
+                            highlighted = true,
+                            onChangeTime = { changeTime(focused) },
+                            onCancel = { viewModel.cancelScheduled(focused) },
+                        )
+                    }
+                } else if (focusGone) {
+                    item(key = "focus-gone") {
+                        Text(
+                            stringResource(R.string.sched_focus_gone),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+            }
             if (!viewModel.canScheduleExact()) {
                 item {
                     WarningBanner(
@@ -247,7 +303,14 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     )
                 }
             }
-            items(scheduled, key = { "s" + it.id }) { send -> ScheduledRow(send, sims) { viewModel.cancelScheduled(send) } }
+            items(scheduled, key = { "s" + it.id }) { send ->
+                ScheduledRow(
+                    send = send,
+                    sims = sims,
+                    onChangeTime = { changeTime(send) },
+                    onCancel = { viewModel.cancelScheduled(send) },
+                )
+            }
             item { Row(Modifier.padding(48.dp)) {} }
         }
     }
@@ -377,10 +440,21 @@ private fun describe(entry: RuleEntry): String {
 }
 
 @Composable
-private fun ScheduledRow(send: ScheduledSend, sims: List<SimInfo>, onCancel: () -> Unit) {
+private fun ScheduledRow(
+    send: ScheduledSend,
+    sims: List<SimInfo>,
+    onChangeTime: () -> Unit,
+    onCancel: () -> Unit,
+    highlighted: Boolean = false,
+) {
     val formatter = rememberRelativeTimeFormatter()
     val sim = sims.firstOrNull { it.subId == send.subId }
     ListItem(
+        colors = if (highlighted) {
+            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        } else {
+            ListItemDefaults.colors()
+        },
         leadingContent = { Icon(Icons.Outlined.Schedule, contentDescription = null) },
         headlineContent = { Text(send.addresses.joinToString(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
@@ -393,8 +467,41 @@ private fun ScheduledRow(send: ScheduledSend, sims: List<SimInfo>, onCancel: () 
                 )
             }
         },
-        trailingContent = { TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) } },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onChangeTime) { Text(stringResource(R.string.sched_action_change_time)) }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
+            }
+        },
     )
+}
+
+/** Platform date then time pickers, starting at [initial]; only today and later can be picked by date. */
+private fun pickDateTime(context: Context, initial: Long, onPicked: (Long) -> Unit) {
+    val cal = Calendar.getInstance().apply { timeInMillis = maxOf(initial, System.currentTimeMillis()) }
+    val dateDialog = DatePickerDialog(
+        context,
+        { _, year, month, day ->
+            TimePickerDialog(
+                context,
+                { _, hour, minute ->
+                    val picked = Calendar.getInstance().apply {
+                        set(year, month, day, hour, minute, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    onPicked(picked.timeInMillis)
+                },
+                cal.get(Calendar.HOUR_OF_DAY),
+                cal.get(Calendar.MINUTE),
+                DateFormat.is24HourFormat(context),
+            ).show()
+        },
+        cal.get(Calendar.YEAR),
+        cal.get(Calendar.MONTH),
+        cal.get(Calendar.DAY_OF_MONTH),
+    )
+    dateDialog.datePicker.minDate = System.currentTimeMillis() - 1_000L
+    dateDialog.show()
 }
 
 @OptIn(ExperimentalLayoutApi::class)

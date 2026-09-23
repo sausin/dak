@@ -1,5 +1,6 @@
 package app.dak.birthdays
 
+import app.dak.automation.EmergencyScheduleRefusedException
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.birthdays.BirthdayDates
 import app.dak.automations.birthdays.OccasionKind
@@ -80,6 +81,21 @@ class BirthdayScheduler @Inject constructor(
                 if (current != config) store.replaceConfig(current)
                 continue
             }
+            // A wish the user delayed from its heads-up (or moved in the scheduled list), or one the executor is
+            // holding back, stays where it is: see BirthdayMovedSend.
+            val pendingSend = current.scheduledSendId?.let { sends.get(it) }
+            if (pendingSend != null && BirthdayMovedSend.keep(
+                    pending = pendingSend.status == ScheduledSendStatus.PENDING,
+                    sendTag = WishTag.decode(pendingSend.ruleId),
+                    contactId = current.contactId,
+                    kind = current.occasionKind,
+                    configScheduledAtMillis = current.scheduledAtMillis,
+                    sendAtMillis = pendingSend.sendAtMillis,
+                )
+            ) {
+                if (current != config) store.replaceConfig(current)
+                continue
+            }
             val zone = ZoneId.systemDefault()
             val next = BirthdayDates.nextOccurrence(
                 date = date,
@@ -108,8 +124,14 @@ class BirthdayScheduler @Inject constructor(
                 existing.addresses == listOf(number) && (settings.subId == null || existing.subId == settings.subId)
             if (!upToDate) {
                 current = cancelPending(current)
-                val id = scheduler.schedule(listOf(number), body, settings.subId, atMillis, ruleId = tag)
-                current = current.copy(scheduledSendId = id, scheduledAtMillis = atMillis)
+                // A contact whose number is an emergency number never gets a scheduled wish (ScheduledEmergencyPolicy).
+                val id = try {
+                    scheduler.schedule(listOf(number), body, settings.subId, atMillis, ruleId = tag)
+                } catch (e: EmergencyScheduleRefusedException) {
+                    null
+                }
+                current = if (id != null) current.copy(scheduledSendId = id, scheduledAtMillis = atMillis) else current
+
             }
             if (current != config) store.replaceConfig(current)
         }

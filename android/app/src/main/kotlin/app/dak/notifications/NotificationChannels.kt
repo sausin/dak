@@ -51,6 +51,13 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
         /** Scheduled sends and automation results ("notify" action, tap-to-open prompts). */
         const val AUTOMATION = "automation"
 
+        /**
+         * Heads-ups shortly before a scheduled message goes out (Send now / Delay / Cancel), posted by
+         * [app.dak.automation.ScheduledSendHeadsUp]. Default importance: it makes a sound but does not pop up, and
+         * quiet hours / Do Not Disturb apply as set by the user (no bypass).
+         */
+        const val SCHEDULED = "scheduled_messages"
+
         const val GROUP_MESSAGES = "messages"
         const val GROUP_APP = "app"
         const val GROUP_CONVERSATIONS = "conversations"

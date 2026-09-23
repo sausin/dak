@@ -45,6 +45,8 @@ internal object ChannelCatalog {
     val app: List<ChannelSpec> = listOf(
         ChannelSpec(NotificationChannels.FAILURES, HIGH, R.string.channel_failures, R.string.channel_failures_desc, perSim = false),
         ChannelSpec(NotificationChannels.AUTOMATION, DEFAULT, R.string.ch_automation, R.string.ch_automation_desc, perSim = false),
+        // New id (not in `renamed`): added to existing installs by ensureCreated's "catalog incomplete" check.
+        ChannelSpec(NotificationChannels.SCHEDULED, DEFAULT, R.string.sched_channel_name, R.string.sched_channel_desc, perSim = false),
         ChannelSpec(NotificationChannels.MMS, LOW, R.string.channel_mms, R.string.channel_mms_desc, perSim = false, silent = true),
         ChannelSpec(NotificationChannels.SELF_TEST, HIGH, R.string.channel_self_test, R.string.channel_self_test_desc, perSim = false),
         ChannelSpec(NotificationChannels.RELIABILITY, DEFAULT, R.string.channel_reliability, R.string.channel_reliability_desc, perSim = false),

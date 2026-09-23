@@ -45,6 +45,16 @@ object Routes {
     fun passbookAccount(accountId: String): String = "passbook/account/${enc(accountId)}"
 
     const val AUTOMATIONS = "automations"
+
+    /**
+     * The Automations screen opened on one scheduled send (from its heads-up notification): [ARG_SCHEDULED_ID] is shown
+     * first, and with [ARG_PICK_TIME] = "1" the date and time pickers open straight away ("Pick time").
+     */
+    const val SCHEDULED_SENDS = "scheduledsends?scheduledId={scheduledId}&pickTime={pickTime}"
+    const val ARG_SCHEDULED_ID = "scheduledId"
+    const val ARG_PICK_TIME = "pickTime"
+    fun scheduledSends(scheduledId: Long? = null, pickTime: Boolean = false): String =
+        "scheduledsends" + query(ARG_SCHEDULED_ID to scheduledId?.toString(), ARG_PICK_TIME to (if (pickTime) "1" else null))
     const val BACKUP = "backup"
     const val BLOCKED = "blocked"
     const val SELF_TEST = "selftest"

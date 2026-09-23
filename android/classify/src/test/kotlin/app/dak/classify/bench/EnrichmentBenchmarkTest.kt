@@ -69,7 +69,9 @@ class EnrichmentBenchmarkTest {
         val path = EnrichmentPath.create()
         val detector = app.dak.classify.scam.FakeCreditDetector(app.dak.classify.TemplateBundle.loadDefault())
         val stages: List<Pair<String, (CorpusMessage) -> Any?>> = listOf(
+            "full path (EnrichmentPath.enrich)" to { m -> runBlocking { path.enrich(m) } },
             "classify (templates+model+otp)" to { m -> runBlocking { path.pipeline.classify(m.address, m.body, m.subId) } },
+            "runBlocking overhead (empty)" to { _ -> runBlocking { } },
             "TransactionParser.parse (all msgs)" to { m -> app.dak.finance.parser.TransactionParser.parse(m.address, m.body) },
             "FakeCreditDetector.isCandidate" to { m -> detector.isCandidate(m.address, m.body) },
             "FakeCreditDetector.evaluate (all msgs)" to { m -> detector.evaluate(m.address, m.body) },

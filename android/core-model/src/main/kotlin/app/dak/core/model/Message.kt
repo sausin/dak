@@ -36,6 +36,10 @@ data class Message(
     val read: Boolean = false,
     val seen: Boolean = false,
     val attachments: List<Attachment> = emptyList(),
+    /** Delivery-report state (outgoing only; the second tick). Always [DeliveryStatus.NONE] for incoming. */
+    val deliveryStatus: DeliveryStatus = DeliveryStatus.NONE,
+    /** When the delivery report arrived, if the provider recorded it (SMS `date_sent` of a delivered message). */
+    val deliveredAtMillis: Long? = null,
 ) {
     /** Stable key across SMS/MMS tables, which have overlapping `_id` spaces. */
     val key: MessageKey get() = MessageKey(kind, providerId)

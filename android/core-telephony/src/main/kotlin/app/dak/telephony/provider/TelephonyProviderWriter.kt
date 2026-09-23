@@ -116,10 +116,13 @@ class TelephonyProviderWriter @Inject constructor(
                         OutgoingStatus.DELIVERED -> {
                             values.put(SmsColumns.TYPE, SmsColumns.TYPE_SENT)
                             values.put(SmsColumns.STATUS, SmsColumns.STATUS_COMPLETE)
+                            // Outgoing rows keep 0 in date_sent; the report's arrival time goes there (as AOSP
+                            // Messaging does) so "Delivered at" survives in the provider.
+                            values.put(SmsColumns.DATE_SENT, System.currentTimeMillis())
                         }
                         OutgoingStatus.FAILED -> values.put(SmsColumns.TYPE, SmsColumns.TYPE_FAILED)
                     }
-                    resolver.updateTolerant(ProviderUris.sms(key.providerId), values)
+                    resolver.updateTolerant(ProviderUris.sms(key.providerId), values, optionalColumn = SmsColumns.DATE_SENT)
                 }
                 MessageKind.MMS -> {
                     val values = ContentValues()

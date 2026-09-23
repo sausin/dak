@@ -1,6 +1,8 @@
 package app.dak.telephony
 
+import app.dak.core.model.DeliveryStatus
 import app.dak.core.model.Message
+import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKey
 import app.dak.core.model.SimInfo
 import kotlinx.coroutines.flow.Flow
@@ -47,7 +49,21 @@ interface ProviderReader {
 
     /** Every message key currently in the provider (used to detect deletions during reconcile). */
     suspend fun allKeys(): Set<MessageKey>
+
+    /**
+     * Send / delivery state of the given (outgoing) messages, read with a narrow projection (no bodies, parts or
+     * addresses) so the reconcile can refresh ticks cheaply. Keys no longer in the provider are absent.
+     */
+    suspend fun outgoingStates(keys: Collection<MessageKey>): Map<MessageKey, OutgoingState> = emptyMap()
 }
+
+/** Volatile state of an outgoing message: its box (sending / sent / failed) and delivery report. */
+data class OutgoingState(
+    val box: MessageBox,
+    val deliveryStatus: DeliveryStatus,
+    /** When the delivery report arrived, if recorded. */
+    val deliveredAtMillis: Long? = null,
+)
 
 /** Write side. Writes are verbatim: no dedupe, no reformatting, no delay. */
 interface ProviderWriter {

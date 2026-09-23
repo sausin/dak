@@ -97,6 +97,9 @@ interface BubbleActions {
     /** Every copy of a collapsed repeated message ([MessageItem.repeatCount] > 1), newest first. */
     suspend fun repeatsOf(item: MessageItem): List<MessageItem> = emptyList()
 
+    /** Opens [route] (compose, search, passbook) from a smart-entity action ([EntityActionSheet]). */
+    fun onNavigate(route: String) {}
+
     /** Swipe-to-reply (or the "Reply" accessibility action): quote this message in the composer. */
     fun onReply(item: MessageItem) {}
 
@@ -187,7 +190,9 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (item.attachments.isNotEmpty()) AttachmentList(item.attachments)
                     if (item.kind() == MessageKind.MMS && !outgoing) MmsDownloadRow(item, actions)
-                    if (item.body.isNotEmpty()) Text(annotated, style = bodyStyle, color = content)
+                    if (item.body.isNotEmpty()) {
+                        EntityMessageText(item, annotated, bodyStyle, content, actions::onNavigate) { link -> actions.onLink(item, link) }
+                    }
                 }
             }
         }

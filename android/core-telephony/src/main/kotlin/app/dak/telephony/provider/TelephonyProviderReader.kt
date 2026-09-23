@@ -4,9 +4,12 @@ import android.content.Context
 import android.database.Cursor
 import app.dak.core.model.Message
 import app.dak.core.model.MessageKey
+import app.dak.core.model.DeliveryStatus
+import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKind
 import app.dak.core.model.NO_SUB_ID
 import app.dak.mms.pdu.MmsCharset
+import app.dak.telephony.OutgoingState
 import app.dak.telephony.ProviderReader
 import app.dak.telephony.ProviderThread
 import app.dak.telephony.SimRepository
@@ -159,6 +162,53 @@ class TelephonyProviderReader @Inject constructor(
         keys
     }
 
+    override suspend fun outgoingStates(keys: Collection<MessageKey>): Map<MessageKey, OutgoingState> =
+        withContext(Dispatchers.IO) {
+            val out = HashMap<MessageKey, OutgoingState>()
+            val smsIds = keys.filter { it.kind == MessageKind.SMS }.map { it.providerId }.distinct()
+            for (chunk in smsIds.chunked(PART_QUERY_CHUNK)) {
+                resolver.safeQuery(
+                    ProviderUris.SMS,
+                    arrayOf(SmsColumns.ID, SmsColumns.TYPE, SmsColumns.STATUS, SmsColumns.DATE_SENT),
+                    "${SmsColumns.ID} IN (${chunk.joinToString(",")})",
+                    null,
+                    null,
+                )?.use { c ->
+                    while (c.moveToNext()) {
+                        val box = BoxMapping.smsTypeToBox(c.int(SmsColumns.TYPE, SmsColumns.TYPE_INBOX))
+                        val status = DeliveryStatusMapping.sms(box, c.int(SmsColumns.STATUS, SmsColumns.STATUS_NONE))
+                        out[MessageKey(MessageKind.SMS, c.long(SmsColumns.ID))] = OutgoingState(
+                            box = box,
+                            deliveryStatus = status,
+                            deliveredAtMillis = DeliveryStatusMapping.smsDeliveredAt(status, c.long(SmsColumns.DATE_SENT)),
+                        )
+                    }
+                }
+            }
+            val mmsIds = keys.filter { it.kind == MessageKind.MMS }.map { it.providerId }.distinct()
+            for (chunk in mmsIds.chunked(PART_QUERY_CHUNK)) {
+                resolver.safeQuery(
+                    ProviderUris.MMS,
+                    arrayOf(MmsColumns.ID, MmsColumns.MESSAGE_BOX, MmsColumns.STATUS, MmsColumns.DELIVERY_REPORT),
+                    "${MmsColumns.ID} IN (${chunk.joinToString(",")})",
+                    null,
+                    null,
+                )?.use { c ->
+                    while (c.moveToNext()) {
+                        val box = BoxMapping.mmsBoxToBox(c.int(MmsColumns.MESSAGE_BOX, MmsColumns.BOX_INBOX))
+                        out[MessageKey(MessageKind.MMS, c.long(MmsColumns.ID))] = OutgoingState(
+                            box = box,
+                            deliveryStatus = DeliveryStatusMapping.mms(
+                                box, c.int(MmsColumns.STATUS), c.int(MmsColumns.DELIVERY_REPORT) == MMS_YES,
+                            ),
+                            deliveredAtMillis = null,
+                        )
+                    }
+                }
+            }
+            out
+        }
+
     // --- Merge walk -----------------------------------------------------------------------------------------
 
     private sealed interface Pending {
@@ -215,7 +265,13 @@ class TelephonyProviderReader @Inject constructor(
 
     // --- SMS ------------------------------------------------------------------------------------------------
 
-    private fun Cursor.toSms(): Message = Message(
+    private fun Cursor.toSms(): Message {
+        val box = BoxMapping.smsTypeToBox(int(SmsColumns.TYPE, SmsColumns.TYPE_INBOX))
+        val delivery = DeliveryStatusMapping.sms(box, int(SmsColumns.STATUS, SmsColumns.STATUS_NONE))
+        return toSms(box, delivery, DeliveryStatusMapping.smsDeliveredAt(delivery, long(SmsColumns.DATE_SENT)))
+    }
+
+    private fun Cursor.toSms(box: MessageBox, delivery: DeliveryStatus, deliveredAt: Long?): Message = Message(
         providerId = long(SmsColumns.ID),
         kind = MessageKind.SMS,
         threadId = long(SmsColumns.THREAD_ID),
@@ -223,9 +279,11 @@ class TelephonyProviderReader @Inject constructor(
         body = string(SmsColumns.BODY).orEmpty(),
         dateMillis = long(SmsColumns.DATE),
         subId = subIdOf(this, SmsColumns.SUBSCRIPTION_ID),
-        box = BoxMapping.smsTypeToBox(int(SmsColumns.TYPE, SmsColumns.TYPE_INBOX)),
+        box = box,
         read = int(SmsColumns.READ) != 0,
         seen = int(SmsColumns.SEEN) != 0,
+        deliveryStatus = delivery,
+        deliveredAtMillis = deliveredAt,
     )
 
     /** `sub_id`, else an OEM subscription column, else an OEM slot column mapped through the SIM list. */
@@ -254,6 +312,9 @@ class TelephonyProviderReader @Inject constructor(
         val seen: Boolean,
         val subId: Int,
         val subject: String?,
+        /** `st` (X-Mms-Status from m-delivery-ind for outgoing messages), 0 when unset. */
+        val status: Int,
+        val deliveryReportRequested: Boolean,
     )
 
     private fun Cursor.toMmsRow(): MmsRow = MmsRow(
@@ -265,6 +326,8 @@ class TelephonyProviderReader @Inject constructor(
         seen = int(MmsColumns.SEEN) != 0,
         subId = subIdOf(this, MmsColumns.SUBSCRIPTION_ID),
         subject = string(MmsColumns.SUBJECT),
+        status = int(MmsColumns.STATUS),
+        deliveryReportRequested = int(MmsColumns.DELIVERY_REPORT) == MMS_YES,
     )
 
     private fun resolveMms(rows: List<MmsRow>): List<Message> {
@@ -285,6 +348,7 @@ class TelephonyProviderReader @Inject constructor(
                 read = r.read,
                 seen = r.seen,
                 attachments = attachments,
+                deliveryStatus = DeliveryStatusMapping.mms(box, r.status, r.deliveryReportRequested),
             )
         }
     }
@@ -372,5 +436,8 @@ class TelephonyProviderReader @Inject constructor(
 
     private companion object {
         const val PART_QUERY_CHUNK = 200
+
+        /** PDU boolean "yes" (`d_rpt`). */
+        const val MMS_YES = 128
     }
 }

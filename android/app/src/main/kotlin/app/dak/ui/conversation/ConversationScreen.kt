@@ -203,6 +203,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             override fun onRetryMms(item: MessageItem) = viewModel.retryMms(item.key)
             override fun mmsState(item: MessageItem): Flow<MmsDownloadState> = viewModel.mmsState(item.key)
             override suspend fun repeatsOf(item: MessageItem): List<MessageItem> = foldVm.repeatsOf(item.key)
+            override fun onNavigate(route: String) = navigator.navigate(route)
             override fun onReply(item: MessageItem) {
                 viewModel.composer.onTextChange(withQuote(viewModel.composer.draftText, item))
                 runCatching { composerFocus.requestFocus() }

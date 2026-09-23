@@ -94,27 +94,29 @@ fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewMo
         }
     }
 
-    fun apply(choice: LockMethodChoice) {
+    fun applyMethod(choice: LockMethodChoice) {
         if (viewModel.setMethod(choice)) say(privacySwitched)
     }
 
     fun choose(target: LockMethodChoice) {
         val current = state.config.method
         if (target == current) return
-        val proceed: () -> Unit = {
+        fun proceed() {
             when (target) {
-                LockMethodChoice.OFF -> apply(LockMethodChoice.OFF)
+                LockMethodChoice.OFF -> applyMethod(LockMethodChoice.OFF)
                 LockMethodChoice.DEVICE -> when {
                     !state.device.deviceSecure -> say(needsScreenLock)
                     current == LockMethodChoice.OFF -> device.deviceLock(verifyTitle, null) { outcome ->
-                        if (outcome == PromptOutcome.SUCCESS) apply(LockMethodChoice.DEVICE)
+                        if (outcome == PromptOutcome.SUCCESS) applyMethod(LockMethodChoice.DEVICE)
                     }
-                    else -> apply(LockMethodChoice.DEVICE)
+                    else -> applyMethod(LockMethodChoice.DEVICE)
                 }
-                LockMethodChoice.APP_PIN -> pinSetupThen = { apply(LockMethodChoice.APP_PIN) }
+                LockMethodChoice.APP_PIN -> {
+                    pinSetupThen = { applyMethod(LockMethodChoice.APP_PIN) }
+                }
             }
         }
-        if (current == LockMethodChoice.OFF) proceed() else confirmed(proceed)
+        if (current == LockMethodChoice.OFF) proceed() else confirmed { proceed() }
     }
 
     Scaffold(
@@ -184,6 +186,14 @@ fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewMo
             }
 
             if (state.hasPin || state.config.method == LockMethodChoice.APP_PIN) {
+                if (!state.hasPin) {
+                    // App PIN chosen but none stored on this phone (e.g. settings restored from a backup).
+                    ActionRow(
+                        title = stringResource(R.string.lock_set_pin),
+                        summary = stringResource(R.string.lock_set_pin_summary),
+                        onClick = { confirmed { pinSetupThen = {} } },
+                    )
+                }
                 if (state.hasPin) {
                     ActionRow(
                         title = stringResource(R.string.lock_change_pin),

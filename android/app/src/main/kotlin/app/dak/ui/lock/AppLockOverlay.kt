@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +54,7 @@ import app.dak.R
 import app.dak.security.AppLockRules
 import app.dak.security.AppLockState
 import app.dak.security.EffectiveLock
+import kotlinx.coroutines.launch
 
 /**
  * Full-screen lock drawn above the NavHost while [AppLockState.locked]. The NavHost stays composed underneath (its
@@ -72,6 +75,7 @@ fun AppLockOverlay(state: AppLockState, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
     var message by remember { mutableStateOf<String?>(null) }
     var promptShowing by remember { mutableStateOf(false) }
     var promptEndedAt by remember { mutableLongStateOf(0L) }
@@ -135,9 +139,13 @@ fun AppLockOverlay(state: AppLockState, modifier: Modifier = Modifier) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         val justClosed = SystemClock.elapsedRealtime() - promptEndedAt < AUTO_PROMPT_COOLDOWN_MILLIS
         if (!justClosed) {
-            when {
-                state.effective == EffectiveLock.DEVICE -> promptDevice()
-                fingerprintShortcut -> promptFingerprint()
+            // Posted, not run inside the lifecycle dispatch: the prompt commits a fragment transaction.
+            scope.launch {
+                when {
+                    state.effective == EffectiveLock.DEVICE -> promptDevice()
+                    fingerprintShortcut -> promptFingerprint()
+                    else -> Unit
+                }
             }
         }
     }
@@ -222,7 +230,7 @@ internal fun AppMark(modifier: Modifier = Modifier) {
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = null,
-            modifier = Modifier.size(128.dp),
+            modifier = Modifier.requiredSize(128.dp),
         )
     }
 }

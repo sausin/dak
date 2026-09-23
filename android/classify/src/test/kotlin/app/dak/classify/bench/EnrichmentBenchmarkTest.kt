@@ -1,5 +1,9 @@
 package app.dak.classify.bench
 
+import app.dak.classify.ClassifierPipeline
+import app.dak.classify.NaiveBayesModel
+import app.dak.classify.SenderRegion
+import app.dak.classify.TemplateBundle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -35,6 +39,11 @@ class EnrichmentBenchmarkTest {
                 .let { it(factory) }
             lines += measure("$name full-path $THREADS threads") { path -> parallel(path) }
                 .let { it(factory) }
+        }
+        EnrichmentPath.create(pipelineFactory = factory(ClassifierPipeline.DEFAULT_CACHE_SIZE, prefilter = true)).let { path ->
+            runBlocking { corpus.forEach { path.enrich(it) } }
+            val (hits, misses) = path.pipeline.cacheCounters
+            lines += "template cache: hits=$hits misses=$misses (hit rate %.1f%%)".format(100.0 * hits / (hits + misses).coerceAtLeast(1))
         }
         lines += breakdown()
         val report = lines.joinToString("\n")
@@ -90,8 +99,17 @@ class EnrichmentBenchmarkTest {
 
     /** The configurations compared; each factory builds a fresh (cold-cache) path. */
     private fun variants(): List<Pair<String, () -> EnrichmentPath>> = listOf(
-        "current" to { EnrichmentPath.create() },
+        "plain" to { EnrichmentPath.create(pipelineFactory = factory(cacheSize = 0, prefilter = false)) },
+        "prefilter" to { EnrichmentPath.create(pipelineFactory = factory(cacheSize = 0, prefilter = true)) },
+        "prefilter+cache" to { EnrichmentPath.create(pipelineFactory = factory(ClassifierPipeline.DEFAULT_CACHE_SIZE, prefilter = true)) },
     )
+
+    private fun factory(cacheSize: Int, prefilter: Boolean): (TemplateBundle, NaiveBayesModel) -> ClassifierPipeline = { t, m ->
+        ClassifierPipeline(
+            t, m, contactLookup = EnrichmentPath.fakeContacts, regionFor = { SenderRegion.INDIA },
+            cacheSize = cacheSize, prefilter = prefilter,
+        )
+    }
 
     private companion object {
         const val CORPUS_SIZE = 50_000

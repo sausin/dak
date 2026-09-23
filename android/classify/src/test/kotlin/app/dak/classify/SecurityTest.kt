@@ -79,6 +79,13 @@ class SecurityTest {
         }
     }
 
+    @Test
+    fun `masker handles non-ascii digits instead of throwing`() {
+        val masked = Masker.mask("आपका OTP १२३४५६ है, ٣٤٥")
+        assertFalse(masked.any { it.isDigit() })
+        assertTrue(masked.contains("<NUM>"))
+    }
+
     // --- Links -----------------------------------------------------------------------------------------------
 
     @Test

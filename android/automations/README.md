@@ -26,7 +26,13 @@ data class Rule(
   to the month's length — see `nextOccurrence`).
 - **Condition** tree: `All`/`Any`/`Not` plus leaves `SenderIs`, `SenderMatches`, `CategoryIs`, `SimIs`,
   `BodyContains`, `BodyMatches`, `AmountAtLeast`/`AmountAtMost`, `TimeWindow` (minute-of-day, UTC),
-  `DirectionIs`, `HasOtp`.
+  `DirectionIs`, `HasOtp`, `ActiveBetween(startMillis, endMillis?)` (inclusive window on the message time;
+  `null` end = "until I stop") and `SenderInGroups(mergeKeys, conversationIds, addresses)` (the message's merge
+  group, display conversation `t:`/`m:` id, or raw sender — phone numbers compare on the last 10 digits).
+- `Rule.meta: Map<String, String>` — free-form UI metadata, never evaluated (e.g. `kind = forwarding`). Additive:
+  old JSON decodes to an empty map; `schemaVersion` stays 1.
+- Validity helpers (`RuleValidity.kt`): `Rule.activeWindow()` (a top-level `ActiveBetween` conjunct),
+  `Rule.isExpired(now)`, `Rule.isNotStartedYet(now)`. `:app` disables expired rules lazily.
 - **ActionSpec** — free: `Label`, `Archive`, `Notify`, `ForwardSms`, `ScheduleReply`, `LaunchIntent`,
   `Delete`. Premium (gated in `ActionRegistry`): `Webhook`, `RelayToWebClient`, `RelayRule` (with
   `RelayChannel`: `SMS` / `WHATSAPP_ONE_TAP` / `WEBHOOK`).
@@ -58,6 +64,40 @@ thrown). Each matching rule contributes one `PlannedAction` per its `actions`, w
 `requiresBiometricConfirmation` set when the action forwards/relays *and* `rule.conditions` can match an
 OTP (see `conditionsCanMatchOtp` — true for `HasOtp`, `CategoryIs(OTP)`, or no category restriction at
 all).
+
+## Forwarding rules (`app.dak.automations.forwarding`)
+
+```kotlin
+data class ForwardingSpec(id, name, enabled, sources: List<ForwardingSource>, categories: Set<Category>, keyword,
+    recipients: List<ForwardingRecipient>, subId: Int?, startMillis, endMillis: Long?, template = DEFAULT_TEMPLATE,
+    includeOtp = false, createdAt) {
+    val isComplete: Boolean
+    fun status(nowMillis): ForwardingStatus          // ACTIVE / SCHEDULED / PAUSED / ENDED (ended wins)
+    fun toRule(nowMillis, newId: () -> String): Rule?
+    companion object { DEFAULT_TEMPLATE = "Fwd from {sender}: {body}"; fun isForwarding(rule); fun fromRule(rule): ForwardingSpec? }
+}
+data class ForwardingSource(conversationId, name, mergeKey?, addresses)   // @Serializable
+data class ForwardingRecipient(number, name?) { val label }
+```
+
+The time-boxed "forward these channels to my CA until 31 Jul" model, stored as an ordinary rule
+(`meta["kind"] = "forwarding"`): `MessageReceived` + `All(ActiveBetween, SenderInGroups, [Any(CategoryIs…)],
+[BodyContains], [otpExclusion()])` + one `ForwardSms` per recipient. OTPs are excluded unless `includeOtp`
+(then the rule needs the usual biometric confirmation). `RuleValidator` reports a recipient that is also a source
+address as `ForwardingLoop`.
+
+## Birthday wishes (`app.dak.automations.birthdays`)
+
+- `BirthdayDates.parse(raw): ContactDate?` — robust parsing of contact event dates (`1990-05-17`, `--05-17`,
+  `--0517`, `19900517`, ISO timestamps, `17/05/1990` / `05/17/1990` (day-first unless impossible), `17.05.1990`,
+  `May 17, 1990`, `17 May`, epoch millis); placeholder years (0000, 1604) dropped; never throws.
+- `ContactDate(month, day, year?)`: `inYear(y)` (Feb 29 → Feb 28 in non-leap years), `ageIn(y)`.
+- `BirthdayDates.nextOccurrence(date, afterMillis, sendAt: LocalTime, zone, skipYears): ZonedDateTime?`,
+  `daysUntil(date, today)`.
+- `WishTemplates.render(template, name, firstName?, age?)` with `{firstName}`, `{name}`, `{age}`;
+  `birthdayDefaults` / `anniversaryDefaults` (English + Hindi).
+- `WishTag(ask, contactId, kind: OccasionKind, year)` — `encode()`/`decode()` of the scheduled send's `ruleId`
+  (`birthday:<ask|auto>:<contactId>:<kind>:<year>`), `dedupeKey` for "never twice a year".
 
 ## Templates (`TemplateRenderer`)
 

@@ -8,11 +8,14 @@ package app.dak.classify
 public object Masker {
 
     private val urlRegex = Regex("""(?i)\bhttps?://\S+|\bwww\.\S+""")
-    private val emailRegex = Regex("""(?i)\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b""")
+    // Bounded repeats (RFC 5321 lengths): an unbounded local part re-scans the rest of the body from every start
+    // position when no '@' follows, which is quadratic on a long hostile body ("x.x.x.x…").
+    private val emailRegex = Regex("""(?i)\b[a-z0-9._%+-]{1,64}@[a-z0-9.-]{1,253}\.[a-z]{2,24}\b""")
     // Card / long numeric runs (>=6 digits, possibly grouped) before the generic amount/number pass.
     private val cardRegex = Regex("""\b(?:\d[ -]?){12,19}\b""")
     private val amountRegex = Regex("""(?i)(₹|rs\.?|inr|usd|\$|aed|eur|€|£|gbp)\s*[\d,]+(\.\d+)?""")
-    private val numberRegex = Regex("""\d+(\.\d+)?""")
+    // \p{Nd}, not \d: Devanagari/Arabic-Indic digits must be masked too (and must not trip the leak check below).
+    private val numberRegex = Regex("""\p{Nd}+(\.\p{Nd}+)?""")
 
     // Capitalised word(s) following a salutation, used as a light heuristic for a personal name.
     // Only the salutation itself is matched case-insensitively; the name still requires capitals.

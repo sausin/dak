@@ -293,10 +293,8 @@ private fun OccasionRow(
         else -> stringResource(R.string.fw_bd_in_days, item.daysUntil)
     }
     val dateText = item.date.format(DateTimeFormatter.ofPattern("d MMM"))
-    val detail = buildString {
-        append(whenText).append(" · ").append(dateText)
-        if (o.kind == OccasionKind.ANNIVERSARY) append(" · ").append(stringResource(R.string.fw_bd_anniversary))
-    }
+    val anniversaryText = stringResource(R.string.fw_bd_anniversary)
+    val detail = if (o.kind == OccasionKind.ANNIVERSARY) "$whenText · $dateText · $anniversaryText" else "$whenText · $dateText"
     val ageText = item.age?.let { stringResource(R.string.fw_bd_turns, it) }
     ListItem(
         modifier = Modifier.clickable(onClick = onEditTemplate),

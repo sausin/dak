@@ -45,6 +45,15 @@ data class FoldGroup(
     val manual: Boolean,
 )
 
+/** A conversation that can be picked as a "Fold into…" target. */
+data class FoldTarget(
+    val conversationId: String,
+    /** Group name, brand, or the newest raw address (the UI may swap in a contact name). */
+    val title: String,
+    val address: String,
+    val lastSeenMillis: Long,
+)
+
 /** Undo token of a fold edit: each touched channel's previous rule (null = it had none). */
 data class FoldReceipt(
     val previous: Map<String, String?>,
@@ -124,6 +133,26 @@ class SenderMergeRepository @Inject constructor(
                 )
             }
             FoldSuggester.suggest(candidates, rules.mapTo(HashSet()) { it.channel })
+        }.flowOn(Dispatchers.Default)
+
+    /** Conversations that can be folded (group MMS excluded), most recent first, at most [limit]. */
+    fun foldTargets(limit: Int = 200): Flow<List<FoldTarget>> =
+        combine(messageDao.observeChannels(), mergeDao.observeGroups()) { rows, names ->
+            val nameOf = names.associate { it.mergeKey to it.displayName }
+            rows.filter { !SenderGrouping.isAddressList(it.address) }
+                .groupBy { it.conversationId }
+                .map { (conversationId, convRows) ->
+                    val newest = convRows.maxByOrNull { it.lastSeen }!!
+                    val key = ConversationIds.mergeKeyOf(conversationId)
+                    FoldTarget(
+                        conversationId = conversationId,
+                        title = key?.let { nameOf[it] } ?: newest.canonicalSender ?: newest.address,
+                        address = newest.address,
+                        lastSeenMillis = newest.lastSeen,
+                    )
+                }
+                .sortedByDescending { it.lastSeenMillis }
+                .take(limit)
         }.flowOn(Dispatchers.Default)
 
     /**

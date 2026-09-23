@@ -5,6 +5,15 @@ compiling in CI; pure-Kotlin modules are also unit-tested. Nothing has been run 
 the Phase 0 exit criteria (Pixel + Xiaomi, 2 SIMs, OTP autofill, self-test with battery optimisation
 on) still need a real device pass.
 
+## Baseline principle: no runtime AI dependency
+
+Every free feature runs on-device and offline: rule/template classification plus a bundled pure-Kotlin model,
+local finance parsing, local scam heuristics, local search. The cloud classifier, AI search and translation are
+interfaces with no-op defaults (`NoCloudClassifier`, `NoOpQueryUnderstanding`, `NoOpTranslator`) and nothing binds a
+real implementation yet. `android/scripts/check-offline-baseline.sh` (run in CI) fails the build if shared/free code
+references a network client or AI SDK, or binds a cloud classifier outside `src/premium`. The only network use is the
+platform MMS download over the carrier APN.
+
 ## Phase 0 — spike
 
 | Item | State |

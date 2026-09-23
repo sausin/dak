@@ -47,6 +47,19 @@ object Routes {
     const val BLOCKED = "blocked"
     const val SELF_TEST = "selftest"
 
+    /** Time-boxed auto-forwarding rules (e.g. bank alerts to your CA for tax season). */
+    const val FORWARDING = "forwarding"
+    /** Birthday wishes picked up from contacts. */
+    const val BIRTHDAYS = "birthdays"
+    /** Fraud reporting: verified helplines, 1909 / cybercrime flows. Optional message to report. */
+    const val FRAUD_HELP = "fraud?message={message}"
+    const val ARG_MESSAGE = "message"
+    fun fraudHelp(messageKey: String? = null): String = "fraud" + query(ARG_MESSAGE to messageKey)
+    /** Sender folding: fold many channels (numbers/headers) into one conversation, or unfold. */
+    const val SENDER_GROUPS = "sendergroups"
+    /** Per-channel notification management. */
+    const val NOTIFICATION_CHANNELS = "notificationchannels"
+
     private fun enc(value: String): String = Uri.encode(value)
 
     private fun query(vararg pairs: Pair<String, String?>): String {

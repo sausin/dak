@@ -9,6 +9,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import app.dak.ui.automations.AutomationsScreen
+import app.dak.ui.birthdays.BirthdaysScreen
+import app.dak.ui.forwarding.ForwardingScreen
+import app.dak.ui.fraud.FraudHelpScreen
+import app.dak.ui.notifications.NotificationChannelsScreen
+import app.dak.ui.sendergroups.SenderGroupsScreen
 import app.dak.ui.backup.BackupScreen
 import app.dak.ui.bin.BinScreen
 import app.dak.ui.blocked.BlockedScreen
@@ -66,5 +71,10 @@ fun DakNavHost(navController: NavHostController, startDestination: String, modif
         composable(Routes.BACKUP) { BackupScreen(navigator) }
         composable(Routes.BLOCKED) { BlockedScreen(navigator) }
         composable(Routes.SELF_TEST) { SelfTestScreen(navigator) }
+        composable(Routes.FORWARDING) { ForwardingScreen(navigator) }
+        composable(Routes.BIRTHDAYS) { BirthdaysScreen(navigator) }
+        composable(Routes.FRAUD_HELP, arguments = listOf(optionalString(Routes.ARG_MESSAGE))) { FraudHelpScreen(navigator) }
+        composable(Routes.SENDER_GROUPS) { SenderGroupsScreen(navigator) }
+        composable(Routes.NOTIFICATION_CHANNELS) { NotificationChannelsScreen(navigator) }
     }
 }

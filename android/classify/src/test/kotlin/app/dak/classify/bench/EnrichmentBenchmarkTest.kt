@@ -36,10 +36,12 @@ class EnrichmentBenchmarkTest {
             lines += measure("$name full-path $THREADS threads") { path -> parallel(path) }
                 .let { it(factory) }
         }
+        lines += breakdown()
         val report = lines.joinToString("\n")
         println(report)
-        File("build/reports").mkdirs()
-        File("build/reports/dak-bench.txt").appendText("---\n$report\n")
+        val out = File(System.getProperty("dak.bench.out") ?: "build/reports/dak-bench.txt")
+        out.parentFile?.mkdirs()
+        out.appendText("---\n$report\n")
     }
 
     private fun parallel(path: EnrichmentPath) = runBlocking(Dispatchers.Default) {
@@ -60,6 +62,28 @@ class EnrichmentBenchmarkTest {
             corpus.size / ((System.nanoTime() - start) / 1e9)
         }.sorted()
         "%-46s %,10.0f msgs/s (min %,.0f, max %,.0f)".format(label, rates[rates.size / 2], rates.first(), rates.last())
+    }
+
+    /** Single-thread time per stage of the full path (µs per message), to show where the CPU goes. */
+    private fun breakdown(): List<String> {
+        val path = EnrichmentPath.create()
+        val detector = app.dak.classify.scam.FakeCreditDetector(app.dak.classify.TemplateBundle.loadDefault())
+        val stages: List<Pair<String, (CorpusMessage) -> Any?>> = listOf(
+            "classify (templates+model+otp)" to { m -> runBlocking { path.pipeline.classify(m.address, m.body, m.subId) } },
+            "TransactionParser.parse (all msgs)" to { m -> app.dak.finance.parser.TransactionParser.parse(m.address, m.body) },
+            "FakeCreditDetector.isCandidate" to { m -> detector.isCandidate(m.address, m.body) },
+            "FakeCreditDetector.evaluate (all msgs)" to { m -> detector.evaluate(m.address, m.body) },
+            "LinkPresence.containsLink" to { m -> app.dak.classify.LinkPresence.containsLink(m.body) },
+            "TextNormalizer.normalize(body)" to { m -> app.dak.search.TextNormalizer.normalize(m.body) },
+            "OtpExtractor.extract (all msgs)" to { m -> app.dak.classify.OtpExtractor.extract(m.body) },
+        )
+        return stages.map { (name, stage) ->
+            repeat(WARMUP) { corpus.forEach { stage(it) } }
+            val start = System.nanoTime()
+            repeat(RUNS) { corpus.forEach { stage(it) } }
+            val micros = (System.nanoTime() - start) / 1e3 / (RUNS * corpus.size)
+            "  stage %-40s %6.2f µs/msg".format(name, micros)
+        }
     }
 
     /** The configurations compared; each factory builds a fresh (cold-cache) path. */

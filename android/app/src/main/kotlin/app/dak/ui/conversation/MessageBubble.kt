@@ -93,6 +93,12 @@ interface BubbleActions {
 
     /** Every copy of a collapsed repeated message ([MessageItem.repeatCount] > 1), newest first. */
     suspend fun repeatsOf(item: MessageItem): List<MessageItem> = emptyList()
+
+    /** Swipe-to-reply (or the "Reply" accessibility action): quote this message in the composer. */
+    fun onReply(item: MessageItem) {}
+
+    /** Double-tap: copy the message's [QuickCopy] (OTP code, else amount). Only wired when there is one. */
+    fun onDoubleTap(item: MessageItem) {}
 }
 
 private val OUTGOING_BOXES = setOf(MessageBox.SENT, MessageBox.OUTBOX, MessageBox.QUEUED, MessageBox.FAILED, MessageBox.DRAFT)

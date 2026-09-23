@@ -50,10 +50,20 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   - Otherwise extracts: direction (debit/credit keywords — debited, spent, withdrawn, sent, paid,
     purchase, "txn of", used for/at, auto-debit vs. credited, received, deposited, refund),
     amount + currency (via `MoneyParser`, picking the non-balance occurrence as the transaction
-    amount), instrument (UPI > credit card > debit card/account > wallet > unknown), last-4 (card
+    amount), instrument (see "Instruments" below), last-4 (card
     or account, several header/format variants), merchant (`at X`, `to VPA x@y`, `Info: ...`, `to X`),
     UPI/RRN/txn reference, available balance (amount + currency, from an "Avl/Available Bal[ance]"
     context), and institution from the sender header.
+- **Instruments** (`InstrumentDetector`, internal): `InstrumentType` = `BANK_ACCOUNT`, `CREDIT_CARD`,
+  `DEBIT_CARD`, `PREPAID_CARD` (prepaid/forex/travel/multi-currency/gift cards, Wise/Revolut), `WALLET` (wallet,
+  Amazon Pay balance, Airtel Money, MobiKwik...), `UPI` (VPA/UPI only, no account named), `LOAN`, `UNKNOWN`. Decided
+  from the words right before each masked number ("Debit Card XX1234", "DC XX..", "CC XX..", "Forex Card XX..",
+  "Loan A/c XX..", "A/c XX..") first, then body wording (credit-card issuers like SBI Card/Amex/Sapphire, "EMI ... loan",
+  wallets, UPI/VPA handles, "account"). A UPI SMS that names "A/c XX1234" is `BANK_ACCOUNT`. A bare "Card XX1234" is a
+  debit card when the SMS names the account debited or states an available *balance*, a credit card when it states a
+  limit or names a card issuer, else a credit card (legacy; keeps ids stable; the user can change the type).
+  `ExtractedTransaction.linkedMaskedNumber` (core-model) = the bank account a debit-card or loan SMS also names
+  ("debited from A/c XX1234 using Debit Card XX5678"); never inferred across messages.
 - **`TransactionParser.parseBillReminder(sender, body): BillReminder?`** — the optional separate
   parse for due-date/minimum-due messages the main parser deliberately excludes.
 - **`InstitutionTable.institutionFor(sender: String): String?`** — small local sender→institution
@@ -64,14 +74,20 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
 
 - **`Account`** — id derived from `institution + instrument + visible digits` (`Account.idOf(txn)` /
   `Account.idFor(...)`), plus
-  `type` (BANK_ACCOUNT / CREDIT_CARD / WALLET / UNKNOWN, derived from `InstrumentType`),
+  `type` (`AccountType.of(instrument)`: BANK_ACCOUNT / CREDIT_CARD / DEBIT_CARD / WALLET / UPI / PREPAID_CARD / LOAN /
+  UNKNOWN, declaration order = Passbook group order; `aliasFamily` treats UPI as BANK_ACCOUNT for alias matching),
+  `linkedAccountId` (debit card / loan -> the bank account an SMS named; `Account.linkedIdOf(txn)`),
   `homeCurrency` (taken from a balance-bearing SMS when available, else a caller-supplied default —
   INR for Indian institutions), and an optional `statementDay` for cards.
 - **`LedgerEntry`** — one posted transaction: `messageKey`, `dateMillis`, `original` (`Money`, as
   written), `indicativeHome` (`Money?`), `rate`/`rateDateMillis`, `settled: Boolean`,
   `effectiveMarkupPercent`, `balanceAfter`, `merchant`, `reference`.
 - **`Ledger.apply(inputs: List<LedgerInput>, rates: RatesTable? = null, defaultHomeCurrency = { "INR" }, statementDayFor = { null }): List<AccountLedger>`**
-  — pure function grouping a flat message stream into one `AccountLedger` per account. A
+  — pure function grouping a flat message stream into one `AccountLedger` per account. Extra params:
+  `instrumentOverride: (accountId) -> InstrumentType?` (the user's manual type; changes type, never the id). A
+  debit-card/loan input with `linkedMaskedNumber` is posted to the card/loan (balance stripped) **and** to the linked
+  bank account (with the balance, `LedgerEntry.viaAccountId` = card/loan id), so card spends move the right balance;
+  without a named account nothing is linked and no balance is invented. A
   home-currency entry is posted `settled = true` immediately; a foreign-currency entry is posted
   `settled = false` with an indicative `Money` computed from `rates` (or `null` if unavailable).
 - **`AccountLedger.balanceState: BalanceState`** — `NoInfo` / `Known(balance, asOfMillis)` /
@@ -99,6 +115,17 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
 - **`AccountAliases(aliasToCanonical)`** — user-confirmed merges; `resolve(id)` (chains, cycle-safe),
   `membersOf(id)`, `canonicalOf(a, b)` (more digits wins). `Ledger.apply(..., aliases = ...)` posts alias inputs to
   the canonical account.
+
+### Passbook groups — `AccountGroups`
+
+- **`AccountGroups.group(items: List<T>, facts: (T) -> AccountFacts, lastActivity: (T) -> Long): List<AccountGroup<T>>`**
+  — sections in `AccountType` order, empty ones dropped, items newest first. `AccountFacts(account, balance,
+  spentThisMonth: List<Money>, outstanding: Money?)`.
+- **`GroupTotals(kind: TotalKind, amounts: List<Money>, missingCount, spentThisMonth)`** — per currency, never
+  converted. `TotalKind.BALANCE` (bank, wallet, prepaid, loan: sum of `BalanceState.Known` only; Unknown/NoInfo counted
+  in `missingCount`), `OUTSTANDING` (credit cards: cycle outstanding when a statement day is set), `SPENT_THIS_MONTH`
+  (debit cards, UPI, other).
+- `AccountGroups.spentSince(entries, sinceMillis)`, `monthStartUtc(nowMillis)`, `sum(amounts)`.
 
 ## `rates` — `RatesTable`, `RatesLoader`
 

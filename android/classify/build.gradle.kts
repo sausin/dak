@@ -29,6 +29,7 @@ val runBench = providers.gradleProperty("dak.bench").orNull == "true"
 tasks.test {
     if (runBench) {
         systemProperty("dak.bench", "true")
+        systemProperty("dak.bench.out", layout.buildDirectory.file("reports/dak-bench.txt").get().asFile.path)
         maxHeapSize = "1g"
         testLogging.showStandardStreams = true
     } else {

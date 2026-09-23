@@ -144,10 +144,12 @@ class FraudHelpViewModel @Inject constructor(
         return Routes.compose(to = number, body = body)
     }
 
-    /** Plain-text details of the reported message, for pasting into Chakshu / cybercrime.gov.in. */
+    /** Plain-text details of the reported message, for pasting into a reporting form (Chakshu / cybercrime.gov.in in India). */
     fun details(labels: FraudReport.DetailLabels, simLabel: (Int) -> String?): String? {
         val message = base.value.message ?: return null
-        return FraudReport.detailsText(message.body, message.sender, message.dateMillis, simLabel(message.subId), labels)
+        // Indian portals get dd/MM/yyyy; elsewhere the user's own date format.
+        val locale = if (base.value.reportsToTrai) null else java.util.Locale.getDefault()
+        return FraudReport.detailsText(message.body, message.sender, message.dateMillis, simLabel(message.subId), labels, locale = locale)
     }
 
     /** SIM slot (0-based) the reported message arrived on, or -1. */

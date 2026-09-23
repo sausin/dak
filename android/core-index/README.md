@@ -179,6 +179,11 @@ fun spendByMerchant(accountId: String): Flow<Map<String, Money>>
 fun cardOutstanding(accountId: String, asOfMillis: Long): Flow<Money?>
 fun messageKeyOf(entry: LedgerEntry): MessageKey?
 suspend fun setStatementDay(accountId: String, statementDay: Int?)
+fun accountGroups(nowMillis: Long = now): Flow<List<AccountGroup<AccountGroupItem>>>
+    // Passbook sections (Bank accounts, Credit cards, Debit cards, Wallets, UPI, Prepaid & forex, Loans, Other) with
+    // per-currency header totals; AccountGroupItem(summary, spentThisMonth, outstanding, linked: AccountSummary?)
+suspend fun setAccountType(accountId: String, instrument: InstrumentType?)   // manual type; null = detected
+// AccountSummary.typeOverridden; Account.linkedAccountId; LedgerEntry.viaAccountId
 suspend fun recompute(accountIds: Collection<String>);  suspend fun recomputeAll()
 ```
 
@@ -261,7 +266,7 @@ still filled.)
 - `DefaultMessageEnricher` runs `FakeCreditDetector` on incoming messages. The context comes from
   `ScamContextSource`, implemented by `IndexScamContext`: ledger accounts cached for 5 minutes, incoming rows from
   the last 48 h via `MessageDao.recentForScamCheck`, and "Not a scam" overrides. The verdict is stored as
-  `ScamLabels` in `labels`, with no schema change. `LOGIC_REVISION` is 3.
+  `ScamLabels` in `labels`, with no schema change. `LOGIC_REVISION` was 3 for this (now 4, see instruments below).
 - `LedgerRepository` skips rows where `ScamLabels.excludedFromLedger(labels)` is true.
 - `ScamRepository`:
   - `flaggedConversations(): Flow<Set<String>>` returns the conversations flagged in the last 30 days.
@@ -304,6 +309,11 @@ still filled.)
   `indexed_message.repeatGroup` + index, `ledger_account.maskedNumber`); only downgrades are destructive.
   `IndexMigrationSchemaTest` (Robolectric) checks the migrated schema equals Room's own. Enricher
   `LOGIC_REVISION` 2 re-indexes everything once after the upgrade (brand folds, repeat groups, account ids).
+  2 -> 3 (`MIGRATION_2_3`): `ledger_account.linkedAccountId`, user-data table `account_type_override`
+  (`AccountTypeOverrideRow`: manual account types), and the derived `ledger_entry` recreated with key
+  `(accountId, messageKey)` + `viaAccountId` (a debit-card spend posts to the card and to the bank account it names).
+  `LOGIC_REVISION` 4 re-parses instruments and refills the ledger. Recompute order: debit cards/loans first, then
+  the bank accounts they name (current and previous link).
 
 ## Tests
 

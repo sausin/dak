@@ -56,7 +56,8 @@ object FraudReport {
 
     /**
      * A plain-text summary to paste into a reporting portal: sender, received date/time, SIM and the full text.
-     * [labels] supplies the translated field names.
+     * [labels] supplies the translated field names. The date is `dd/MM/yyyy HH:mm` (as Indian portals expect) unless a
+     * [locale] is given, in which case it is that locale's short date-time format (e.g. `9/21/26, 10:15 AM` in the US).
      */
     fun detailsText(
         text: String,
@@ -65,8 +66,14 @@ object FraudReport {
         simLabel: String?,
         labels: DetailLabels,
         timeZone: TimeZone = TimeZone.getDefault(),
+        locale: Locale? = null,
     ): String {
-        val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US).apply { this.timeZone = timeZone }.format(Date(dateMillis))
+        val format = if (locale == null) {
+            SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US)
+        } else {
+            java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT, locale)
+        }
+        val date = format.apply { this.timeZone = timeZone }.format(Date(dateMillis))
         return buildString {
             append(labels.sender).append(": ").append(sender.trim()).append('\n')
             append(labels.received).append(": ").append(date).append('\n')

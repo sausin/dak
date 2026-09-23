@@ -140,7 +140,7 @@ public class DefaultActionRegistry : ActionRegistry {
                     RelayChannel.WHATSAPP_ONE_TAP ->
                         // The final tap is the user's; we only prepare the intent (WhatsApp has no
                         // personal-account send API and automating it would break its terms).
-                        if (context.intentLauncher.launch("whatsapp://send?phone=${action.recipient}&text=$text")) {
+                        if (context.intentLauncher.launch(whatsAppUri(action.recipient, text))) {
                             ActionResult.Success
                         } else {
                             ActionResult.Failed("relay-whatsapp failed")
@@ -189,4 +189,14 @@ public class DefaultActionRegistry : ActionRegistry {
         is ActionSpec.RelayRule -> action.recipient to action.channel.name
         else -> null to null
     }
+
+    /**
+     * `whatsapp://send` URI with both values percent-encoded: the text is the (sender-controlled) message, so a raw
+     * `&phone=…` or `#` in it must not be able to rewrite the recipient or truncate the URI.
+     */
+    internal fun whatsAppUri(recipient: String, text: String): String =
+        "whatsapp://send?phone=${uriEncode(recipient)}&text=${uriEncode(text)}"
+
+    private fun uriEncode(value: String): String =
+        java.net.URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 }

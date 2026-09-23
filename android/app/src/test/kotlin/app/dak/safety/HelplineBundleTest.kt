@@ -19,7 +19,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HelplineBundleTest {
-    private val repoRoot: File = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
+    // Unit tests run from android/app; "dak.repoRoot" lets an out-of-tree harness point at the checkout.
+    private val repoRoot: File = generateSequence(File(System.getProperty("dak.repoRoot") ?: System.getProperty("user.dir")).absoluteFile) { it.parentFile }
         .first { File(it, "shared/formats/helplines-v1.json").exists() }
     private val shared = File(repoRoot, "shared/formats/helplines-v1.json").readText()
     private val asset = File(repoRoot, "android/app/src/main/assets/helplines-v1.json").readText()

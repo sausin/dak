@@ -202,8 +202,12 @@ class DefaultMessageEnricher(
          * 7: single-character account masks (`A/c X5073`), bare `Bal INR` balances, unknown DLT bank headers keep their
          *    own accounts instead of sharing `UNKNOWN`, and the other party's account in a transfer ("credited to
          *    beneficiary A/c XX5632") is never the user's (such confirmations no longer create accounts).
+         * 8: role-based transaction parsing (direction cues, own vs counterparty numbers, amount roles; failed, future,
+         *    request and statement SMS are no longer transactions) and generic categorisation (template bundle 3:
+         *    structure-based logistics / order / bill / booking / service rules, route-aware spam, scheme-less links,
+         *    numeric DLT headers).
          */
-        const val LOGIC_REVISION = 7
+        const val LOGIC_REVISION = 8
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

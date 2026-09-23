@@ -1,8 +1,6 @@
 package app.dak.ui.conversation
 
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -361,15 +359,5 @@ private fun MetaRow(item: MessageItem, decor: BubbleDecor, outgoing: Boolean) {
     }
 }
 
-private fun openAttachment(context: Context, attachment: Attachment) {
-    val intent = Intent(Intent.ACTION_VIEW)
-        .setDataAndType(Uri.parse(attachment.uri), attachment.mimeType)
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-    try {
-        context.startActivity(intent)
-    } catch (e: ActivityNotFoundException) {
-        // Nothing can show this type; the bubble still shows its name.
-    } catch (e: SecurityException) {
-        // Provider refused to share the part with another app.
-    }
-}
+/** Sender-chosen MIME types never pick the handler: see [AttachmentOpener]. */
+private fun openAttachment(context: Context, attachment: Attachment) = AttachmentOpener.open(context, attachment)

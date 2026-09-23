@@ -160,6 +160,21 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         return ScamVerdict(level, reasons.sortedByDescending { it.weight }, claimed?.displayName, score)
     }
 
+    /**
+     * True when [evaluate] would use `recentMessages` for this message (an unverified sender talking about sending /
+     * returning money without being an alert itself), so callers can skip loading history for everything else.
+     */
+    public fun needsRecentMessages(address: String, body: String): Boolean {
+        val text = normalize(body)
+        if (text.isBlank() || senderOf(address).verified) return false
+        val amounts = amountsIn(text)
+        val transferMention = TRANSFER_MENTION.containsMatchIn(text)
+        val hasMoney = amounts.isNotEmpty() || MONEY_WORDS.containsMatchIn(text) || (transferMention && bareAmountsIn(text).isNotEmpty())
+        if (!hasMoney) return false
+        if (alertKind(text, amounts.isNotEmpty(), null) != null) return false
+        return transferMention || RETURN_REQUEST.containsMatchIn(text)
+    }
+
     // ------------------------------------------------------------------------------------------------ sender
 
     private class Sender(

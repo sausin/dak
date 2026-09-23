@@ -40,7 +40,6 @@
     <string name="fold_snack_failed">Could not fold these conversations</string>
     <string name="fold_selected_count">%1$d selected</string>
     <string name="fold_filter_all">All senders</string>
-    <string name="fold_filter_label">Show messages from</string>
     <string name="fold_chip_channel">via %1$s</string>
 
     <!-- Repeated messages -->

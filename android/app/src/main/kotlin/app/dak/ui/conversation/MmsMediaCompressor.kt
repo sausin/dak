@@ -42,11 +42,27 @@ class MmsMediaCompressor @Inject constructor(@ApplicationContext private val con
      */
     suspend fun prepare(uri: Uri, mimeType: String, budgetBytes: Int): Prepared? = withContext(Dispatchers.IO) {
         if (mimeType.startsWith("image/") && mimeType != "image/gif") {
-            compressImage(uri, budgetBytes)?.let { return@withContext Prepared("image/jpeg", it) }
+            // Shared URIs come from other apps: a provider may throw, lie about the type or serve garbage.
+            runCatching { compressImage(uri, budgetBytes) }.getOrNull()?.let { return@withContext Prepared("image/jpeg", it) }
         }
-        val raw = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+        val raw = runCatching { context.contentResolver.openInputStream(uri)?.use { readAtMost(it, budgetBytes) } }.getOrNull()
             ?: return@withContext null
-        if (raw.size > budgetBytes) null else Prepared(mimeType, raw)
+        Prepared(mimeType, raw)
+    }
+
+    /**
+     * Reads at most [limit] bytes; null when the stream is longer (a hostile provider could otherwise stream
+     * gigabytes into memory).
+     */
+    private fun readAtMost(input: java.io.InputStream, limit: Int): ByteArray? {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(16 * 1024)
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) return out.toByteArray()
+            if (out.size() + n > limit) return null
+            out.write(buffer, 0, n)
+        }
     }
 
     /** Compresses an in-memory bitmap (camera preview fallback). */
@@ -60,6 +76,8 @@ class MmsMediaCompressor @Inject constructor(@ApplicationContext private val con
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        // Decompression-bomb guard: refuse absurd dimensions before any pixels are allocated.
+        if (bounds.outWidth.toLong() * bounds.outHeight.toLong() > MAX_SOURCE_PIXELS) return null
         var sample = 1
         while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_EDGE_PX) sample *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sample }
@@ -107,6 +125,7 @@ class MmsMediaCompressor @Inject constructor(@ApplicationContext private val con
     private companion object {
         const val DEFAULT_LIMIT_BYTES = 300 * 1024
         const val MAX_EDGE_PX = 1600
+        const val MAX_SOURCE_PIXELS = 200L * 1000 * 1000
         const val MIN_EDGE_PX = 320
         const val MAX_ROUNDS = 6
         val QUALITIES = intArrayOf(85, 70, 55, 40)

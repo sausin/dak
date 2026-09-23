@@ -50,6 +50,29 @@ public object ScamLabels {
     /** True when a message with [labels] must stay out of the ledger (a likely fake credit, not dismissed). */
     public fun excludedFromLedger(labels: Set<String>): Boolean = LIKELY in labels && DISMISSED !in labels
 
+    /**
+     * True when [labels] mark a flagged *incoming-money* message (a fake credit alert or collect/PIN bait), as opposed
+     * to e.g. a flagged "please return it" chat. Used to feed follow-up detection ([RecentMessage.flaggedCredit]).
+     */
+    public fun isFlaggedCredit(labels: Set<String>): Boolean {
+        val verdict = fromLabels(labels) ?: return false
+        return verdict.reasons.any { it in CREDIT_REASONS }
+    }
+
+    private val CREDIT_REASONS = setOf(
+        ScamReason.CREDIT_ALERT_FROM_PHONE_NUMBER,
+        ScamReason.LOOKALIKE_SENDER,
+        ScamReason.UNVERIFIED_SENDER,
+        ScamReason.UNPREFIXED_BANK_HEADER,
+        ScamReason.PROMOTIONAL_ROUTE,
+        ScamReason.BRAND_MISMATCH,
+        ScamReason.PIN_TO_RECEIVE,
+        ScamReason.COLLECT_REQUEST,
+    )
+
+    /** SQL `LIKE` pattern matching the JSON-encoded label column of a row carrying [label] (no wildcards inside). */
+    public fun likePattern(label: String): String = "%\"" + label + "\"%"
+
     /** True when [labels] carry a warning to show (not dismissed). */
     public fun isFlagged(labels: Set<String>): Boolean = fromLabels(labels) != null
 

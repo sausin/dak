@@ -145,6 +145,24 @@ characters.
 - `ClassifierPipeline.MAX_CLASSIFY_CHARS` (4000): only the head of a body is classified. This bounds the cost of
   every regex run on attacker text. `SecurityTest` is the ReDoS harness for all body regexes.
 
+## Smart entities (`app.dak.classify.entities`)
+
+```kotlin
+EntityExtractor.extract(body: String, regionIso: String?, hints: List<EntityHint> = emptyList(), otpCode: String? = null): List<EntitySpan>
+data class EntitySpan(type: EntityType, start: Int, end: Int /* exclusive */, text: String, value: String, courier: String?)
+enum class EntityType { OTP, URL, EMAIL, MASKED_ACCOUNT, AMOUNT, UPI_ID, PNR, TRACKING, REFERENCE, PHONE }  // = overlap priority
+Couriers.find(text): String?   // "bluedart", "delhivery", "indiapost", ...
+```
+
+Typed, non-overlapping spans instead of "every digit run is a phone": OTP (OtpExtractor, or the index's code),
+URL (LinkExtractor: http(s)/www only), EMAIL, MASKED_ACCOUNT (`XX1234`, `****1234`, "A/c ending 1234"), AMOUNT
+(pass `:finance` `MoneyParser` spans as `EntityHint`s; a minimal rupee matcher runs otherwise), UPI_ID (known PSP
+handle or "UPI/VPA" just before; a dot after `@` makes it an email), PNR, TRACKING (+ courier), REFERENCE
+(Ref/Txn/UTR/RRN/Order ID + an id with a digit), PHONE (libphonenumber `findNumbers`, `Leniency.VALID`, for the
+SIM's region; `null` region → only `+`-prefixed numbers; numbers right after account/ref/customer-id words are
+skipped). `value` is canonical: E.164 phone, ASCII OTP, lower-case UPI/email, mask digits. First 4000 chars only;
+patterns (`EntityPatterns`) are covered by the ReDoS harness in `SecurityTest`.
+
 ## Testing
 
 `DAK_JVM_HARNESS_DIR=<unique dir> GRADLE=/opt/gradle-8.14.3/bin/gradle scripts/jvm-test.sh :classify:test`

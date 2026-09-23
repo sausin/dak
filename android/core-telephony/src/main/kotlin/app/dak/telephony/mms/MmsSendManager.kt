@@ -55,6 +55,7 @@ class MmsSendManager @Inject constructor(
         subject: String?,
         subId: Int,
         threadId: Long?,
+        requestDeliveryReport: Boolean = true,
     ): SendResult {
         val thread = threadId?.takeIf { it > 0 } ?: writer.threadIdFor(addresses.toSet()).takeIf { it > 0 }
             ?: return SendResult.Failed("Could not open the conversation; is Dak the default SMS app?")
@@ -64,7 +65,7 @@ class MmsSendManager @Inject constructor(
             attachments = parts.map { MmsMessageBuilder.Attachment(it.mimeType, it.fileName, it.bytes) },
             subject = subject,
             dateSeconds = System.currentTimeMillis() / 1000,
-            requestDeliveryReport = settings.requestMmsDeliveryReports,
+            requestDeliveryReport = requestDeliveryReport && settings.requestMmsDeliveryReports,
         )
         val bytes = MmsPduEncoder.encode(req)
         val limit = maxMessageSize(subId)

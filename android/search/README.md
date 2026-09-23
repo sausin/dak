@@ -41,6 +41,24 @@ data class SearchQuery(val textExpr: TextExpr?, val filters: List<Filter> = empt
 encoding), `DateRange(startMillis?, endMillis?)` (half-open `[start, end)`), `InFolder(Folder)`,
 `IsStarred`, `IsUnread`, `IsRead`, `Not(Filter)`.
 
+### `AmountTokens` (object) — one amount, any spelling
+
+```kotlin
+fun token(hundredths: Long, currency: String? = null): String   // "amt50000000", "amtinr50000000"
+fun indexText(amounts: List<Pair<Long, String?>>): String       // FTS-only suffix, both forms per amount
+fun parseTerm(raw: String): QueryAmount?                         // "500000", "5,00,000", "₹5,00,000.00", "Rs.5,00,000/-"
+fun parseFilterValue(raw: String): Long?                         // + k / L / lakh / lac / cr / crore / m suffixes
+fun expandTerm(term: String): TextExpr?                          // Term OR Term(plain digits) OR Phrase(token)
+fun queryText(hundredths: Long): String                          // "500000" / "1234.50" (e.g. "Search this amount")
+fun isToken(s: String): Boolean
+```
+
+`hundredths` = value × 100 (minor units for INR/USD). `:core-index` appends `indexText(...)` of every amount
+in a body (from `MoneyParser.findAllForSearch`) to the FTS text column only. `QueryParser` expands an
+amount-looking free-text term via `expandTerm` (negated terms are left alone), `toQueryString` collapses it
+back to the literal, `FtsMatch.build` never prefix-matches an amount token, and `amount:` accepts every
+spelling plus suffixes (`amount:5,00,000`, `amount:>50k`, `amount:1L..1cr`; a bare value means `=`).
+
 ### `FtsMatch` (object)
 
 ```kotlin

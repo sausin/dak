@@ -107,7 +107,7 @@ class MessageSendController @Inject constructor(
             sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = settings.get(DakSettings.deliveryReports)))
         } else {
             val parts = buildParts(text, attachments, sendSubId) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
-            sender.sendMms(OutgoingMms(targets, text.ifEmpty { null }, sendSubId, parts, threadId = threadId))
+            sender.sendMms(OutgoingMms(targets, text.ifEmpty { null }, sendSubId, parts, threadId = threadId, requestDeliveryReport = settings.get(DakSettings.deliveryReports)))
         }
         return when (result) {
             is SendResult.Queued -> SendOutcome.Sent

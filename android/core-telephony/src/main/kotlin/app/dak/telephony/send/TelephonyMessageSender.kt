@@ -92,7 +92,7 @@ class TelephonyMessageSender @Inject constructor(
         if (mms.text.isNullOrEmpty() && mms.parts.isEmpty()) return SendResult.Failed("Message is empty")
         val subId = resolveSubId(mms.subId)
         val addresses = recipients.map { outgoingAddress(it, subId) }
-        return mmsSender.send(addresses, mms.text, mms.parts, mms.subject, subId, mms.threadId)
+        return mmsSender.send(addresses, mms.text, mms.parts, mms.subject, subId, mms.threadId, mms.requestDeliveryReport)
     }
 
     override suspend fun retry(key: MessageKey): SendResult {

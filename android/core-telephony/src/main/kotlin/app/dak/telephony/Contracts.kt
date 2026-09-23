@@ -130,6 +130,11 @@ data class OutgoingMms(
     val parts: List<OutgoingMmsPart>,
     val subject: String? = null,
     val threadId: Long? = null,
+    /**
+     * The user's "Delivery reports" choice. A report is requested only when this AND
+     * [TelephonySettings.requestMmsDeliveryReports] (off by default: many MMSCs ignore them) are on.
+     */
+    val requestDeliveryReport: Boolean = true,
 )
 
 data class OutgoingMmsPart(val mimeType: String, val fileName: String, val bytes: ByteArray)

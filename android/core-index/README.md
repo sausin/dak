@@ -114,7 +114,8 @@ suspend fun clearHistory()
 Parse input with `app.dak.search.QueryParser.parse(text, ZonedDateTime.now())`. Text runs through FTS4
 (`unicode61`, `TextNormalizer`-normalized body + sender) using only standard query syntax; OR-of-AND groups and
 negation are composed in SQL, so any `TextExpr` works regardless of SQLCipher's FTS compile options. (This is why
-`:search`'s `FtsMatch.build` is not used: it flattens such expressions.) Terms of 2+ chars are prefix-matched.
+`:search`'s `FtsMatch.build` is not used: it flattens such expressions.) Terms of 2+ chars are prefix-matched. Every amount in a body is also indexed as canonical tokens (`app.dak.search.AmountTokens`, FTS text
+column only), so "500000", "5,00,000" and "Rs.5,00,000/-" find each other; hits highlight the matching amount.
 Filters are column lookups: `from:` (address / brand / merge-group name / contact numbers), `category:`, `sim:`
 (1-based slot, sub id, display or carrier name), `has:attachment|link|otp`, `amount:`, dates, `in:inbox|archive`,
 `is:starred|unread|read`, negation. `in:bin` searches the recycle bin instead (LIKE; from/category/sim/date/

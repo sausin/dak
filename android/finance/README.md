@@ -33,6 +33,14 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
 - **`MoneyParser`** — parses amounts as written in SMS text.
   - `parse(text, symbolMap = CurrencyTable.defaultSymbolToCurrency): Money?` — first amount found
     with an explicit currency symbol/code attached; a bare number is never treated as money.
+  - `findAllForSearch(text, symbolMap): List<AmountMention>` — every amount in a body for search
+    indexing: the currency-bearing ones plus bare numbers unmistakably formatted as amounts
+    ("5,00,000", "500,000.00", "500000.00"; never plain digit runs such as phones/OTPs). Each
+    `AmountMention(major, currency?, range)` exposes `hundredths` (value × 100, currency-independent).
+    Scans the first 4000 chars.
+  - Same amount, any spelling: "500,000. 00" / "500,000 .00" (stray blank around the point),
+    "5,00,000.00", "500000", "Rs.5,00,000/-", "INR 500000", "Rs 5 lakh", "₹0.05 crore" all parse to
+    ₹5,00,000.00. "Cr" alone is *not* crore (it means credited in bank SMS).
   - `findAll(text, symbolMap): List<MoneyOccurrence>` — every such amount, each with its match
     range, so callers can reason about which amount in a longer message is which (see
     `TransactionParser`).

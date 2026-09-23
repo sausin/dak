@@ -93,6 +93,13 @@ class PinHasherTest {
     }
 
     @Test
+    fun `typed pins compare exactly`() {
+        assertTrue(PinPolicy.matches("1357".toCharArray(), "1357".toCharArray()))
+        assertFalse(PinPolicy.matches("1357".toCharArray(), "1358".toCharArray()))
+        assertFalse(PinPolicy.matches("1357".toCharArray(), "13570".toCharArray()))
+    }
+
+    @Test
     fun `constant time comparison`() {
         assertTrue(PinHasher.constantTimeEquals(byteArrayOf(1, 2, 3), byteArrayOf(1, 2, 3)))
         assertFalse(PinHasher.constantTimeEquals(byteArrayOf(1, 2, 3), byteArrayOf(1, 2, 4)))

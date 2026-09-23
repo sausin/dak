@@ -16,6 +16,8 @@ dependencies {
     api(project(":core-model"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
+    // Phone-number spans in EntityExtractor (PhoneNumberUtil.findNumbers, offline metadata).
+    implementation(libs.libphonenumber)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

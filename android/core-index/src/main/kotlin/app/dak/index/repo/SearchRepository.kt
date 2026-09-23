@@ -22,6 +22,7 @@ import app.dak.index.sql.SearchSqlBuilder
 import app.dak.index.sql.SqlQuery
 import app.dak.index.sql.Tables
 import app.dak.index.sql.likeContains
+import app.dak.index.text.AmountHighlighter
 import app.dak.index.text.Highlighter
 import app.dak.search.Filter
 import app.dak.search.SearchQuery
@@ -134,6 +135,14 @@ class SearchRepository @Inject constructor(
 
         private var resolved: SearchSqlBuilder.Resolved? = null
         private val highlightTokens: List<String> = query.textExpr?.let { Highlighter.positiveTokens(it) }.orEmpty()
+        private val amountTokens: Set<String> = AmountHighlighter.amountTokens(highlightTokens)
+
+        /** Literal token matches plus amounts matched through a canonical amount token ("500000" -> "Rs.5,00,000/-"). */
+        private fun highlightsIn(body: String): List<IntRange> {
+            val literal = Highlighter.ranges(body, highlightTokens)
+            val amounts = AmountHighlighter.ranges(body, amountTokens)
+            return if (amounts.isEmpty()) literal else (literal + amounts).sortedBy { it.first }
+        }
 
         override suspend fun loadRange(offset: Int, limit: Int): List<SearchHit> {
             val r = resolved ?: resolve(query).also { resolved = it }
@@ -160,7 +169,7 @@ class SearchRepository @Inject constructor(
                     conversationTitle = title,
                     message = Mappers.messageItem(row),
                     matchCount = hit.matchCount,
-                    highlights = Highlighter.ranges(row.body, highlightTokens),
+                    highlights = highlightsIn(row.body),
                 )
             }
         }
@@ -182,7 +191,7 @@ class SearchRepository @Inject constructor(
                 conversationTitle = contacts.displayName(entry.address) ?: entry.address,
                 message = item,
                 matchCount = 1,
-                highlights = Highlighter.ranges(entry.body, highlightTokens),
+                highlights = highlightsIn(entry.body),
                 binId = entry.id,
             )
         }

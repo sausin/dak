@@ -14,6 +14,13 @@ object PinPolicy {
     fun isValid(pin: CharArray): Boolean =
         pin.size in MIN_LENGTH..MAX_LENGTH && pin.all { it in '0'..'9' }
 
+    /** Constant-time equality of two typed PINs (the confirm step of PIN setup). */
+    fun matches(a: CharArray, b: CharArray): Boolean {
+        var diff = a.size xor b.size
+        for (i in 0 until minOf(a.size, b.size)) diff = diff or (a[i].code xor b[i].code)
+        return diff == 0
+    }
+
     /** True for PINs anyone would try first: one repeated digit (0000) or a straight run up or down (1234, 9876). */
     fun isEasyToGuess(pin: CharArray): Boolean {
         if (pin.size < 2) return true

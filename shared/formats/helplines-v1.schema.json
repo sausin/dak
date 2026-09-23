@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dak.app/schemas/helplines-v1.schema.json",
+  "title": "Dak helplines bundle v1",
+  "description": "Official fraud / spam / emergency helplines shown on the Report fraud screen. The copy bundled in the app is trusted as is (signature null); an over-the-air copy must carry a base64 Ed25519 signature over the canonical JSON encoding of `payload` (same scheme as the template bundle) and a higher `revision`.",
+  "type": "object",
+  "required": ["payload"],
+  "additionalProperties": false,
+  "properties": {
+    "payload": { "$ref": "#/$defs/payload" },
+    "signature": {
+      "type": ["string", "null"],
+      "description": "Base64 signature over the canonical JSON of payload; null only for the copy bundled in the app."
+    }
+  },
+  "$defs": {
+    "payload": {
+      "type": "object",
+      "required": ["format", "version", "revision", "issuedAt", "helplines"],
+      "additionalProperties": false,
+      "properties": {
+        "format": { "const": "dak-helplines" },
+        "version": { "const": 1 },
+        "revision": { "type": "integer", "minimum": 1, "description": "Monotonic; an update is applied only when its revision is higher than the one in use." },
+        "issuedAt": { "type": "string", "format": "date" },
+        "notes": { "type": ["string", "null"] },
+        "helplines": { "type": "array", "items": { "$ref": "#/$defs/helpline" } },
+        "bankCardBlock": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/helpline" },
+          "description": "Bank card-block / fraud numbers. Empty until each number is verified against the bank's own website; users can add their own bank's number in the app (stored locally, shown as unverified)."
+        }
+      }
+    },
+    "helpline": {
+      "type": "object",
+      "required": ["id", "name", "country", "category", "action", "target", "purpose", "sourceUrl", "needsVerification"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "country": { "type": "string", "pattern": "^[A-Z]{2}$", "description": "ISO 3166-1 alpha-2." },
+        "category": { "enum": ["cybercrime", "fraud_communication", "spam", "emergency", "banking", "bank_card_block"] },
+        "action": { "enum": ["call", "sms", "url"], "description": "call opens the dialer (never places the call), sms opens the composer, url opens the browser." },
+        "target": { "type": "string", "description": "Phone number / short code for call and sms, https URL for url." },
+        "purpose": { "type": "string" },
+        "sourceUrl": { "type": "string", "format": "uri", "description": "Official page that publishes this helpline." },
+        "lastVerified": { "type": ["string", "null"], "format": "date", "description": "Date the entry was last checked against sourceUrl." },
+        "needsVerification": { "type": "boolean" },
+        "verificationNote": { "type": ["string", "null"] },
+        "smsFormat": {
+          "type": ["string", "null"],
+          "description": "For action sms: body template. Placeholders {text}, {sender}, {date:<java date pattern>}."
+        }
+      }
+    }
+  }
+}

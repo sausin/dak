@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Broadcast lists (agent "broadcast", prefix bc_). -->
+<resources>
+    <string name="bc_title">Broadcast lists</string>
+    <string name="bc_shortcut_summary">Send one message to several people you know, as separate SMS</string>
+    <string name="bc_new_message_entry">Send to a broadcast list</string>
+
+    <!-- First-use terms sheet -->
+    <string name="bc_terms_title">Use broadcasts with care</string>
+    <string name="bc_terms_intro">A broadcast sends the same message to each person as a separate SMS from your number. Replies come back to you one to one.</string>
+    <string name="bc_terms_personal">Personal, non-commercial use only: family, friends, your housing society or team.</string>
+    <string name="bc_terms_expect">Send only to people who know you and expect your message.</string>
+    <string name="bc_terms_spam">Spam and unsolicited promotional messages break Dak\'s terms and your operator\'s and telecom regulator\'s rules.</string>
+    <string name="bc_terms_india">In India, TRAI\'s rules on unsolicited commercial communication (TCCCPR 2018) cover personal numbers too: people can report your number on 1909, and it can be disconnected or blacklisted.</string>
+    <string name="bc_terms_throttle">Operators may slow down, block or suspend numbers that send in bulk.</string>
+    <string name="bc_terms_charges">Your normal SMS charges apply for every recipient, and for every part of a long message.</string>
+    <string name="bc_terms_limits">Dak limits a broadcast to %1$d people and %2$d messages a day, and spaces the messages out.</string>
+    <string name="bc_terms_checkbox">I understand, and will only send to people who expect my messages</string>
+    <string name="bc_terms_accept">Accept</string>
+    <string name="bc_terms_decline">Not now</string>
+    <string name="bc_terms_read_full">Read acceptable use</string>
+    <string name="bc_terms_accepted_on">Terms accepted on %s</string>
+
+    <!-- Acceptable use (mirrors docs/terms-acceptable-use.md) -->
+    <string name="bc_aup_title">Acceptable use</string>
+    <string name="bc_aup_body">Dak is a personal messaging app. Broadcast lists, scheduled sends, forwarding and automations are there to help you talk to people you know.\n\nYou must not use Dak to send spam: unsolicited commercial or promotional messages, messages to people who have not agreed to hear from you, or messages to numbers bought, scraped or collected from others.\n\nIndia: the TRAI Telecom Commercial Communications Customer Preference Regulations, 2018 (TCCCPR) forbid unsolicited commercial communication from unregistered senders, including personal numbers. Recipients can report such messages by SMS or call to 1909 or in the DND app. Operators must act on complaints and can warn, restrict, disconnect and blacklist the number.\n\nEverywhere: operators throttle, block or suspend numbers that send in bulk, and many countries have anti-spam laws. Businesses must use a registered bulk-SMS provider, not a personal SIM.\n\nDak\'s limits: at most 50 people per broadcast and 100 broadcast messages in any 24 hours, sent in spaced-out batches; no recurring broadcasts; automations can never start a broadcast; premium-rate, short-code and alphanumeric numbers are never broadcast to.\n\nSMS charges from your operator apply to every message you send, including each copy of a broadcast and each part of a long message.\n\nYou are responsible for the messages you send. Misuse can lead to your number being disconnected by your operator.</string>
+    <string name="bc_close">Close</string>
+
+    <!-- Lists screen -->
+    <string name="bc_empty_title">No broadcast lists yet</string>
+    <string name="bc_empty_body">Make a list to send one message to several people you know. Each gets their own SMS, and replies come back to you 1:1.</string>
+    <string name="bc_new_list">New list</string>
+    <string name="bc_limits_note">Up to %1$d people per broadcast and %2$d broadcast messages a day. Personal use only.</string>
+    <string name="bc_last_sent">Last sent %s</string>
+    <plurals name="bc_members_count">
+        <item quantity="one">%d person</item>
+        <item quantity="other">%d people</item>
+    </plurals>
+
+    <!-- List editor -->
+    <string name="bc_edit_title_new">New broadcast list</string>
+    <string name="bc_edit_title">Edit list</string>
+    <string name="bc_edit_name">List name</string>
+    <string name="bc_edit_search">Add people: name or number</string>
+    <string name="bc_edit_numbers">Or type numbers, separated by commas</string>
+    <string name="bc_edit_add">Add</string>
+    <string name="bc_edit_members">Members (%1$d of %2$d)</string>
+    <string name="bc_edit_remove">Remove %s</string>
+    <string name="bc_edit_over_cap">A list can have at most %d people.</string>
+    <string name="bc_edit_save">Save</string>
+    <string name="bc_edit_delete">Delete list</string>
+    <string name="bc_edit_delete_confirm">Delete \"%s\"? Messages already sent stay in each conversation.</string>
+    <string name="bc_edit_contacts_off">Allow contacts access to search by name.</string>
+    <string name="bc_edit_allow">Allow</string>
+    <string name="bc_edit_default_name">My list</string>
+
+    <!-- List thread + composer -->
+    <string name="bc_thread_empty">Nothing sent to this list yet. What you send here goes to each person as their own SMS.</string>
+    <string name="bc_composer_hint">Message to everyone</string>
+    <string name="bc_insert_first_name">{firstName}</string>
+    <string name="bc_insert_name">{name}</string>
+    <string name="bc_placeholders_label">Personalise:</string>
+    <string name="bc_preview_for">Preview for %1$s: %2$s</string>
+    <string name="bc_send">Send</string>
+    <string name="bc_send_later">Send later</string>
+    <string name="bc_scheduled_for">Goes out %s</string>
+    <string name="bc_send_now_instead">Send now instead</string>
+    <string name="bc_sim_label">From %s</string>
+    <string name="bc_edit_list">Edit list</string>
+    <string name="bc_cancel">Cancel</string>
+    <string name="bc_sent_snack">Sending to %d people</string>
+    <string name="bc_scheduled_snack">Scheduled for %d people</string>
+    <string name="bc_send_failed">Couldn\'t queue the broadcast. Check the daily limit and try again.</string>
+    <string name="bc_list_missing">This list was deleted.</string>
+
+    <!-- Confirmation -->
+    <string name="bc_confirm_title">Send to %d people?</string>
+    <string name="bc_confirm_title_scheduled">Schedule for %d people?</string>
+    <string name="bc_confirm_cost">%1$d SMS in total (%2$d people, up to %3$d part(s) each). Your operator\'s normal charges apply to each one.</string>
+    <string name="bc_confirm_eta_single_batch">All go out right away.</string>
+    <string name="bc_confirm_eta">Sent in small batches to stay within carrier limits: the last one goes out in about %s.</string>
+    <string name="bc_confirm_eta_scheduled">Starts %1$s; the last one goes out about %2$s later.</string>
+    <string name="bc_confirm_excluded">Left out (%d):</string>
+    <string name="bc_confirm_international">%d international number(s): international SMS rates apply.</string>
+    <string name="bc_confirm_roaming">Your SIM is roaming, so each SMS may cost more.</string>
+    <string name="bc_confirm_reminder">Only send to people who expect this message. Spam breaks Dak\'s terms and operator / TRAI rules.</string>
+    <string name="bc_confirm_quota">%1$d of %2$d daily broadcast messages left.</string>
+    <string name="bc_risk_promo_title">This looks like a promotional message</string>
+    <string name="bc_risk_promo_body">Links and words like offer, sale, discount or click are typical of spam. Unsolicited promotional SMS from a personal number breaks TRAI rules in India and your operator\'s terms: your number can be reported on 1909 and disconnected.</string>
+    <string name="bc_risk_large_title">This is a large send</string>
+    <string name="bc_risk_large_body">Operators watch numbers that message many people at once. Make sure everyone on the list expects to hear from you.</string>
+    <string name="bc_confirm_expect">These people know me and expect this message</string>
+    <string name="bc_confirm_send">Send</string>
+    <string name="bc_confirm_schedule">Schedule</string>
+    <string name="bc_problem_empty">Type a message first.</string>
+    <string name="bc_problem_no_recipients">No one on this list can receive it.</string>
+    <string name="bc_problem_too_many">%1$d people would receive this, but a broadcast can go to at most %2$d. Remove some from the list first.</string>
+    <string name="bc_problem_daily">Daily limit reached: only %1$d more broadcast messages can go out in the next 24 hours (limit %2$d).</string>
+    <string name="bc_problem_past">Pick a time in the future.</string>
+    <string name="bc_problem_far">Pick a time within the next 30 days.</string>
+
+    <!-- Exclusion reasons -->
+    <string name="bc_excl_duplicate">duplicate number</string>
+    <string name="bc_excl_blocked">blocked</string>
+    <string name="bc_excl_own">your own number</string>
+    <string name="bc_excl_short_code">short code</string>
+    <string name="bc_excl_alphanumeric">can\'t receive SMS</string>
+    <string name="bc_excl_special">premium-rate or service number</string>
+    <string name="bc_excl_invalid">not a phone number</string>
+
+    <!-- Sent broadcast + details -->
+    <string name="bc_status_line">%1$d delivered · %2$d sent · %3$d pending · %4$d failed</string>
+    <string name="bc_details_title">Broadcast details</string>
+    <string name="bc_details_recipients">Recipients</string>
+    <string name="bc_details_replies">Replies</string>
+    <string name="bc_details_no_replies">No replies yet.</string>
+    <string name="bc_retry">Retry</string>
+    <string name="bc_cancel_unsent">Cancel unsent</string>
+    <string name="bc_delete_record">Remove from this list\'s history</string>
+    <string name="bc_state_scheduled">Scheduled %s</string>
+    <string name="bc_state_sending">Sending</string>
+    <string name="bc_state_sent">Sent</string>
+    <string name="bc_state_delivered">Delivered</string>
+    <string name="bc_state_failed">Failed</string>
+    <string name="bc_state_cancelled">Cancelled</string>
+    <string name="bc_open_conversation">Open conversation with %s</string>
+    <plurals name="bc_reply_count">
+        <item quantity="one">%d reply</item>
+        <item quantity="other">%d replies</item>
+    </plurals>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug-only background activity log on the self-test screen (agent G "battery"). -->
+    <string name="battery_activity_title">Background activity (debug)</string>
+    <string name="battery_activity_explain">Process starts, jobs and reconciles per day. A heavy day (300 SMS) should stay well under one job per message.</string>
+</resources>

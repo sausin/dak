@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "issuedAt": 1758000000000,
+  "senders": [
+    {"header": "HDFCBK", "brand": "HDFC Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "HDFC", "brand": "HDFC Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "ICICIB", "brand": "ICICI Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "ICICIT", "brand": "ICICI Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "SBIINB", "brand": "State Bank of India", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "SBIPSG", "brand": "State Bank of India", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "SBICRD", "brand": "SBI Card", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "ATMSBI", "brand": "State Bank of India", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "AXISBK", "brand": "Axis Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "AXISBANK", "brand": "Axis Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "KOTAKB", "brand": "Kotak Mahindra Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "KOTAK", "brand": "Kotak Mahindra Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
+    {"header": "YESBNK", "brand": "Yes Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "IDFCFB", "brand": "IDFC First Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "IDFCBK", "brand": "IDFC First Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "INDUSB", "brand": "IndusInd Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "INDBNK", "brand": "IndusInd Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "PUNBNK", "brand": "Punjab National Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "PNBSMS", "brand": "Punjab National Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "BOBTXN", "brand": "Bank of Baroda", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "BOBIBK", "brand": "Bank of Baroda", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "CANBNK", "brand": "Canara Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+    {"header": "CANBK", "brand": "Canara Bank", "categoryHint": "TRANSACTION", "reputation": 90, "regions": ["IN"]},
+
+    {"header": "PAYTM", "brand": "Paytm", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "PYTMPT", "brand": "Paytm", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "PHONEPE", "brand": "PhonePe", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "PHNPE", "brand": "PhonePe", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "GOOGPAY", "brand": "Google Pay", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "GPAY", "brand": "Google Pay", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "AMZNPY", "brand": "Amazon Pay", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+
+    {"header": "AMAZON", "brand": "Amazon", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "FLPKRT", "brand": "Flipkart", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "FKRT", "brand": "Flipkart", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "SWIGGY", "brand": "Swiggy", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "ZOMATO", "brand": "Zomato", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "DELHVR", "brand": "Delhivery", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "DELIVR", "brand": "Delhivery", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "BLUEDT", "brand": "BlueDart", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "BDART", "brand": "BlueDart", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+
+    {"header": "JIO", "brand": "Jio", "categoryHint": "PROMOTION", "reputation": 70, "regions": ["IN"]},
+    {"header": "JIOPAY", "brand": "Jio", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "AIRTEL", "brand": "Airtel", "categoryHint": "PROMOTION", "reputation": 70, "regions": ["IN"]},
+    {"header": "AIRINF", "brand": "Airtel", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "VODAIN", "brand": "Vi", "categoryHint": "PROMOTION", "reputation": 65, "regions": ["IN"]},
+    {"header": "VIMOBI", "brand": "Vi", "categoryHint": "PROMOTION", "reputation": 65, "regions": ["IN"]},
+
+    {"header": "IRCTC", "brand": "IRCTC", "categoryHint": "TRANSACTION", "reputation": 85, "regions": ["IN"]},
+    {"header": "INDIGO", "brand": "IndiGo", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "IGOAIR", "brand": "IndiGo", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]}
+  ],
+  "rules": [
+    {"id": "otp-english", "category": "OTP", "pattern": "\\b(otp|one[- ]?time password|verification code|security code)\\b", "priority": 100},
+    {"id": "otp-code-is", "category": "OTP", "pattern": "\\bcode\\s*(is|:)\\s*\\d{4,8}\\b", "priority": 100},
+    {"id": "otp-hindi", "category": "OTP", "pattern": "(ओटीपी|सत्यापन कोड|वन टाइम पासवर्ड)", "priority": 100},
+    {"id": "otp-do-not-share", "category": "OTP", "pattern": "\\bdo not share (this|your) (otp|code)\\b", "priority": 90},
+
+    {"id": "txn-debited", "category": "TRANSACTION", "pattern": "\\b(debited|debit(ed)? with|spent|paid|withdrawn)\\b", "priority": 80},
+    {"id": "txn-credited", "category": "TRANSACTION", "pattern": "\\b(credited|credit(ed)? with|received)\\b", "priority": 80},
+    {"id": "txn-upi", "category": "TRANSACTION", "pattern": "\\b(upi|imps|neft|rtgs)\\b.*\\b(ref|txn|reference)\\b", "priority": 70, "regions": ["IN"]},
+    {"id": "txn-avl-bal", "category": "TRANSACTION", "pattern": "\\bavl(bl)?\\.?\\s*bal\\b", "priority": 60},
+    {"id": "txn-card-spend", "category": "TRANSACTION", "pattern": "\\b(card|a/c|account)\\s*(no\\.?)?\\s*(ending|xx+|\\*+)\\s*\\d{2,4}\\b.*\\b(debited|credited|spent)\\b", "priority": 65},
+
+    {"id": "delivery-out", "category": "TRANSACTION", "pattern": "\\b(out for delivery|has been shipped|order has been delivered|dispatched|tracking id)\\b", "priority": 55, "labels": ["delivery"]},
+
+    {"id": "spam-kyc", "category": "SPAM", "pattern": "\\b(kyc|pan card|aadhaar)\\b.{0,30}\\b(update|verify|expire|suspend|block)|\\b(update|verify|expire|suspend|block)\\w*\\b.{0,30}\\b(kyc|pan card|aadhaar)\\b", "priority": 95, "labels": ["fraud-risk"]},
+    {"id": "spam-lottery", "category": "SPAM", "pattern": "\\b(congratulations|winner|lottery|lucky draw|prize)\\b", "priority": 90},
+    {"id": "spam-loan", "category": "SPAM", "pattern": "\\b(instant loan|pre-?approved loan|loan approved|low interest)\\b", "priority": 85},
+    {"id": "spam-click-link", "category": "SPAM", "pattern": "\\b(click here|click now|verify now)\\b.*\\bhttps?://", "priority": 85},
+
+    {"id": "promo-offer", "category": "PROMOTION", "pattern": "\\b(offer|discount|sale|cashback|coupon|% off|flat \\d+% off)\\b", "priority": 40},
+    {"id": "promo-recharge", "category": "PROMOTION", "pattern": "\\b(recharge now|plan expires|data pack|talktime)\\b", "priority": 40}
+  ]
+}

@@ -1,0 +1,100 @@
+name: Android
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "android/**"
+      - "shared/**"
+      - ".github/workflows/android.yml"
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "android/**"
+      - "shared/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: android
+
+jobs:
+  build:
+    name: Test and build APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DAK_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Offline baseline guard (no runtime AI/network deps in free tier)
+        run: scripts/check-offline-baseline.sh
+
+      - name: Unit tests (JVM + Android modules)
+        run: ./gradlew --continue test
+
+      - name: Build debug APKs (free + premium) and an unsigned release build check
+        run: ./gradlew --stacktrace assembleFreeDebug assemblePremiumDebug assembleFreeRelease
+
+      - name: Decode release keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DAK_KEYSTORE_BASE64 }}
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release APKs
+        if: steps.keystore.outputs.path != ''
+        env:
+          DAK_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          DAK_KEYSTORE_PASSWORD: ${{ secrets.DAK_KEYSTORE_PASSWORD }}
+          DAK_KEY_ALIAS: ${{ secrets.DAK_KEY_ALIAS }}
+          DAK_KEY_PASSWORD: ${{ secrets.DAK_KEY_PASSWORD }}
+        run: ./gradlew --stacktrace assembleFreeRelease assemblePremiumRelease
+
+      - name: Upload debug APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: dak-debug-apks-${{ github.run_number }}
+          path: android/app/build/outputs/apk/*/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload release APKs
+        if: steps.keystore.outputs.path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: dak-release-apks-${{ github.run_number }}
+          path: android/app/build/outputs/apk/*/release/*.apk
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.run_number }}
+          path: android/**/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Attach APKs to GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            android/app/build/outputs/apk/*/debug/*.apk
+            android/app/build/outputs/apk/*/release/*.apk
+    permissions:
+      contents: write

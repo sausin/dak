@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UX pass (agent L): gestures, thumb-zone actions, selection mode, accessibility labels. Prefix: ux_ -->
+<resources>
+    <!-- Inbox: bottom bar and places sheet -->
+    <string name="ux_inbox_places">More places</string>
+    <string name="ux_inbox_places_title">Go to</string>
+
+    <!-- Inbox: OTP chip on a conversation row -->
+    <string name="ux_inbox_copy_code">Copy code</string>
+    <string name="ux_inbox_code_copied">Copied</string>
+    <string name="ux_inbox_copy_code_description">Copy code %1$s</string>
+
+    <!-- Inbox: row accessibility -->
+    <string name="ux_action_open">Open</string>
+    <string name="ux_action_select">Select</string>
+    <string name="ux_action_deselect">Deselect</string>
+    <string name="ux_selected">Selected</string>
+    <plurals name="ux_unread_count">
+        <item quantity="one">%d unread message</item>
+        <item quantity="other">%d unread messages</item>
+    </plurals>
+
+    <!-- Inbox: selection mode -->
+    <string name="ux_selection_more">More</string>
+    <string name="ux_action_read_short">Read</string>
+    <string name="ux_action_delete_short">Delete</string>
+    <string name="ux_action_select_all">Select all loaded</string>
+    <plurals name="ux_snack_archived_many">
+        <item quantity="one">Conversation archived</item>
+        <item quantity="other">%d conversations archived</item>
+    </plurals>
+    <plurals name="ux_snack_pinned">
+        <item quantity="one">Pinned</item>
+        <item quantity="other">%d conversations pinned</item>
+    </plurals>
+    <plurals name="ux_snack_unpinned">
+        <item quantity="one">Unpinned</item>
+        <item quantity="other">%d conversations unpinned</item>
+    </plurals>
+    <plurals name="ux_snack_marked_read">
+        <item quantity="one">Marked as read</item>
+        <item quantity="other">%d conversations marked as read</item>
+    </plurals>
+
+    <!-- Conversation -->
+    <string name="ux_jump_latest">Jump to latest message</string>
+    <string name="ux_action_reply">Reply</string>
+    <string name="ux_action_copy_amount">Copy amount</string>
+    <string name="ux_action_info">Message details</string>
+    <string name="ux_action_message_actions">Message actions</string>
+    <string name="ux_snack_code_copied">Code copied</string>
+    <string name="ux_snack_amount_copied">Amount copied</string>
+    <string name="ux_snack_text_copied">Message copied</string>
+    <string name="ux_action_close">Close</string>
+    <string name="ux_info_from">From</string>
+    <string name="ux_info_to">To</string>
+    <string name="ux_info_time">Time</string>
+    <string name="ux_info_sim">SIM</string>
+    <string name="ux_info_type">Type</string>
+    <string name="ux_info_category">Category</string>
+    <string name="ux_info_status">Status</string>
+    <string name="ux_info_confidence">%1$s (%2$d%% confident)</string>
+    <string name="ux_info_sms">SMS</string>
+    <string name="ux_info_mms">MMS</string>
+
+    <!-- Settings accessibility -->
+    <string name="ux_expanded">Expanded</string>
+    <string name="ux_collapsed">Collapsed</string>
+</resources>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App lock: lock screen, PIN pad, confirmations, App lock settings (agent "applock", prefix lock_). -->
+<resources>
+    <!-- Lock screen -->
+    <string name="lock_title">Dak is locked</string>
+    <string name="lock_body_device">Use your fingerprint, face or your phone\'s screen lock to open your messages.</string>
+    <string name="lock_unlock_button">Unlock Dak</string>
+    <string name="lock_enter_pin">Enter your Dak PIN</string>
+    <string name="lock_prompt_title">Unlock Dak</string>
+    <string name="lock_prompt_subtitle">Your messages stay hidden until you unlock</string>
+    <string name="lock_device_unavailable">Your phone\'s screen lock isn\'t available right now.</string>
+    <string name="lock_biometric_locked_out">Too many attempts. Use your screen lock or PIN, or try again later.</string>
+    <string name="lock_use_pin">Use PIN</string>
+    <string name="lock_use_fingerprint">Use fingerprint</string>
+    <string name="lock_cancel">Cancel</string>
+    <string name="lock_unlock_action">Unlock</string>
+
+    <!-- PIN pad -->
+    <string name="lock_pin_delete">Delete digit</string>
+    <string name="lock_pin_enter">Enter PIN</string>
+    <string name="lock_pin_entered">%1$d digits entered</string>
+    <string name="lock_pin_wrong">Wrong PIN. Try again.</string>
+    <plurals name="lock_pin_wrong_attempts">
+        <item quantity="one">Wrong PIN. %1$d try left before a short lockout.</item>
+        <item quantity="other">Wrong PIN. %1$d tries left before a short lockout.</item>
+    </plurals>
+    <string name="lock_pin_locked_out">Too many wrong PINs. Try again in %1$s.</string>
+    <string name="lock_pin_missing">No app PIN is set on this phone.</string>
+
+    <!-- PIN setup -->
+    <string name="lock_setup_title">Choose a PIN for Dak</string>
+    <string name="lock_setup_hint">4 to 8 digits, different from obvious ones like 1234</string>
+    <string name="lock_setup_confirm_title">Enter the PIN again</string>
+    <string name="lock_setup_confirm_hint">To make sure you typed it right</string>
+    <string name="lock_setup_too_easy">That PIN is too easy to guess. Choose another.</string>
+    <string name="lock_setup_mismatch">The PINs didn\'t match. Start again.</string>
+    <string name="lock_setup_invalid">Use 4 to 8 digits.</string>
+
+    <!-- Sensitive screens -->
+    <string name="lock_sensitive_prompt">Unlock %1$s</string>
+    <string name="lock_sensitive_title">This screen is protected</string>
+    <string name="lock_sensitive_body">Unlock to see it. You can change this in Settings → App lock.</string>
+
+    <!-- Onboarding -->
+    <string name="lock_onboarding_title">Protect Dak with app lock</string>
+    <string name="lock_onboarding_body">Recommended: your messages include bank alerts and one-time codes. Ask for your fingerprint, face or PIN each time Dak opens.</string>
+    <string name="lock_onboarding_done">App lock is on. Change it any time in Settings → App lock.</string>
+    <string name="lock_onboarding_button">Turn on app lock</string>
+
+    <!-- App lock settings -->
+    <string name="lock_settings_title">App lock</string>
+    <string name="lock_status_ready">Your phone\'s fingerprint or face and its screen lock can unlock Dak.</string>
+    <string name="lock_status_no_biometric">No fingerprint or face is set up on this phone, so Dak will ask for your phone\'s PIN, pattern or password. You can add one in system settings.</string>
+    <string name="lock_status_no_screen_lock">This phone has no screen lock. Set one in system settings, or protect Dak with its own app PIN.</string>
+    <string name="lock_open_security_settings">Open security settings</string>
+    <string name="lock_toggle_title">App lock</string>
+    <string name="lock_toggle_on">Dak asks you to unlock it before showing messages</string>
+    <string name="lock_toggle_off">Off. Anyone using your unlocked phone can read your messages in Dak.</string>
+    <string name="lock_method_label">Unlock with</string>
+    <string name="lock_method_device">Phone screen lock</string>
+    <string name="lock_method_device_summary">Fingerprint or face, or your phone\'s PIN, pattern or password</string>
+    <string name="lock_method_device_no_biometric">Your phone\'s PIN, pattern or password</string>
+    <string name="lock_method_device_unavailable">Set a screen lock on your phone first</string>
+    <string name="lock_method_pin">App PIN</string>
+    <string name="lock_method_pin_summary">A separate 4 to 8 digit PIN just for Dak</string>
+    <string name="lock_method_fallback">Your chosen method isn\'t available on this phone right now, so Dak uses the other one.</string>
+    <string name="lock_set_pin">Set app PIN</string>
+    <string name="lock_set_pin_summary">No app PIN is stored on this phone yet</string>
+    <string name="lock_change_pin">Change app PIN</string>
+    <string name="lock_change_pin_summary">Choose a new PIN for Dak</string>
+    <string name="lock_remove_pin">Remove app PIN</string>
+    <string name="lock_remove_pin_summary">Stop keeping a separate PIN for Dak</string>
+    <string name="lock_fingerprint_title">Use fingerprint instead of PIN</string>
+    <string name="lock_fingerprint_summary">Unlock with a fingerprint or face; your app PIN still works when it can\'t be read</string>
+    <string name="lock_fingerprint_enroll_hint">Add a fingerprint in system settings to use it instead of your app PIN.</string>
+    <string name="lock_when_label">When to lock</string>
+    <string name="lock_auto_title">Auto-lock</string>
+    <string name="lock_auto_immediately">Immediately after leaving Dak</string>
+    <string name="lock_auto_30s">30 seconds after leaving Dak</string>
+    <string name="lock_auto_1m">1 minute after leaving Dak</string>
+    <string name="lock_auto_5m">5 minutes after leaving Dak</string>
+    <string name="lock_auto_15m">15 minutes after leaving Dak</string>
+    <string name="lock_screen_off_title">Lock when the screen turns off</string>
+    <string name="lock_screen_off_summary">Whatever the auto-lock time</string>
+    <string name="lock_recents_title">Hide content in Recents</string>
+    <string name="lock_recents_summary">Also blocks screenshots of Dak</string>
+    <string name="lock_recents_when_on">When app lock is on</string>
+    <string name="lock_recents_always">Always</string>
+    <string name="lock_recents_never">Never</string>
+    <string name="lock_sensitive_setting_title">Protect sensitive screens</string>
+    <string name="lock_sensitive_setting_summary">Ask to unlock before opening the recycle bin, passbook, backup, automations and forwarding, even with app lock off</string>
+    <string name="lock_notifications_info">While app lock is on, Copy code and Mark read still work from notifications. Reply and Delete open Dak so you unlock first.</string>
+    <string name="lock_privacy_full_warning">Lock-screen notifications show full messages. Change this in Notifications → Lock-screen privacy.</string>
+    <string name="lock_privacy_switched">Lock-screen notifications now hide message text. You can change this in Notifications.</string>
+    <string name="lock_needs_screen_lock">Set a screen lock on your phone first, or use an app PIN.</string>
+    <string name="lock_confirm_change_title">Confirm it\'s you</string>
+    <string name="lock_verify_device_title">Confirm your screen lock</string>
+    <string name="lock_verify_fingerprint_title">Confirm your fingerprint</string>
+    <string name="lock_now">Lock now</string>
+</resources>

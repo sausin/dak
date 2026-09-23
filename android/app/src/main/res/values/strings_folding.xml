@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sender groups (folding) -->
+    <string name="fold_screen_title">Sender groups</string>
+    <string name="fold_screen_intro">Banks, shops and couriers text from many headers and numbers. Dak folds them into one conversation; unfold any channel to see it on its own. Your messages are never changed.</string>
+    <string name="fold_empty_title">No folded conversations yet</string>
+    <string name="fold_empty_body">Senders that share a brand fold together automatically. Long-press conversations in the inbox and choose Fold together to fold others.</string>
+    <string name="fold_suggestions_header">Suggestions</string>
+    <string name="fold_groups_header">Folded conversations</string>
+    <string name="fold_suggestion_title">These %1$d senders look like %2$s. Fold them into one conversation?</string>
+    <string name="fold_suggestion_same_brand">Same brand</string>
+    <string name="fold_suggestion_similar">Similar sender names</string>
+    <string name="fold_action_fold">Fold</string>
+    <string name="fold_action_not_now">Not now</string>
+    <string name="fold_action_rename">Rename</string>
+    <string name="fold_action_unfold">Unfold</string>
+    <string name="fold_action_dissolve">Unfold all</string>
+    <string name="fold_action_open">Open conversation</string>
+    <string name="fold_action_fold_together">Fold together</string>
+    <string name="fold_action_fold_into">Fold into…</string>
+    <string name="fold_action_unfold_channel">Unfold a sender…</string>
+    <string name="fold_action_manage">Sender groups</string>
+    <string name="fold_action_select">Select</string>
+    <string name="fold_channels_count">%1$d channels</string>
+    <string name="fold_channel_last_seen">Last message %1$s · %2$d messages</string>
+    <string name="fold_channel_also">Also as %1$s</string>
+    <string name="fold_channel_manual">Folded by you</string>
+    <string name="fold_group_manual">Your group</string>
+    <string name="fold_group_brand">Folded by brand</string>
+    <string name="fold_rename_title">Rename group</string>
+    <string name="fold_rename_label">Name</string>
+    <string name="fold_name_title">Fold %1$d conversations</string>
+    <string name="fold_name_hint">Name the folded conversation (optional)</string>
+    <string name="fold_into_title">Fold into</string>
+    <string name="fold_into_empty">No other conversations to fold into yet.</string>
+    <string name="fold_unfold_title">Unfold a sender</string>
+    <string name="fold_dissolve_confirm">Show every sender of %1$s as its own conversation again?</string>
+    <string name="fold_snack_folded">Folded</string>
+    <string name="fold_snack_unfolded">Unfolded</string>
+    <string name="fold_snack_failed">Could not fold these conversations</string>
+    <string name="fold_selected_count">%1$d selected</string>
+    <string name="fold_filter_all">All senders</string>
+    <string name="fold_chip_channel">via %1$s</string>
+
+    <!-- Repeated messages -->
+    <string name="fold_repeat_chip">×%1$d · last %2$s</string>
+    <string name="fold_repeat_chip_description">Received %1$d times, last at %2$s. Tap to show each.</string>
+    <string name="fold_repeat_hide">Hide copies</string>
+    <string name="fold_repeat_occurrence">Received %1$s</string>
+    <string name="fold_inbox_repeat">×%1$d</string>
+
+    <!-- Account alias confirmation -->
+    <string name="fold_alias_question">Is %1$s the same as %2$s (%3$s)?</string>
+    <string name="fold_alias_explain">The bank now shows a different part of the account number. If it is the same account, its messages go into one ledger.</string>
+    <string name="fold_alias_explain_same_digits">These look like one account used two ways (for example UPI and account debits).</string>
+    <string name="fold_alias_same">Same account</string>
+    <string name="fold_alias_different">Different</string>
+    <string name="fold_alias_show_messages">Show messages</string>
+    <string name="fold_alias_hide_messages">Hide messages</string>
+    <string name="fold_alias_sample_unavailable">Message no longer available</string>
+    <string name="fold_alias_merged_snack">Merged into one account</string>
+    <string name="fold_alias_merge_with">Merge with…</string>
+    <string name="fold_alias_merge_title">Merge this account with</string>
+    <string name="fold_alias_merge_empty">No other accounts from this bank.</string>
+    <string name="fold_alias_merged_header">Also includes</string>
+    <string name="fold_alias_unmerge">Unmerge</string>
+    <string name="fold_alias_account_number">A/c ••%1$s</string>
+</resources>

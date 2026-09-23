@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window / splash background; matches DakLightScheme.background (night: DakDarkScheme.background). -->
+    <color name="dak_window_background">#FFF4FBFA</color>
+    <color name="dak_brand">#FF006A6A</color>
+    <color name="ic_launcher_background">#FF006A6A</color>
+    <!-- Notification accent (small icon tint); night value is the lighter tone. -->
+    <color name="dak_notification_accent">#FF006A6A</color>
+    <!-- In-call OTP warning text inside the notification. -->
+    <color name="dak_notification_warning">#FFB3261E</color>
+</resources>

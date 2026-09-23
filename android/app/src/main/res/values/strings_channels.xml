@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification channels, per-conversation channels and notification summaries (agent "channels", prefix ch_). -->
+<resources>
+    <!-- Channels and groups -->
+    <string name="ch_spam_desc">Off by default: spam stays in the Spam tab. Turn on to be notified silently.</string>
+    <string name="ch_automation">Scheduled sends and automations</string>
+    <string name="ch_automation_desc">Results of your rules and scheduled messages</string>
+    <string name="ch_group_conversations">Conversations</string>
+    <string name="ch_group_sim">SIM %1$d</string>
+    <string name="ch_group_sim_carrier">SIM %1$d · %2$s</string>
+    <string name="ch_group_other">Other</string>
+    <string name="ch_conversation_desc">Custom notifications for this conversation</string>
+
+    <!-- Notifications -->
+    <plurals name="ch_summary_count">
+        <item quantity="one">%d conversation</item>
+        <item quantity="other">%d conversations</item>
+    </plurals>
+    <plurals name="ch_messages_count">
+        <item quantity="one">%d message</item>
+        <item quantity="other">%d messages</item>
+    </plurals>
+
+    <!-- Channels screen -->
+    <string name="ch_title">Notification channels</string>
+    <string name="ch_intro">Sound, vibration and pop-ups are set per channel in Android settings. Tap a channel to change it; Dak never overrides your choices.</string>
+    <string name="ch_open_settings">Open settings</string>
+    <string name="ch_app_blocked_title">Notifications are off for Dak</string>
+    <string name="ch_app_blocked_body">You will not be told about new messages or codes.</string>
+    <string name="ch_critical_blocked_title">%1$s is turned off</string>
+    <string name="ch_critical_blocked_body">Messages on this channel arrive without any notification.</string>
+    <string name="ch_importance_off">Off</string>
+    <string name="ch_importance_min">Silent, minimised</string>
+    <string name="ch_importance_low">Silent</string>
+    <string name="ch_importance_default">Sound</string>
+    <string name="ch_importance_high">Sound and pop-up</string>
+    <string name="ch_customised">Customised</string>
+    <string name="ch_conversations_title">Conversations with custom notifications</string>
+    <string name="ch_conversations_empty">None yet. Open a conversation and choose Custom notifications from its menu.</string>
+    <string name="ch_conversation_custom">Own sound and priority</string>
+    <string name="ch_remove">Remove</string>
+    <string name="ch_remove_confirm_title">Remove custom notifications for %1$s?</string>
+    <string name="ch_remove_confirm_body">Its messages will use the regular category channels again.</string>
+    <string name="ch_reset">Reset channels</string>
+    <string name="ch_reset_summary">Recreate the channels you have not changed</string>
+    <string name="ch_reset_confirm_title">Reset channels?</string>
+    <string name="ch_reset_confirm_body">Channels you have not changed are recreated with Dak\'s defaults. Channels you customised keep your settings; open them to change them. Conversation channels are not affected.</string>
+    <string name="ch_reset_done">Channels reset</string>
+    <plurals name="ch_reset_done_kept">
+        <item quantity="one">Channels reset. %d customised channel kept your settings.</item>
+        <item quantity="other">Channels reset. %d customised channels kept your settings.</item>
+    </plurals>
+
+    <!-- Conversation menu and Settings -->
+    <string name="ch_action_custom_notifications">Custom notifications</string>
+</resources>

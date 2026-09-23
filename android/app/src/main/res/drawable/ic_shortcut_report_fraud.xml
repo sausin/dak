@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcut icon for "Report fraud": white shield with an exclamation mark on a red disc. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FFB3261E"
+        android:pathData="M24,24m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M24,11L14,15v8c0,6.3 4.3,12.1 10,13.6c5.7,-1.5 10,-7.3 10,-13.6v-8z" />
+    <path
+        android:fillColor="#FFB3261E"
+        android:pathData="M22.5,17h3v9h-3zM22.5,28h3v3h-3z" />
+</vector>

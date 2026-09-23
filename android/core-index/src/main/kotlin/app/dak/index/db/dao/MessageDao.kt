@@ -1,0 +1,357 @@
+package app.dak.index.db.dao
+
+import androidx.room.Dao
+import androidx.room.Embedded
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import app.dak.core.model.MessageKind
+import app.dak.index.db.entity.IndexedMessage
+import app.dak.index.db.entity.MessageFlag
+import kotlinx.coroutines.flow.Flow
+
+/** A provider key as stored in the index. */
+data class KeyRow(val kind: MessageKind, val providerId: Long)
+
+/**
+ * An index row plus [otpRepeatedLater]: true when the same OTP code arrived again in this conversation within
+ * `OtpTiming.REPEAT_WINDOW_MILLIS` (the UI collapses the older duplicate), and [repeatCount]: how many copies its
+ * repeat group has (1 when not repeated). Thread pages return only the newest copy of each repeat group.
+ */
+data class MessageWithRepeat(
+    @Embedded val message: IndexedMessage,
+    val otpRepeatedLater: Boolean,
+    val repeatCount: Int,
+)
+
+/** Distinct (address, thread, conversation) of indexed rows, for re-grouping after a fold edit. */
+data class AddressThreadRow(val address: String, val threadId: Long, val conversationId: String, val n: Int)
+
+/** Per (conversation, raw address) stats for the sender-groups screen. */
+data class ChannelRow(
+    val conversationId: String,
+    val mergeKey: String,
+    val address: String,
+    val canonicalSender: String?,
+    val lastSeen: Long,
+    /** Comma-separated distinct sub ids. */
+    val subIds: String?,
+    val n: Int,
+)
+
+/** Size of one repeat group. */
+data class RepeatCountRow(val repeatGroup: String, val n: Int)
+
+/** First/last activity of one ledger account id in the index. */
+data class AccountSpanRow(val accountId: String, val firstSeen: Long, val lastSeen: Long, val n: Int)
+
+/** Rows hidden behind a newer copy of the same repeat group (SQL fragment over alias `m`). */
+private const val VISIBLE_REPEAT =
+    "(m.repeatGroup IS NULL OR NOT EXISTS (SELECT 1 FROM indexed_message r WHERE r.repeatGroup = m.repeatGroup " +
+        "AND (r.dateMillis > m.dateMillis OR (r.dateMillis = m.dateMillis AND r.providerId > m.providerId))))"
+
+private const val REPEAT_COUNT =
+    "CASE WHEN m.repeatGroup IS NULL THEN 1 ELSE " +
+        "(SELECT COUNT(*) FROM indexed_message r WHERE r.repeatGroup = m.repeatGroup) END AS repeatCount"
+
+/**
+ * DAO over [IndexedMessage]. Message kinds are passed as `MessageKind.name` strings in queries.
+ * All writes go through the ingestor / repositories; UI reads through the repositories' paging sources.
+ */
+@Dao
+interface MessageDao {
+    /**
+     * Inserts rows whose key is new; returns the row id per input, `-1` for keys that already exist.
+     * Upserts are done as insert-ignore + update (never REPLACE) so the FTS content triggers see an UPDATE and
+     * keep the full-text index consistent; see `IndexWriter`.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(rows: List<IndexedMessage>): List<Long>
+
+    @Update
+    suspend fun update(rows: List<IndexedMessage>): Int
+
+    @Query("SELECT * FROM indexed_message WHERE kind = :kind AND providerId = :providerId")
+    suspend fun get(kind: String, providerId: Long): IndexedMessage?
+
+    @Query("SELECT * FROM indexed_message WHERE kind = :kind AND providerId = :providerId")
+    fun observe(kind: String, providerId: Long): Flow<IndexedMessage?>
+
+    @Query("SELECT * FROM indexed_message WHERE kind = :kind AND providerId IN (:providerIds)")
+    suspend fun getAll(kind: String, providerIds: List<Long>): List<IndexedMessage>
+
+    @Query("DELETE FROM indexed_message WHERE kind = :kind AND providerId IN (:providerIds)")
+    suspend fun deleteAll(kind: String, providerIds: List<Long>): Int
+
+    @Query("DELETE FROM indexed_message")
+    suspend fun clear()
+
+    @Query("SELECT COUNT(*) FROM indexed_message")
+    suspend fun count(): Int
+
+    @Query("SELECT COUNT(*) FROM indexed_message WHERE templateVersion = :version")
+    fun observeCountAtVersion(version: Int): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM indexed_message WHERE templateVersion = :version")
+    suspend fun countAtVersion(version: Int): Int
+
+    @Query("SELECT COALESCE(MAX(providerId), 0) FROM indexed_message WHERE kind = :kind")
+    suspend fun maxProviderId(kind: String): Long
+
+    @Query("SELECT kind, providerId FROM indexed_message")
+    suspend fun allKeys(): List<KeyRow>
+
+    @Query("SELECT DISTINCT threadId FROM indexed_message")
+    suspend fun indexedThreadIds(): List<Long>
+
+    @Query(
+        "SELECT m.*, EXISTS(SELECT 1 FROM indexed_message o WHERE o.conversationId = m.conversationId " +
+            "AND o.otpCode = m.otpCode AND o.dateMillis > m.dateMillis AND o.dateMillis <= m.dateMillis + 600000) " +
+            "AS otpRepeatedLater, " + REPEAT_COUNT + " FROM indexed_message m WHERE m.conversationId = :conversationId " +
+            "AND " + VISIBLE_REPEAT + " " +
+            "ORDER BY m.dateMillis DESC, m.providerId DESC LIMIT :limit OFFSET :offset",
+    )
+    suspend fun pageByConversation(conversationId: String, limit: Int, offset: Int): List<MessageWithRepeat>
+
+    /** [pageByConversation] restricted to the given raw [addresses] (one sender channel of a folded group). */
+    @Query(
+        "SELECT m.*, EXISTS(SELECT 1 FROM indexed_message o WHERE o.conversationId = m.conversationId " +
+            "AND o.otpCode = m.otpCode AND o.dateMillis > m.dateMillis AND o.dateMillis <= m.dateMillis + 600000) " +
+            "AS otpRepeatedLater, " + REPEAT_COUNT + " FROM indexed_message m WHERE m.conversationId = :conversationId " +
+            "AND m.address IN (:addresses) AND " + VISIBLE_REPEAT + " " +
+            "ORDER BY m.dateMillis DESC, m.providerId DESC LIMIT :limit OFFSET :offset",
+    )
+    suspend fun pageByConversationAddresses(
+        conversationId: String,
+        addresses: List<String>,
+        limit: Int,
+        offset: Int,
+    ): List<MessageWithRepeat>
+
+    @Query(
+        "SELECT m.*, EXISTS(SELECT 1 FROM indexed_message o WHERE o.threadId = m.threadId " +
+            "AND o.otpCode = m.otpCode AND o.dateMillis > m.dateMillis AND o.dateMillis <= m.dateMillis + 600000) " +
+            "AS otpRepeatedLater, " + REPEAT_COUNT + " FROM indexed_message m WHERE m.threadId = :threadId " +
+            "AND " + VISIBLE_REPEAT + " " +
+            "ORDER BY m.dateMillis DESC, m.providerId DESC LIMIT :limit OFFSET :offset",
+    )
+    suspend fun pageByThread(threadId: Long, limit: Int, offset: Int): List<MessageWithRepeat>
+
+    @Query("SELECT COUNT(*) FROM indexed_message WHERE threadId = :threadId")
+    suspend fun countInThread(threadId: Long): Int
+
+    /** Rows of the thread [pageByThread] returns (every row minus older copies of repeat groups). */
+    @Query("SELECT COUNT(*) FROM indexed_message m WHERE m.threadId = :threadId AND " + VISIBLE_REPEAT)
+    suspend fun countVisibleInThread(threadId: Long): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM indexed_message WHERE conversationId = :conversationId)")
+    suspend fun hasConversation(conversationId: String): Boolean
+
+    // ---- repeated messages ----
+
+    /** Every copy of one repeat group, newest first. */
+    @Query("SELECT * FROM indexed_message WHERE repeatGroup = :repeatGroup ORDER BY dateMillis DESC, providerId DESC")
+    suspend fun repeatsOf(repeatGroup: String): List<IndexedMessage>
+
+    @Query("SELECT repeatGroup, COUNT(*) AS n FROM indexed_message WHERE repeatGroup IN (:groups) GROUP BY repeatGroup")
+    suspend fun repeatCounts(groups: List<String>): List<RepeatCountRow>
+
+    /**
+     * The closest other incoming row of [conversationId] that repeats a message: same body within
+     * [fromMillis]..[toMillis], or the same OTP code ([otpCode], nullable) within [otpWindowMillis] of [dateMillis].
+     */
+    @Query(
+        "SELECT * FROM indexed_message WHERE conversationId = :conversationId AND box = 'INBOX' " +
+            "AND dateMillis BETWEEN :fromMillis AND :toMillis AND NOT (kind = :kind AND providerId = :providerId) " +
+            "AND (body = :body OR (otpCode IS NOT NULL AND otpCode = :otpCode " +
+            "AND ABS(dateMillis - :dateMillis) <= :otpWindowMillis)) " +
+            "ORDER BY ABS(dateMillis - :dateMillis) ASC LIMIT 1",
+    )
+    suspend fun repeatCandidate(
+        conversationId: String,
+        kind: String,
+        providerId: Long,
+        body: String,
+        otpCode: String?,
+        dateMillis: Long,
+        fromMillis: Long,
+        toMillis: Long,
+        otpWindowMillis: Long,
+    ): IndexedMessage?
+
+    @Query("UPDATE indexed_message SET repeatGroup = :repeatGroup WHERE kind = :kind AND providerId = :providerId")
+    suspend fun setRepeatGroup(kind: String, providerId: Long, repeatGroup: String?): Int
+
+    // ---- sender folding ----
+
+    @Query("SELECT address, threadId, conversationId, COUNT(*) AS n FROM indexed_message GROUP BY address, threadId, conversationId")
+    suspend fun addressThreads(): List<AddressThreadRow>
+
+    @Query(
+        "SELECT address, threadId, conversationId, COUNT(*) AS n FROM indexed_message " +
+            "WHERE conversationId IN (:conversationIds) GROUP BY address, threadId, conversationId",
+    )
+    suspend fun addressThreadsIn(conversationIds: List<String>): List<AddressThreadRow>
+
+    @Query(
+        "UPDATE indexed_message SET mergeKey = :mergeKey, conversationId = :conversationId " +
+            "WHERE address = :address AND threadId = :threadId",
+    )
+    suspend fun regroupAddressThread(address: String, threadId: Long, mergeKey: String, conversationId: String): Int
+
+    @Query(
+        "SELECT conversationId, mergeKey, address, canonicalSender, MAX(dateMillis) AS lastSeen, " +
+            "GROUP_CONCAT(DISTINCT subId) AS subIds, COUNT(*) AS n FROM indexed_message GROUP BY conversationId, address",
+    )
+    fun observeChannels(): Flow<List<ChannelRow>>
+
+    @Query(
+        "SELECT conversationId, mergeKey, address, canonicalSender, MAX(dateMillis) AS lastSeen, " +
+            "GROUP_CONCAT(DISTINCT subId) AS subIds, COUNT(*) AS n FROM indexed_message " +
+            "WHERE conversationId = :conversationId GROUP BY address",
+    )
+    fun observeChannelsOf(conversationId: String): Flow<List<ChannelRow>>
+
+    // ---- ledger ----
+
+    @Query("SELECT * FROM indexed_message WHERE accountId IN (:accountIds) ORDER BY dateMillis ASC")
+    suspend fun byAccounts(accountIds: List<String>): List<IndexedMessage>
+
+    @Query(
+        "SELECT accountId, MIN(dateMillis) AS firstSeen, MAX(dateMillis) AS lastSeen, COUNT(*) AS n " +
+            "FROM indexed_message WHERE accountId IS NOT NULL GROUP BY accountId",
+    )
+    suspend fun accountSpans(): List<AccountSpanRow>
+
+    @Query("SELECT kind, providerId FROM indexed_message WHERE accountId = :accountId ORDER BY dateMillis DESC LIMIT 1")
+    suspend fun latestKeyOfAccount(accountId: String): KeyRow?
+
+    @Query("SELECT body FROM indexed_message WHERE accountId IN (:accountIds) ORDER BY dateMillis DESC LIMIT :limit")
+    suspend fun bodiesOfAccounts(accountIds: List<String>, limit: Int): List<String>
+
+    @Query("SELECT DISTINCT threadId FROM indexed_message WHERE conversationId = :conversationId")
+    suspend fun threadIdsOf(conversationId: String): List<Long>
+
+    @Query("SELECT address FROM indexed_message WHERE conversationId = :conversationId GROUP BY address ORDER BY MAX(dateMillis) DESC")
+    suspend fun addressesOf(conversationId: String): List<String>
+
+    @Query("SELECT address FROM indexed_message WHERE threadId = :threadId GROUP BY address ORDER BY MAX(dateMillis) DESC")
+    suspend fun addressesInThread(threadId: Long): List<String>
+
+    @Query(
+        "SELECT subId FROM indexed_message WHERE conversationId = :conversationId AND box = 'INBOX' " +
+            "ORDER BY dateMillis DESC LIMIT 1",
+    )
+    suspend fun lastIncomingSubId(conversationId: String): Int?
+
+    @Query(
+        "SELECT subId FROM indexed_message WHERE threadId = :threadId AND box = 'INBOX' " +
+            "ORDER BY dateMillis DESC LIMIT 1",
+    )
+    suspend fun lastIncomingSubIdInThread(threadId: Long): Int?
+
+    @Query("UPDATE indexed_message SET read = 1, seen = 1 WHERE conversationId = :conversationId AND read = 0")
+    suspend fun markConversationRead(conversationId: String): Int
+
+    @Query("UPDATE indexed_message SET read = 1, seen = 1 WHERE threadId = :threadId AND read = 0")
+    suspend fun markThreadRead(threadId: Long): Int
+
+    @Query("UPDATE indexed_message SET read = 1, seen = 1 WHERE kind = :kind AND providerId = :providerId")
+    suspend fun markRead(kind: String, providerId: Long): Int
+
+    @Query("UPDATE indexed_message SET starred = :starred WHERE kind = :kind AND providerId = :providerId")
+    suspend fun setStarred(kind: String, providerId: Long, starred: Boolean): Int
+
+    @Query("UPDATE indexed_message SET archived = :archived WHERE kind = :kind AND providerId = :providerId")
+    suspend fun setArchived(kind: String, providerId: Long, archived: Boolean): Int
+
+    /**
+     * Outgoing rows since [sinceMillis] whose ticks can still change: sending / queued / failed (a retry moves it),
+     * or sent with a delivery report still pending (`deliveryStatus` 32). Uses the `dateMillis` index.
+     */
+    @Query(
+        "SELECT kind, providerId FROM indexed_message WHERE dateMillis >= :sinceMillis " +
+            "AND (box IN ('OUTBOX', 'QUEUED', 'FAILED') OR (box = 'SENT' AND deliveryStatus = 32)) " +
+            "ORDER BY dateMillis DESC LIMIT :limit",
+    )
+    suspend fun unsettledOutgoing(sinceMillis: Long, limit: Int): List<KeyRow>
+
+    /** Applies a provider send / delivery state change without re-reading the message. [box] is a `MessageBox` name. */
+    @Query(
+        "UPDATE indexed_message SET box = :box, deliveryStatus = :deliveryStatus, deliveredAtMillis = :deliveredAtMillis " +
+            "WHERE kind = :kind AND providerId = :providerId",
+    )
+    suspend fun setOutgoingState(kind: String, providerId: Long, box: String, deliveryStatus: Int, deliveredAtMillis: Long?): Int
+
+    @Query("UPDATE indexed_message SET otpConsumedBy = :packageName WHERE kind = :kind AND providerId = :providerId")
+    suspend fun setOtpConsumedBy(kind: String, providerId: Long, packageName: String?): Int
+
+    /** Re-groups every row of one raw sender (after a split/merge edit). [addressUpper] is trimmed + upper-cased. */
+    @Query(
+        "UPDATE indexed_message SET mergeKey = :mergeKey, conversationId = :conversationId " +
+            "WHERE UPPER(TRIM(address)) = :addressUpper",
+    )
+    suspend fun regroupAddress(addressUpper: String, mergeKey: String, conversationId: String): Int
+
+    @Query("SELECT * FROM indexed_message WHERE UPPER(TRIM(address)) = :addressUpper LIMIT 1")
+    suspend fun anyFromAddress(addressUpper: String): IndexedMessage?
+
+    @Query("SELECT * FROM indexed_message WHERE accountId = :accountId ORDER BY dateMillis ASC")
+    suspend fun byAccount(accountId: String): List<IndexedMessage>
+
+    @Query("SELECT DISTINCT accountId FROM indexed_message WHERE accountId IS NOT NULL")
+    suspend fun accountIds(): List<String>
+
+    /** Recent distinct sender display strings (brand if known, else raw address), for suggestions. */
+    @Query(
+        "SELECT name FROM (SELECT COALESCE(canonicalSender, address) AS name, MAX(dateMillis) AS lastDate " +
+            "FROM indexed_message GROUP BY name) ORDER BY lastDate DESC LIMIT :limit",
+    )
+    suspend fun recentSenderNames(limit: Int): List<String>
+
+    /** Merge keys whose brand or raw address contains [like] (a LIKE pattern), for resolving `from:`. */
+    @Query(
+        "SELECT DISTINCT mergeKey FROM indexed_message WHERE canonicalSender LIKE :like ESCAPE '\\' " +
+            "OR address LIKE :like ESCAPE '\\' LIMIT 50",
+    )
+    suspend fun mergeKeysMatching(like: String): List<String>
+
+    // ---- fake-credit scam checks (labels hold `app.dak.classify.scam.ScamLabels`; patterns from `likePattern`) ----
+
+    /** Incoming rows in [fromMillis]..[toMillis] from [address], or carrying either scam level label (newest first). */
+    @Query(
+        "SELECT * FROM indexed_message WHERE box = 'INBOX' AND dateMillis >= :fromMillis AND dateMillis <= :toMillis " +
+            "AND (address = :address OR labels LIKE :likely OR labels LIKE :suspicious) " +
+            "ORDER BY dateMillis DESC LIMIT :limit",
+    )
+    suspend fun recentForScamCheck(
+        address: String,
+        fromMillis: Long,
+        toMillis: Long,
+        likely: String,
+        suspicious: String,
+        limit: Int,
+    ): List<IndexedMessage>
+
+    /** Conversations with a message since [sinceMillis] whose labels match [likely] or [suspicious]. */
+    @Query(
+        "SELECT DISTINCT conversationId FROM indexed_message WHERE dateMillis >= :sinceMillis " +
+            "AND (labels LIKE :likely OR labels LIKE :suspicious)",
+    )
+    fun observeScamFlaggedConversations(sinceMillis: Long, likely: String, suspicious: String): Flow<List<String>>
+
+    // ---- per-message user flags (survive rebuilds) ----
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFlag(flag: MessageFlag)
+
+    @Query("SELECT * FROM message_flag WHERE kind = :kind AND providerId IN (:providerIds)")
+    suspend fun flags(kind: String, providerIds: List<Long>): List<MessageFlag>
+
+    @Query("SELECT * FROM message_flag WHERE kind = :kind AND providerId = :providerId")
+    suspend fun flag(kind: String, providerId: Long): MessageFlag?
+
+    @Query("DELETE FROM message_flag WHERE kind = :kind AND providerId IN (:providerIds)")
+    suspend fun deleteFlags(kind: String, providerIds: List<Long>): Int
+}

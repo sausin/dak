@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dak.app/schemas/backup/dak-export-v1.schema.json",
+  "title": "Dak export format v1",
+  "description": "JSON Schema for manifest.json and each line of messages/NNNN.jsonl in a Dak export archive (see FORMAT.md). Will move to a repo-level shared/formats directory once other modules need it.",
+  "$defs": {
+    "manifest": {
+      "title": "manifest.json",
+      "type": "object",
+      "required": ["format", "version", "createdAt", "appVersion", "counts", "parts", "id", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "format": { "const": "dak-export" },
+        "version": { "const": 1 },
+        "createdAt": { "type": "integer", "description": "Epoch milliseconds." },
+        "appVersion": { "type": "string" },
+        "device": { "type": ["string", "null"] },
+        "counts": {
+          "type": "object",
+          "required": ["messages", "threads", "attachments"],
+          "additionalProperties": false,
+          "properties": {
+            "messages": { "type": "integer", "minimum": 0 },
+            "threads": { "type": "integer", "minimum": 0 },
+            "attachments": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "sha256", "sizeBytes"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "sizeBytes": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "id": { "type": "string", "description": "Unique id of this snapshot; used as the incremental chain link." },
+        "parentId": { "type": ["string", "null"], "description": "Id of the manifest this one incrementally builds on." },
+        "kind": { "enum": ["FULL", "INCREMENTAL"] },
+        "deletedKeys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/messageKey" },
+          "description": "Only meaningful when kind is INCREMENTAL: message keys removed since parentId's snapshot."
+        }
+      }
+    },
+    "messageKey": {
+      "type": "string",
+      "pattern": "^(sms|mms):\\d+$",
+      "description": "\"<kind>:<providerId>\", matching core-model MessageKey.toString()."
+    },
+    "attachmentRecord": {
+      "type": "object",
+      "required": ["mimeType", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "mimeType": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "References attachments/<sha256> in the archive." },
+        "name": { "type": ["string", "null"] },
+        "sizeBytes": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "messageRecord": {
+      "title": "One line of messages/NNNN.jsonl",
+      "type": "object",
+      "required": ["key", "kind", "threadId", "address", "body", "dateMillis"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "$ref": "#/$defs/messageKey" },
+        "kind": { "enum": ["SMS", "MMS"] },
+        "threadId": { "type": "integer" },
+        "address": { "type": "string" },
+        "body": { "type": "string" },
+        "dateMillis": { "type": "integer" },
+        "subId": { "type": "integer", "default": -1 },
+        "box": { "enum": ["INBOX", "SENT", "DRAFT", "OUTBOX", "FAILED", "QUEUED"], "default": "INBOX" },
+        "read": { "type": "boolean", "default": false },
+        "seen": { "type": "boolean", "default": false },
+        "attachments": { "type": "array", "items": { "$ref": "#/$defs/attachmentRecord" }, "default": [] },
+        "category": {
+          "enum": ["PERSONAL", "TRANSACTION", "OTP", "PROMOTION", "SPAM", "UNKNOWN", null],
+          "default": null,
+          "description": "Enrichment from Dak's own index; absent for a raw provider-only export."
+        },
+        "labels": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "starred": { "type": "boolean", "default": false },
+        "archived": { "type": "boolean", "default": false }
+      }
+    },
+    "threadPrefs": {
+      "type": "object",
+      "required": ["threadId"],
+      "additionalProperties": false,
+      "properties": {
+        "threadId": { "type": "integer" },
+        "replySubId": { "type": ["integer", "null"] },
+        "pinned": { "type": "boolean", "default": false },
+        "muted": { "type": "boolean", "default": false },
+        "archived": { "type": "boolean", "default": false },
+        "bubbleColorArgb": { "type": ["integer", "null"] }
+      }
+    },
+    "threadsFile": {
+      "title": "threads.json",
+      "type": "array",
+      "items": { "$ref": "#/$defs/threadPrefs" }
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/manifest" },
+    { "$ref": "#/$defs/messageRecord" },
+    { "$ref": "#/$defs/threadsFile" }
+  ]
+}

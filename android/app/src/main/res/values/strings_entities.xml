@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smart entities in message bubbles (EntityText / EntityActionSheet). -->
+<resources>
+    <string name="ent_type_otp">One-time code</string>
+    <string name="ent_type_url">Link</string>
+    <string name="ent_type_email">Email address</string>
+    <string name="ent_type_account">Account or card</string>
+    <string name="ent_type_amount">Amount</string>
+    <string name="ent_type_upi">UPI ID</string>
+    <string name="ent_type_pnr">PNR</string>
+    <string name="ent_type_tracking">Tracking number</string>
+    <string name="ent_type_reference">Reference number</string>
+    <string name="ent_type_phone">Phone number</string>
+
+    <string name="ent_action_call">Call</string>
+    <string name="ent_action_sms">Send SMS</string>
+    <string name="ent_action_save_contact">Save as contact</string>
+    <string name="ent_action_whatsapp">Open in WhatsApp</string>
+    <string name="ent_action_copy">Copy</string>
+    <string name="ent_action_copy_amount">Copy amount</string>
+    <string name="ent_action_search_amount">Search this amount</string>
+    <string name="ent_action_open_passbook">Open in Passbook</string>
+    <string name="ent_action_track">Track on courier site (ID copied)</string>
+    <string name="ent_action_email">Write email</string>
+    <string name="ent_action_open_link">Open link</string>
+
+    <string name="ent_scam_warning">Scammers use numbers like this — verify via your bank\'s official app/number</string>
+    <string name="ent_no_app">No app can open this</string>
+</resources>

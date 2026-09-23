@@ -15,6 +15,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -57,7 +58,7 @@ data class DakTypography(
 )
 
 private val LocalDakColors = staticCompositionLocalOf { dakColorsFor(DakLightScheme, isDark = false) }
-private val LocalDakTypography = staticCompositionLocalOf { dakTypography(1f) }
+private val LocalDakTypography = staticCompositionLocalOf { dakTypography(otpScale = 1f, textScale = 1f) }
 private val LocalDakThemeState = staticCompositionLocalOf {
     DakThemeState(isDark = false, isAmoled = false, isHighContrast = false, isDynamic = false)
 }
@@ -75,6 +76,7 @@ object DakTheme {
 /**
  * The single app theme. Switches live when the system theme or [prefs] change (no activity restart):
  * `isSystemInDarkTheme()` recomposes on configuration change and MainActivity handles `uiMode` itself.
+ * Text sizes are scaled for the device size ([deviceTextScale]) on top of the system font scale.
  */
 @Composable
 fun DakTheme(prefs: AppearancePrefs = AppearancePrefs(), content: @Composable () -> Unit) {
@@ -103,7 +105,9 @@ fun DakTheme(prefs: AppearancePrefs = AppearancePrefs(), content: @Composable ()
     }
     val scheme = if (dark && prefs.amoled) base.toAmoled() else base
     val dakColors = remember(scheme, dark) { dakColorsFor(scheme, dark) }
-    val dakType = remember(prefs.otpScale) { dakTypography(prefs.otpScale) }
+    val textScale = deviceTextScale(LocalConfiguration.current.smallestScreenWidthDp)
+    val materialType = remember(textScale) { DakMaterialTypography.scaled(textScale) }
+    val dakType = remember(prefs.otpScale, textScale) { dakTypography(prefs.otpScale, textScale) }
     val state = DakThemeState(isDark = dark, isAmoled = dark && prefs.amoled, isHighContrast = highContrast, isDynamic = dynamic)
 
     CompositionLocalProvider(
@@ -111,7 +115,7 @@ fun DakTheme(prefs: AppearancePrefs = AppearancePrefs(), content: @Composable ()
         LocalDakTypography provides dakType,
         LocalDakThemeState provides state,
     ) {
-        MaterialTheme(colorScheme = scheme, typography = DakMaterialTypography, content = content)
+        MaterialTheme(colorScheme = scheme, typography = materialType, content = content)
     }
 }
 
@@ -122,8 +126,8 @@ internal fun systemPrefersHighContrast(context: Context): Boolean {
     return uiModeManager.contrast >= 0.5f
 }
 
-private fun dakTypography(otpScale: Float): DakTypography {
-    val scale = otpScale.coerceIn(0.75f, 2f)
+private fun dakTypography(otpScale: Float, textScale: Float): DakTypography {
+    val scale = otpScale.coerceIn(0.75f, 2f) * textScale
     return DakTypography(
         otpCode = TextStyle(
             fontFamily = FontFamily.Monospace,
@@ -131,6 +135,6 @@ private fun dakTypography(otpScale: Float): DakTypography {
             fontSize = (28 * scale).sp,
             letterSpacing = (3 * scale).sp,
         ),
-        amount = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = 16.sp),
+        amount = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = (16 * textScale).sp),
     )
 }

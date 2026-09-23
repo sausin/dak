@@ -147,7 +147,33 @@ Written by app agent 2. Everything below lives in its own packages; strings are 
   records in `ScheduledSendStore` and arms an `AlarmManager` alarm (exact when allowed on 12+) to
   `ScheduledSendReceiver` plus a WorkManager `ScheduledSendWorker` safety net; `ScheduledSendExecutor.runDue()` is
   idempotent and mutex-guarded and spreads sends with `SendThrottle` (`SendRateLimiter.planSends`, 30 / 30 min).
-- `RuleRepository` decodes/encodes `AutomationStore` JSON with `RuleCodec`.
+- `RuleRepository` decodes/encodes `AutomationStore` JSON with `RuleCodec`; `disableExpired(now)`.
+- Auto-forwarding (free, on-device from the user's SIM): forwarding rules are ordinary rules built from
+  `:automations`' `ForwardingSpec` (`meta.kind = forwarding`). `AutomationRunner` disables expired rules lazily
+  before evaluation (`DailyHousekeeping.expire`), and labels a message forwarded by a forwarding rule
+  "Fwd → <recipient>" (`UserLabels`) in addition to the audit-log "Forwarded to …" marker.
+  `ForwardingStatusNotifier` keeps a silent ongoing notification (own low-importance channel `forwarding_status`,
+  group `app`) while any forwarding rule is active or scheduled; `refresh()` after every change.
+- `DailyHousekeeping.runIfDue()` (at most once per ~20 h): expire rules, refresh the forwarding notification,
+  re-scan contacts for birthdays. Runs from the daily `dak-maintenance` job (`AutomationMaintenanceTask`, order
+  110), an incoming SMS, or a scheduled-send run — no wakeup of its own.
+- `ScheduledSendReceiver`: runs due sends inline and enqueues the retry job only if that fails; on boot / clock
+  changes it re-arms only when `ScheduledSendScheduler.mightHavePending()` and re-posts the forwarding
+  notification only when `ForwardingStatusNotifier.wasShowing()` (SharedPreferences flags, no DB open otherwise).
+  Also handles the birthday prompt's `ACTION_BIRTHDAY_SEND` / `ACTION_BIRTHDAY_SKIP`.
+
+### `birthdays/` — birthday wishes
+
+- `ContactOccasionReader.read(includeAnniversaries)` — `CommonDataKinds.Event` birthdays/anniversaries (+ numbers,
+  given names, photo) with READ_CONTACTS, parsed by `:automations`' `BirthdayDates`; read on demand only (no
+  contacts observer).
+- `BirthdayStore` — global `BirthdaySettings` (opt-in, off by default; `ASK` / `AUTO`; send time, default 09:00;
+  SIM; templates), per-contact `OccasionConfig` (auto-send toggle, number, own template, the one pending send),
+  and the "wished" ledger (dedupe key contactId + kind + year).
+- `BirthdayScheduler.reconcile(occasions?)` / `syncFromContacts()` — keeps exactly one pending scheduled send (the
+  next occurrence) per enabled contact via `ScheduledSendScheduler`, tagged with a `WishTag` in `ruleId`.
+- `BirthdaySendGate` — hook in `ScheduledSendExecutor`: dedupe, "Ask me first" (posts `BirthdayNotifications`
+  Send / Edit / Skip on the automation channel instead of sending), next-year rescheduling after a send.
 
 ### `backup/`
 

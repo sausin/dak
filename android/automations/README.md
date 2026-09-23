@@ -62,8 +62,14 @@ event (it is driven by a separate scheduler outside this module); regex conditio
 input length via `RuleEngine.MAX_REGEX_INPUT_LENGTH`, `PatternSyntaxException` caught → non-match, never
 thrown). Each matching rule contributes one `PlannedAction` per its `actions`, with
 `requiresBiometricConfirmation` set when the action forwards/relays *and* `rule.conditions` can match an
-OTP (see `conditionsCanMatchOtp` — true for `HasOtp`, `CategoryIs(OTP)`, or no category restriction at
-all).
+OTP (see `conditionsCanMatchOtp` — true for a positive `HasOtp`, `CategoryIs(OTP)`, or no positive category
+restriction at all; false when `excludesOtp`, i.e. the top-level conjuncts contain `otpExclusion()` =
+`Not(HasOtp), Not(CategoryIs(OTP))`). Conditions under `Not` never count as positive restrictions.
+
+Loop guard (`safety.ForwardLoopGuard`, applied inside `evaluate`): a `ForwardSms` (or SMS `RelayRule`) is dropped
+when the message comes *from* its recipient, or when the body starts with the literal prefix of the action's
+template (`"Fwd from"` for the forwarding default), so A→B→A chains stop. `safety.Addresses.same(a, b)` is the
+shared address comparison (last 10 digits for phone numbers).
 
 ## Forwarding rules (`app.dak.automations.forwarding`)
 

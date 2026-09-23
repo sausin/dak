@@ -19,8 +19,9 @@ enum class RegionSource {
 }
 
 /**
- * The country Dak tailors region-specific behaviour to: home currency (which also decides what a bare "$" means, see `CurrencyTable.symbolMapFor` in :finance), digit grouping, India's
- * DLT sender rules and the TRAI / Chakshu report flows, which helplines to show. Dak launches India-first, with
+ * The country Dak tailors region-specific behaviour to: home currency (which also decides what a bare "$" means,
+ * see `CurrencyTable.symbolMapFor` in :finance), digit grouping, India's DLT sender rules and the TRAI / Chakshu
+ * report flows, which helplines to show. Dak launches India-first, with
  * India as the richest profile; every other country (and an unknown one) gets generic, country-neutral behaviour.
  * Resolve it with [RegionResolver]; inject it through [RegionProvider].
  *
@@ -43,13 +44,11 @@ data class RegionProfile(val countryIso: String?, val source: RegionSource) {
     /** Indian digit grouping (1,23,45,678) for amounts in the home currency: only where that is the rupee. */
     val usesIndianGrouping: Boolean get() = homeCurrency == "INR"
 
-
     companion object {
         const val INDIA = "IN"
 
         /** Nothing known. */
         val UNKNOWN = RegionProfile(null, RegionSource.NONE)
-
 
         /** ISO 4217 currency of [countryIso], or null (unknown country, or no currency). */
         fun currencyOf(countryIso: String?): String? {

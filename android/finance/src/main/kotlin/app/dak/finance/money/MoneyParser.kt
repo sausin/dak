@@ -52,14 +52,29 @@ object MoneyParser {
      */
     private const val MULTIPLIER = "(?:[\\s\u00A0\u202F]{0,3}(lakhs?|lacs?|crores?)(?![A-Za-z]))"
 
+    /** After a prefix currency: [CURRENCY_GAP] with an optional colon ("Rs:500.00", "INR : 500"). No adjacent `*`s. */
+    private const val PREFIX_GAP = "[\\s  ]*(?::[\\s  ]*)?"
+
+    /**
+     * A number with no currency before it must not be glued to a letter, digit or mask ("XX1234 INR 500": the "1234"
+     * is an account tail, not an amount in INR).
+     */
+    private const val BARE_START = "(?<![\\p{L}\\d*#])"
+
+    /**
+     * A currency written after a number only belongs to it when no other number follows the code ("Ref 6248123 INR
+     * 500.00": the INR is the 500's, not the reference's; "on 12-09-2026 INR 750": not the year's).
+     */
+    private const val SUFFIX_END = "(?![\\s  ]*\\d)"
+
     /**
      * Matches an optional currency token, a number, an optional spaced decimal part, an optional lakh/crore word,
      * an optional trailing currency token and an optional "/-". Groups: 1 prefix currency, 2 number, 3 spaced
      * decimal, 4 multiplier word, 5 suffix currency, 6 "/-".
      */
     private val pattern = Regex(
-        "(?:$currencyCapture$CURRENCY_GAP)?($numberFragment)$SPACED_DECIMAL?$MULTIPLIER?" +
-            "(?:$CURRENCY_GAP$currencyCapture)?(/-)?",
+        "(?:$currencyCapture$PREFIX_GAP|$BARE_START)($numberFragment)$SPACED_DECIMAL?$MULTIPLIER?" +
+            "(?:$CURRENCY_GAP$currencyCapture$SUFFIX_END)?(/-)?",
         RegexOption.IGNORE_CASE,
     )
 

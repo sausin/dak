@@ -114,4 +114,14 @@ class AccountMatcherTest {
         assertEquals(listOf("5073"), MaskedNumbers.findAll("Credited INR 50,000.00 to A/c X5073 on 06-AUG-2026"))
         assertTrue(MaskedNumbers.findAll("order X12345 shipped").isEmpty())
     }
+
+    @Test
+    fun `masked number finder reads the same formats as the parser`() {
+        // Leading digits a bank shows before the mask do not belong to the visible tail.
+        assertEquals(listOf("1234"), MaskedNumbers.findAll("Credit Card 4375XXXXXXXX1234 used for INR 780"))
+        assertEquals(listOf("1234", "5678"), MaskedNumbers.findAll("from A/C: XX1234 to Ac No. ...5678"))
+        assertEquals(listOf("1212"), MaskedNumbers.findAll("Rs 600 debited from A/c 1212 on 14-09-26"))
+        // Dates and times after a keyword are not account numbers.
+        assertTrue(MaskedNumbers.findAll("card 2026-09-14 and account 10:30").isEmpty())
+    }
 }

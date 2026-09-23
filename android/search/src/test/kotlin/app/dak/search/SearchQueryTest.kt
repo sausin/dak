@@ -83,4 +83,18 @@ class SearchQueryTest {
         assertTrue(withStarred.withoutFilter(Filter.IsStarred).filters.isEmpty())
         assertFalse(withStarred.withoutFilter(Filter.IsUnread).filters.isEmpty())
     }
+
+    @Test
+    fun `random well-formed queries round trip through their query string`() {
+        val r = kotlin.random.Random(99)
+        val words = listOf(
+            "swiggy", "OR", "-spam", "\"order confirmed\"", "from:hdfc", "-from:x", "category:otp", "has:link", "in:bin",
+            "is:unread", "amount:>500", "amount:100..250", "amount:=99.50", "before:2026-01-15", "after:2026-01-15",
+            "during:today", "during:\"last 7 days\"", "during:2025", "5,00,000", "₹1,299", "sim:2", "-category:spam",
+        )
+        repeat(2_000) {
+            val q = List(r.nextInt(1, 7)) { words[r.nextInt(words.size)] }.joinToString(" ")
+            roundTrip(q)
+        }
+    }
 }

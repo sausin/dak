@@ -52,8 +52,10 @@ object FtsMatch {
             if (atom.text.isBlank()) return@forEachIndexed
             when {
                 i == 0 -> sb.append(atom.text)
-                atom.connector == "OR" -> sb.append(" OR ").append(atom.text)
+                // Before OR: standard syntax has no "OR NOT", and dropping the "-" would search for the very term the
+                // user excluded. "a OR -b" narrows to "a -b" instead.
                 atom.negated -> sb.append(" -").append(atom.text)
+                atom.connector == "OR" -> sb.append(" OR ").append(atom.text)
                 else -> sb.append(" ").append(atom.text)
             }
         }

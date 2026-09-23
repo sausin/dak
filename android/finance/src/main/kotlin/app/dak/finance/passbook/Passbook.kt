@@ -7,6 +7,7 @@ import app.dak.finance.ledger.LedgerEntry
 import app.dak.finance.money.Money
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.Locale
 
 /**
  * One calendar month's activity on an account: debits and credits kept per original currency
@@ -80,7 +81,8 @@ object Passbook {
 
     private fun yearMonthOf(dateMillis: Long): String {
         val date = Instant.ofEpochMilli(dateMillis).atZone(ZoneOffset.UTC).toLocalDate()
-        return "%04d-%02d".format(date.year, date.monthValue)
+        // Locale.ROOT: the device locale may format digits in another script ("২০২৬-০৯" in Bengali).
+        return "%04d-%02d".format(Locale.ROOT, date.year, date.monthValue)
     }
 
     private fun sumByCurrency(amounts: List<Money>): Map<String, Money> =

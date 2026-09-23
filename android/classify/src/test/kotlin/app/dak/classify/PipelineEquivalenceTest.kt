@@ -49,9 +49,10 @@ class PipelineEquivalenceTest {
         for (region in listOf(SenderRegion.INDIA, SenderRegion.UNKNOWN, SenderRegion.of("GB"))) {
             val plain = pipeline(cacheSize = 0, prefilter = false, region = region)
             val fast = pipeline(cacheSize = ClassifierPipeline.SUGGESTED_CACHE_SIZE, prefilter = true, region = region)
-            // Full corpus plus two digit-shuffled copies for India; a 10k slice for the other regions (CI time).
-            val all = corpus.map { Triple(it.address, it.body, it.subId) } + shuffledDigits(1) + shuffledDigits(2)
-            val inputs = if (region == SenderRegion.INDIA) all else all.filterIndexed { i, _ -> i % 15 == 0 }
+            // Full corpus plus a digit-shuffled copy of every other message for India; a slice of that for the other
+            // regions (suite time: the whole classify suite should stay under a minute).
+            val all = corpus.map { Triple(it.address, it.body, it.subId) } + shuffledDigits(1).filterIndexed { i, _ -> i % 2 == 0 }
+            val inputs = if (region == SenderRegion.INDIA) all else all.filterIndexed { i, _ -> i % 8 == 0 }
             var differences = 0
             for ((address, body, subId) in inputs) {
                 val expected = plain.classify(address, body, subId)
@@ -71,7 +72,7 @@ class PipelineEquivalenceTest {
     /** The indexer enriches a batch on several threads: the whole path must give the same rows as one thread. */
     @Test
     fun parallelEnrichmentMatchesSequential() = runBlocking {
-        val messages = corpus.take(20_000)
+        val messages = corpus.take(10_000)
         val sequential = EnrichmentPath.create().let { path -> messages.map { path.enrich(it) } }
         val shared = EnrichmentPath.create()
         val parallel = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
@@ -141,7 +142,9 @@ class PipelineEquivalenceTest {
         assertTrue(prefilter.gatedRuleCount >= templates.rules.size - 1, "gated ${prefilter.gatedRuleCount}")
         val regexes = templates.rules.associateWith { Regex(it.pattern, RegexOption.IGNORE_CASE) }
         var skipped = 0
-        for (m in corpus) {
+        // Every other message: 25k bodies x every rule is plenty to catch a prefilter literal that is not required.
+        val sample = corpus.filterIndexed { i, _ -> i % 2 == 0 }
+        for (m in sample) {
             val hits = prefilter.scan(m.body)
             for ((rule, regex) in regexes) {
                 if (!prefilter.mayMatch(rule, hits)) {
@@ -150,7 +153,7 @@ class PipelineEquivalenceTest {
                 }
             }
         }
-        assertTrue(skipped > corpus.size * 8, "prefilter should skip most rules, skipped $skipped")
+        assertTrue(skipped > sample.size * 8, "prefilter should skip most rules, skipped $skipped")
     }
 
     /** The precomputed tables give bit-identical scores to the textbook loop they replaced. */

@@ -37,12 +37,12 @@ class UxPrefsViewModel @Inject constructor(settings: SettingsStore) : ViewModel(
 
     /** Physical swipe to the right (the row maps it to start/end for RTL layouts). */
     val swipeRight: StateFlow<InboxSwipeAction> = settings.observe(DakSettings.swipeRight)
-        .map(InboxSwipeAction::fromSetting)
+        .map { InboxSwipeAction.fromSetting(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InboxSwipeAction.fromSetting(DakSettings.swipeRight.default))
 
     /** Physical swipe to the left. */
     val swipeLeft: StateFlow<InboxSwipeAction> = settings.observe(DakSettings.swipeLeft)
-        .map(InboxSwipeAction::fromSetting)
+        .map { InboxSwipeAction.fromSetting(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InboxSwipeAction.fromSetting(DakSettings.swipeLeft.default))
 
     val inboxOtpCopy: StateFlow<Boolean> = settings.observe(DakSettings.inboxOtpCopy)

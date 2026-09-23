@@ -41,6 +41,24 @@ incumbents got right — **the messages that matter are OTPs, bank alerts, and t
 - **Honest engineering status.** Nothing here has touched a real device yet. This README says so
   plainly — see [Status & roadmap](#status--roadmap).
 
+## India first, useful anywhere
+
+Dak launches for India, where its data is richest: TRAI DLT sender headers, Indian bank and
+wallet formats, Hindi/Hinglish phrasing, the fake-credit-alert scam playbook, and verified
+helplines (1930, 1909, Chakshu). Nothing is hard-wired to India, though. A region profile is
+resolved per SIM (SIM home country → network → device locale, never assumed), and everywhere
+else Dak falls back to generic behaviour:
+
+| | India (launch profile) | Other countries (today) |
+| --- | --- | --- |
+| Sender trust | DLT header rules (`XX-HDFCBK-S`), brand folding from the bundled table | Generic sender handling; DLT rules off |
+| OTPs, search, themes, backup, multi-SIM | ✓ | ✓ (tested with US/UK/EU/UAE/SG-style OTPs, Arabic-Indic digits) |
+| Finance | Indian banks/wallets, lakh/crore grouping, INR | Home currency from the SIM's country; `$`, `£`, `€`… resolved per region; ISO codes shown for foreign amounts |
+| Scam defence | DLT-aware fake-credit detection + generic signals | Generic signals (unknown sender + "credited" + return/refund urgency, payment links) |
+| Fraud help | 1930 / 1909 / Chakshu / RBI | Verified emergency numbers + "add your bank's fraud line" |
+
+Country-specific data for other markets comes later; the region seam is already in place.
+
 ## Feature highlights
 
 ### Reliable by construction

@@ -83,7 +83,7 @@ data class SearchQuery(
 private fun quoteIfNeeded(s: String): String =
     if (s.isEmpty() || s.any { it.isWhitespace() }) "\"$s\"" else s
 
-private fun textExprToString(expr: TextExpr): String = when (expr) {
+private fun textExprToString(expr: TextExpr): String = AmountTokens.literalOfExpansion(expr) ?: when (expr) {
     is TextExpr.Term -> expr.value
     is TextExpr.Phrase -> "\"${expr.value}\""
     is TextExpr.And -> "${textExprToString(expr.left)} ${textExprToString(expr.right)}"
@@ -91,8 +91,7 @@ private fun textExprToString(expr: TextExpr): String = when (expr) {
     is TextExpr.Not -> "-${textExprToString(expr.expr)}"
 }
 
-private fun amountToText(minor: Long): String =
-    if (minor % 100 == 0L) (minor / 100).toString() else "%.2f".format(minor / 100.0)
+private fun amountToText(minor: Long): String = AmountTokens.queryText(minor)
 
 internal fun filterToString(filter: Filter): String = when (filter) {
     is Filter.From -> "from:${quoteIfNeeded(filter.value)}"

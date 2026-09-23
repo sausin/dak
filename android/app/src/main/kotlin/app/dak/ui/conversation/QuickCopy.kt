@@ -29,3 +29,18 @@ internal fun plainAmount(transaction: TransactionItem): String {
     val exponent = runCatching { CurrencyTable.minorUnitExponent(transaction.currency) }.getOrDefault(2).coerceAtLeast(0)
     return BigDecimal.valueOf(transaction.amountMinor, exponent).abs().toPlainString()
 }
+
+private const val QUOTE_MAX_CHARS = 80
+private const val OTP_MASK = "••••"
+
+/**
+ * [draft] with a one-line quote of [item] on top (SMS has no native reply threading). An OTP in the quoted text
+ * is masked, so replying to a code message can never send the code back out.
+ */
+internal fun withQuote(draft: String, item: MessageItem): String {
+    var line = item.body.replace('\n', ' ').replace(Regex("\\s+"), " ").trim()
+    item.otp?.code?.takeIf { it.isNotBlank() }?.let { line = line.replace(it, OTP_MASK) }
+    if (line.length > QUOTE_MAX_CHARS) line = line.take(QUOTE_MAX_CHARS).trimEnd() + "…"
+    val quote = "> $line\n"
+    return if (draft.startsWith(quote)) draft else quote + draft
+}

@@ -137,6 +137,31 @@ class AppLockManager @Inject constructor(
     /** Current effective config (the registry values). */
     fun config(): AppLockConfig = config
 
+    /**
+     * Stores the lock method (callers verify the user first). Turning the lock on also switches lock-screen
+     * notifications from "Full message" to "Sender only" — the user can switch back in Notifications; returns true
+     * when it did. The current screen stays unlocked.
+     */
+    fun setMethod(choice: LockMethodChoice): Boolean {
+        val wasOn = config.enabled
+        settings.set(DakSettings.appLock, choice.value)
+        var privacyChanged = false
+        if (choice != LockMethodChoice.OFF && !wasOn && settings.get(DakSettings.lockScreenPrivacy) == PRIVACY_FULL) {
+            settings.set(DakSettings.lockScreenPrivacy, PRIVACY_HIDE_CONTENT)
+            privacyChanged = true
+        }
+        update {
+            config = config.copy(method = choice)
+            session.onPolicyChanged(lockActive())
+            // The user just proved who they are to change this: no immediate re-prompt on sensitive screens.
+            session.onSensitiveUnlocked()
+        }
+        return privacyChanged
+    }
+
+    /** Re-reads device state (screen lock added/removed) and recomputes the effective lock. */
+    fun refresh() = update { refreshDevice() }
+
     /** How a one-off confirmation (sensitive screen, OTP forwarding) should authenticate right now. */
     fun confirmationLock(): EffectiveLock {
         refreshDevice()
@@ -276,6 +301,11 @@ class AppLockManager @Inject constructor(
             block()
             stateFlow.value = snapshot()
         }
+    }
+
+    private companion object {
+        const val PRIVACY_FULL = "full"
+        const val PRIVACY_HIDE_CONTENT = "hideContent"
     }
 
     private fun clock(): ClockReading = ClockReading(

@@ -43,6 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -79,6 +80,8 @@ data class BubbleDecor(
     val channelLabel: String? = null,
     /** SIMs, to label each copy of a repeated message. */
     val sims: List<SimInfo> = emptyList(),
+    /** Swipe-to-reply is offered (false when the thread cannot be replied to, e.g. an alphanumeric sender ID). */
+    val canReply: Boolean = true,
 )
 
 /** Callbacks from a bubble. */
@@ -158,34 +161,35 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
                 modifier = Modifier.padding(start = 12.dp, bottom = 2.dp),
             )
         }
-        val gestures = rememberBubbleGestures(item, actions)
-        SwipeToReply(enabled = item.body.isNotEmpty(), onReply = { actions.onReply(item) }) {
-        Surface(
-            shape = RoundedCornerShape(
-                topStart = 18.dp,
-                topEnd = 18.dp,
-                bottomStart = if (outgoing) 18.dp else 4.dp,
-                bottomEnd = if (outgoing) 4.dp else 18.dp,
-            ),
-            color = container,
-            contentColor = content,
-            modifier = Modifier
-                .widthIn(max = 320.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .semantics { customActions = gestures.accessibilityActions }
-                .combinedClickable(
-                    onClick = { if (failed) actions.onRetrySend(item) },
-                    onLongClick = { actions.onLongPress(item) },
-                    onLongClickLabel = gestures.longPressLabel,
-                    onDoubleClick = gestures.onDoubleTap,
+        val canReply = decor.canReply && item.body.isNotEmpty()
+        val gestures = rememberBubbleGestures(item, actions, canReply)
+        SwipeToReply(enabled = canReply, onReply = { actions.onReply(item) }) {
+            Surface(
+                shape = RoundedCornerShape(
+                    topStart = 18.dp,
+                    topEnd = 18.dp,
+                    bottomStart = if (outgoing) 18.dp else 4.dp,
+                    bottomEnd = if (outgoing) 4.dp else 18.dp,
                 ),
-        ) {
-            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (item.attachments.isNotEmpty()) AttachmentList(item.attachments)
-                if (item.kind() == MessageKind.MMS && !outgoing) MmsDownloadRow(item, actions)
-                if (item.body.isNotEmpty()) Text(annotated, style = bodyStyle, color = content)
+                color = container,
+                contentColor = content,
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .semantics { customActions = gestures.accessibilityActions }
+                    .combinedClickable(
+                        onClick = { if (failed) actions.onRetrySend(item) },
+                        onLongClick = { actions.onLongPress(item) },
+                        onLongClickLabel = gestures.longPressLabel,
+                        onDoubleClick = gestures.onDoubleTap,
+                    ),
+            ) {
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (item.attachments.isNotEmpty()) AttachmentList(item.attachments)
+                    if (item.kind() == MessageKind.MMS && !outgoing) MmsDownloadRow(item, actions)
+                    if (item.body.isNotEmpty()) Text(annotated, style = bodyStyle, color = content)
+                }
             }
-        }
         }
         item.otp?.let { otp -> OtpRow(item, otp.code, otp.consumedBy, actions) }
         MetaRow(item, decor, outgoing)

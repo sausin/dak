@@ -46,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.navigation.DakNavigator
+import app.dak.ui.ux.UxPrefsViewModel
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.DakTopAppBar
 
@@ -137,7 +138,8 @@ fun NewConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier
                     }
                 }
             }
-            Composer(ui = composerUi, text = viewModel.composer.draftText, actions = viewModel.composer)
+            val enterToSend by hiltViewModel<UxPrefsViewModel>().enterToSend.collectAsStateWithLifecycle()
+            Composer(ui = composerUi, text = viewModel.composer.draftText, actions = viewModel.composer, enterToSend = enterToSend)
         }
     }
 }

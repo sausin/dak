@@ -39,11 +39,32 @@ object MoneyParser {
      */
     private val currencyCapture = "(?<![A-Za-z])($currencyAlt)(?![A-Za-z])"
 
-    /** Matches an optional currency token, a number, an optional trailing currency token, an optional "/-". */
+    /**
+     * A decimal part written with a stray space around the point ("500,000. 00", "500,000 .00"). Exactly two
+     * digits, and at least one blank on one side of the point (without a blank the point is part of
+     * [numberFragment] already). Bounded quantifiers only, so it cannot backtrack.
+     */
+    private const val SPACED_DECIMAL = "((?:[ \\t]{1,2}\\.[ \\t]{0,2}|\\.[ \\t]{1,2})\\d{2}(?!\\d))"
+
+    /**
+     * Indian number words after the amount ("Rs 5 lakh", "₹2.5 crore"). "Cr" alone is deliberately not a
+     * multiplier: in bank SMS "Rs.500 Cr" means *credited*.
+     */
+    private const val MULTIPLIER = "(?:[\\s\u00A0\u202F]{0,3}(lakhs?|lacs?|crores?)(?![A-Za-z]))"
+
+    /**
+     * Matches an optional currency token, a number, an optional spaced decimal part, an optional lakh/crore word,
+     * an optional trailing currency token and an optional "/-". Groups: 1 prefix currency, 2 number, 3 spaced
+     * decimal, 4 multiplier word, 5 suffix currency, 6 "/-".
+     */
     private val pattern = Regex(
-        "(?:$currencyCapture$CURRENCY_GAP)?($numberFragment)(?:$CURRENCY_GAP$currencyCapture)?(/-)?",
+        "(?:$currencyCapture$CURRENCY_GAP)?($numberFragment)$SPACED_DECIMAL?$MULTIPLIER?" +
+            "(?:$CURRENCY_GAP$currencyCapture)?(/-)?",
         RegexOption.IGNORE_CASE,
     )
+
+    /** A fragment that already ends in a one/two-digit decimal part ("1,234.50", "9,50"). */
+    private val endsInDecimal = Regex("[.,]\\d{1,2}$")
 
     /**
      * Returns every amount found in [text] that has an explicit currency symbol or ISO code
@@ -61,18 +82,55 @@ object MoneyParser {
         for (match in pattern.findAll(text)) {
             val prefix = match.groups[1]?.value
             val numberRaw = match.groups[2]?.value ?: continue
-            val suffix = match.groups[3]?.value
+            val suffix = match.groups[5]?.value
             val currencyToken = prefix ?: suffix ?: continue
             val currency = resolveCurrency(currencyToken, symbolMap) ?: continue
+            val number = withSpacedDecimal(numberRaw, match.groups[3]?.value)
             val money = try {
-                parseAmount(numberRaw, currency)
+                applyMultiplier(parseAmount(number, currency), match.groups[4]?.value)
             } catch (e: ArithmeticException) {
+                null
+            } catch (e: NumberFormatException) {
                 null
             } ?: continue
             results += MoneyOccurrence(money, match.range, match.value)
         }
         return results
     }
+
+    /**
+     * Joins a spaced decimal part ("500,000" + ". 00") onto the number, unless the number already has a decimal
+     * part of its own (then the trailing ". 12" is something else, e.g. the next sentence).
+     */
+    private fun withSpacedDecimal(numberRaw: String, spacedDecimal: String?): String {
+        if (spacedDecimal == null || endsInDecimal.containsMatchIn(numberRaw)) return numberRaw
+        // A trailing "." or "," is always the decimal separator here; drop the other kind as grouping.
+        val digits = spacedDecimal.filter { it.isDigit() }
+        return numberRaw + "." + digits
+    }
+
+    private fun applyMultiplier(money: Money, word: String?): Money {
+        if (word == null) return money
+        val factor = when (word.lowercase().first()) {
+            'l' -> LAKH
+            else -> CRORE
+        }
+        return Money.ofMajor(money.toBigDecimal().multiply(factor), money.currency)
+    }
+
+    private val LAKH = BigDecimal(100_000)
+    private val CRORE = BigDecimal(10_000_000)
+
+    /**
+     * Every amount mentioned in [text], for search indexing: each currency-bearing amount [findAll] finds, plus
+     * bare numbers that are unmistakably formatted as amounts (digit grouping such as "5,00,000" / "500,000", or
+     * a two-digit decimal part such as "500000.00"). Plain digit runs (phone numbers, OTPs, years) are never
+     * included. Only the first [AmountMentions.MAX_SCAN_CHARS] chars are scanned. Sorted by position.
+     */
+    fun findAllForSearch(
+        text: String,
+        symbolMap: Map<String, String> = CurrencyTable.defaultSymbolToCurrency,
+    ): List<AmountMention> = AmountMentions.find(text, symbolMap)
 
     /** Returns the first amount with a currency indicator found in [text], or null if none. */
     fun parse(

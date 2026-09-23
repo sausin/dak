@@ -15,6 +15,11 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
 - `SenderId.mergeKey(address): String` — collapses `VM-HDFCBK` / `JD-HDFCBK` / `AX-HDFCBK` to
   `"HDFCBK"`; numeric senders collapse to their last 10 digits.
 - `SenderId.isIndianMobile(address): Boolean`.
+- `SenderRegion(countryIso)` / `SenderRegion.of(iso)` / `SenderRegion.INDIA` / `SenderRegion.UNKNOWN` — the sender
+  conventions of the SIM a message arrived on. `dltSenderIds` (India only: DLT parsing for labels/trust),
+  `shortCodesSuspicious` (India only; short codes are normal bank senders elsewhere), `isLocalMobile(address)`
+  (Indian 10-digit mobile in IN, any 8+ digit phone number elsewhere), `matches(regions)` for tagged bundle entries.
+  Unknown region = generic behaviour, never India by assumption.
 
 ## Template bundle (signed OTA templates)
 
@@ -28,6 +33,10 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
   brand (`HDFC` -> `HDFCBK`); used by `:core-index` to fold one brand's headers into one conversation.
 - `bundle.sender(mergeKey): SenderEntry?`, `bundle.rulesFor(mergeKey): List<TemplateRule>`
   (sorted by descending priority; rules with no `senderHeaders` apply to everyone).
+- Optional `regions` (ISO alpha-2 list) on `SenderEntry` and `TemplateRule`; absent/empty = global, so older
+  bundles stay valid. The bundled Indian senders and the UPI/IMPS rule carry `["IN"]`. `bundle.sender(mergeKey,
+  region)` ignores entries of other regions; `bundle.rulesFor(mergeKey, region)` drops other regions' rules and, at
+  equal priority, tries this region's rules before generic ones. An unknown region filters nothing.
 - `BundleVerifier` is a `fun interface`; `Ed25519BundleVerifier(rawPublicKeyBytes)` verifies with
   `java.security` Ed25519 (JDK 15+/Android 33+), failing closed if the runtime lacks the algorithm.
   `RejectAllVerifier` is the safe default with no configured key.
@@ -36,7 +45,8 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
 
 - `OtpExtractor.extract(body): OtpInfo?` (core-model `OtpInfo`) — finds 4-8 digit or labelled
   alphanumeric codes (English + Hindi phrasing), a trailing 11-char SMS Retriever hash, and a
-  trailing WebOTP `@domain #code` line. Ignores amounts, dates, phone numbers and masked account
+  trailing WebOTP `@domain #code` line. Also "G-123456 is your Google verification code" (a brand between "your"
+  and the keyword) and Arabic phrasing (رمز التحقق ...); tested with US/UK/EU/UAE/SG-style messages. Ignores amounts, dates, phone numbers and masked account
   tails (`XX1234`). Non-ASCII decimal digits (Devanagari, Bengali, Arabic-Indic, full-width, ...)
   are normalized to ASCII before matching, so `OtpInfo.code` is always ASCII digits (needed for
   copy/autofill) regardless of the script the OTP arrived in.
@@ -81,18 +91,20 @@ val pipeline = ClassifierPipeline(
     cloud = NoCloudClassifier,             // or an opt-in CloudClassifier
     contactLookup = { address -> ... },    // saved-contact lookup
     threshold = 0.55f,
+    regionFor = { subId -> SenderRegion.of(simCountry(subId)) }, // default: SenderRegion.UNKNOWN
 )
 val result: app.dak.core.model.Classification = pipeline.classify(address, body, subId)
 ```
 
 Stage 1 (deterministic templates) short-circuits stages 2/3 once its confidence clears
 `threshold`; otherwise stage 2 (`MessageModel`) runs, with a bias towards `PERSONAL` for saved
-contacts or plain 10-digit Indian mobile senders. If the result is still below `threshold`, stage 3
+contacts or local mobile numbers (`SenderRegion.isLocalMobile`). `dlt-*` traffic labels are only added for an Indian
+SIM, and region-tagged template entries follow `regionFor(subId)`. If the result is still below `threshold`, stage 3
 asks the opt-in `CloudClassifier` for a masked-text verdict; below threshold even after that, the
 category is `Category.UNKNOWN` rather than a guess. `canonicalSender` is filled from the template
 bundle's brand table; `otp` is filled via `OtpExtractor` whenever the final category is `OTP`.
-Numeric, non-contact senders whose body contains a link get the `"unknown-sender-link"` label
-regardless of category.
+Phone-number senders (and, in India only, short codes) that are not contacts and send a link get the
+`"unknown-sender-link"` label regardless of category.
 
 ## Fake credit alerts (`app.dak.classify.scam`)
 

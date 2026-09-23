@@ -14,7 +14,8 @@ fun parse(input: String, now: ZonedDateTime): SearchQuery
 
 Total (never throws) and whitespace-tolerant. Supported operators: `from:`, `category:`, `sim:`,
 `has:attachment|link|otp`, `amount:>N` / `<N` / `a..b` / `=N`, `before:` / `after:` (ISO date,
-`dd/MM/yyyy`, `today`, `yesterday`), `during:` (`today`, `yesterday`, `this week`, `last week`,
+`dd/MM/yyyy` or `MM/dd/yyyy` in the order of `parse(input, now, locale = Locale.getDefault())`'s short date format,
+falling back to the other order when only that is a valid date, `today`, `yesterday`), `during:` (`today`, `yesterday`, `this week`, `last week`,
 `this month`, `last month`, `last N days`, a month name, a 4-digit year — quotes allowed around
 multi-word values), `in:archive|bin|inbox`, `is:starred|unread|read`, and negation (`-from:x`,
 `-word`). Free text combines with implicit `AND`; `OR` joins two text atoms; quoted phrases are

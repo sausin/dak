@@ -12,13 +12,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -42,12 +43,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -66,16 +72,18 @@ import app.dak.index.MessageItem
 import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
 import app.dak.telephony.MmsDownloadState
+import app.dak.ui.common.Avatar
+import app.dak.ui.common.text.BidiText
+import app.dak.ui.notifications.CustomNotifications
 import app.dak.ui.sendergroups.ChannelFilterRow
 import app.dak.ui.sendergroups.ConversationFoldEvent
 import app.dak.ui.sendergroups.ConversationFoldViewModel
 import app.dak.ui.sendergroups.FoldIntoDialog
 import app.dak.ui.sendergroups.UnfoldChannelDialog
-import app.dak.ui.common.Avatar
-import app.dak.ui.common.text.BidiText
-import app.dak.ui.notifications.CustomNotifications
 import app.dak.ui.theme.DakTheme
+import app.dak.ui.ux.UxPrefsViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 
 private val FONT_SCALES = listOf(0.85f, 1f, 1.15f, 1.3f)
 
@@ -98,8 +106,13 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val forwarded by viewModel.forwarded.collectAsStateWithLifecycle()
     val userLabels by viewModel.userLabels.collectAsStateWithLifecycle()
     val composerUi by viewModel.composer.ui.collectAsStateWithLifecycle()
+    val enterToSend by hiltViewModel<UxPrefsViewModel>().enterToSend.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val composerFocus = remember { FocusRequester() }
+    var infoFor by remember { mutableStateOf<MessageItem?>(null) }
 
     var menuOpen by remember { mutableStateOf(false) }
     var messageMenuFor by remember { mutableStateOf<MessageItem?>(null) }
@@ -165,6 +178,14 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
 
+    // Copies a code or amount and confirms with a snackbar (a polite live region, so TalkBack reads it out).
+    fun copyQuick(item: MessageItem, quick: QuickCopy) {
+        copyToClipboard(context, quick.text, sensitive = quick is QuickCopy.Code)
+        if (quick is QuickCopy.Code) viewModel.onOtpCopied(item.key)
+        val message = context.getString(if (quick is QuickCopy.Code) R.string.ux_snack_code_copied else R.string.ux_snack_amount_copied)
+        scope.launch { snackbar.currentSnackbarData?.dismiss(); snackbar.showSnackbar(message) }
+    }
+
     val bubbleActions = remember(viewModel, foldVm) {
         object : BubbleActions {
             override fun onLongPress(item: MessageItem) { messageMenuFor = item }
@@ -182,6 +203,15 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             override fun onRetryMms(item: MessageItem) = viewModel.retryMms(item.key)
             override fun mmsState(item: MessageItem): Flow<MmsDownloadState> = viewModel.mmsState(item.key)
             override suspend fun repeatsOf(item: MessageItem): List<MessageItem> = foldVm.repeatsOf(item.key)
+            override fun onReply(item: MessageItem) {
+                viewModel.composer.onTextChange(withQuote(viewModel.composer.draftText, item))
+                runCatching { composerFocus.requestFocus() }
+            }
+            override fun onDoubleTap(item: MessageItem) {
+                val quick = QuickCopy.of(item) ?: return
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                copyQuick(item, quick)
+            }
         }
     }
 
@@ -272,32 +302,51 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 userLabels[item.key.toString()].orEmpty(),
                             channelLabel = if (foldChannels.size > 1 && !item.isOutgoing) item.address else null,
                             sims = if (item.repeatCount > 1) sims else emptyList(),
+                            canReply = composerUi.enabled && !header.isBusiness,
                         )
                         Column {
                             ScamWarningBanner(item = item, onReport = { key -> navigator.navigate(Routes.fraudHelp(key)) })
-                            Box {
-                                MessageBubble(item = item, decor = decor, actions = bubbleActions)
-                                MessageMenu(
-                                    item = item,
-                                    expanded = messageMenuFor?.key == item.key,
-                                    onDismiss = { messageMenuFor = null },
-                                    onCopy = { copyToClipboard(context, item.body, sensitive = item.otp != null) },
-                                    onStar = { viewModel.setMessageStarred(item.key, !item.starred) },
-                                    onForward = { navigator.navigate(Routes.compose(body = item.body)) },
-                                    onDelete = { viewModel.delete(item.key) },
-                                    onRetry = if (item.box == MessageBox.FAILED) ({ viewModel.retrySend(item.key) }) else null,
-                                    onReportSpam = if (!item.isOutgoing && viewModel.reportsSpamToTrai(item.subId)) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
-                                    onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
-                                )
-                            }
+                            MessageBubble(item = item, decor = decor, actions = bubbleActions)
                         }
                     }
                 }
+                JumpToLatest(listState = listState, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp))
             }
-            Composer(ui = composerUi, text = viewModel.composer.draftText, actions = viewModel.composer)
+            Composer(
+                ui = composerUi,
+                text = viewModel.composer.draftText,
+                actions = viewModel.composer,
+                enterToSend = enterToSend,
+                focusRequester = composerFocus,
+            )
         }
     }
 
+    messageMenuFor?.let { item ->
+        val quick = QuickCopy.of(item)
+        MessageActionsSheet(
+            item = item,
+            onDismiss = { messageMenuFor = null },
+            actions = MessageSheetActions(
+                onCopyText = {
+                    copyToClipboard(context, item.body, sensitive = item.otp != null)
+                },
+                onCopyCode = (quick as? QuickCopy.Code)?.let { code -> { copyQuick(item, code) } },
+                onCopyAmount = (quick as? QuickCopy.Amount)?.let { amount -> { copyQuick(item, amount) } },
+                onReply = if (composerUi.enabled && !header.isBusiness && item.body.isNotEmpty()) ({ bubbleActions.onReply(item) }) else null,
+                onForward = if (item.body.isNotEmpty()) ({ navigator.navigate(Routes.compose(body = item.body)) }) else null,
+                onStar = { viewModel.setMessageStarred(item.key, !item.starred) },
+                onRetry = if (item.box == MessageBox.FAILED) ({ viewModel.retrySend(item.key) }) else null,
+                onDelete = { viewModel.delete(item.key) },
+                onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
+                onReportSpam = if (!item.isOutgoing && viewModel.reportsSpamToTrai(item.subId)) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
+                onInfo = { infoFor = item },
+            ),
+        )
+    }
+    infoFor?.let { item ->
+        MessageInfoDialog(item = item, sim = sims.firstOrNull { it.subId == item.subId }, onDismiss = { infoFor = null })
+    }
     linkWarning?.let { warning ->
         LinkWarningDialog(
             warning = warning,
@@ -382,32 +431,6 @@ private fun ThreadMenu(
 }
 
 @Composable
-private fun MessageMenu(
-    item: MessageItem,
-    expanded: Boolean,
-    onDismiss: () -> Unit,
-    onCopy: () -> Unit,
-    onStar: () -> Unit,
-    onForward: () -> Unit,
-    onDelete: () -> Unit,
-    onRetry: (() -> Unit)?,
-    onReportSpam: (() -> Unit)?,
-    onReportFraud: (() -> Unit)? = null,
-) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        @Composable
-        fun entry(label: Int, action: () -> Unit) = DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = { onDismiss(); action() })
-        if (item.body.isNotEmpty()) entry(R.string.scr_action_copy_text, onCopy)
-        entry(if (item.starred) R.string.scr_action_unstar else R.string.scr_action_star, onStar)
-        if (item.body.isNotEmpty()) entry(R.string.scr_action_forward, onForward)
-        onRetry?.let { entry(R.string.scr_action_retry, it) }
-        onReportSpam?.let { entry(R.string.scr_action_report_spam, it) }
-        onReportFraud?.let { entry(R.string.safe_action_report_fraud, it) }
-        entry(R.string.scr_action_delete_to_bin, onDelete)
-    }
-}
-
-@Composable
 private fun SimChooserDialog(sims: List<SimInfo>, selected: Int?, onChoose: (Int) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -454,9 +477,15 @@ private fun BubbleStyleDialog(selected: Int?, onChoose: (Int?) -> Unit, onDismis
 
 @Composable
 private fun Swatch(color: androidx.compose.ui.graphics.Color, content: androidx.compose.ui.graphics.Color, selected: Boolean, onClick: () -> Unit) {
-    Surface(shape = CircleShape, color = color, contentColor = content, modifier = Modifier.size(32.dp).clickable(onClick = onClick)) {
-        Box(contentAlignment = Alignment.Center) {
-            if (selected) Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+    // 48dp touch target around a 32dp swatch; "selected" is exposed to TalkBack.
+    Box(
+        modifier = Modifier.size(48.dp).selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(shape = CircleShape, color = color, contentColor = content, modifier = Modifier.size(32.dp)) {
+            Box(contentAlignment = Alignment.Center) {
+                if (selected) Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+            }
         }
     }
 }

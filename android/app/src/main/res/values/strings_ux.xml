@@ -47,6 +47,7 @@
     <string name="ux_action_reply">Reply</string>
     <string name="ux_action_copy_amount">Copy amount</string>
     <string name="ux_action_info">Message details</string>
+    <string name="ux_action_message_actions">Message actions</string>
     <string name="ux_snack_code_copied">Code copied</string>
     <string name="ux_snack_amount_copied">Amount copied</string>
     <string name="ux_snack_text_copied">Message copied</string>

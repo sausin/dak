@@ -9,6 +9,7 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Add
@@ -54,10 +57,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -118,12 +125,23 @@ interface ComposerActions {
  * One composer for text and media: attachment tray (camera, gallery, files, contact card, location as a maps
  * link), automatic SMS→MMS switch shown as an "MMS" chip on the send button, segment counter when it matters,
  * one-tap reply-SIM switcher, roaming chip and the "sent as +91…" hint. Long-press send to send later.
+ * With [enterToSend] the keyboard's action key sends (and shows a send icon) instead of adding a new line.
+ * [focusRequester] lets the screen focus the field (swipe-to-reply). Back closes an open attachment tray first.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Composer(ui: ComposerUi, text: String, actions: ComposerActions, modifier: Modifier = Modifier) {
+fun Composer(
+    ui: ComposerUi,
+    text: String,
+    actions: ComposerActions,
+    modifier: Modifier = Modifier,
+    enterToSend: Boolean = false,
+    focusRequester: FocusRequester? = null,
+) {
     var trayOpen by rememberSaveable { mutableStateOf(false) }
     var laterMenu by remember { mutableStateOf(false) }
+    BackHandler(enabled = trayOpen) { trayOpen = false }
+    val canSend = ui.enabled && !ui.sending && (text.isNotBlank() || ui.attachments.isNotEmpty())
     ui.costPrompt?.let { prompt ->
         CostWarningDialog(prompt = prompt, onConfirm = actions::onConfirmCost, onDismiss = actions::onDismissCost)
     }
@@ -139,16 +157,21 @@ fun Composer(ui: ComposerUi, text: String, actions: ComposerActions, modifier: M
                 OutlinedTextField(
                     value = text,
                     onValueChange = actions::onTextChange,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
                     enabled = ui.enabled,
                     placeholder = { Text(stringResource(if (ui.isMms) R.string.scr_composer_hint_mms else R.string.scr_composer_hint_sms)) },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = if (enterToSend) ImeAction.Send else ImeAction.Default,
+                    ),
+                    keyboardActions = KeyboardActions(onSend = { if (canSend) actions.onSend() }),
                     maxLines = 6,
                     shape = RoundedCornerShape(24.dp),
                 )
                 Box {
                     SendButton(
                         isMms = ui.isMms,
-                        enabled = ui.enabled && !ui.sending && (text.isNotBlank() || ui.attachments.isNotEmpty()),
+                        enabled = canSend,
                         onClick = actions::onSend,
                         onLongClick = { laterMenu = true },
                     )
@@ -250,8 +273,11 @@ private fun AttachmentStrip(attachments: List<ComposerAttachment>, onRemove: (Co
                         }
                     }
                 }
-                IconButton(onClick = { onRemove(a) }, modifier = Modifier.align(Alignment.TopEnd).size(28.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.scr_composer_remove_attachment), modifier = Modifier.size(16.dp))
+                // A 40dp button over the thumbnail's corner: big enough to hit, the icon stays small.
+                IconButton(onClick = { onRemove(a) }, modifier = Modifier.align(Alignment.TopEnd).size(40.dp)) {
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f)) {
+                        Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.scr_composer_remove_attachment), modifier = Modifier.padding(4.dp).size(16.dp))
+                    }
                 }
             }
         }

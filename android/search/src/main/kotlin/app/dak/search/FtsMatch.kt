@@ -40,7 +40,8 @@ object FtsMatch {
         }
 
         if (prefixLastTerm) {
-            val lastPositive = atoms.indexOfLast { !it.negated }
+            // Never prefix a canonical amount token: "amt5000000*" would also match amt50000000 (ten times more).
+            val lastPositive = atoms.indexOfLast { !it.negated && !AmountTokens.isToken(it.text.trim('"')) }
             if (lastPositive != -1) {
                 atoms[lastPositive] = atoms[lastPositive].copy(text = atoms[lastPositive].text + "*")
             }

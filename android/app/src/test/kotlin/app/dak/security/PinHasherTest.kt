@@ -24,6 +24,16 @@ class PinHasherTest {
     }
 
     @Test
+    fun `obvious pins are flagged as easy to guess`() {
+        listOf("0000", "1111", "1234", "4567", "12345678", "9876", "3210").forEach {
+            assertTrue(PinPolicy.isEasyToGuess(it.toCharArray()), it)
+        }
+        listOf("4821", "1235", "2580", "13579", "0101").forEach {
+            assertFalse(PinPolicy.isEasyToGuess(it.toCharArray()), it)
+        }
+    }
+
+    @Test
     fun `correct pin verifies and wrong pin does not`() {
         val record = hasher.hash("4821".toCharArray())
         assertTrue(hasher.verify("4821".toCharArray(), record))

@@ -195,7 +195,10 @@ All screens keep the pinned signatures and get their ViewModel via `hiltViewMode
 
 - `ui/inbox` — tabs (All, Personal, Transactions, OTP, Promotions, Spam, Starred, Archived), SIM filter, pinned saved
   searches as virtual folders, `ReliabilityBanner`, index progress row, swipe start→end archive / end→start delete to
-  bin with undo, long-press pin/mute/mark read, search entry → `Routes.search()`, overflow, FAB → compose.
+  bin with undo (user-configurable: `DakSettings.swipeRight/swipeLeft`, read via `ui/ux/UxPrefsViewModel`), long-press
+  multi-select with a bottom action bar (archive, delete, read, pin, mute, fold together, select all), inline "Copy
+  code" chip on fresh (< 10 min) OTP rows, and a bottom bar (places sheet, search pill, compose FAB) instead of top
+  search/overflow. See `docs/ux-review.md`.
 - `ui/conversation` — `ConversationScreen` (Paging, token-themed bubbles, SIM chip per bubble, OTP highlight + tap to
   copy (sensitive clip) + delete now, group sender names, Coil images, MMS download failed → tap to retry, send status
   with retry, link safety dialog via `LookalikeDomainChecker`, highlight + scroll-to from search with "Back to results",
@@ -203,7 +206,9 @@ All screens keep the pinned signatures and get their ViewModel via `hiltViewMode
   audit log), `NewConversationScreen` (contacts search + raw numbers, shared media from `PendingShare`), and the shared
   composer (`Composer`, `ComposerDelegate`, `MessageSendController` for the SMS/MMS decision and E.164,
   `MmsMediaCompressor` to the carrier MMS limit, default 300 KB, off the main thread). `annotateMessage` and
-  `copyToClipboard` are reused by search/backup.
+  `copyToClipboard` are reused by search/backup. Gestures: swipe a bubble to reply (quote, OTP masked), double-tap to
+  copy its code/amount (`QuickCopy`), long-press opens `MessageActionsSheet` (+ `MessageInfoDialog`), `JumpToLatest`
+  FAB; the composer takes `enterToSend` (`DakSettings.enterToSend`) and a `FocusRequester`.
 - `ui/search` — `SearchViewModel` keeps query text, sort and scroll in `SavedStateHandle`; chips from
   `SearchQuery.chips()`, filter sheet (edits the text via `withFilter`/`withoutFilter`), suggestions, saved searches
   (pin to inbox), AI search entry locked unless `Feature.AI_SEARCH`.

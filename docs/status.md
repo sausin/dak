@@ -59,6 +59,27 @@ bundle fetching (signature verification exists), Safe Browsing lookups, crowd sp
 Only the seams and locked UI exist: Play Billing, translation, AI search, web client relay,
 webhooks and send API are not implemented.
 
+## Works worldwide (India-first launch)
+
+Dak launches India-first; elsewhere it works with generic behaviour, and other regions get curated data later.
+Nothing assumes India: a `RegionProfile` (`core-telephony/region`) is resolved from the default SMS SIM's home
+country (per message: the SIM it arrived on), then the network country, then the device locale, and is
+`UNKNOWN` (generic) when none is usable. India is simply the richest profile.
+
+| Area | India (`IN`) | Everywhere else |
+| --- | --- | --- |
+| Sender rules | DLT headers parsed (`dlt-*` labels, registered-header trust in the scam detector); short codes from "banks" suspicious | No DLT handling; short codes are normal bank senders; generic signals only (unknown sender + credit wording, return/refund urgency, links, payment handles, PIN/collect bait) |
+| Template bundle | Indian senders and the UPI/IMPS rule are tagged `"regions": ["IN"]` | Generic (untagged) rules only; region-matching rules win ties. Old bundles without `regions` stay valid (untagged = global) |
+| OTPs | English + Hindi | English (US/UK/EU/UAE/SG-style messages tested), Arabic phrasing, any Unicode digits → ASCII code |
+| Money | INR home currency, lakh/crore grouping | Home currency from the bank SMS (balance currency), else the SIM region's currency (`Currency.getInstance`), else the account's dominant currency; Western grouping; bare `$` = the region's dollar (USD/CAD/AUD/SGD/...), foreign amounts always show their ISO code |
+| Report fraud | 1930, cybercrime.gov.in, Chakshu, TRAI 1909 complaint, RBI, 112 (verified bundle) | "Call your bank's fraud line" card, the region's general emergency numbers from libphonenumber data (e.g. 911, 999 + 112, 000, 112), and the user's own saved bank number. No invented national fraud lines; the 1909 menu entry is hidden |
+| Dates / time zones | Search accepts `dd/MM/yyyy`; TRAI complaint uses its `dd/MM/yy` format | Search reads numeric dates in the locale's order (`MM/dd/yyyy` in the US, falling back when only the other order is valid); birthdays and report details use locale formats; schedules use `ZoneId.systemDefault()` |
+
+Still India-specific (by design, pending data for other regions): the bundled sender/brand table and official-domain
+list for link lookalikes, `InstitutionTable`, the scam detector's bank-name list and Hinglish wording, the helplines
+bundle, and `SenderId.mergeKey`'s DLT-prefix collapse (applied everywhere; harmless outside India except for
+header-shaped names such as `BT-MOBILE`).
+
 ## Known gaps / follow-ups
 
 - Room schema JSON is generated in CI but not yet committed (`core-index/schemas`); commit it

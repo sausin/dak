@@ -55,6 +55,9 @@ is `otpBinRetention`, tiered `Premium(Feature.ADJUSTABLE_OTP_BIN_RETENTION)`; fr
 `freeTasterPack`) are `Premium`-tiered against `Feature.WEBHOOKS` / `Feature.SEND_API` /
 `Feature.TRANSLATION`.
 
+`SwipeActions` holds the value constants (`ARCHIVE`, `DELETE`, `MARK_READ`, `PIN`, `NONE`) and choice options of the
+inbox swipe rows `swipeRight` / `swipeLeft`; `inboxOtpCopy` and `enterToSend` are plain toggles.
+
 ### `SettingsSearch` (object)
 
 ```kotlin

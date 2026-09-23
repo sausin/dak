@@ -178,7 +178,8 @@ own `zoneId`, resolving DST gaps/overlaps the way `ZonedDateTime.of` always does
 
 `Presets.all(now: Long): List<Rule>` — a few built-in example rules (`archiveOldPromotions`,
 `labelAmazonDeliveries`, `otpBigNotification`), ordinary `Rule`s exportable/importable via `RuleCodec`
-like anything else; `:app` can offer them as one-tap starting points.
+like anything else; `:app` can offer them as one-tap starting points. `archiveOldPromotions(now, zoneId =
+ZoneId.systemDefault().id)` runs at 03:00 in the device's time zone.
 
 ## Known limitations / left for `:app` or a later pass
 

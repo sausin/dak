@@ -13,6 +13,13 @@ object PinPolicy {
     /** True when [pin] is 4–8 ASCII digits (no other characters, no whitespace). */
     fun isValid(pin: CharArray): Boolean =
         pin.size in MIN_LENGTH..MAX_LENGTH && pin.all { it in '0'..'9' }
+
+    /** True for PINs anyone would try first: one repeated digit (0000) or a straight run up or down (1234, 9876). */
+    fun isEasyToGuess(pin: CharArray): Boolean {
+        if (pin.size < 2) return true
+        val steps = (1 until pin.size).map { pin[it] - pin[it - 1] }
+        return steps.all { it == 0 } || steps.all { it == 1 } || steps.all { it == -1 }
+    }
 }
 
 /**

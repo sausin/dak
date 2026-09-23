@@ -34,6 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
@@ -115,8 +118,11 @@ fun SettingsGroupScreen(navigator: DakNavigator, modifier: Modifier = Modifier, 
                     item(key = "advanced-header") {
                         Column {
                             HorizontalDivider()
+                            val expansion = stringResource(if (advancedOpen) R.string.ux_expanded else R.string.ux_collapsed)
                             ListItem(
-                                modifier = Modifier.clickable { advancedOpen = !advancedOpen },
+                                modifier = Modifier
+                                    .clickable { advancedOpen = !advancedOpen }
+                                    .semantics { heading(); stateDescription = expansion },
                                 headlineContent = {
                                     Text(stringResource(R.string.settings_advanced), style = MaterialTheme.typography.titleSmall)
                                 },

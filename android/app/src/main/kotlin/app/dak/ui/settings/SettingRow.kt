@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
@@ -60,9 +61,14 @@ fun SettingRow(
     ListItem(
         modifier = modifier
             .background(background)
-            .clickable(role = if (isToggle && !row.locked) Role.Switch else Role.Button) {
-                if (isToggle && !row.locked) onToggle() else onClick()
-            },
+            // A toggle row is one TalkBack node with a switch state ("on"/"off"), not a button plus a switch.
+            .then(
+                if (isToggle && !row.locked) {
+                    Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = { onToggle() })
+                } else {
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
+                },
+            ),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         overlineContent = if (sectionLabel != null) { { Text(sectionLabel) } } else null,
         headlineContent = { Text(row.def.title, modifier = Modifier.alpha(if (row.locked) 0.6f else 1f)) },
@@ -78,7 +84,7 @@ fun SettingRow(
         trailingContent = {
             when {
                 row.locked -> LockChip()
-                isToggle -> Switch(checked = checked, onCheckedChange = { onToggle() })
+                isToggle -> Switch(checked = checked, onCheckedChange = null)
                 row.def.control is ControlType.Action ->
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
                 else -> Unit

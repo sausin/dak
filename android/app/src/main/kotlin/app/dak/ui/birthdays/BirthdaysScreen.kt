@@ -292,7 +292,8 @@ private fun OccasionRow(
         1 -> stringResource(R.string.fw_bd_tomorrow)
         else -> stringResource(R.string.fw_bd_in_days, item.daysUntil)
     }
-    val dateText = item.date.format(DateTimeFormatter.ofPattern("d MMM"))
+    // Day and month in the user's own order ("5 Mar" in India / UK, "Mar 5" in the US).
+    val dateText = item.date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "dMMM")))
     val anniversaryText = stringResource(R.string.fw_bd_anniversary)
     val detail = if (o.kind == OccasionKind.ANNIVERSARY) "$whenText · $dateText · $anniversaryText" else "$whenText · $dateText"
     val ageText = item.age?.let { stringResource(R.string.fw_bd_turns, it) }

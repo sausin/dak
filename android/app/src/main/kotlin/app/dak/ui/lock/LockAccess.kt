@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.fragment.app.FragmentActivity
 import app.dak.security.AppLockManager
 import dagger.hilt.EntryPoint
@@ -36,6 +37,20 @@ fun SecureWhileShown() {
     DisposableEffect(manager) {
         val release = manager.holdSecureWindow()
         onDispose { release() }
+    }
+}
+
+/**
+ * Tapjacking guard: while shown, the hosting view (the activity's or a dialog's) drops touches that arrive while
+ * another app's window obscures it, so an overlay cannot trick the user into tapping the lock screen or PIN pad.
+ */
+@Composable
+fun ObscuredTouchGuard() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val previous = view.filterTouchesWhenObscured
+        view.filterTouchesWhenObscured = true
+        onDispose { view.filterTouchesWhenObscured = previous }
     }
 }
 

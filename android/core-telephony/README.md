@@ -28,6 +28,21 @@ ACTION_CHANGE_DEFAULT below), `SmsSegmentCounter.count(text)` → `SmsSegments`,
 reports, m-notifyresp-ind, per-SIM home-country override; SharedPreferences so receivers can read it
 synchronously), `SendRateLimiter`.
 
+## Region profile (`region/`)
+
+- `RegionProfile(countryIso: String?, source: RegionSource)` — the country region-specific behaviour follows:
+  `isIndia` / `dltSenderRules` (India's DLT headers, TRAI 1909, Chakshu, India helplines), `homeCurrency`
+  (`Currency.getInstance(Locale("", iso))`, null when unknown), `usesIndianGrouping` (INR only).
+  `RegionProfile.UNKNOWN` when nothing is known: generic behaviour, never India by assumption.
+- `RegionResolver.resolve(simCountryIso, networkCountryIso, localeCountry): RegionProfile` (pure) — SIM home
+  country → network country → locale; only real ISO 3166 codes count. `RegionResolver.normalize(raw)`.
+- `RegionProvider` (`current()` for the default SMS SIM, `forSubId(subId)` for the SIM a message arrived on) —
+  inject it; `TelephonyRegionProvider` (bound in `TelephonyBindingsModule`) reads the per-SIM override
+  (`TelephonySettings`), `SubscriptionInfo.countryIso`, `simCountryIso`, `networkCountryIso`, then the locale, cached
+  60 s per subscription. `FixedRegionProvider(profile)` for tests.
+- `EmergencyNumbers.forRegion(countryIso): List<String>` (pure) — general emergency numbers (911 / 999 / 000 / 111 /
+  112) confirmed by libphonenumber's `ShortNumberInfo.isEmergencyNumber`, national first; `["112"]` when unknown.
+
 ## SMS cost classification (`cost/`, pure JVM)
 
 - `DestinationCostClassifier().classify(destination, simCountryIso, networkCountryIso, isRoaming): CostVerdict` —

@@ -8,7 +8,6 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
-import kotlin.math.roundToLong
 
 /**
  * Parses the Gmail-style query language described in the build plan's "Search and filtering"
@@ -68,7 +67,9 @@ object QueryParser {
             var atom: TextExpr = if (isPhrase) {
                 TextExpr.Phrase(unquote(token))
             } else {
-                TextExpr.Term(stripTrailingQuote(token))
+                val term = stripTrailingQuote(token)
+                // "500000", "5,00,000", "₹5,00,000.00": also match every other spelling of the amount.
+                (if (negated) null else AmountTokens.expandTerm(term)) ?: TextExpr.Term(term)
             }
             if (negated) atom = TextExpr.Not(atom)
 
@@ -159,25 +160,28 @@ object QueryParser {
         else -> null
     }
 
+    /**
+     * `amount:` values: `>N`, `<N`, `a..b`, `=N` (the round-trip form emitted by SearchQuery.toQueryString) and a
+     * bare `N` (same as `=N`). N may be written any way [AmountTokens.parseFilterValue] accepts: "500000",
+     * "5,00,000", "₹5,00,000.00", "500000.00", "50k", "2.5L", "5lakh", "1cr".
+     */
     private fun parseAmount(value: String): Filter.AmountRange? {
-        // Round-trip form emitted by SearchQuery.toQueryString: >N, <N, a..b, =N (N may be decimal).
-        return try {
-            when {
-                value.startsWith(">") -> Filter.AmountRange(minorOf(value.substring(1)) + 1, null)
-                value.startsWith("<") -> Filter.AmountRange(null, minorOf(value.substring(1)) - 1)
-                value.startsWith("=") -> minorOf(value.substring(1)).let { Filter.AmountRange(it, it) }
-                value.contains("..") -> {
-                    val (a, b) = value.split("..", limit = 2)
-                    Filter.AmountRange(minorOf(a), minorOf(b))
-                }
-                else -> null
+        val v = value.trim()
+        return when {
+            v.startsWith(">") -> minorOf(v.substring(1))?.let { Filter.AmountRange(it + 1, null) }
+            v.startsWith("<") -> minorOf(v.substring(1))?.let { Filter.AmountRange(null, it - 1) }
+            v.startsWith("=") -> minorOf(v.substring(1))?.let { Filter.AmountRange(it, it) }
+            v.contains("..") -> {
+                val (a, b) = v.split("..", limit = 2)
+                val min = minorOf(a)
+                val max = minorOf(b)
+                if (min == null || max == null) null else Filter.AmountRange(minOf(min, max), maxOf(min, max))
             }
-        } catch (e: NumberFormatException) {
-            null
+            else -> minorOf(v)?.let { Filter.AmountRange(it, it) }
         }
     }
 
-    private fun minorOf(s: String): Long = (s.trim().toDouble() * 100.0).roundToLong()
+    private fun minorOf(s: String): Long? = AmountTokens.parseFilterValue(s)
 
     private val ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE
     private val DD_MM_YYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy")

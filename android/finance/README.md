@@ -23,6 +23,9 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   `¥`/`円`→JPY, `元`/`RMB`→CNY, `₩`→KRW, `৳`/`Tk`→BDT, `₨`→PKR, `රු`→LKR, `د.إ`→AED, `ر.س`/`﷼`→SAR,
   `฿`→THB, `RM`→MYR, `Rp`→IDR, `₱`→PHP, `₫`→VND, `₺`→TRY, `C$`→CAD, `A$`→AUD, `S$`→SGD, `HK$`→HKD),
   and the set of ISO codes recognised as bare currency codes (AED, USD, GBP, SGD, THB, KWD, CHF, ...).
+  `symbolMapFor(homeCurrency: String?)` adapts that map to the reader's region: a bare `$` means the home currency
+  where it is written `$` (CAD, AUD, NZD, SGD, HKD, MXN...), else USD; `₨` means NPR/LKR/... at home. Unknown home
+  currency = the defaults.
 - **`DigitNormalizer`** (internal) — folds any Unicode `Nd` decimal digit (Devanagari, Bengali,
   Gujarati, Gurmukhi, Tamil, Telugu, Kannada, Malayalam, Arabic-Indic, Extended Arabic-Indic,
   full-width, ...) to ASCII `0`-`9` before any numeric regex/`BigDecimal` parsing runs. Used by
@@ -42,7 +45,8 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
 
 ## `parser` — `TransactionParser`, `InstitutionTable`
 
-- **`TransactionParser.parse(sender: String, body: String): ExtractedTransaction?`** — the main
+- **`TransactionParser.parse(sender: String, body: String, symbolMap = CurrencyTable.defaultSymbolToCurrency): ExtractedTransaction?`**
+  (pass `CurrencyTable.symbolMapFor(regionHomeCurrency)` so `$` follows the SIM's region) — the main
   entry point. Returns `null` for anything that isn't a completed transaction:
   - OTPs that happen to mention an amount ("OTP for txn of Rs 500 is 123456").
   - Promotions ("cashback up to", "flat X% off", "use code", ...).
@@ -78,11 +82,14 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   UNKNOWN, declaration order = Passbook group order; `aliasFamily` treats UPI as BANK_ACCOUNT for alias matching),
   `linkedAccountId` (debit card / loan -> the bank account an SMS named; `Account.linkedIdOf(txn)`),
   `homeCurrency` (taken from a balance-bearing SMS when available, else a caller-supplied default —
-  INR for Indian institutions), and an optional `statementDay` for cards.
+  INR for Indian institutions, the SIM region's currency otherwise), and an optional `statementDay` for cards.
 - **`LedgerEntry`** — one posted transaction: `messageKey`, `dateMillis`, `original` (`Money`, as
   written), `indicativeHome` (`Money?`), `rate`/`rateDateMillis`, `settled: Boolean`,
   `effectiveMarkupPercent`, `balanceAfter`, `merchant`, `reference`.
-- **`Ledger.apply(inputs: List<LedgerInput>, rates: RatesTable? = null, defaultHomeCurrency = { "INR" }, statementDayFor = { null }): List<AccountLedger>`**
+- **`Ledger.apply(inputs: List<LedgerInput>, rates: RatesTable? = null, defaultHomeCurrency = Ledger::institutionHomeCurrency, statementDayFor = { null }): List<AccountLedger>`**
+  Home currency: a balance-bearing SMS's currency, else `defaultHomeCurrency(institution)` (the default gives INR
+  only for institutions `InstitutionTable.countryOf` knows as Indian; `:core-index` adds the SIM region's currency),
+  else the currency most of the account's transactions are in. Never INR by assumption.
   — pure function grouping a flat message stream into one `AccountLedger` per account. Extra params:
   `instrumentOverride: (accountId) -> InstrumentType?` (the user's manual type; changes type, never the id). A
   debit-card/loan input with `linkedMaskedNumber` is posted to the card/loan (balance stripped) **and** to the linked

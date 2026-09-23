@@ -174,8 +174,8 @@ class DefaultMessageEnricher(
             val model = modelLoader()
             val created = State(
                 templates = templates,
-                local = ClassifierPipeline(templates, model, NoCloudClassifier, isContact, regionFor = ::senderRegion),
-                withCloud = ClassifierPipeline(templates, model, cloud, isContact, regionFor = ::senderRegion),
+                local = ClassifierPipeline(templates, model, NoCloudClassifier, isContact, regionFor = { subId -> senderRegion(subId) }),
+                withCloud = ClassifierPipeline(templates, model, cloud, isContact, regionFor = { subId -> senderRegion(subId) }),
                 scam = FakeCreditDetector(templates),
             )
             state = created

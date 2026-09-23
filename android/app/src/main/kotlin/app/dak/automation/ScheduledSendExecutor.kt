@@ -18,6 +18,7 @@ import app.dak.telephony.MessageSender
 import app.dak.telephony.NumberNormalizer
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.SendResult
+import app.dak.telephony.role.SmsRoleMonitor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -35,6 +36,11 @@ import javax.inject.Singleton
  * are re-checked when they fall due, because the app lock can be removed after they were queued: without one they
  * are cancelled ("no app lock") and logged in the automation history instead of going out. Automatic birthday
  * wishes also take one unattended send from [UnattendedSendLimits] when they go out.
+ *
+ * While Dak is not the default SMS app a due send is not handed to the sender at all: the row stays PENDING and is
+ * looked at again after [ScheduledSendRoleGate.RECHECK_MILLIS] ([ScheduledSendRoleGate]). The sender would only keep
+ * a held copy ([app.dak.telephony.send.HeldSendStore]) and report it as queued, which used to mark the row SENT
+ * although nothing had gone out, and left the user no way to cancel or edit it.
  */
 @Singleton
 class ScheduledSendExecutor @Inject constructor(
@@ -52,6 +58,7 @@ class ScheduledSendExecutor @Inject constructor(
     private val limits: UnattendedSendLimits,
     private val runLog: AutomationRunLog,
     private val audit: AuditLogRepository,
+    private val role: SmsRoleMonitor,
     @ApplicationContext private val context: Context,
 ) {
     private val mutex = Mutex()
@@ -73,6 +80,14 @@ class ScheduledSendExecutor @Inject constructor(
             val origin = ScheduledSendOrigin.of(current.ruleId)
             if (ScheduledSendGuard.cancelForNoLock(origin, lockReady = { securityReady() })) {
                 cancelUnattended(current, origin)
+                continue
+            }
+            // Checked before the gates and the throttle, so a send that waits for the role spends no rate-limit slot
+            // and no daily allowance. Pushing the time forward (not only re-arming) keeps rearmPending from firing
+            // the alarm again at once for a row that is already due.
+            val retryAt = ScheduledSendRoleGate.waitUntil(isDefaultSmsApp = { role.isDefaultNow() }, nowMillis = nowMillis)
+            if (retryAt != null) {
+                scheduler.reschedule(current.id, retryAt)
                 continue
             }
             if (!broadcastGate.beforeSend(current)) continue
@@ -107,15 +122,17 @@ class ScheduledSendExecutor @Inject constructor(
                     ),
                 )
             }.getOrElse { SendResult.Failed(it.message ?: "send failed") }
+            // A role lost between the check above and the send makes the sender keep a held copy (sent when the
+            // role is back) and answer Queued: the row is then SENT, since leaving it PENDING would send it twice.
             when (result) {
                 is SendResult.Queued -> {
-                    store.markStatus(current.id, ScheduledSendStatus.SENT)
+                    store.markStatus(current.id, ScheduledSendRoleGate.statusAfter(result))
                     sent++
                     runCatching { birthdayGate.afterSent(current, nowMillis) }
                     runCatching { broadcastGate.afterSent(current, result.keys) }
                 }
                 is SendResult.Failed -> {
-                    store.markStatus(current.id, ScheduledSendStatus.FAILED, result.reason)
+                    store.markStatus(current.id, ScheduledSendRoleGate.statusAfter(result), result.reason)
                     broadcastGate.afterFailed(current)
                 }
             }
@@ -149,5 +166,28 @@ class ScheduledSendExecutor @Inject constructor(
         const val SLOT_GRACE_MILLIS = 5_000L
         const val PREMIUM_REFUSED = "premium-rate number not approved"
         const val NO_APP_LOCK = "no app lock"
+    }
+}
+
+/**
+ * The default-SMS-app check for a due scheduled send (pure, so it is unit-tested without Android).
+ *
+ * Without the role Dak cannot write the provider row a send needs, and the sender would only park a copy in
+ * [app.dak.telephony.send.HeldSendStore] while answering [SendResult.Queued]. A scheduled send must not be reported as
+ * sent in that case: the executor leaves the row PENDING and tries again later, so it stays visible, cancellable and
+ * editable in the scheduled list, and goes out on the first run after the role is back.
+ */
+internal object ScheduledSendRoleGate {
+    /** How long a due send waits before the role is checked again. */
+    const val RECHECK_MILLIS: Long = 15 * 60 * 1000L
+
+    /** Null when the send may go out now; otherwise when to look again (the row stays PENDING until then). */
+    fun waitUntil(isDefaultSmsApp: () -> Boolean, nowMillis: Long): Long? =
+        if (isDefaultSmsApp()) null else nowMillis + RECHECK_MILLIS
+
+    /** The row's status once the sender has answered. */
+    fun statusAfter(result: SendResult): ScheduledSendStatus = when (result) {
+        is SendResult.Queued -> ScheduledSendStatus.SENT
+        is SendResult.Failed -> ScheduledSendStatus.FAILED
     }
 }

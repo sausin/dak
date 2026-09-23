@@ -16,6 +16,9 @@ Firebase SDK, or binds a `CloudClassifier`.
 - **The only network path is the MMS download.** Dak calls the platform `SmsManager.downloadMultimediaMessage` /
   `sendMultimediaMessage`. The system MmsService runs the HTTP exchange over the carrier's MMS APN. Dak never
   fetches a URL itself, and never fetches message content over the ordinary internet.
+- `res/xml/network_security_config.xml` refuses cleartext for every host and trusts only system CAs, as an
+  OS-level backstop. The MMSC exchange (often plain `http://`) happens in the phone process under the platform's
+  config, so it needs no exception here (`docs/release.md`).
 - There is no WebView. Links in messages open in the user's browser, and only after the user taps them and the
   link-safety check runs.
 - Free builds bind the cloud classifier, webhooks and the relay to no-ops (`premium-api`). Message text never

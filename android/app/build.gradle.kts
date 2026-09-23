@@ -42,7 +42,11 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = false
+            // R8 shrinking, optimisation and obfuscation, plus unused-resource removal (docs/release.md). Debug
+            // builds stay unminified. The mapping file (build/outputs/mapping/<variant>/mapping.txt) is uploaded
+            // by CI; keep it for every published build to retrace crash reports.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
         }

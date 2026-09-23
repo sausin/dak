@@ -94,15 +94,42 @@ default SMS app unless a step says otherwise.
     resends the whole text once.
 24. **Losing the default role**: make another app (Google Messages) the default. Open a conversation in Dak: the
     composer is read-only with "Dak is not your default SMS app" and **Make Dak your default SMS app**. Schedule a
-    text a few minutes out *before* switching; when it comes due it waits (not failed). A new message to `112` stays
-    sendable. Tap the button (or switch back in Settings) → the scheduled text goes out, the composer unlocks, a
-    pending MMS download resumes.
+    text a few minutes out *before* switching; when it comes due it stays in the scheduled list as pending (not
+    failed, not "sent"), and its time moves 15 minutes on at each check while Dak is not the default. A new message
+    to `112` stays sendable. Tap the button (or switch back in Settings) → the composer unlocks, a pending MMS
+    download resumes, and the scheduled text goes out at its next check (within 15 minutes).
 25. **Group MMS off**: on a carrier / emulator config with `enableGroupMms=false` (e.g. `adb shell cmd
     phone cc set-value -p enableGroupMms false`, verify the syntax for the Android version), a text to two people
     says "each recipient gets their own copy" and creates two 1:1 SMS rows; a photo to two people sends two MMS.
 26. **MMS answers**: with auto-download off, receive an MMS (needs a real carrier or an MMSC test setup; the emulator
     cannot inject WAP push). The MMSC log / `adb logcat -s DakTelephony` shows an m-notifyresp-ind Deferred; tapping
     to download then sends m-acknowledge-ind. With auto-download on, the answer is notifyresp Retrieved.
+
+### More SMS fixtures (`sms-pdu.py`)
+The script's tests (`python3 -m pytest android/scripts/tests`) check every flag below by decoding the PDUs. These
+steps check that the phone's framework and Dak handle them.
+
+27. **16-bit concatenation reference, parts out of order**: `./sms-pdu.py --send --ref16 --shuffle +919876543210
+    "$(printf 'Part test %.0s' {1..40})"` (400 characters, 3 parts sent in a random order). Expected: **one**
+    inbox row with the text in the right order and one notification. Repeat with `--order 3,2,1` and without
+    `--ref16`.
+28. **Missing part**: `./sms-pdu.py --send --ref 77 --drop 2 +919876543210 "<400-character text>"`. Expected: no
+    row at first (the framework waits for part 2). Then send only part 2 with the same reference:
+    `./sms-pdu.py --send --ref 77 --drop 1 --drop 3 …` with the same text → one complete row. A
+    part that never comes is released by the framework after its timeout (days, OEM-specific), not by Dak.
+29. **Port-addressed data SMS**: `./sms-pdu.py --send --port 2948 --hex 0106FF +919876543210` (a WAP-style port)
+    and `./sms-pdu.py --send --port 16001:9200 +919876543210 "text on a port"`. Expected: no inbox row and no
+    notification (data SMS go to `DATA_SMS_RECEIVED` receivers, and Dak registers none); no crash in
+    `adb logcat -s DakTelephony`. `./sms-pdu.py --send --hex DEADBEEF +919876543210` (8-bit, no port): whatever
+    the framework delivers must not crash Dak (a placeholder is P2 item 21).
+30. **National language shift tables**: `./sms-pdu.py --send --nls hi +919876543210 "नमस्ते, आपका OTP 482913
+    है।"` and `./sms-pdu.py --send --nls bn +8801712345678 "আমি ভালো আছি, OTP 1234"`. Expected: the text shows
+    exactly as sent, and the OTP is detected. If the emulator image has the tables turned off, the framework may
+    show garbage instead: note the image and API level, since receive-side decoding is the framework's.
+31. **Delivery report PDUs**: `./sms-pdu.py --status-report --mr 42 --st 00 +919876543210` prints an
+    SMS-STATUS-REPORT (00 delivered, 20–3F still trying, 40–7F failed). The emulator console cannot inject status
+    reports, so use it as a fixture: `SmsMessage.createFromPdu(bytes, "3gpp")` in a Robolectric test of
+    `SmsStatusProcessor` / `DeliveryStatus`.
 
 ## Known limitations going in
 - SMS Organizer import is heuristic until tested with a real backup file.

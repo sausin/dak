@@ -58,11 +58,21 @@ jobs:
       - name: Offline baseline guard (no runtime AI/network deps in free tier)
         run: scripts/check-offline-baseline.sh
 
+      - name: Test tooling (scripts/sms-pdu.py, decoded by independent PDU libraries)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/pdu-venv"
+          "$RUNNER_TEMP/pdu-venv/bin/pip" install --quiet pytest==9.1.1 python-gsmmodem-new==0.13.0 smspdudecoder==2.2.0
+          "$RUNNER_TEMP/pdu-venv/bin/python" -m pytest -q -p no:cacheprovider scripts/tests
+
       - name: Unit tests (JVM + Android modules)
         run: ./gradlew --continue test
 
-      - name: Build debug APKs (free + premium) and an unsigned release build check
-        run: ./gradlew --stacktrace assembleFreeDebug assemblePremiumDebug assembleFreeRelease
+      - name: Build debug APKs (free + premium) and unsigned release builds (R8 check)
+        # Release builds run R8 (minify + resource shrinking); a missing class or bad keep rule fails this step.
+        run: ./gradlew --stacktrace assembleFreeDebug assemblePremiumDebug assembleFreeRelease assemblePremiumRelease
+
+      - name: Release smoke check (R8 ran, persisted class names kept)
+        run: scripts/check-release-mapping.sh freeRelease premiumRelease
 
       - name: Decode release keystore
         id: keystore
@@ -105,6 +115,14 @@ jobs:
         with:
           name: dak-release-apks-${{ github.run_number }}
           path: android/app/build/outputs/apk/*/release/*.apk
+
+      - name: Upload R8 mapping files
+        # Needed to retrace release crash reports; keep the ones from tagged builds.
+        uses: actions/upload-artifact@v7
+        with:
+          name: dak-r8-mapping-${{ github.run_number }}
+          path: android/app/build/outputs/mapping/*/mapping.txt
+          if-no-files-found: error
 
       - name: Upload test reports
         if: failure()

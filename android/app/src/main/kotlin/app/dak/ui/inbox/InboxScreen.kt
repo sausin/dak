@@ -78,6 +78,8 @@ import app.dak.ui.common.ReliabilityBanner
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.relativeTime
 import app.dak.ui.common.text.BidiText
+import app.dak.ui.conversation.DeliveryTick
+import app.dak.ui.conversation.DeliveryTicks
 import app.dak.ui.conversation.copyToClipboard
 import app.dak.ui.sendergroups.RenameDialog
 import app.dak.ui.ux.InboxSwipeAction
@@ -417,13 +419,19 @@ private fun ConversationRow(
                 if (conversation.pinned) Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.scr_pinned), modifier = Modifier.size(14.dp))
                 if (conversation.muted) Icon(Icons.Outlined.NotificationsOff, contentDescription = stringResource(R.string.scr_muted), modifier = Modifier.size(14.dp))
             }
-            Text(
-                BidiText.isolate(conversation.snippet),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (unread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.Top) {
+                // Ticks on our own last message (same glyph as the bubble).
+                DeliveryTicks.stateOf(conversation.lastBox, conversation.lastDeliveryStatus)?.let {
+                    DeliveryTick(it, Modifier.padding(top = 3.dp, end = 4.dp))
+                }
+                Text(
+                    BidiText.isolate(conversation.snippet),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (unread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (otpCode != null) InboxOtpChip(code = otpCode, onCopy = { onCopyOtp(otpCode) }, modifier = Modifier.padding(top = 2.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 2.dp)) {
                 if (scamFlagged) ScamWarningChip()

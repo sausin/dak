@@ -1,6 +1,7 @@
 package app.dak.index.repo
 
 import app.dak.core.model.Category
+import app.dak.core.model.DeliveryStatus
 import app.dak.core.model.Message
 import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKey
@@ -54,6 +55,8 @@ internal object Mappers {
         repeatCount = repeatCount.coerceAtLeast(1),
         repeatOf = repeatOf,
         channel = channelOf(row.address),
+        deliveryStatus = DeliveryStatus.fromCode(row.deliveryStatus),
+        deliveredAtMillis = row.deliveredAtMillis,
     )
 
     /** Sender channel of an address, or null for a group-MMS recipient list. */
@@ -83,6 +86,8 @@ internal object Mappers {
         archived = false,
         enriched = false,
         channel = channelOf(message.address),
+        deliveryStatus = message.deliveryStatus,
+        deliveredAtMillis = message.deliveredAtMillis,
     )
 
     fun conversationSummary(row: ConversationRow, contacts: ContactLookup, snippetRepeatCount: Int = 1): ConversationSummary {
@@ -113,6 +118,7 @@ internal object Mappers {
             hasAttachment = row.hasAttachment,
             enriched = true,
             snippetRepeatCount = snippetRepeatCount.coerceAtLeast(1),
+            lastDeliveryStatus = DeliveryStatus.fromCode(row.deliveryStatus),
         )
     }
 

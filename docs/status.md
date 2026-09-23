@@ -86,7 +86,6 @@ header-shaped names such as `BT-MOBILE`).
   before the first schema change and write real migrations from then on.
 - Recovery codes are per snapshot; `:backup` should accept one stable recovery secret so a single
   code unlocks the whole incremental chain.
-- Bubbles show Sending / Sent / Failed; delivered state is not yet surfaced in `MessageItem`.
 - Appearance settings live in the app (8th settings section) rather than the registry's 7 groups.
 - User labels from automations are stored app-side (no index API yet).
 - Release builds have R8 disabled until keep rules are verified on a device.

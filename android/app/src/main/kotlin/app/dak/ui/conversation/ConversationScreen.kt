@@ -337,7 +337,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 onReply = if (composerUi.enabled && !header.isBusiness && item.body.isNotEmpty()) ({ bubbleActions.onReply(item) }) else null,
                 onForward = if (item.body.isNotEmpty()) ({ navigator.navigate(Routes.compose(body = item.body)) }) else null,
                 onStar = { viewModel.setMessageStarred(item.key, !item.starred) },
-                onRetry = if (item.box == MessageBox.FAILED) ({ viewModel.retrySend(item.key) }) else null,
+                onRetry = if (item.tickState == TickState.FAILED) ({ viewModel.retrySend(item.key) }) else null,
                 onDelete = { viewModel.delete(item.key) },
                 onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
                 onReportSpam = if (!item.isOutgoing && viewModel.reportsSpamToTrai(item.subId)) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,

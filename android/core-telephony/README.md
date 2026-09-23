@@ -8,7 +8,7 @@ The only code that touches the Telephony provider, SmsManager and the default-SM
 
 | Contract | Implementation | Notes |
 | --- | --- | --- |
-| `ProviderReader` | `TelephonyProviderReader` | SMS + MMS merged newest-first by walking both cursors (no SQL LIMIT needed); null projections and name lookups, so OEM schemas without `sub_id` work (falls back to `sim_id`/slot columns, else `NO_SUB_ID`). MMS body = text/plain parts; attachments use `content://mms/part/<id>` URIs. Filters MMS to `m_type` 128/130/132. Provider errors → empty results. |
+| `ProviderReader` | `TelephonyProviderReader` | SMS + MMS merged newest-first by walking both cursors (no SQL LIMIT needed); null projections and name lookups, so OEM schemas without `sub_id` work (falls back to `sim_id`/slot columns, else `NO_SUB_ID`). MMS body = text/plain parts; attachments use `content://mms/part/<id>` URIs. Filters MMS to `m_type` 128/130/132. Provider errors → empty results. Fills `Message.deliveryStatus` / `deliveredAtMillis` (see "Delivery ticks"); `outgoingStates(keys)` reads only box + delivery columns for the index's tick refresh. |
 | `ProviderWriter` | `TelephonyProviderWriter` | Verbatim inserts; retries without `sub_id` on OEM providers lacking it. `threadIdFor` returns -1 when the platform refuses. `restore` re-threads by address. Extra: `insertIncoming(IncomingSms)`, `insertOutgoing(..., deliveryReportRequested)`, `markSmsFailed`, `setSmsDeliveryStatus`. |
 | `ProviderChanges` | `TelephonyProviderChanges` | One ContentObserver (`content://mms-sms/`, `sms`, `mms`) while collected, shared; bursts coalesced into one emission per 300 ms. `requestReconcile()` forces an emission (the index schedules its own periodic worker). |
 | `SimRepository` | `TelephonySimRepository` | Active SIMs (slot order) + remembered removed SIMs (`isActive = false`, slot -1). Empty without READ_PHONE_STATE: call `refresh()` after grant. Number: API 33+ `getPhoneNumber` (READ_PHONE_NUMBERS), else `SubscriptionInfo.number`. Hot-swap via OnSubscriptionsChangedListener. `isRoaming` per subscription. |
@@ -20,7 +20,23 @@ The only code that touches the Telephony provider, SmsManager and the default-SM
 
 Contract additions (all with default bodies, so existing implementers/fakes still compile):
 `ProviderChanges.requestReconcile()`, `MessageSender.failureReason(key)`, `MmsDownloads.replacementFor(key)`,
-`UNPERSISTED_PROVIDER_ID`.
+`UNPERSISTED_PROVIDER_ID`, `ProviderReader.outgoingStates(keys): Map<MessageKey, OutgoingState>` (`OutgoingState(box,
+deliveryStatus, deliveredAtMillis)`), `OutgoingMms.requestDeliveryReport` (default true).
+
+## Delivery ticks
+
+`provider/DeliveryStatusMapping` (pure, JVM-tested) maps provider columns to core-model `DeliveryStatus`:
+SMS `status` `STATUS_NONE` -1 → NONE, `STATUS_COMPLETE` 0 → DELIVERED, `STATUS_PENDING` 32 → PENDING, `STATUS_FAILED`
+64 → FAILED (raw TP-Status ranges and 3GPP2 `status << 16` values written by other apps are decoded too); MMS `st`
+(X-Mms-Status) Retrieved/Forwarded → DELIVERED, Expired/Rejected/Unrecognised/Unreachable → FAILED,
+Deferred/Indeterminate or unset with `d_rpt` → PENDING, else NONE. Incoming is always NONE. On delivery the
+SMS row also gets `date_sent` = report arrival time (outgoing rows otherwise keep 0), read back as
+`deliveredAtMillis`. m-delivery-ind is per recipient: for a group MMS the per-recipient statuses are kept in
+`MmsDeliveryReportStore` (SharedPreferences, 30-day prune) and `st` is the aggregate (Retrieved only when every
+recipient was delivered, a failure as soon as one failed, else Deferred). Reports are requested only when the user's
+"Delivery reports" setting is on (`OutgoingSms/OutgoingMms.requestDeliveryReport`; MMS additionally needs
+`TelephonySettings.requestMmsDeliveryReports`). A retry resets a final SMS report to PENDING and an MMS send clears
+`st`, so ticks restart.
 
 Other public helpers: `DefaultSmsRole.isDefault(context)` / `requestIntent(context)` (RoleManager on Q+,
 ACTION_CHANGE_DEFAULT below), `SmsSegmentCounter.count(text)` → `SmsSegments`, `ExactAlarms.canSchedule(context)` /

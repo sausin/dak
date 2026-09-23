@@ -100,7 +100,12 @@ class TelephonyMessageSender @Inject constructor(
         scheduler.cancel(key)
         return when (key.kind) {
             MessageKind.SMS -> {
-                loadSms(key.providerId) ?: return SendResult.Failed("Message not found")
+                val row = loadSms(key.providerId) ?: return SendResult.Failed("Message not found")
+                // A resend after "not delivered" (or a completed report) asks for a fresh report, so the ticks
+                // restart instead of keeping the old outcome.
+                if (row.status != SmsColumns.STATUS_NONE && row.status != SmsColumns.STATUS_PENDING) {
+                    writer.setSmsDeliveryStatus(key.providerId, SmsColumns.STATUS_PENDING)
+                }
                 writer.markSmsStatus(key, OutgoingStatus.QUEUED)
                 runScheduled(key, attempt = 1, slotReserved = false)
                 SendResult.Queued(listOf(key))
@@ -197,7 +202,9 @@ class TelephonyMessageSender @Inject constructor(
     private fun outgoingAddress(raw: String, subId: Int): String =
         if (settings.normalizeOutgoingNumbers) normalizer.normalize(raw, subId) else raw
 
-    private class SmsRow(val address: String, val body: String, val subId: Int, val type: Int, val deliveryRequested: Boolean)
+    private class SmsRow(val address: String, val body: String, val subId: Int, val type: Int, val status: Int) {
+        val deliveryRequested: Boolean get() = status == SmsColumns.STATUS_PENDING
+    }
 
     private suspend fun loadSms(id: Long): SmsRow? = withContext(Dispatchers.IO) {
         context.contentResolver.safeQuery(ProviderUris.sms(id))?.use { c ->
@@ -208,7 +215,7 @@ class TelephonyMessageSender @Inject constructor(
                 body = c.string(SmsColumns.BODY).orEmpty(),
                 subId = c.int(SmsColumns.SUBSCRIPTION_ID, -1),
                 type = c.int(SmsColumns.TYPE, SmsColumns.TYPE_OUTBOX),
-                deliveryRequested = c.int(SmsColumns.STATUS, SmsColumns.STATUS_NONE) == SmsColumns.STATUS_PENDING,
+                status = c.int(SmsColumns.STATUS, SmsColumns.STATUS_NONE),
             )
         }
     }

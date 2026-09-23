@@ -2,6 +2,7 @@ package app.dak.index
 
 import app.dak.core.model.Attachment
 import app.dak.core.model.Category
+import app.dak.core.model.DeliveryStatus
 import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKey
 import app.dak.core.model.TransactionDirection
@@ -38,6 +39,8 @@ data class ConversationSummary(
     val enriched: Boolean,
     /** How many copies the snippet's message has (see [MessageItem.repeatCount]); 1 when it is not repeated. */
     val snippetRepeatCount: Int = 1,
+    /** Delivery state of the snippet's message when it is outgoing ([lastBox]); ticks in the inbox row. */
+    val lastDeliveryStatus: DeliveryStatus = DeliveryStatus.NONE,
 )
 
 /** OTP details on a message. */
@@ -96,6 +99,13 @@ data class MessageItem(
      * the channel filter of a folded conversation. Null for group-MMS address lists.
      */
     val channel: String? = null,
+    /**
+     * Delivery-report state of an outgoing message (the second tick; see [DeliveryStatus]); NONE for incoming. For a
+     * group MMS it is DELIVERED only once every recipient was delivered.
+     */
+    val deliveryStatus: DeliveryStatus = DeliveryStatus.NONE,
+    /** When the delivery report arrived, if known. */
+    val deliveredAtMillis: Long? = null,
 )
 
 /** One search result: a conversation with its chosen matching message. */

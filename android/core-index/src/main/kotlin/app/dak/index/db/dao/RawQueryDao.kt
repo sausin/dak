@@ -34,6 +34,8 @@ data class ConversationRow(
     val groupName: String?,
     /** Repeat group of the newest message (to show "×3" on the snippet), if any. */
     val repeatGroup: String? = null,
+    /** `DeliveryStatus.code` of the newest message (ticks on an outgoing snippet). */
+    val deliveryStatus: Int = -1,
 )
 
 /** One grouped search row produced by `SearchSqlBuilder.messages`. */

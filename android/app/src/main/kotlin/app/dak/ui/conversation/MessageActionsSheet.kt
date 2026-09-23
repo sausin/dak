@@ -133,7 +133,10 @@ fun MessageInfoDialog(item: MessageItem, sim: SimInfo?, onDismiss: () -> Unit) {
                 InfoLine(stringResource(R.string.ux_info_time), formatter.formatAbsolute(item.dateMillis))
                 if (sim != null) InfoLine(stringResource(R.string.ux_info_sim), sim.displayName.ifBlank { simLabel(sim) })
                 InfoLine(stringResource(R.string.ux_info_type), stringResource(if (item.key.kind == MessageKind.MMS) R.string.ux_info_mms else R.string.ux_info_sms))
-                statusLabel(item.box)?.let { InfoLine(stringResource(R.string.ux_info_status), it) }
+                statusLabel(item)?.let { InfoLine(stringResource(R.string.ux_info_status), it) }
+                item.deliveredAtMillis?.takeIf { item.tickState == TickState.DELIVERED }?.let {
+                    InfoLine(stringResource(R.string.tick_info_delivered_at), formatter.formatAbsolute(it))
+                }
                 if (!item.isOutgoing && item.category != Category.UNKNOWN) {
                     val percent = (item.confidence * 100).toInt().coerceIn(0, 100)
                     InfoLine(stringResource(R.string.ux_info_category), stringResource(R.string.ux_info_confidence, categoryLabel(item.category), percent))
@@ -145,11 +148,12 @@ fun MessageInfoDialog(item: MessageItem, sim: SimInfo?, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun statusLabel(box: MessageBox): String? = when (box) {
-    MessageBox.OUTBOX, MessageBox.QUEUED -> stringResource(R.string.scr_status_sending)
-    MessageBox.FAILED -> stringResource(R.string.scr_status_failed)
-    MessageBox.SENT -> stringResource(R.string.scr_status_sent)
-    else -> null
+private fun statusLabel(item: MessageItem): String? = when (item.tickState) {
+    TickState.SENDING -> stringResource(R.string.scr_status_sending)
+    TickState.SENT -> stringResource(R.string.scr_status_sent)
+    TickState.DELIVERED -> stringResource(R.string.tick_delivered)
+    TickState.FAILED -> stringResource(if (item.box == MessageBox.FAILED) R.string.scr_status_failed else R.string.tick_not_delivered)
+    null -> null
 }
 
 @Composable

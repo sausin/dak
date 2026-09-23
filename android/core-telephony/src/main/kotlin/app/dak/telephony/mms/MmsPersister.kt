@@ -167,8 +167,10 @@ class MmsPersister @Inject constructor(
                 put(MmsColumns.MESSAGE_BOX, MmsColumns.BOX_SENT)
                 messageId?.let { put(MmsColumns.MESSAGE_ID, it) }
                 responseStatus?.let { put(MmsColumns.RESPONSE_STATUS, it) }
+                // A (re)send starts with no delivery report: clear a previous attempt's `st`.
+                putNull(MmsColumns.STATUS)
             }
-            resolver.updateTolerant(ProviderUris.mms(id), values)
+            resolver.updateTolerant(ProviderUris.mms(id), values, optionalColumn = MmsColumns.STATUS)
         }
     }
 

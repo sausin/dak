@@ -17,6 +17,12 @@ import app.dak.core.model.ClassifierSource
  * @param regionFor the sender conventions for a message received on SIM `subId` (normally that SIM's home
  *   country, see [SenderRegion]). DLT-specific handling (traffic-type labels, header trust) and region-tagged
  *   template entries follow it; the default, [SenderRegion.UNKNOWN], applies generic rules only.
+ * @param cacheSize entries of the template-hash result cache ([TemplateCache]; 0 disables it). The cache only
+ *   engages for a [NaiveBayesModel] and a bundle whose patterns are digit-blind; results are identical either way.
+ * @param prefilter run a template rule's regex only when one of its keywords occurs in the body ([RulePrefilter]);
+ *   results are identical either way.
+ *
+ * Thread-safe: one instance is shared by the notification path and the indexer (which classifies in parallel).
  */
 public class ClassifierPipeline(
     private val templates: TemplateBundle,
@@ -25,7 +31,29 @@ public class ClassifierPipeline(
     private val contactLookup: (String) -> Boolean = { false },
     private val threshold: Float = 0.55f,
     private val regionFor: (subId: Int) -> SenderRegion = { SenderRegion.UNKNOWN },
+    cacheSize: Int = DEFAULT_CACHE_SIZE,
+    prefilter: Boolean = true,
 ) {
+
+    private val rulePrefilter: RulePrefilter? = if (prefilter) RulePrefilter(templates.rules) else null
+
+    private val naiveBayes: NaiveBayesModel? = model as? NaiveBayesModel
+
+    private val cache: TemplateCache? =
+        if (cacheSize > 0 && naiveBayes != null && TemplateCache.isDigitBlind(templates.rules.map { it.pattern })) {
+            TemplateCache(cacheSize)
+        } else {
+            null
+        }
+
+    /** Every header some rule is restricted to; any other sender gets the generic rule list. */
+    private val restrictedHeaders: Set<String> = templates.rules.flatMapTo(HashSet()) { it.senderHeaders }
+
+    /** `rulesFor(mergeKey, region)` per (region, rule group): the bundle is immutable, the group count is bounded. */
+    private val rulesMemo = java.util.concurrent.ConcurrentHashMap<String, List<TemplateRule>>()
+
+    /** Cache hits and misses so far (0/0 when the cache is off). For diagnostics and the benchmark. */
+    internal val cacheCounters: Pair<Long, Long> get() = (cache?.hits ?: 0L) to (cache?.misses ?: 0L)
 
     /** Classifies one message received on SIM [subId] (whose region picks the sender conventions). */
     public suspend fun classify(address: String, body: String, subId: Int): Classification =
@@ -48,11 +76,26 @@ public class ClassifierPipeline(
         var labels = mutableSetOf<String>()
         if (isUnknownSenderWithLink(address, body, region)) labels += "unknown-sender-link"
 
-        val templateResult = matchTemplates(mergeKey, body, dltHeader, senderEntry, region)
+        // Template-dependent stages (rules, model scores) may come from the template-hash cache; see TemplateCache.
+        val ruleGroup = mergeKey.uppercase().takeIf { it in restrictedHeaders }
+        val cacheKey = cache?.let { c ->
+            val context = "${region.countryIso}|${ruleGroup ?: ""}|${senderEntry?.header?.uppercase() ?: ""}|${dltHeader?.trafficType ?: ""}"
+            TemplateCache.keyOf(context, body) { naiveBayes!!.knows(it) }
+        }
+        var entry = cacheKey?.let { cache!!.get(it) }
+        val templateResult = if (entry != null) {
+            entry.template
+        } else {
+            matchTemplates(rulesFor(ruleGroup, region), body, dltHeader, senderEntry)
+        }
+        if (cacheKey != null && entry == null) {
+            entry = TemplateCache.Entry(templateResult)
+            cache!!.put(cacheKey, entry)
+        }
         var candidate: Classification = if (templateResult != null && templateResult.confidence >= threshold) {
             templateResult
         } else {
-            modelStage(address, body, senderEntry, region)
+            modelStage(address, body, senderEntry, region, entry)
         }
 
         if (candidate.confidence < threshold) {
@@ -75,15 +118,18 @@ public class ClassifierPipeline(
         )
     }
 
+    private fun rulesFor(ruleGroup: String?, region: SenderRegion): List<TemplateRule> =
+        rulesMemo.getOrPut("${region.countryIso}|${ruleGroup ?: ""}") { templates.rulesFor(ruleGroup, region) }
+
     private fun matchTemplates(
-        mergeKey: String,
+        rules: List<TemplateRule>,
         body: String,
         dltHeader: DltHeader?,
         senderEntry: SenderEntry?,
-        region: SenderRegion,
     ): Classification? {
-        val rules = templates.rulesFor(mergeKey, region)
+        val hits = if (rules.isEmpty()) null else rulePrefilter?.scan(body)
         for (rule in rules) {
+            if (hits != null && !rulePrefilter!!.mayMatch(rule, hits)) continue
             val regex = ruleRegex(rule) ?: continue
             if (regex.containsMatchIn(body)) {
                 return Classification(
@@ -118,6 +164,9 @@ public class ClassifierPipeline(
     public companion object {
         /** Characters of a body the pipeline looks at. */
         public const val MAX_CLASSIFY_CHARS: Int = 4_000
+
+        /** Default size of the template-hash result cache (entries; each holds one masked body, at most 640 chars). */
+        public const val DEFAULT_CACHE_SIZE: Int = 2_048
     }
 
     private fun trafficTypeLabel(dltHeader: DltHeader?): Set<String> = when (dltHeader?.trafficType) {
@@ -128,8 +177,15 @@ public class ClassifierPipeline(
         null -> emptySet()
     }
 
-    private fun modelStage(address: String, body: String, senderEntry: SenderEntry?, region: SenderRegion): Classification {
-        val scores = model.predict(body).toMutableMap()
+    private fun modelStage(
+        address: String,
+        body: String,
+        senderEntry: SenderEntry?,
+        region: SenderRegion,
+        cached: TemplateCache.Entry?,
+    ): Classification {
+        val raw = cached?.modelScores ?: model.predict(body).also { cached?.modelScores = it }
+        val scores = raw.toMutableMap()
         if (isPersonalLikely(address, region)) {
             val boosted = (scores[Category.PERSONAL] ?: 0f) * 1.6f + 0.1f
             scores[Category.PERSONAL] = boosted

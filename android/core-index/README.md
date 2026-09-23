@@ -61,9 +61,14 @@ All repository functions are `suspend` or return `Flow` and are main-safe.
   hasAttachment, enriched)` — `enriched = false` for provider threads the backfill has not reached yet.
 - `MessageItem(key, conversationId, threadId, address, body, dateMillis, box, read, subId, attachments, category,
   confidence, canonicalSender, labels, otp: OtpItem?, transaction: TransactionItem?, hasLink, starred, archived,
-  enriched, repeatCount = 1, repeatOf: MessageKey? = null, channel: String? = null)` — `repeatCount`: copies in its
-  repeat group (see "Repeated messages"); `channel`: `SenderId.mergeKey` of the address (per-bubble channel chips).
+  enriched, repeatCount = 1, repeatOf: MessageKey? = null, channel: String? = null, deliveryStatus: DeliveryStatus =
+  NONE, deliveredAtMillis: Long? = null)` — `repeatCount`: copies in its repeat group (see "Repeated messages");
+  `channel`: `SenderId.mergeKey` of the address (per-bubble channel chips); `deliveryStatus` (core-model
+  `DeliveryStatus`: NONE / PENDING / DELIVERED / FAILED) + `deliveredAtMillis`: the second tick of outgoing messages
+  (group MMS: DELIVERED only when every recipient was).
 - `ConversationSummary.snippetRepeatCount` (default 1): copies of the snippet's message ("×3" in the inbox).
+- `ConversationSummary.lastDeliveryStatus` (default NONE): delivery state of the snippet's message (ticks on an
+  outgoing snippet; pair it with `lastBox`).
 - `OtpItem(code, consumedBy, webOtpDomain, repeatedLater)` — `repeatedLater`: the same code arrived again within
   10 min in this conversation (collapse the older copy).
 - `TransactionItem(direction, amountMinor, currency, instrumentLast4, merchant, accountId)`
@@ -289,7 +294,10 @@ still filled.)
   `templateVersion` differs from `MessageEnricher.version`).
 - **Reconcile**: `ProviderChanges` emissions are coalesced (3 s) into one incremental run while the process is
   alive -> `messagesAfter(maxSmsId, maxMmsId)`, refresh of the 20 most recent messages (sent/failed/read changes),
-  and at most every 30 min a provider count check (deletion check when it dropped). The daily maintenance job
+  a refresh of the ticks of unsettled outgoing rows from the last 7 days (sending / queued / failed, or sent with a
+  report pending; at most 200, one indexed query and, only when some exist, one narrow `ProviderReader.outgoingStates`
+  query without bodies, applied in place with `MessageDao.setOutgoingState`), and at most every 30 min a provider
+  count check (deletion check when it dropped). The daily maintenance job
   runs a full reconcile whose deletion check is skipped when provider and index counts match. An empty provider
   key set never empties the index.
 - **Maintenance** (`app.dak.index.maintenance`): ONE unique periodic job `dak-maintenance` (daily, 6 h flex,
@@ -305,7 +313,7 @@ still filled.)
   messages, template refresh when OTA fetching lands). `MaintenanceScheduler.runSoon()` runs a pass on demand.
 - **FTS**: external-content FTS4 over `searchText`/`searchSender`; rows are written with insert-ignore + update
   (never REPLACE) so Room's content-sync triggers keep it consistent.
-- **Schema**: version 2, exported to `core-index/schemas`. The DB holds user data, so every version ships a real
+- **Schema**: version 4, exported to `core-index/schemas`. The DB holds user data, so every version ships a real
   migration in `db.IndexMigrations` (1 -> 2 adds `sender_fold`, `conversation_alias`, `account_alias`,
   `indexed_message.repeatGroup` + index, `ledger_account.maskedNumber`); only downgrades are destructive.
   `IndexMigrationSchemaTest` (Robolectric) checks the migrated schema equals Room's own. Enricher
@@ -313,7 +321,10 @@ still filled.)
   2 -> 3 (`MIGRATION_2_3`): `ledger_account.linkedAccountId`, user-data table `account_type_override`
   (`AccountTypeOverrideRow`: manual account types), and the derived `ledger_entry` recreated with key
   `(accountId, messageKey)` + `viaAccountId` (a debit-card spend posts to the card and to the bank account it names).
-  `LOGIC_REVISION` 4 re-parses instruments and refills the ledger. Recompute order: debit cards/loans first, then
+  `LOGIC_REVISION` 4 re-parses instruments and refills the ledger.
+  3 -> 4 (`MIGRATION_3_4`, additive): `indexed_message.deliveryStatus INTEGER NOT NULL DEFAULT -1`
+  (`DeliveryStatus.code`) and `deliveredAtMillis INTEGER`. No re-index: old rows read "no report"; the reconcile
+  refreshes recent outgoing rows and any re-ingest fills the columns. Recompute order: debit cards/loans first, then
   the bank accounts they name (current and previous link).
 
 ## Tests

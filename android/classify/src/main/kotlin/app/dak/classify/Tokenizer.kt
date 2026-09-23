@@ -22,7 +22,7 @@ public object Tokenizer {
                 Character.isLetter(ch) || Character.isDigit(ch) || isCombiningMark(ch) -> {
                     current.append(Character.toLowerCase(ch))
                 }
-                ch == ZWNJ || ch == ZWJ -> {
+                isJoiner(ch) -> {
                     // Keep joining the same token (don't split the word), but drop the joiner
                     // itself so tokens match whether or not the source used one.
                 }
@@ -38,11 +38,14 @@ public object Tokenizer {
         return tokens
     }
 
+    /** ZWJ / ZWNJ: joins a token without being part of it (see [tokenize]). */
+    internal fun isJoiner(ch: Char): Boolean = ch == ZWNJ || ch == ZWJ
+
     /**
      * True for combining diacritical marks such as Devanagari matras (vowel signs) and virama,
      * which are not [Character.isLetter] on their own but belong to the letter they attach to.
      */
-    private fun isCombiningMark(ch: Char): Boolean = when (Character.getType(ch)) {
+    internal fun isCombiningMark(ch: Char): Boolean = when (Character.getType(ch)) {
         Character.NON_SPACING_MARK.toInt(), Character.COMBINING_SPACING_MARK.toInt(), Character.ENCLOSING_MARK.toInt() -> true
         else -> false
     }

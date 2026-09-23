@@ -20,7 +20,6 @@ import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.ContactPage
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
@@ -42,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
@@ -181,7 +181,7 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
                     .clip(RoundedCornerShape(18.dp))
                     .semantics { customActions = gestures.accessibilityActions }
                     .combinedClickable(
-                        onClick = { if (failed) actions.onRetrySend(item) },
+                        onClick = { if (failed || item.tickState == TickState.FAILED) actions.onRetrySend(item) },
                         onLongClick = { actions.onLongPress(item) },
                         onLongClickLabel = gestures.longPressLabel,
                         onDoubleClick = gestures.onDoubleTap,
@@ -360,17 +360,18 @@ private fun MetaRow(item: MessageItem, decor: BubbleDecor, outgoing: Boolean) {
         if (item.starred) Icon(Icons.Outlined.Star, contentDescription = stringResource(R.string.scr_starred), modifier = Modifier.size(14.dp), tint = muted)
         Text(time, style = MaterialTheme.typography.labelSmall, color = muted)
         if (outgoing) {
-            val status = when (item.box) {
-                MessageBox.OUTBOX, MessageBox.QUEUED -> stringResource(R.string.scr_status_sending)
-                MessageBox.FAILED -> stringResource(R.string.scr_status_failed)
-                MessageBox.SENT -> stringResource(R.string.scr_status_sent)
-                else -> null
-            }
-            if (status != null) {
-                if (item.box == MessageBox.FAILED) {
-                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+            // Ticks: clock / single / double check / red error (see DeliveryTick). Failures keep a short visible label
+            // because the bubble is the tap-to-retry target.
+            item.tickState?.let { tick ->
+                DeliveryTick(tick)
+                if (tick == TickState.FAILED) {
+                    Text(
+                        stringResource(if (item.box == MessageBox.FAILED) R.string.tick_failed_short else R.string.tick_not_delivered),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.clearAndSetSemantics {},
+                    )
                 }
-                Text(status, style = MaterialTheme.typography.labelSmall, color = if (item.box == MessageBox.FAILED) MaterialTheme.colorScheme.error else muted)
             }
         }
         for (label in decor.labels) TokenChip(label = label, colors = DakTheme.colors.unknownCategory)

@@ -16,6 +16,7 @@ import app.dak.core.model.Classification
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.ledger.Account
+import app.dak.finance.money.CurrencyTable
 import app.dak.finance.parser.TransactionParser
 import app.dak.search.TextNormalizer
 
@@ -46,7 +47,7 @@ class EnrichmentPath(
     suspend fun enrich(message: CorpusMessage): EnrichedRow {
         val classification = pipeline.classify(message.address, message.body, message.subId)
         val transaction = if (shouldParseTransaction(message.address, classification.category)) {
-            TransactionParser.parse(message.address, message.body)
+            TransactionParser.parse(message.address, message.body, HOME_SYMBOLS)
         } else {
             null
         }
@@ -83,6 +84,9 @@ class EnrichmentPath(
     }
 
     companion object {
+        /** `DefaultMessageEnricher` passes the SIM region's symbol map; the corpus is Indian. */
+        private val HOME_SYMBOLS = CurrencyTable.symbolMapFor("INR")
+
         /** Same rule as `DefaultMessageEnricher.shouldParseTransaction`. */
         fun shouldParseTransaction(address: String, category: Category): Boolean = when (category) {
             Category.TRANSACTION -> true

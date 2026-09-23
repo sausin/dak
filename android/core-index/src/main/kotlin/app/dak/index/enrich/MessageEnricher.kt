@@ -61,8 +61,10 @@ interface MessageEnricher {
  * Default [MessageEnricher]: `app.dak.classify.ClassifierPipeline` (templates -> Naive Bayes model -> optional cloud)
  * plus `app.dak.finance.parser.TransactionParser`.
  *
- * The pipeline keeps an unsynchronized regex cache, so calls are serialized with a mutex. The template bundle can
- * be replaced at runtime ([installTemplates]); callers then request a re-index.
+ * [enrich] is lock-free: the pipeline, the parser and the detector are all thread-safe, so the indexer classifies a
+ * batch on several threads at once (`IndexIngestor`). The template bundle can be replaced at runtime
+ * ([installTemplates]); callers then request a re-index. A call racing an install may still use the old bundle, and
+ * its row then carries the old [version], so the re-index picks it up.
  */
 class DefaultMessageEnricher(
     private val isContact: (String) -> Boolean,
@@ -75,6 +77,8 @@ class DefaultMessageEnricher(
 ) : MessageEnricher {
 
     private val mutex = Mutex()
+
+    @Volatile
     private var templatesLoader: () -> TemplateBundle = initialTemplates
 
     @Volatile
@@ -92,27 +96,27 @@ class DefaultMessageEnricher(
 
     /** Replaces the template bundle (e.g. after a verified OTA update). Returns the new [version]. */
     suspend fun installTemplates(bundle: TemplateBundle): Int = mutex.withLock {
-        templatesLoader = { bundle }
-        state = null
+        // Under the same lock as ensureState(), so a state being built from the old bundle cannot land afterwards.
+        synchronized(this) {
+            templatesLoader = { bundle }
+            state = null
+        }
         versionOf(ensureState().templates)
     }
 
     override suspend fun enrich(message: Message, allowCloud: Boolean): Enrichment {
-        val (base, detector) = mutex.withLock {
-            val s = ensureState()
-            val pipeline = if (allowCloud) s.withCloud else s.local
-            val classification = pipeline.classify(message.address, message.body, message.subId)
-            val transaction = if (shouldParseTransaction(message.address, classification.category)) {
-                // A bare "$" reads as the SIM region's own dollar (CAD, AUD, SGD...), else USD.
-                val home = runCatching { regionFor(message.subId).homeCurrency }.getOrNull()
-                TransactionParser.parse(message.address, message.body, CurrencyTable.symbolMapFor(home))
-            } else {
-                null
-            }
-            Enrichment(classification, transaction) to s.scam
+        val s = ensureState()
+        val pipeline = if (allowCloud) s.withCloud else s.local
+        val classification = pipeline.classify(message.address, message.body, message.subId)
+        val transaction = if (shouldParseTransaction(message.address, classification.category)) {
+            // A bare "$" reads as the SIM region's own dollar (CAD, AUD, SGD...), else USD.
+            val home = runCatching { regionFor(message.subId).homeCurrency }.getOrNull()
+            TransactionParser.parse(message.address, message.body, CurrencyTable.symbolMapFor(home))
+        } else {
+            null
         }
-        // Outside the mutex: the detector is thread-safe and its context may hit the database.
-        return withScamLabels(message, base, detector)
+        // The detector is thread-safe and its context may hit the database.
+        return withScamLabels(message, Enrichment(classification, transaction), s.scam)
     }
 
     /**

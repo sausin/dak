@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Cake
+import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
@@ -100,6 +101,7 @@ private val PLACES = listOf(
     Place(R.string.scr_automations_title, Icons.Outlined.AutoAwesome, Routes.AUTOMATIONS),
     Place(R.string.fw_menu_forwarding, Icons.Outlined.ForwardToInbox, Routes.FORWARDING),
     Place(R.string.fw_menu_birthdays, Icons.Outlined.Cake, Routes.BIRTHDAYS),
+    Place(R.string.bc_title, Icons.Outlined.Campaign, Routes.BROADCASTS),
     Place(R.string.fold_action_manage, Icons.Outlined.Category, Routes.SENDER_GROUPS),
     Place(R.string.scr_blocked_title, Icons.Outlined.Block, Routes.BLOCKED),
     Place(R.string.scr_backup_title, Icons.Outlined.Backup, Routes.BACKUP),

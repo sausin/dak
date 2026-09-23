@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.Icon
@@ -46,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.navigation.DakNavigator
+import app.dak.navigation.Routes
 import app.dak.ui.ux.UxPrefsViewModel
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.DakTopAppBar
@@ -110,6 +112,15 @@ fun NewConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier
                 )
             }
             LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                if (query.isBlank() && recipients.isEmpty()) {
+                    item(key = "broadcast") {
+                        ListItem(
+                            modifier = Modifier.clickable { navigator.navigate(Routes.BROADCASTS) },
+                            leadingContent = { Icon(Icons.Outlined.Campaign, contentDescription = null) },
+                            headlineContent = { Text(stringResource(R.string.bc_new_message_entry)) },
+                        )
+                    }
+                }
                 if (viewModel.looksLikeAddress(query)) {
                     item {
                         ListItem(

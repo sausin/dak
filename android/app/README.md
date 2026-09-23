@@ -175,6 +175,24 @@ Written by app agent 2. Everything below lives in its own packages; strings are 
 - `BirthdaySendGate` — hook in `ScheduledSendExecutor`: dedupe, "Ask me first" (posts `BirthdayNotifications`
   Send / Edit / Skip on the automation channel instead of sending), next-year rescheduling after a send.
 
+### `broadcast/` — broadcast lists
+
+- `BroadcastStore` — lists, sent `BroadcastRecord`s (newest 200) and the terms acceptance (version + time), JSON in
+  SharedPreferences `dak_broadcasts` (no Room table).
+- `BroadcastService.preview(list, template, subId?, scheduledAt?)` → `BroadcastPreview` (plan from `:automations`'
+  `BroadcastPlanner`, blocked numbers, own SIM numbers, `SendCostGuard` refusal of premium/short-code/service
+  numbers, segment count, international/roaming verdicts, ETA, daily quota); `send(preview)` saves the record, inserts
+  one `ScheduledSendStore` row per recipient tagged `BroadcastTag` and arms ONE alarm per distinct batch time, and
+  audit-logs `broadcast.sent`; `retry(recordId, index)`, `cancelPending(recordId)`.
+- `BroadcastSendGate` — hook in `ScheduledSendExecutor`: drops copies of cancelled/deleted broadcasts, records the
+  provider message key (or failure) on the record.
+- `BroadcastStatusReader` — on-demand live state (box + `DeliveryStatus` of each 1:1 message → `DeliveryTicks`) and
+  replies from members since their copy (last 40 messages of each thread).
+- UI (`ui/broadcast`): `Routes.BROADCASTS` (lists, editor sheet from contacts search + typed numbers, first-use
+  `BroadcastTermsSheet`, `AcceptableUseDialog`) and `Routes.broadcast(id)` (thread of sent broadcasts, detail sheet
+  with ticks / Retry / Replies, composer with placeholders, SIM, one-time "Send later", `BroadcastConfirmDialog`).
+  Entry points: inbox places sheet, new-message screen, Automations, Settings → SIMs and sending → Broadcast lists.
+
 ### `backup/`
 
 - `SafBackupTarget(context, treeUri)` — `BackupTarget` over an `ACTION_OPEN_DOCUMENT_TREE` folder (local, SD, or the

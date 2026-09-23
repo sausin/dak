@@ -1,0 +1,26 @@
+# Baseline profile (ART ahead-of-time compilation of hot code). AGP 8 packages this file from src/main into the APK.
+# Play installs apply it; sideloaded installs need androidx.profileinstaller (see docs/performance.md).
+#
+# Scope: the indexing hot path, which runs over every message during the stage-2 backfill and on every incoming SMS:
+# classification (templates, keyword prefilter, Naive Bayes, OTP, scam rules), transaction parsing, money parsing,
+# FTS text normalisation, the enricher and the ingestion / sync code, and the provider reader.
+# H = hot, S = run at startup-ish (keep compiled), P = post-startup. Class rules (no ->) preload/initialise classes.
+
+HSPLapp/dak/classify/**;->**(**)**
+Lapp/dak/classify/**;
+
+HSPLapp/dak/finance/parser/**;->**(**)**
+Lapp/dak/finance/parser/**;
+HSPLapp/dak/finance/money/**;->**(**)**
+Lapp/dak/finance/money/**;
+
+HSPLapp/dak/search/TextNormalizer;->**(**)**
+Lapp/dak/search/TextNormalizer;
+
+HSPLapp/dak/index/enrich/**;->**(**)**
+Lapp/dak/index/enrich/**;
+HSPLapp/dak/index/sync/**;->**(**)**
+Lapp/dak/index/sync/**;
+
+HSPLapp/dak/telephony/provider/TelephonyProviderReader;->**(**)**
+Lapp/dak/telephony/provider/TelephonyProviderReader;

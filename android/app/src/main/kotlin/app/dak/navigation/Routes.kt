@@ -61,6 +61,12 @@ object Routes {
     const val NOTIFICATION_CHANNELS = "notificationchannels"
     /** App lock and privacy: unlock method, app PIN, auto-lock, Recents, sensitive screens. */
     const val APP_LOCK = "applock"
+    /** Broadcast lists: one message to several people as separate SMS (replies come back 1:1). */
+    const val BROADCASTS = "broadcasts"
+    /** One broadcast list: its sent broadcasts (ticks, replies) and the composer. */
+    const val BROADCAST = "broadcast/{id}"
+    const val ARG_BROADCAST_ID = "id"
+    fun broadcast(listId: String): String = "broadcast/${enc(listId)}"
 
     private fun enc(value: String): String = Uri.encode(value)
 

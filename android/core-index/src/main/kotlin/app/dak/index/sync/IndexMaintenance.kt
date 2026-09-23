@@ -7,6 +7,7 @@ import app.dak.index.BackfillStage
 import app.dak.index.IndexSchedule
 import app.dak.index.crypto.IndexDatabaseFactory
 import app.dak.index.db.DakIndexDatabase
+import app.dak.index.db.FtsMaintenance
 import app.dak.index.db.entity.BackfillStateRow
 import app.dak.index.enrich.DefaultMessageEnricher
 import app.dak.index.enrich.MessageEnricher
@@ -218,6 +219,8 @@ class IndexMaintenance @Inject constructor(
                     val now = System.currentTimeMillis()
                     stateDao.put(state.copy(stage = BackfillStage.DONE.name, cursorMillis = cursor, updatedAt = now, finishedAt = now))
                     if (state.reason != BackfillReason.INITIAL.name) ledger.recomputeAll()
+                    // One segment merge after the bulk load, instead of paying for many segments on every search.
+                    FtsMaintenance.optimize(db)
                     audit.log("index", "index.backfill.done", detail = state.reason)
                     outcome = StageTwoOutcome.DONE
                     continue

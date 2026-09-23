@@ -40,7 +40,7 @@ class EnrichmentBenchmarkTest {
             lines += measure("$name full-path $THREADS threads") { path -> parallel(path) }
                 .let { it(factory) }
         }
-        EnrichmentPath.create(pipelineFactory = factory(ClassifierPipeline.DEFAULT_CACHE_SIZE, prefilter = true)).let { path ->
+        EnrichmentPath.create(pipelineFactory = factory(ClassifierPipeline.SUGGESTED_CACHE_SIZE, prefilter = true)).let { path ->
             runBlocking { corpus.forEach { path.enrich(it) } }
             val (hits, misses) = path.pipeline.cacheCounters
             lines += "template cache: hits=$hits misses=$misses (hit rate %.1f%%)".format(100.0 * hits / (hits + misses).coerceAtLeast(1))
@@ -101,7 +101,7 @@ class EnrichmentBenchmarkTest {
     private fun variants(): List<Pair<String, () -> EnrichmentPath>> = listOf(
         "plain" to { EnrichmentPath.create(pipelineFactory = factory(cacheSize = 0, prefilter = false)) },
         "prefilter" to { EnrichmentPath.create(pipelineFactory = factory(cacheSize = 0, prefilter = true)) },
-        "prefilter+cache" to { EnrichmentPath.create(pipelineFactory = factory(ClassifierPipeline.DEFAULT_CACHE_SIZE, prefilter = true)) },
+        "prefilter+cache" to { EnrichmentPath.create(pipelineFactory = factory(ClassifierPipeline.SUGGESTED_CACHE_SIZE, prefilter = true)) },
     )
 
     private fun factory(cacheSize: Int, prefilter: Boolean): (TemplateBundle, NaiveBayesModel) -> ClassifierPipeline = { t, m ->

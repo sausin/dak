@@ -54,6 +54,15 @@ the cloud-classifier seam (masked text only, off by default) are built. Not yet:
 bundle fetching (signature verification exists), Safe Browsing lookups, crowd spam reports, TRAI
 1909 flow beyond a forward, schedule-triggered rules.
 
+**Broadcast lists** (built): one message to up to 50 people as individual SMS (replies come back 1:1), with hard caps
+(50 per broadcast, 100 broadcast messages per rolling 24 h), batched pacing (10 per 10 min within Android's 30/30 min),
+dedupe / blocked / own-number / premium-short-code-alphanumeric exclusion, `{firstName}` / `{name}` placeholders, an
+on-device spam-risk check (English, Hindi, Hinglish) with an extra "they expect this message" confirmation, a
+versioned first-use "Use broadcasts with care" sheet ([acceptable use](terms-acceptable-use.md), TRAI TCCCPR / 1909),
+per-recipient ticks, retry and replies. One-shot only (optional single scheduled time); automations cannot start one.
+Pure logic in `:automations` (`broadcast`), app side in `app/broadcast` + `ui/broadcast`; stored in SharedPreferences
+(no schema change).
+
 ## Phase 3 (premium)
 
 Only the seams and locked UI exist: Play Billing, translation, AI search, web client relay,

@@ -17,8 +17,10 @@ import app.dak.core.model.ClassifierSource
  * @param regionFor the sender conventions for a message received on SIM `subId` (normally that SIM's home
  *   country, see [SenderRegion]). DLT-specific handling (traffic-type labels, header trust) and region-tagged
  *   template entries follow it; the default, [SenderRegion.UNKNOWN], applies generic rules only.
- * @param cacheSize entries of the template-hash result cache ([TemplateCache]; 0 disables it). The cache only
- *   engages for a [NaiveBayesModel] and a bundle whose patterns are digit-blind; results are identical either way.
+ * @param cacheSize entries of the template-hash result cache ([TemplateCache]); 0, the default, disables it. The
+ *   cache only engages for a [NaiveBayesModel] and a bundle whose patterns are digit-blind, and results are identical
+ *   either way. It is off by default because exactness forces a length-preserving key, which on realistic traffic
+ *   hits only ~7% of messages and costs more than it saves once [prefilter] is on (docs/performance.md).
  * @param prefilter run a template rule's regex only when one of its keywords occurs in the body ([RulePrefilter]);
  *   results are identical either way.
  *
@@ -31,7 +33,7 @@ public class ClassifierPipeline(
     private val contactLookup: (String) -> Boolean = { false },
     private val threshold: Float = 0.55f,
     private val regionFor: (subId: Int) -> SenderRegion = { SenderRegion.UNKNOWN },
-    cacheSize: Int = DEFAULT_CACHE_SIZE,
+    cacheSize: Int = 0,
     prefilter: Boolean = true,
 ) {
 
@@ -165,8 +167,8 @@ public class ClassifierPipeline(
         /** Characters of a body the pipeline looks at. */
         public const val MAX_CLASSIFY_CHARS: Int = 4_000
 
-        /** Default size of the template-hash result cache (entries; each holds one masked body, at most 640 chars). */
-        public const val DEFAULT_CACHE_SIZE: Int = 2_048
+        /** A sensible `cacheSize` when the template-hash cache is enabled (entries of at most 640 chars each). */
+        public const val SUGGESTED_CACHE_SIZE: Int = 2_048
     }
 
     private fun trafficTypeLabel(dltHeader: DltHeader?): Set<String> = when (dltHeader?.trafficType) {

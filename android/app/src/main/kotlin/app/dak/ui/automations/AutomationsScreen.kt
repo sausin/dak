@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Cake
+import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ForwardToInbox
 import androidx.compose.material.icons.outlined.Lock
@@ -158,6 +159,14 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     title = stringResource(R.string.fw_bd_title),
                     summary = stringResource(R.string.fw_bd_shortcut_summary),
                     onClick = { navigator.navigate(Routes.BIRTHDAYS) },
+                )
+            }
+            item {
+                ShortcutRow(
+                    icon = { Icon(Icons.Outlined.Campaign, contentDescription = null) },
+                    title = stringResource(R.string.bc_title),
+                    summary = stringResource(R.string.bc_shortcut_summary),
+                    onClick = { navigator.navigate(Routes.BROADCASTS) },
                 )
             }
             item { SectionTitle(R.string.scr_auto_rules) }

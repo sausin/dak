@@ -2,6 +2,7 @@ package app.dak.telephony.provider
 
 import android.content.Context
 import android.database.Cursor
+import android.net.Uri
 import app.dak.core.model.Message
 import app.dak.core.model.MessageKey
 import app.dak.core.model.DeliveryStatus
@@ -21,6 +22,7 @@ import app.dak.telephony.internal.string
 import app.dak.telephony.mms.MmsProviderMapping
 import app.dak.telephony.mms.StoredPart
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -29,10 +31,14 @@ import kotlinx.coroutines.withContext
 /**
  * [ProviderReader] over `content://sms`, `content://mms` and `content://mms-sms`.
  *
- * Robust to OEM schemas: queries use a null projection and every column is looked up by name (a missing
- * `sub_id` falls back to OEM subscription or slot columns, else [NO_SUB_ID]). Provider errors (e.g. not the
- * default SMS app) yield empty results rather than exceptions. SMS and MMS are merged newest-first by walking
- * both cursors, so paging never needs SQL LIMIT support from the provider.
+ * Robust to OEM schemas: every column is looked up by name (a missing `sub_id` falls back to OEM subscription or
+ * slot columns, else [NO_SUB_ID]). The paging reads request only the columns they map ([ProviderProjections]),
+ * intersected with the columns the provider reports once per process, and fall back to a null projection when that
+ * probe fails. Provider errors (e.g. not the default SMS app) yield empty results rather than exceptions. SMS and
+ * MMS are merged newest-first by walking both cursors (stopping at the page size, so nothing beyond a page is read),
+ * so paging never needs SQL LIMIT support from the provider. MMS parts are loaded for a whole page at once
+ * (`mid IN (...)`); addresses have no bulk URI on the platform (`content://mms/<id>/addr` only), so they are read
+ * per message with a two-column projection.
  */
 @Singleton
 class TelephonyProviderReader @Inject constructor(
@@ -41,6 +47,27 @@ class TelephonyProviderReader @Inject constructor(
 ) : ProviderReader {
 
     private val resolver get() = context.contentResolver
+
+    /** Probed projection per table (an empty array stands for "unknown: use null"). */
+    private val projections = ConcurrentHashMap<String, Array<String>>()
+
+    /** Set when an OEM provider rejected the two-column addr projection; addr reads then use null. */
+    @Volatile
+    private var addrProjectionRejected = false
+
+    private fun projection(uri: Uri, wanted: List<String>): Array<String>? {
+        val key = uri.toString()
+        projections[key]?.let { return it.takeIf { p -> p.isNotEmpty() } }
+        // A failed probe (e.g. not the default SMS app yet) is not remembered, so a later read probes again.
+        val available = resolver.safeQuery(uri, null, ProviderProjections.PROBE_SELECTION, null, null)?.use { it.columnNames }
+            ?: return null
+        val selected = ProviderProjections.select(wanted, available) ?: emptyArray()
+        projections[key] = selected
+        return selected.takeIf { it.isNotEmpty() }
+    }
+
+    private fun smsProjection() = projection(ProviderUris.SMS, ProviderProjections.SMS)
+    private fun mmsProjection() = projection(ProviderUris.MMS, ProviderProjections.MMS)
 
     override suspend fun threads(): List<ProviderThread> = withContext(Dispatchers.IO) {
         val canonical = canonicalAddresses()
@@ -117,7 +144,7 @@ class TelephonyProviderReader @Inject constructor(
             if (limit <= 0) return@withContext emptyList()
             val out = ArrayList<Message>()
             resolver.safeQuery(
-                ProviderUris.SMS, null, "${SmsColumns.ID} > ?", arrayOf(smsIdExclusive.toString()), "${SmsColumns.ID} ASC",
+                ProviderUris.SMS, smsProjection(), "${SmsColumns.ID} > ?", arrayOf(smsIdExclusive.toString()), "${SmsColumns.ID} ASC",
             )?.use { c ->
                 while (out.size < limit && c.moveToNext()) out += c.toSms()
             }
@@ -125,7 +152,7 @@ class TelephonyProviderReader @Inject constructor(
             if (remaining > 0) {
                 val rows = ArrayList<MmsRow>()
                 resolver.safeQuery(
-                    ProviderUris.MMS, null, "${MmsColumns.ID} > ? AND ${MmsColumns.MESSAGE_TYPE_FILTER}",
+                    ProviderUris.MMS, mmsProjection(), "${MmsColumns.ID} > ? AND ${MmsColumns.MESSAGE_TYPE_FILTER}",
                     arrayOf(mmsIdExclusive.toString()), "${MmsColumns.ID} ASC",
                 )?.use { c ->
                     while (rows.size < remaining && c.moveToNext()) rows += c.toMmsRow()
@@ -229,8 +256,8 @@ class TelephonyProviderReader @Inject constructor(
         accept: (taken: Int, dateMillis: Long) -> Boolean,
     ): List<Message> {
         val pending = ArrayList<Pending>()
-        val sms = resolver.safeQuery(ProviderUris.SMS, null, smsSelection, smsArgs, "${SmsColumns.DATE} DESC")
-        val mms = resolver.safeQuery(ProviderUris.MMS, null, mmsSelection, mmsArgs, "${MmsColumns.DATE} DESC")
+        val sms = resolver.safeQuery(ProviderUris.SMS, smsProjection(), smsSelection, smsArgs, "${SmsColumns.DATE} DESC")
+        val mms = resolver.safeQuery(ProviderUris.MMS, mmsProjection(), mmsSelection, mmsArgs, "${MmsColumns.DATE} DESC")
         try {
             var smsHas = sms?.moveToFirst() == true
             var mmsHas = mms?.moveToFirst() == true
@@ -358,7 +385,8 @@ class TelephonyProviderReader @Inject constructor(
         val out = HashMap<Long, MutableList<Pair<Int, StoredPart>>>()
         for (chunk in ids.distinct().chunked(PART_QUERY_CHUNK)) {
             val selection = "${MmsPartColumns.MSG_ID} IN (${chunk.joinToString(",")})"
-            resolver.safeQuery(ProviderUris.MMS_PART, null, selection, null, null)?.use { c ->
+            val columns = projection(ProviderUris.MMS_PART, ProviderProjections.MMS_PART)
+            resolver.safeQuery(ProviderUris.MMS_PART, columns, selection, null, null)?.use { c ->
                 while (c.moveToNext()) {
                     val partId = c.long(MmsPartColumns.ID)
                     val ct = c.string(MmsPartColumns.CONTENT_TYPE)?.lowercase() ?: "application/octet-stream"
@@ -389,7 +417,14 @@ class TelephonyProviderReader @Inject constructor(
     private fun mmsAddress(mmsId: Long, msgBox: Int): String {
         var from: String? = null
         val to = ArrayList<String>()
-        resolver.safeQuery(ProviderUris.mmsAddresses(mmsId))?.use { c ->
+        val uri = ProviderUris.mmsAddresses(mmsId)
+        val cursor = if (addrProjectionRejected) {
+            resolver.safeQuery(uri)
+        } else {
+            resolver.safeQuery(uri, ProviderProjections.MMS_ADDR.toTypedArray())
+                ?: resolver.safeQuery(uri)?.also { addrProjectionRejected = true }
+        }
+        cursor?.use { c ->
             while (c.moveToNext()) {
                 val address = c.string(MmsAddrColumns.ADDRESS)?.trim().orEmpty()
                 if (address.isEmpty() || address == MmsAddrColumns.INSERT_ADDRESS_TOKEN) continue

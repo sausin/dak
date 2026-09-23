@@ -12,6 +12,8 @@ import androidx.navigation.navArgument
 import app.dak.R
 import app.dak.ui.automations.AutomationsScreen
 import app.dak.ui.birthdays.BirthdaysScreen
+import app.dak.ui.broadcast.BroadcastListScreen
+import app.dak.ui.broadcast.BroadcastsScreen
 import app.dak.ui.forwarding.ForwardingScreen
 import app.dak.ui.fraud.FraudHelpScreen
 import app.dak.ui.notifications.NotificationChannelsScreen
@@ -91,5 +93,7 @@ fun DakNavHost(navController: NavHostController, startDestination: String, modif
         composable(Routes.SENDER_GROUPS) { SenderGroupsScreen(navigator) }
         composable(Routes.NOTIFICATION_CHANNELS) { NotificationChannelsScreen(navigator) }
         composable(Routes.APP_LOCK) { AppLockScreen(navigator) }
+        composable(Routes.BROADCASTS) { BroadcastsScreen(navigator) }
+        composable(Routes.BROADCAST, arguments = listOf(requiredString(Routes.ARG_BROADCAST_ID))) { BroadcastListScreen(navigator) }
     }
 }

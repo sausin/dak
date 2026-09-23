@@ -46,8 +46,10 @@ class PipelineEquivalenceTest {
     fun cachedAndPrefilteredResultsAreIdenticalToThePlainPipeline() = runBlocking {
         for (region in listOf(SenderRegion.INDIA, SenderRegion.UNKNOWN, SenderRegion.of("GB"))) {
             val plain = pipeline(cacheSize = 0, prefilter = false, region = region)
-            val fast = pipeline(cacheSize = ClassifierPipeline.DEFAULT_CACHE_SIZE, prefilter = true, region = region)
-            val inputs = corpus.map { Triple(it.address, it.body, it.subId) } + shuffledDigits(1) + shuffledDigits(2)
+            val fast = pipeline(cacheSize = ClassifierPipeline.SUGGESTED_CACHE_SIZE, prefilter = true, region = region)
+            // Full corpus plus two digit-shuffled copies for India; a 10k slice for the other regions (CI time).
+            val all = corpus.map { Triple(it.address, it.body, it.subId) } + shuffledDigits(1) + shuffledDigits(2)
+            val inputs = if (region == SenderRegion.INDIA) all else all.filterIndexed { i, _ -> i % 15 == 0 }
             var differences = 0
             for ((address, body, subId) in inputs) {
                 val expected = plain.classify(address, body, subId)

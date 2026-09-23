@@ -106,6 +106,32 @@ address as `ForwardingLoop`.
 - `WishTag(ask, contactId, kind: OccasionKind, year)` — `encode()`/`decode()` of the scheduled send's `ruleId`
   (`birthday:<ask|auto>:<contactId>:<kind>:<year>`), `dedupeKey` for "never twice a year".
 
+## Broadcast lists (`app.dak.automations.broadcast`)
+
+One message to several people as individual SMS (each into its own 1:1 thread). User-initiated only: nothing in the
+rule engine produces a broadcast, and there is no recurrence.
+
+- Models (`@Serializable`): `Member(contactId?, displayName, address)`, `BroadcastList(id, name, members, createdAt)`,
+  `BroadcastRecord(id, listId, listName, template, subId, createdAt, scheduledAtMillis?, recipients)` with
+  `BroadcastRecipient(address, displayName, contactId?, text, sendAtMillis, scheduledSendId?, messageKey?, status:
+  RecipientStatus)`; `BroadcastCodec.encode/decodeLists|Records` (lenient).
+- `BroadcastPlanner(limits, pacing).plan(BroadcastRequest(members, template, nowMillis, scheduledAtMillis?,
+  ownNumbers, isBlocked, isRefusedDestination, usedToday, recentSendHistory)): BroadcastPlan` — dedupes numbers
+  (`PhoneKey.same`: last 10 digits / national-suffix), drops invalid, alphanumeric, short-code, own, blocked and
+  refused (premium/special-tariff predicate from the app) members (`Excluded(member, ExclusionReason)`), renders
+  `{firstName}` / `{name}` via `WishTemplates.render` (blank for number-only members), spreads send times and
+  reports `problems` (`EmptyMessage`, `NoRecipients`, `TooManyRecipients`, `DailyLimit`, `ScheduledInPast`,
+  `ScheduledTooFar`). Over-cap lists are refused, never truncated. `canSend`, `spreadMillis` (ETA),
+  `requiresExtraConfirmation`.
+- `BroadcastLimits` — hard caps 50 recipients / 100 messages per rolling 24 h (clamped, never raisable), 30-day
+  schedule horizon. `BroadcastQuota.usedInLastDay/remaining(records, now)`.
+- `BroadcastPacing(batchSize = 10, batchIntervalMillis = 10 min).schedule(count, start, history)` — batched times that
+  also satisfy `SendRateLimiter`'s 30 per 30 min window.
+- `SpamRiskAssessor.assess(text, recipientCount): SpamRisk(level LOW/ELEVATED/HIGH, signals)` — links, promo words,
+  money bait, call-to-action, all caps (English, Hindi, Hinglish) and large lists (>= 20).
+- `BroadcastTag(broadcastId, recipientIndex)` — `broadcast:<id>:<index>` in the scheduled send's `ruleId`.
+- `BroadcastTerms.VERSION` / `needsAcceptance(acceptedVersion)`; `BroadcastLists.addMembers` / `parseNumbers`.
+
 ## Templates (`TemplateRenderer`)
 
 `TemplateRenderer.render(template: String, event: MessageEvent, zoneId: String = "UTC"): String` fills

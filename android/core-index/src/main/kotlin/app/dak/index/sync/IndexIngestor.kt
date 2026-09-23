@@ -10,9 +10,15 @@ import app.dak.index.enrich.MessageEnricher
 import app.dak.index.enrich.RepeatRules
 import app.dak.index.repo.FoldEngine
 import app.dak.index.repo.LedgerRepository
+import app.dak.index.enrich.Enrichment
 import app.dak.index.signature.AppSignatureRegistry
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,6 +29,11 @@ import javax.inject.Singleton
  *
  * Rows whose body and enricher version are unchanged are only refreshed (box, read state, SIM...), never
  * re-classified, so repeated ingestion of the same messages is cheap and idempotent.
+ *
+ * Throughput (docs/performance.md): a chunk of up to [CHUNK] messages is classified on a bounded pool
+ * ([ENRICH_PARALLELISM] threads, at most 3, leaving a core free) and written by this single coroutine in ONE
+ * transaction (rows, fold moves and repeat groups), so a 500-row backfill batch costs one commit instead of hundreds.
+ * The coroutine yields between chunks so cancellation and other work get in; CPU bursts stay one chunk long.
  */
 @Singleton
 class IndexIngestor @Inject constructor(
@@ -57,10 +68,15 @@ class IndexIngestor @Inject constructor(
             val flags = loadFlags(chunk)
             val now = System.currentTimeMillis()
             val toWrite = ArrayList<IndexedMessage>(chunk.size)
+            val refreshable = chunk.mapNotNullTo(HashSet()) { message ->
+                val old = existing[message.key]
+                message.key.takeIf { !force && old != null && IndexRowMapper.canRefresh(old, message, version) }
+            }
+            val enrichments = enrichAll(chunk.filterNot { it.key in refreshable }, allowCloud)
             for (message in chunk) {
                 val key = message.key
                 val old = existing[key]
-                val row = if (!force && old != null && IndexRowMapper.canRefresh(old, message, version)) {
+                val row = if (old != null && key in refreshable) {
                     val refreshed = IndexRowMapper.refresh(old, message, rules, now)
                     if (refreshed.copy(indexedAt = old.indexedAt) == old) {
                         out += old
@@ -68,7 +84,7 @@ class IndexIngestor @Inject constructor(
                     }
                     refreshed
                 } else {
-                    val enrichment = enricher.enrich(message, allowCloud)
+                    val enrichment = enrichments.getValue(key)
                     val otp = enrichment.classification.otp
                     val detected = if (otp != null && (otp.retrieverHash != null || otp.webOtpDomain != null)) {
                         signatures.consumerOf(otp, refreshSignaturesOnMiss)
@@ -92,12 +108,32 @@ class IndexIngestor @Inject constructor(
                 db.withTransaction {
                     write(toWrite)
                     folds.recordMoves(moves)
+                    markRepeats(toWrite)
                 }
-                markRepeats(toWrite)
             }
+            yield()
         }
         ledger.recompute(affectedAccounts)
         out
+    }
+
+    /**
+     * Enriches [messages] (keyed by message key). Large lists are split into [ENRICH_PARALLELISM] slices classified
+     * concurrently on [enrichDispatcher]; small ones (a single incoming message, a refresh) run inline. The enricher
+     * is required to be safe for concurrent calls ([MessageEnricher.enrich]).
+     */
+    private suspend fun enrichAll(messages: List<Message>, allowCloud: Boolean): Map<MessageKey, Enrichment> {
+        if (messages.isEmpty()) return emptyMap()
+        if (messages.size < PARALLEL_MIN_BATCH || ENRICH_PARALLELISM == 1) {
+            return messages.associate { it.key to enricher.enrich(it, allowCloud) }
+        }
+        val sliceSize = (messages.size + ENRICH_PARALLELISM - 1) / ENRICH_PARALLELISM
+        val results = coroutineScope {
+            messages.chunked(sliceSize).map { slice ->
+                async(enrichDispatcher) { slice.map { it.key to enricher.enrich(it, allowCloud) } }
+            }.awaitAll()
+        }
+        return results.flatten().toMap()
     }
 
     /** Removes rows for messages that no longer exist in the provider (deleted, or moved to the bin). */
@@ -119,7 +155,8 @@ class IndexIngestor @Inject constructor(
     /**
      * Joins each eligible new row to a repeat group (see [RepeatRules]): finds the closest copy in its conversation
      * and shares (or starts) that copy's group. Rows are already written, so copies within one batch find each other;
-     * the backfill runs newest to oldest, so the search looks both ways in time.
+     * the backfill runs newest to oldest, so the search looks both ways in time. Called inside the chunk's write
+     * transaction, so later rows see the groups set for earlier ones and all updates share one commit.
      */
     private suspend fun markRepeats(rows: List<IndexedMessage>) {
         for (row in rows) {
@@ -138,10 +175,8 @@ class IndexIngestor @Inject constructor(
             if (!RepeatRules.eligible(copy.box, copy.category, copy.body)) continue
             val group = copy.repeatGroup
                 ?: RepeatRules.groupKeyOf(MessageKey(row.kind, row.providerId), row.dateMillis, MessageKey(copy.kind, copy.providerId), copy.dateMillis)
-            db.withTransaction {
-                messageDao.setRepeatGroup(row.kind.name, row.providerId, group)
-                if (copy.repeatGroup == null) messageDao.setRepeatGroup(copy.kind.name, copy.providerId, group)
-            }
+            messageDao.setRepeatGroup(row.kind.name, row.providerId, group)
+            if (copy.repeatGroup == null) messageDao.setRepeatGroup(copy.kind.name, copy.providerId, group)
         }
     }
 
@@ -169,6 +204,16 @@ class IndexIngestor @Inject constructor(
     }
 
     private companion object {
-        const val CHUNK = 200
+        /** Rows per write transaction (the stage-2 backfill hands over batches of the same size). */
+        const val CHUNK = 500
+
+        /** Below this many messages to classify, parallelism is not worth a thread hop. */
+        const val PARALLEL_MIN_BATCH = 64
+
+        /** Classifier threads: at most 3, and always one core left for the UI / the system. */
+        val ENRICH_PARALLELISM: Int = (Runtime.getRuntime().availableProcessors() - 1).coerceIn(1, 3)
+
+        /** Bounded view of the shared Default pool: never more than [ENRICH_PARALLELISM] classifier threads at once. */
+        val enrichDispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(ENRICH_PARALLELISM, "dak-enrich")
     }
 }

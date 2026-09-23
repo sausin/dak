@@ -51,6 +51,7 @@ internal object SettingsActions {
         -> Routes.AUTOMATIONS
         DakSettings.forwarding.key -> Routes.FORWARDING
         DakSettings.birthdayWishes.key -> Routes.BIRTHDAYS
+        DakSettings.broadcastLists.key -> Routes.BROADCASTS
         else -> null
     }
 

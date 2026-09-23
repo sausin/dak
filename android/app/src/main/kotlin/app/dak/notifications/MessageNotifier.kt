@@ -29,6 +29,7 @@ import app.dak.index.enrich.ConversationIds
 import app.dak.navigation.IntentRoutes
 import app.dak.navigation.Routes
 import app.dak.safety.FakeCreditCheck
+import app.dak.security.AppLockNotifications
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.IncomingMessageHandler
@@ -200,7 +201,7 @@ class MessageNotifier @Inject constructor(
             // An exact duplicate (same code) updates quietly; a new code alerts as the channel says.
             .setOnlyAlertOnce(sameCode)
             .addAction(0, context.getString(R.string.action_copy_code), NotificationActions.copyCode(context, target, otp.code))
-            .addAction(0, context.getString(R.string.action_delete_now), NotificationActions.delete(context, target, message.key))
+            .addAction(0, context.getString(R.string.action_delete_now), deleteAction(target, message))
             .addAction(0, context.getString(R.string.action_mark_read), NotificationActions.markRead(context, target, message.key, message.threadId))
 
         if (usedBy != null) builder.setSubText(usedBy)
@@ -287,7 +288,10 @@ class MessageNotifier @Inject constructor(
         builder.extras.putLong(EXTRA_REPEAT_AT, now)
         builder.extras.putInt(EXTRA_REPEAT_COUNT, count)
 
-        if (settings.get(DakSettings.quickActions)) {
+        if (settings.get(DakSettings.quickActions) && AppLockNotifications.actionsNeedUnlock(settings)) {
+            // App lock on: no inline reply from the notification; "Reply" opens the conversation after unlocking.
+            builder.addAction(0, context.getString(R.string.action_reply), AppLockNotifications.openInApp(context, message, "reply"))
+        } else if (settings.get(DakSettings.quickActions)) {
             val reply = NotificationCompat.Action.Builder(
                 IconCompat.createWithResource(context, R.drawable.ic_stat_dak),
                 context.getString(R.string.action_reply),
@@ -390,7 +394,7 @@ class MessageNotifier @Inject constructor(
             .setOnlyAlertOnce(state.isRepeat)
             .addAction(0, context.getString(R.string.action_mark_read), NotificationActions.markRead(context, target, message.key, message.threadId))
         if (settings.get(DakSettings.quickActions)) {
-            builder.addAction(0, context.getString(R.string.action_delete), NotificationActions.delete(context, target, message.key))
+            builder.addAction(0, context.getString(R.string.action_delete), deleteAction(target, message))
         }
         writeState(builder.extras, state)
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
@@ -443,6 +447,14 @@ class MessageNotifier @Inject constructor(
         simLabel(message.subId)?.let { builder.setSubText(it) }
         return builder
     }
+
+    /** Delete in the background, or, with the app lock on, open the message so the user unlocks first. */
+    private fun deleteAction(target: NotificationActions.Target, message: Message): PendingIntent =
+        if (AppLockNotifications.actionsNeedUnlock(settings)) {
+            AppLockNotifications.openInApp(context, message, "delete")
+        } else {
+            NotificationActions.delete(context, target, message.key)
+        }
 
     private fun applyLockScreenPrivacy(builder: NotificationCompat.Builder, message: Message, sender: String, isOtp: Boolean) {
         when (settings.get(DakSettings.lockScreenPrivacy)) {

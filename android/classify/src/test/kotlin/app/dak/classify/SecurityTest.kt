@@ -80,6 +80,29 @@ class SecurityTest {
     }
 
     @Test
+    fun `entity patterns and extractor are ReDoS-safe on bounded input`() {
+        val extra = listOf(
+            "XX ".repeat(15_000) + "1",
+            "ref no ".repeat(7_000),
+            "a@".repeat(25_000),
+            "a.".repeat(20_000) + "@",
+            "awb ".repeat(12_000),
+            "pnr ".repeat(12_000),
+            "1-".repeat(25_000),
+            "+91 ".repeat(12_000),
+        )
+        for (input in pathological + extra) {
+            val bounded = input.take(app.dak.classify.entities.EntityExtractor.MAX_CHARS)
+            for (regex in app.dak.classify.entities.EntityPatterns.all) {
+                assertFast("entity pattern ${regex.pattern.take(24)} on ${input.take(12)}…", 500) { regex.findAll(bounded).count() }
+            }
+            assertFast("EntityExtractor on ${input.take(12)}…", 2_000) {
+                app.dak.classify.entities.EntityExtractor.extract(input, "IN")
+            }
+        }
+    }
+
+    @Test
     fun `otp extractor survives unbounded hostile bodies`() {
         // Callers outside the pipeline may pass a whole body; this must not overflow the stack or stall.
         for (body in pathological + "upi ".repeat(250_000)) {

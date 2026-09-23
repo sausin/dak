@@ -51,6 +51,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.ui.lock.AppLockOnboardingCard
 import app.dak.ui.theme.DakTheme
 
 /**
@@ -59,7 +60,7 @@ import app.dak.ui.theme.DakTheme
  * 2. the default-SMS role request;
  * 3. only then notifications, contacts and phone permissions;
  * 4. when to index the full history (recent messages are indexed immediately);
- * 5. battery-optimisation exemption and OEM background-killer guidance.
+ * 5. battery-optimisation exemption and OEM background-killer guidance, plus the (optional) app-lock recommendation.
  */
 @Composable
 fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, viewModel: OnboardingViewModel = hiltViewModel()) {
@@ -320,6 +321,8 @@ private fun ReliabilityStep(state: OnboardingUiState, onBattery: () -> Unit, onO
                 }
             }
         }
+        // Recommended, off by default: offered here, fully configurable later in Settings.
+        AppLockOnboardingCard()
         Text(
             stringResource(R.string.onboarding_selftest_hint),
             style = MaterialTheme.typography.bodyMedium,

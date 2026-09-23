@@ -35,7 +35,10 @@ If the app crashes, `adb logcat -b crash` output (or a screenshot of the crash d
 ## P2 — nice to check
 16. Dark mode / AMOLED switch live; Hindi/other-language messages render correctly.
 17. Backup: pick a folder (Drive works via the picker), set a passphrase, back up, note the recovery code.
-18. Auto-forwarding rule for one sender with an end date; birthday wishes list reads your contacts.
+18. Auto-forwarding rule for one sender: defaults to 1 hour (date + time pickers, 12/24h per device); the
+    recipient can only be picked from contacts; "Until I stop it" or > 1 hour shows the scam warning and asks for
+    the fingerprint; deleting the recipient's contact pauses the rule on the next forward (with a notification).
+    Birthday wishes list reads your contacts.
 19. Battery: after a normal day, Settings → Battery → Dak should be negligible.
 
 ## Known limitations going in

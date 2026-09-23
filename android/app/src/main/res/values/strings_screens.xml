@@ -56,7 +56,7 @@
     <string name="scr_auto_add_examples">Add examples</string>
     <string name="scr_auto_advanced_rule">This rule uses advanced conditions. You can turn it on or off, or delete it.</string>
     <string name="scr_auto_any">Any</string>
-    <string name="scr_auto_confirm_subtitle">This rule can forward one-time passwords</string>
+    <string name="scr_auto_confirm_subtitle">This rule sends your messages to someone else, possibly including one-time passwords</string>
     <string name="scr_auto_confirm_title">Confirm it\'s you</string>
     <string name="scr_auto_default_sim">Default SIM</string>
     <string name="scr_auto_edit_rule">Edit rule</string>

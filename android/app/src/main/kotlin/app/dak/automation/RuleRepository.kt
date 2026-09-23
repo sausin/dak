@@ -21,6 +21,7 @@ data class RuleEntry(val stored: StoredRule, val rule: Rule?)
 class RuleRepository @Inject constructor(
     private val store: AutomationStore,
     private val confirmations: OtpForwardConfirmations,
+    private val holds: ForwardingHolds,
 ) {
     fun observe(): Flow<List<RuleEntry>> = store.observe().map { rows -> rows.map { RuleEntry(it, decode(it)) } }
 
@@ -38,6 +39,7 @@ class RuleRepository @Inject constructor(
     suspend fun delete(id: String) {
         store.delete(id)
         confirmations.forget(id)
+        holds.clear(id)
     }
 
     /**

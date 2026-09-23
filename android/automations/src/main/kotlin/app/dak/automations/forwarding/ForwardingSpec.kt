@@ -26,11 +26,19 @@ public data class ForwardingSource(
     val addresses: List<String> = emptyList(),
 )
 
-/** Who receives the forwards. [name] is display-only (from the contact picker). */
+/**
+ * Who receives the forwards: always a phone contact. [name] is display-only (from the contact picker); [contactKey]
+ * is the contact's `ContactsContract` lookup key, used before every forward to check the contact still exists and
+ * still has [number]. Rules saved before recipients had to come from contacts have no key ([fromContacts] false):
+ * they cannot be saved again until the recipient is picked from contacts.
+ */
 @Serializable
-public data class ForwardingRecipient(val number: String, val name: String? = null) {
+public data class ForwardingRecipient(val number: String, val name: String? = null, val contactKey: String? = null) {
     /** What the UI shows: the contact name, else the number. */
     val label: String get() = name?.takeIf { it.isNotBlank() } ?: number
+
+    /** True when this recipient was picked from the phone's contacts. */
+    val fromContacts: Boolean get() = !contactKey.isNullOrBlank()
 }
 
 /** Where a forwarding rule is in its life, for the "Forwarding rules" list. */
@@ -45,10 +53,11 @@ public enum class ForwardingStatus { ACTIVE, SCHEDULED, PAUSED, ENDED }
  *   [BodyContains], [Not(HasOtp), Not(CategoryIs(OTP))])` — OTPs are excluded unless [includeOtp];
  * - one [ActionSpec.ForwardSms] per recipient, all from [subId], with [template].
  *
- * Forwarding runs on-device from the user's own SIM, so it is a free feature.
+ * Forwarding runs on-device from the user's own SIM, so it is a free feature. Periods longer than an hour, open-ended
+ * ones and extensions need a biometric confirmation ([ForwardingPolicy]).
  *
- * @param startMillis inclusive start (the UI passes local start-of-day of the chosen date).
- * @param endMillis inclusive end (local end-of-day), or null for "until I stop".
+ * @param startMillis inclusive start, an exact instant (date and time picked to the minute).
+ * @param endMillis inclusive end instant, or null for "until I stop".
  * @param categories optional category filter; empty = any category.
  * @param keyword optional case-insensitive body filter; blank = none.
  */
@@ -71,6 +80,12 @@ public data class ForwardingSpec(
     val isComplete: Boolean
         get() = sources.isNotEmpty() && recipients.any { it.number.isNotBlank() } &&
             (endMillis == null || endMillis >= startMillis)
+
+    /** True when the period is longer than an hour or open-ended, see [ForwardingPolicy.isLongPeriod]. */
+    val isLongPeriod: Boolean get() = ForwardingPolicy.isLongPeriod(startMillis, endMillis)
+
+    /** True when every recipient was picked from contacts (a typed or legacy number has no contact key). */
+    val recipientsFromContacts: Boolean get() = recipients.all { it.fromContacts }
 
     /** Status at [nowMillis]: ended beats paused, so an expired rule always reads "Ended". */
     public fun status(nowMillis: Long): ForwardingStatus = when {
@@ -126,6 +141,10 @@ public data class ForwardingSpec(
                     MapSerializer(String.serializer(), String.serializer()),
                     valid.filter { !it.name.isNullOrBlank() }.associate { it.number.trim() to it.name!! },
                 ),
+                META_RECIPIENT_CONTACTS to metaJson.encodeToString(
+                    MapSerializer(String.serializer(), String.serializer()),
+                    valid.filter { it.fromContacts }.associate { it.number.trim() to it.contactKey!! },
+                ),
             ),
         )
     }
@@ -136,6 +155,7 @@ public data class ForwardingSpec(
         public const val KIND_FORWARDING: String = "forwarding"
         private const val META_SOURCES = "forwarding.sources"
         private const val META_RECIPIENT_NAMES = "forwarding.recipientNames"
+        private const val META_RECIPIENT_CONTACTS = "forwarding.recipientContacts"
 
         private val metaJson = Json { ignoreUnknownKeys = true }
 
@@ -156,6 +176,9 @@ public data class ForwardingSpec(
             val names = rule.meta[META_RECIPIENT_NAMES]
                 ?.let { runCatching { metaJson.decodeFromString(MapSerializer(String.serializer(), String.serializer()), it) }.getOrNull() }
                 .orEmpty()
+            val contacts = rule.meta[META_RECIPIENT_CONTACTS]
+                ?.let { runCatching { metaJson.decodeFromString(MapSerializer(String.serializer(), String.serializer()), it) }.getOrNull() }
+                .orEmpty()
             val categories = conjuncts.filterIsInstance<Condition.Any>()
                 .flatMap { any -> any.children.filterIsInstance<Condition.CategoryIs>().map { it.category } }
                 .toSet()
@@ -168,7 +191,7 @@ public data class ForwardingSpec(
                 sources = sources,
                 categories = shownCategories,
                 keyword = conjuncts.firstNotNullOfOrNull { it as? Condition.BodyContains }?.keyword.orEmpty(),
-                recipients = forwards.map { ForwardingRecipient(it.to, names[it.to]) },
+                recipients = forwards.map { ForwardingRecipient(it.to, names[it.to], contacts[it.to]) },
                 subId = forwards.first().subId,
                 startMillis = window?.startMillis ?: rule.createdAt,
                 endMillis = window?.endMillis,

@@ -378,7 +378,8 @@ private fun RuleEditor(
 
         EditorSection(R.string.scr_auto_then)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionKind.entries.forEach { kind ->
+            // SMS forwarding lives in Auto-forwarding (contacts only, time-boxed); only an existing forward rule shows it.
+            ActionKind.entries.filter { it != ActionKind.FORWARD_SMS || draft.action == ActionKind.FORWARD_SMS }.forEach { kind ->
                 val locked = isLocked(kind)
                 FilterChip(
                     selected = draft.action == kind,

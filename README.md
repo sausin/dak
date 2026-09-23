@@ -140,7 +140,13 @@ Country-specific data for other markets comes later; the region seam is already 
   hour by default; longer or open-ended periods, extensions, OTPs and risky-looking recipients
   (recently added contact, no SMS history, unusual number) need a scam warning plus biometric
   confirmation. A persistent visible warning shows while any forwarding rule is active, and cost
-  warnings appear before a send that would leave the user's plan/rate.
+  warnings appear before a send that would leave the user's plan/rate. Anything that sends messages
+  off the phone automatically (forwarding, auto-replies, webhooks, relays) needs app lock: without it
+  such rules cannot be turned on, and switching app lock off (or removing the phone's screen lock)
+  turns them off, with a clear notice first. Three hours after one is turned on, and daily while it
+  stays on, a "Was this you?" security alert (with a one-tap "Turn off") makes sure the owner notices
+  a rule someone else set up. Ended rules stay saved and can be used again for the same length of
+  time, and every rule has a history of exactly which messages it sent, where, and what was skipped.
   Notification channels per kind (Messages, OTP codes, Alerts, Promotions, General, Spam) can be
   split per SIM and per conversation.
 - Birthday/anniversary wishes from Contacts, opt-in, "ask first" or "send automatically", with

@@ -2,6 +2,8 @@ package app.dak.ui.lock
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.dak.automation.ForwardingHold
+import app.dak.automation.OutboundAutomationGuard
 import app.dak.security.AppLockConfig
 import app.dak.security.AppLockManager
 import app.dak.security.AutoLockTimeout
@@ -33,11 +35,16 @@ data class AppLockUiState(
 /**
  * Backs the App lock screen. Verification (device prompt, PIN setup, confirming before turning protection down)
  * happens in the UI with the shared authenticators before these setters are called.
+ *
+ * Automations that send messages off the phone need the app lock ([OutboundAutomationGuard]): before the lock is
+ * switched off (or the app PIN it relies on removed) the screen lists them ([enabledOutboundNames]) and, once the
+ * user agrees, turns them off first ([turnOffOutboundThen]).
  */
 @HiltViewModel
 class AppLockViewModel @Inject constructor(
     private val manager: AppLockManager,
     private val settings: SettingsStore,
+    private val outboundGuard: OutboundAutomationGuard,
 ) : ViewModel() {
 
     private val tick = MutableStateFlow(0)
@@ -84,6 +91,24 @@ class AppLockViewModel @Inject constructor(
 
     fun removePin() {
         viewModelScope.launch { manager.clearPin() }
+    }
+
+    /** Names of the enabled automations that send messages off the phone (empty when there are none). */
+    suspend fun enabledOutboundNames(): List<String> =
+        runCatching { outboundGuard.enabledOutboundRules().map { it.name } }.getOrDefault(emptyList())
+
+    /** True when removing the app PIN would leave Dak with no app lock at all. */
+    fun removingPinLeavesNoLock(): Boolean = manager.effectiveWithoutPin() == EffectiveLock.NONE
+
+    /**
+     * Turns off every automation that sends messages off the phone (they need the app lock), then runs [then] (which
+     * switches the lock off). If turning them off fails, the guard still does it when the lock goes.
+     */
+    fun turnOffOutboundThen(then: () -> Unit) {
+        viewModelScope.launch {
+            runCatching { outboundGuard.disableAll(ForwardingHold.LOCK_OFF, notify = false) }
+            then()
+        }
     }
 
     fun lockNow() = manager.lockNow()

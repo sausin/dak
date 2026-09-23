@@ -52,4 +52,16 @@ public object ForwardingPolicy {
         val window = rule.activeWindow() ?: return true
         return isLongPeriod(window.startMillis, window.endMillis)
     }
+
+    /**
+     * The period for using an ended rule again ("Ended — tap to use again"): from [nowMillis], as long as last time.
+     * A period whose length cannot be told (end not after start) gets [DEFAULT_DURATION_MILLIS]; an open-ended one
+     * stays open-ended. Re-using is not an extension ([extends]): the length is unchanged, and the usual checks for a
+     * long period, OTPs and risky recipients still apply to the result.
+     */
+    public fun restartedWindow(startMillis: Long, endMillis: Long?, nowMillis: Long): Pair<Long, Long?> {
+        if (endMillis == null) return nowMillis to null
+        val length = (endMillis - startMillis).takeIf { it > 0 } ?: DEFAULT_DURATION_MILLIS
+        return nowMillis to nowMillis + length
+    }
 }

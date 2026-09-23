@@ -8,6 +8,7 @@ import androidx.room.Update
 import app.dak.index.db.entity.AppSignatureRow
 import app.dak.index.db.entity.AuditLogRow
 import app.dak.index.db.entity.AutomationRuleRow
+import app.dak.index.db.entity.AutomationRunRow
 import app.dak.index.db.entity.BackfillStateRow
 import app.dak.index.db.entity.SavedSearchRow
 import app.dak.index.db.entity.ScheduledSendRow
@@ -114,6 +115,28 @@ interface AuditLogDao {
 
     @Query("DELETE FROM audit_log WHERE atMillis < :beforeMillis")
     suspend fun deleteOlderThan(beforeMillis: Long): Int
+}
+
+@Dao
+interface AutomationRunDao {
+    @Insert
+    suspend fun insert(row: AutomationRunRow): Long
+
+    @Query("SELECT * FROM automation_run WHERE ruleId = :ruleId ORDER BY atMillis DESC, id DESC LIMIT :limit")
+    fun observeForRule(ruleId: String, limit: Int): Flow<List<AutomationRunRow>>
+
+    @Query("SELECT * FROM automation_run ORDER BY atMillis DESC, id DESC LIMIT :limit")
+    fun observeAll(limit: Int): Flow<List<AutomationRunRow>>
+
+    @Query("SELECT COUNT(*) FROM automation_run WHERE ruleId = :ruleId AND outcome = :outcome AND atMillis >= :sinceMillis")
+    suspend fun count(ruleId: String, outcome: String, sinceMillis: Long): Int
+
+    /** Deletes rows older than [beforeMillis] except the newest [keepNewest] rows overall. */
+    @Query(
+        "DELETE FROM automation_run WHERE atMillis < :beforeMillis AND id NOT IN " +
+            "(SELECT id FROM automation_run ORDER BY atMillis DESC, id DESC LIMIT :keepNewest)",
+    )
+    suspend fun trim(beforeMillis: Long, keepNewest: Int): Int
 }
 
 @Dao

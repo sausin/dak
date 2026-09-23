@@ -71,6 +71,41 @@ data class AuditLogRow(
     val detail: String?,
 )
 
+/**
+ * Durable per-rule run log of automations: one row per outbound action (forward, reply, webhook, relay...) that ran or
+ * was skipped for a message, so the user can check exactly what left the phone. Kept apart from [AuditLogRow] because
+ * it has its own, longer retention (see `AutomationRunStore`), and keyed by the stable rule id with a name snapshot so
+ * runs of a deleted rule stay readable.
+ */
+@Entity(
+    tableName = Tables.AUTOMATION_RUN,
+    indices = [Index(value = ["ruleId", "atMillis"]), Index(value = ["atMillis"])],
+)
+data class AutomationRunRow(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val ruleId: String,
+    val ruleName: String,
+    val atMillis: Long,
+    /** Source message key (`sms:12`), when the run was for a message. */
+    val messageKey: String?,
+    /** Display conversation of the source message, to open it from the history. */
+    val conversationId: String?,
+    /** Who sent the source message (address or sender header). */
+    val sourceLabel: String?,
+    /** `ForwardSms`, `Webhook`, ... (the action type's name). */
+    val actionKind: String,
+    /** What the user calls the destination (contact name), if known. */
+    val destinationLabel: String?,
+    /** Normalised destination: phone number, webhook host, relay channel and recipient. */
+    val destination: String?,
+    /** `SENT`, `FAILED` or `SKIPPED`. */
+    val outcome: String,
+    /** Why it was skipped or failed (a short code), if it was. */
+    val reason: String?,
+    /** One-line preview of what was (or would have been) sent, OTP codes masked. */
+    val textPreview: String?,
+)
+
 /** SMS Retriever hash of an installed package's signing certificate (one row per certificate). */
 @Entity(
     tableName = Tables.APP_SIGNATURE,

@@ -124,6 +124,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- "Turn off" on the "Was this you?" security alert for auto-forwarding. Only our own PendingIntent reaches it. -->
+        <receiver
+            android:name=".automation.OutboundRuleReceiver"
+            android:exported="false" />
+
         <!-- Camera capture target for the composer attachment tray. -->
         <provider
             android:name="androidx.core.content.FileProvider"

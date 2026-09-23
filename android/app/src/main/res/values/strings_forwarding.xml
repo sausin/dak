@@ -135,4 +135,81 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <!-- Inbox overflow -->
     <string name="fw_menu_forwarding">Auto-forwarding</string>
     <string name="fw_menu_birthdays">Birthday wishes</string>
+
+    <!-- Automations that send messages off the phone need app lock (OutboundAutomationGuard) -->
+    <string name="fw_lock_needed_title">Set up app lock first</string>
+    <string name="fw_lock_needed_body">Auto-forwarding and other automations that send messages need app lock. That way, someone who picks up your unlocked phone for a minute, or a scammer who talks you through it, can\'t quietly set one up to get your bank messages and codes.</string>
+    <string name="fw_lock_needed_action">Set up app lock</string>
+    <string name="fw_lock_needed_not_now">Not now</string>
+    <string name="fw_status_off_lock_off">Turned off: app lock was switched off</string>
+    <string name="fw_status_off_screen_lock">Turned off: phone screen lock was removed</string>
+    <string name="fw_status_off_lock_needed">Turned off: needs app lock</string>
+    <string name="fw_guard_disabled_title">Forwarding turned off for your safety</string>
+    <plurals name="fw_guard_disabled_body">
+        <item quantity="one">%1$d automation that sends messages was turned off because %2$s. Set up app lock to turn it back on.</item>
+        <item quantity="other">%1$d automations that send messages were turned off because %2$s. Set up app lock to turn them back on.</item>
+    </plurals>
+    <string name="fw_guard_disabled_why">Dak needs app lock for them so nobody else using your phone can send your messages to themselves.</string>
+    <string name="fw_guard_reason_lock_off">app lock was switched off</string>
+    <string name="fw_guard_reason_screen_lock">your phone\'s screen lock was removed</string>
+    <string name="fw_guard_reason_lock_needed">app lock isn\'t set up</string>
+
+    <!-- "Was this you?" security alert -->
+    <string name="fw_channel_security_name">Security alerts</string>
+    <string name="fw_channel_security_description">Tells you when auto-forwarding or another automation that sends your messages is turned on or off, so you notice if someone else set it up.</string>
+    <string name="fw_remind_title_forwarding">Was this you? Auto-forwarding is on</string>
+    <string name="fw_remind_title_automation">Was this you? An automation sends messages</string>
+    <string name="fw_remind_body">Turned on %1$s: %2$s. %3$s %4$s Didn\'t set this up? Turn it off and check your phone\'s security. Scammers, or someone who had your phone for a moment, use forwarding to get bank messages and codes.</string>
+    <string name="fw_remind_still_active">Still active.</string>
+    <string name="fw_remind_ended">Has ended.</string>
+    <plurals name="fw_remind_sent_count">
+        <item quantity="one">%1$d message sent so far.</item>
+        <item quantity="other">%1$d messages sent so far.</item>
+    </plurals>
+    <string name="fw_remind_action_turn_off">Turn off</string>
+    <string name="fw_remind_action_history">See what was sent</string>
+    <string name="fw_remind_turned_off_title">Turned off: %1$s</string>
+    <string name="fw_remind_turned_off_body">Nothing more will be sent. If you didn\'t set this up, change your phone\'s screen lock PIN and tap here to see what was sent.</string>
+    <string name="fw_generic_summary">%1$s (%2$s)</string>
+    <string name="fw_kind_forward">forwards SMS to %1$s</string>
+    <string name="fw_kind_reply">replies by SMS</string>
+    <string name="fw_kind_webhook">sends to %1$s</string>
+    <string name="fw_kind_web_client">sends to your web client</string>
+    <string name="fw_kind_relay">relays to %1$s</string>
+    <string name="fw_kind_open">opens links in other apps</string>
+    <string name="fw_kind_unknown">an action this version of Dak doesn\'t know</string>
+
+    <!-- Using an ended rule again -->
+    <string name="fw_section_ended">Ended — tap to use again</string>
+    <string name="fw_row_use_again">Use again</string>
+    <string name="fw_use_again_done">Forwarding again until %1$s</string>
+    <string name="fw_use_again_done_open">Forwarding again until you stop it</string>
+
+    <!-- History (automation run log) -->
+    <string name="fw_history_menu">Forwarding history</string>
+    <string name="fw_history_rule_title">History: %1$s</string>
+    <string name="fw_history_row_cd">History of %1$s</string>
+    <string name="fw_history_open_message_cd">Open the original message</string>
+    <string name="fw_history_message_gone">The original message is no longer on this phone.</string>
+    <string name="fw_history_empty_title">Nothing sent yet</string>
+    <string name="fw_history_empty_body">Every message an automation forwards or sends is listed here, with the time, the original message and where it went.</string>
+    <plurals name="fw_history_sent">
+        <item quantity="one">%1$d message sent to %2$s</item>
+        <item quantity="other">%1$d messages sent to %2$s</item>
+    </plurals>
+    <string name="fw_history_sent_none">No messages sent</string>
+    <string name="fw_history_between">between %1$s and %2$s</string>
+    <string name="fw_history_failed">%1$d failed</string>
+    <string name="fw_history_skipped">%1$d skipped</string>
+    <string name="fw_history_from">from %1$s</string>
+    <string name="fw_history_to">To %1$s</string>
+    <string name="fw_outcome_sent">Sent</string>
+    <string name="fw_outcome_failed">Failed</string>
+    <string name="fw_outcome_skipped">Skipped</string>
+    <string name="fw_skip_not_confirmed">Not sent: waiting for your fingerprint or screen lock confirmation</string>
+    <string name="fw_skip_no_app_lock">Not sent: app lock was off</string>
+    <string name="fw_skip_contact_removed">Not sent: the recipient is no longer in your contacts</string>
+    <string name="fw_skip_no_contacts_access">Not sent: Dak couldn\'t check your contacts</string>
+    <string name="fw_skip_possible_scam">Not sent: the message looked like a scam</string>
+    <string name="fw_skip_premium">Not sent: needs a premium feature</string>
 </resources>

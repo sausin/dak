@@ -11,6 +11,7 @@ import app.dak.automation.ForwardingHold
 import app.dak.automation.ForwardingHolds
 import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automation.OtpForwardConfirmations
+import app.dak.automation.OutboundAutomationGuard
 import app.dak.automation.RecipientContactCheck
 import app.dak.automation.RuleRepository
 import app.dak.automations.forwarding.ForwardingPolicy
@@ -21,6 +22,8 @@ import app.dak.automations.forwarding.RecipientRisk
 import app.dak.automations.forwarding.RecipientRiskHeuristic
 import app.dak.automations.rule.Rule
 import app.dak.automations.rule.conditionsCanMatchOtp
+import app.dak.automations.rule.sendsOffDevice
+import app.dak.automations.rule.withRestartedWindow
 import app.dak.automations.safety.RuleValidator
 import app.dak.automations.safety.ValidationIssue
 import app.dak.core.model.SimInfo
@@ -67,10 +70,12 @@ data class ForwardingRisk(
     val riskyRecipients: Map<ForwardingRecipient, Set<RecipientRisk>> = emptyMap(),
 )
 
-/** Outcome of [ForwardingViewModel.checkSave] / [ForwardingViewModel.checkEnable]. */
+/** Outcome of [ForwardingViewModel.checkSave] / [ForwardingViewModel.checkEnable] / [ForwardingViewModel.checkReuse]. */
 sealed interface ForwardingCheck {
     /** A required field is missing, or a recipient was not picked from contacts. */
     data object Incomplete : ForwardingCheck
+    /** No app lock is set up: forwarding stays off ("Set up app lock first", see [OutboundAutomationGuard]). */
+    data object NeedsAppLock : ForwardingCheck
     data class Invalid(val issues: List<ValidationIssue>) : ForwardingCheck
     /** Contacts access is needed to verify recipients. */
     data object NeedsContactsAccess : ForwardingCheck
@@ -86,8 +91,10 @@ sealed interface ForwardingCheck {
  * Forwarding rules: list, editor and source-channel picker. Rules are ordinary automation rules (see [ForwardingSpec]).
  * Recipients can only be picked from contacts. Saving (or enabling) a rule that runs longer than an hour or until
  * stopped, extends an existing rule, includes OTPs or goes to a risky-looking contact ([RecipientRiskHeuristic]) shows
- * a scam warning and needs a biometric / screen-lock confirmation ([OtpForwardConfirmations]). Every change refreshes
- * the "Forwarding active" notification.
+ * a scam warning and needs a biometric / screen-lock confirmation ([OtpForwardConfirmations]). Turning forwarding on
+ * in any way needs an app lock ([OutboundAutomationGuard]); the check runs again when the change is applied, after
+ * the warning and the biometric check. An ended rule stays saved and can be used again ([checkReuse]): a fresh period
+ * of the same length from now, through the same checks. Every change refreshes the "Forwarding active" notification.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -99,6 +106,7 @@ class ForwardingViewModel @Inject constructor(
     private val status: ForwardingStatusNotifier,
     private val contacts: ForwardingContacts,
     private val holds: ForwardingHolds,
+    private val outboundGuard: OutboundAutomationGuard,
     sims: SimRepository,
 ) : ViewModel() {
 
@@ -178,6 +186,7 @@ class ForwardingViewModel @Inject constructor(
         if (!spec.recipientsFromContacts) return ForwardingCheck.Incomplete
         val rebased = if (spec.startMillis < now) spec.copy(startMillis = now) else spec
         val rule = rebased.toRule(now) { UUID.randomUUID().toString() } ?: return ForwardingCheck.Incomplete
+        if (rule.enabled && rule.sendsOffDevice() && !outboundGuard.securityReady()) return ForwardingCheck.NeedsAppLock
         val own = simRepository.sims.value.mapNotNull { it.number }.filter { it.isNotBlank() }.toSet()
         val issues = RuleValidator.validate(rule, entitlements, own)
         if (issues.isNotEmpty()) return ForwardingCheck.Invalid(issues)
@@ -190,32 +199,57 @@ class ForwardingViewModel @Inject constructor(
 
     /** Turning [row] on (or confirming a rule that is on but unconfirmed): recipients must still be contacts. */
     suspend fun checkEnable(row: ForwardingRow): ForwardingCheck {
+        if (!outboundGuard.securityReady()) return ForwardingCheck.NeedsAppLock
         contactProblem(row.id, row.spec.recipients)?.let { return it }
         if (!confirmations.needsConfirmation(row.rule) || confirmations.isConfirmed(row.rule)) return ForwardingCheck.Ready(row.rule)
         return ForwardingCheck.NeedsConfirmation(row.rule, riskOf(row.spec, row.rule, extends = false))
     }
 
-    fun save(rule: Rule) {
+    /**
+     * "Use again" for an ended rule: the same rule with a fresh period of the same length starting now
+     * ([withRestartedWindow]), through the same checks as a save (app lock, contacts, the warning and biometric check
+     * for a long period, OTPs or a risky recipient). Not an extension: the period is no longer than before.
+     */
+    suspend fun checkReuse(row: ForwardingRow): ForwardingCheck {
+        if (!outboundGuard.securityReady()) return ForwardingCheck.NeedsAppLock
+        val now = System.currentTimeMillis()
+        val rule = row.rule.withRestartedWindow(now).copy(enabled = true)
+        val spec = ForwardingSpec.fromRule(rule) ?: return ForwardingCheck.Incomplete
+        if (!spec.recipientsFromContacts) return ForwardingCheck.Incomplete
+        contactProblem(rule.id, spec.recipients)?.let { return it }
+        val risk = riskOf(spec, rule, extends = false)
+        val needsAuth = (confirmations.needsConfirmation(rule) && !confirmations.isConfirmed(rule)) || risk.riskyRecipients.isNotEmpty()
+        return if (needsAuth) ForwardingCheck.NeedsConfirmation(rule, risk) else ForwardingCheck.Ready(rule)
+    }
+
+    /** Saves [rule]; false (nothing saved) when it would turn forwarding on while no app lock is set up. */
+    fun save(rule: Rule): Boolean {
+        if (rule.enabled && rule.sendsOffDevice() && !outboundGuard.securityReady()) return false
         holds.clear(rule.id)
         viewModelScope.launch {
             rules.save(rule)
             status.refresh()
         }
+        return true
     }
 
-    /** Called after the warning and a successful biometric check for [rule]. */
-    fun confirmAndSave(rule: Rule) {
+    /** Called after the warning and a successful biometric check for [rule]; false as for [save]. */
+    fun confirmAndSave(rule: Rule): Boolean {
+        if (rule.enabled && rule.sendsOffDevice() && !outboundGuard.securityReady()) return false
         confirmations.confirm(rule)
-        save(rule)
+        return save(rule)
     }
 
-    fun setEnabled(row: ForwardingRow, enabled: Boolean, confirmed: Boolean = false) {
+    /** Turns [row] on or off; false (nothing changed) when turning it on while no app lock is set up. */
+    fun setEnabled(row: ForwardingRow, enabled: Boolean, confirmed: Boolean = false): Boolean {
+        if (enabled && !outboundGuard.securityReady()) return false
         if (confirmed) confirmations.confirm(row.rule)
         if (enabled) holds.clear(row.id)
         viewModelScope.launch {
             rules.setEnabled(row.id, enabled)
             status.refresh()
         }
+        return true
     }
 
     fun delete(row: ForwardingRow) {

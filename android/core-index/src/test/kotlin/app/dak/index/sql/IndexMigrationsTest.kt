@@ -48,8 +48,21 @@ class IndexMigrationsTest {
             ),
             IndexMigrations.SQL_3_4,
         )
+    }
+
+    @Test
+    fun migration4To5AddsTheRunLogOnly() {
+        assertEquals(4, IndexMigrations.MIGRATION_4_5.startVersion)
+        assertEquals(5, IndexMigrations.MIGRATION_4_5.endVersion)
+        val sql = IndexMigrations.SQL_4_5
+        assertTrue(sql.none { it.contains("DROP", ignoreCase = true) || it.contains("DELETE", ignoreCase = true) || it.startsWith("ALTER") })
+        assertTrue(sql.first().startsWith("CREATE TABLE IF NOT EXISTS `automation_run` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"))
+        assertTrue(
+            sql.contains("CREATE INDEX IF NOT EXISTS `index_automation_run_ruleId_atMillis` ON `automation_run` (`ruleId`, `atMillis`)"),
+        )
+        assertTrue(sql.contains("CREATE INDEX IF NOT EXISTS `index_automation_run_atMillis` ON `automation_run` (`atMillis`)"))
         assertEquals(
-            listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4),
+            listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5),
             IndexMigrations.ALL.toList(),
         )
     }

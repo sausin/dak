@@ -14,6 +14,7 @@ import app.dak.ui.automations.AutomationsScreen
 import app.dak.ui.birthdays.BirthdaysScreen
 import app.dak.ui.broadcast.BroadcastListScreen
 import app.dak.ui.broadcast.BroadcastsScreen
+import app.dak.ui.forwarding.AutomationHistoryScreen
 import app.dak.ui.forwarding.ForwardingScreen
 import app.dak.ui.fraud.FraudHelpScreen
 import app.dak.ui.notifications.NotificationChannelsScreen
@@ -87,6 +88,10 @@ fun DakNavHost(navController: NavHostController, startDestination: String, modif
         composable(Routes.SELF_TEST) { SelfTestScreen(navigator) }
         composable(Routes.FORWARDING) {
             SensitiveScreenGate(stringResource(R.string.fw_title), onBack = { navigator.back() }) { ForwardingScreen(navigator) }
+        }
+        composable(Routes.AUTOMATION_HISTORY, arguments = listOf(optionalString(Routes.ARG_RULE_ID))) {
+            // Lists forwarded message text: gated like the Forwarding screen.
+            SensitiveScreenGate(stringResource(R.string.fw_history_menu), onBack = { navigator.back() }) { AutomationHistoryScreen(navigator) }
         }
         composable(Routes.BIRTHDAYS) { BirthdaysScreen(navigator) }
         composable(Routes.FRAUD_HELP, arguments = listOf(optionalString(Routes.ARG_MESSAGE))) { FraudHelpScreen(navigator) }

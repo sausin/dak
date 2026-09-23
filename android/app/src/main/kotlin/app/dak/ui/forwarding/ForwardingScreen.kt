@@ -14,6 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ForwardToInbox
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -52,6 +56,7 @@ import app.dak.automations.forwarding.ForwardingStatus
 import app.dak.automations.rule.Rule
 import app.dak.automations.safety.ValidationIssue
 import app.dak.navigation.DakNavigator
+import app.dak.navigation.Routes
 import app.dak.ui.bin.AuthResult
 import app.dak.ui.bin.rememberAuthGate
 import app.dak.ui.common.DakTopAppBar
@@ -65,7 +70,9 @@ import kotlinx.coroutines.launch
  * contact (e.g. your CA) from your own SIM. Free: nothing leaves the phone except the SMS itself. Because forwarding
  * bank SMS and OTPs is a classic scam setup, rules default to one hour; a longer or open-ended period, extending a
  * rule, including OTPs or a risky-looking recipient shows a scam warning ([ForwardingRiskDialog]) and then needs the
- * fingerprint / screen lock ([rememberAuthGate], the shared app-lock authenticator).
+ * fingerprint / screen lock ([rememberAuthGate], the shared app-lock authenticator). Forwarding also needs the app lock
+ * to be set up ([AppLockNeededDialog] otherwise). Ended rules are listed apart and can be used again (a fresh period of
+ * the same length, through the same checks); each rule has its history of what was sent.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +90,9 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     var incomplete by remember { mutableStateOf(false) }
     // A pending high-risk confirmation: the warning is showing; Continue runs the biometric check, then [onConfirmed].
     var pendingRisk by remember { mutableStateOf<PendingRisk?>(null) }
+    // "Set up app lock first": forwarding cannot be turned on without it.
+    var lockNeeded by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
     val confirmTitle = stringResource(R.string.fw_confirm_forward_title)
     val confirmSubtitle = stringResource(R.string.fw_confirm_forward_subtitle)
     val noLockText = stringResource(R.string.scr_auto_needs_screen_lock)
@@ -106,6 +116,7 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     fun handle(check: ForwardingCheck, onReady: (Rule) -> Unit, onConfirmed: (Rule) -> Unit) {
         when (check) {
             is ForwardingCheck.Ready -> onReady(check.rule)
+            ForwardingCheck.NeedsAppLock -> lockNeeded = true
             ForwardingCheck.Incomplete -> incomplete = true
             is ForwardingCheck.Invalid -> issues = check.issues
             ForwardingCheck.NeedsContactsAccess -> {
@@ -123,8 +134,35 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         scope.launch {
             handle(
                 viewModel.checkEnable(row),
-                onReady = { viewModel.setEnabled(row, true) },
-                onConfirmed = { viewModel.setEnabled(row, true, confirmed = true) },
+                // Re-checked when applied (after the warning and fingerprint): the lock may have gone meanwhile.
+                onReady = { if (!viewModel.setEnabled(row, true)) lockNeeded = true },
+                onConfirmed = { if (!viewModel.setEnabled(row, true, confirmed = true)) lockNeeded = true },
+            )
+        }
+    }
+
+    /** Shows where a re-used rule now runs until, or the app-lock dialog when it could not be turned on. */
+    fun reused(ok: Boolean, rule: Rule) {
+        if (!ok) {
+            lockNeeded = true
+            return
+        }
+        val end = ForwardingSpec.fromRule(rule)?.endMillis
+        val text = if (end == null) {
+            context.getString(R.string.fw_use_again_done_open)
+        } else {
+            context.getString(R.string.fw_use_again_done, ForwardingStatusNotifier.formatInstant(context, end))
+        }
+        scope.launch { snackbar.showSnackbar(text) }
+    }
+
+    /** "Use again" for an ended rule: a fresh period of the same length from now. */
+    fun reuse(row: ForwardingRow) {
+        scope.launch {
+            handle(
+                viewModel.checkReuse(row),
+                onReady = { rule -> reused(viewModel.save(rule), rule) },
+                onConfirmed = { rule -> reused(viewModel.confirmAndSave(rule), rule) },
             )
         }
     }
@@ -132,7 +170,23 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { DakTopAppBar(title = stringResource(R.string.fw_title), onBack = { navigator.back() }) },
+        topBar = {
+            DakTopAppBar(title = stringResource(R.string.fw_title), onBack = { navigator.back() }) {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.action_more))
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.fw_history_menu)) },
+                        leadingIcon = { Icon(Icons.Outlined.History, contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            navigator.navigate(Routes.automationHistory())
+                        },
+                    )
+                }
+            }
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { issues = emptyList(); incomplete = false; original = null; editing = newSpec() },
@@ -142,6 +196,7 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         },
     ) { padding ->
         val list = rows.orEmpty()
+        val (ended, current) = list.partition { it.spec.status(now) == ForwardingStatus.ENDED }
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
                 Text(
@@ -165,7 +220,7 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     )
                 }
             }
-            items(list, key = { it.id }) { row ->
+            items(current, key = { it.id }) { row ->
                 ForwardingRuleRow(
                     row = row,
                     nowMillis = now,
@@ -173,14 +228,44 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         issues = emptyList()
                         incomplete = false
                         original = row.spec
-                        // Editing an ended rule (usually to extend it) turns it back on when saved.
-                        editing = if (row.spec.status(now) == ForwardingStatus.ENDED) row.spec.copy(enabled = true) else row.spec
+                        editing = row.spec
                     },
                     onToggle = { enabled -> if (enabled) enable(row) else viewModel.setEnabled(row, false) },
                     onConfirm = { enable(row) },
+                    onUseAgain = { reuse(row) },
+                    onHistory = { navigator.navigate(Routes.automationHistory(row.id)) },
                     onDelete = { viewModel.delete(row) },
                 )
                 HorizontalDivider()
+            }
+            if (ended.isNotEmpty()) {
+                item(key = "ended-header") {
+                    Text(
+                        stringResource(R.string.fw_section_ended),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
+                    )
+                }
+                items(ended, key = { it.id }) { row ->
+                    ForwardingRuleRow(
+                        row = row,
+                        nowMillis = now,
+                        onEdit = {
+                            issues = emptyList()
+                            incomplete = false
+                            original = row.spec
+                            // Editing an ended rule (e.g. to change its dates) turns it back on when saved.
+                            editing = row.spec.copy(enabled = true)
+                        },
+                        onToggle = { enabled -> if (enabled) reuse(row) },
+                        onConfirm = { reuse(row) },
+                        onUseAgain = { reuse(row) },
+                        onHistory = { navigator.navigate(Routes.automationHistory(row.id)) },
+                        onDelete = { viewModel.delete(row) },
+                    )
+                    HorizontalDivider()
+                }
             }
             item { Row(Modifier.padding(48.dp)) {} }
         }
@@ -202,12 +287,10 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         handle(
                             viewModel.checkSave(spec, original),
                             onReady = { rule ->
-                                viewModel.save(rule)
-                                editing = null
+                                if (viewModel.save(rule)) editing = null else lockNeeded = true
                             },
                             onConfirmed = { rule ->
-                                viewModel.confirmAndSave(rule)
-                                editing = null
+                                if (viewModel.confirmAndSave(rule)) editing = null else lockNeeded = true
                             },
                         )
                     }
@@ -225,6 +308,17 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 confirmThen(pending.onConfirmed)
             },
             onDismiss = { pendingRisk = null },
+        )
+    }
+
+    if (lockNeeded) {
+        AppLockNeededDialog(
+            onSetUp = {
+                lockNeeded = false
+                editing = null
+                navigator.navigate(Routes.APP_LOCK)
+            },
+            onDismiss = { lockNeeded = false },
         )
     }
 }
@@ -245,10 +339,13 @@ private fun ForwardingRuleRow(
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onConfirm: () -> Unit,
+    onUseAgain: () -> Unit,
+    onHistory: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val spec = row.spec
     val status = spec.status(nowMillis)
+    val ended = status == ForwardingStatus.ENDED
     ListItem(
         modifier = Modifier.clickable(onClick = onEdit),
         headlineContent = { Text(spec.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -276,7 +373,10 @@ private fun ForwardingRuleRow(
                         color = DakTheme.colors.warning.accent,
                     )
                 }
-                if (row.unconfirmed && status != ForwardingStatus.ENDED) {
+                if (ended) {
+                    TextButton(onClick = onUseAgain) { Text(stringResource(R.string.fw_row_use_again)) }
+                }
+                if (row.unconfirmed && !ended) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             stringResource(R.string.fw_row_needs_confirmation),
@@ -291,9 +391,12 @@ private fun ForwardingRuleRow(
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onHistory) {
+                    Icon(Icons.Outlined.History, contentDescription = stringResource(R.string.fw_history_row_cd, spec.name))
+                }
                 IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.action_delete)) }
-                // An ended rule cannot be switched back on; edit its dates instead.
-                Switch(checked = spec.enabled && status != ForwardingStatus.ENDED, onCheckedChange = onToggle, enabled = status != ForwardingStatus.ENDED)
+                // Switching an ended rule on uses it again: a fresh period of the same length from now.
+                Switch(checked = spec.enabled && !ended, onCheckedChange = onToggle)
             }
         },
     )
@@ -317,6 +420,9 @@ private fun statusText(row: ForwardingRow, status: ForwardingStatus): String {
             status == ForwardingStatus.ENDED -> R.string.fw_status_ended
             row.hold == ForwardingHold.CONTACT_MISSING -> R.string.fw_status_paused_contact
             row.hold == ForwardingHold.CONTACTS_ACCESS -> R.string.fw_status_paused_access
+            row.hold == ForwardingHold.LOCK_OFF -> R.string.fw_status_off_lock_off
+            row.hold == ForwardingHold.SCREEN_LOCK_REMOVED -> R.string.fw_status_off_screen_lock
+            row.hold == ForwardingHold.LOCK_NEEDED -> R.string.fw_status_off_lock_needed
             status == ForwardingStatus.ACTIVE -> R.string.fw_status_active
             status == ForwardingStatus.SCHEDULED -> R.string.fw_status_scheduled
             else -> R.string.fw_status_paused

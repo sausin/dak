@@ -76,6 +76,22 @@ class EnrichmentHelpersTest {
             assertEquals(expectedForBank, DefaultMessageEnricher.shouldParseTransaction("VM-HDFCBK", category), "$category")
             // A person's message is parsed only when the classifier itself said TRANSACTION.
             assertEquals(category == Category.TRANSACTION, DefaultMessageEnricher.shouldParseTransaction("+919876543210", category), "$category")
+            // ...and never when that person is a saved contact (a forwarded bank SMS is not the user's money).
+            assertFalse(DefaultMessageEnricher.shouldParseTransaction("+91 98765 43210", category, isSavedContact = true), "$category")
+        }
+        // A saved contact that is a business header is still parsed.
+        assertTrue(DefaultMessageEnricher.shouldParseTransaction("VM-HDFCBK", Category.TRANSACTION, isSavedContact = true))
+    }
+
+    @Test
+    fun formattedPhoneNumbersArePeople() {
+        for (n in listOf("+91 98765 43210", "98765-43210", "+1 (415) 555-2671", "098765\u00A043210", "+91.98765.43210")) {
+            assertTrue(DefaultMessageEnricher.isPersonNumber(n), n)
+            assertFalse(DefaultMessageEnricher.cloudEligibleSender(n), n)
+        }
+        for (b in listOf("VM-HDFCBK", "VM-HDFCBK-T", "56070", "AMAZON", "VM-612345")) {
+            assertFalse(DefaultMessageEnricher.isPersonNumber(b), b)
+            assertTrue(DefaultMessageEnricher.cloudEligibleSender(b), b)
         }
     }
 

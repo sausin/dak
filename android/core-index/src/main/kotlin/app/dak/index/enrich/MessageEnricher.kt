@@ -109,7 +109,7 @@ class DefaultMessageEnricher(
         // Jev (the opt-in cloud stage) never sees messages from people: a phone-number sender stays on the phone.
         val pipeline = if (allowCloud && cloudEligibleSender(message.address)) s.withCloud else s.local
         val classification = pipeline.classify(message.address, message.body, message.subId)
-        val transaction = if (shouldParseTransaction(message.address, classification.category)) {
+        val transaction = if (shouldParseTransaction(message.address, classification.category, isContact(message.address))) {
             // A bare "$" reads as the SIM region's own dollar (CAD, AUD, SGD...), else USD.
             val home = runCatching { regionFor(message.subId).homeCurrency }.getOrNull()
             TransactionParser.parse(message.address, message.body, CurrencyTable.symbolMapFor(home))
@@ -211,8 +211,10 @@ class DefaultMessageEnricher(
          *    unknown-sender-link and spoofing labels, non-ASCII "DLT headers" are no longer DLT headers.
          * 10: investments (template bundle 4): mutual fund / demat instruments, investment labels, SIP own-account
          *    transfers excluded from spending; ledger schema 5 -> 6 refilled by this re-index.
+         * 11: a saved contact's "transaction" (e.g. a forwarded bank SMS) is no longer parsed into the passbook, and
+         *    formatted phone numbers ("+91 98765 43210") count as people for the cloud stage.
          */
-        const val LOGIC_REVISION = 10
+        const val LOGIC_REVISION = 11
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 
@@ -220,14 +222,30 @@ class DefaultMessageEnricher(
          * Senders whose messages may go to the cloud stage: businesses (DLT headers, short codes, other alphanumeric
          * IDs). A phone number is a person, and neither their number nor their text ever leaves the phone.
          */
-        fun cloudEligibleSender(address: String): Boolean = SenderId.classify(address) != SenderKind.PHONE_NUMBER
+        fun cloudEligibleSender(address: String): Boolean = !isPersonNumber(address)
+
+        /**
+         * A phone number, however it is written: "+91 98765 43210", "98765-43210" and "+1 (415) 555-2671" are people
+         * too. Only addresses made of digits and phone punctuation are compacted, so "VM-HDFCBK" stays a header.
+         */
+        fun isPersonNumber(address: String): Boolean {
+            val trimmed = address.trim()
+            val phoneShaped = trimmed.isNotEmpty() && trimmed.all { it.isDigit() || it in PHONE_PUNCTUATION }
+            val compact = if (phoneShaped) trimmed.filter { it.isDigit() || it == '+' } else trimmed
+            return SenderId.classify(compact) == SenderKind.PHONE_NUMBER
+        }
+
+        private const val PHONE_PUNCTUATION = "+ -().\u00A0"
 
         /**
          * Transactions are parsed for messages classified as transactions, and for unclassified messages from
-         * non-personal senders (bank headers the templates do not know yet). Never for personal chats.
+         * non-personal senders (bank headers the templates do not know yet). Never for personal chats: a saved
+         * contact's number is a person (e.g. a friend forwarding their bank SMS), whose "debited" must not post to the
+         * user's passbook. An unknown number classified as a transaction is still parsed, since some banks abroad send
+         * from long numbers.
          */
-        fun shouldParseTransaction(address: String, category: Category): Boolean = when (category) {
-            Category.TRANSACTION -> true
+        fun shouldParseTransaction(address: String, category: Category, isSavedContact: Boolean = false): Boolean = when (category) {
+            Category.TRANSACTION -> !(isSavedContact && isPersonNumber(address))
             Category.UNKNOWN -> SenderId.classify(address).let { it == SenderKind.DLT_HEADER || it == SenderKind.ALPHANUMERIC }
             else -> false
         }

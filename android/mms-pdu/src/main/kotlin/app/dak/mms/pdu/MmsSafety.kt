@@ -97,6 +97,8 @@ object MmsSafety {
         val host = rawHost.trimEnd('.')
         if (host.isEmpty()) return true
         if (host == "localhost" || host.endsWith(".localhost")) return true
+        // Loopback names from common hosts files (Android's maps ip6-localhost / ip6-loopback to ::1).
+        if (host in LOOPBACK_NAMES) return true
         if (host.contains(':')) return isLocalIpv6(host)
         val labels = host.split('.')
         val numericLike = labels.all { label -> label.isNotEmpty() && (label.all { it.isDigit() } || isHexLabel(label)) }
@@ -204,3 +206,6 @@ object MmsSafety {
     private fun isInvisibleFormatChar(c: Char): Boolean =
         Character.getType(c) == Character.FORMAT.toInt() || c in '\u2028'..'\u2029' || c == '\uFFFC' || c == '\uFFFD'
 }
+
+/** Hostnames that resolve to loopback through hosts files rather than DNS. */
+private val LOOPBACK_NAMES = setOf("ip6-localhost", "ip6-loopback", "localhost.localdomain", "localhost6", "localhost6.localdomain6")

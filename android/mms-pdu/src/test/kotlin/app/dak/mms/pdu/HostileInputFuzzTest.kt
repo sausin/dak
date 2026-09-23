@@ -350,6 +350,7 @@ class HostileInputFuzzTest {
     fun contentLocationRejectsDisguisedLoopback() {
         listOf(
             "http://localhost./x", "http://LOCALHOST.:8080/x", "http://foo.localhost./x",
+            "http://ip6-localhost/x", "http://IP6-LOOPBACK./x", "http://localhost.localdomain/x", "http://localhost6/x",
             "http://[::ffff:127.0.0.1]/x", "http://[::ffff:7f00:1]/x", "http://[::127.0.0.1]/x", "http://[0::1]/x",
             "http://[0:0::1]/x", "http://[::]/x", "http://[::ffff:0.0.0.0]/x", "http://[fe80::1%25eth0]/x".takeIf { false },
             "http://2130706433/x", "http://0x7f.0.0.1/x", "http://0177.0.0.1/x", "http://127.1/x", "http://0/x",

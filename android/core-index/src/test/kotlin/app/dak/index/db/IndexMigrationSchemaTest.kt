@@ -126,6 +126,8 @@ class IndexMigrationSchemaTest {
         val tables = schema.filter { it.type == "table" && !it.sql.startsWith("CREATE VIRTUAL", ignoreCase = true) }.map { it.name }
         assertTrue(tables.containsAll(newTables + Tables.MESSAGE + Tables.ACCOUNT + Tables.LEDGER_ENTRY))
         for (table in tables) {
+            // The SupportSQLiteDatabase overload is the one these handles support; the SQLiteConnection one is newer.
+            @Suppress("DEPRECATION")
             assertEquals(TableInfo.read(fresh, table), TableInfo.read(old, table), "table $table")
         }
         room.close()

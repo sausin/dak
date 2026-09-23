@@ -248,7 +248,9 @@ class DefaultMessageEnricher(
          */
         fun shouldParseTransaction(address: String, category: Category, isSavedContact: Boolean = false): Boolean = when (category) {
             Category.TRANSACTION -> !(isSavedContact && isPersonNumber(address))
-            Category.UNKNOWN -> SenderId.classify(address).let { it == SenderKind.DLT_HEADER || it == SenderKind.ALPHANUMERIC }
+            // A formatted phone number ("+91 98765 43210") is a person, not an alphanumeric business id.
+            Category.UNKNOWN -> !isPersonNumber(address) &&
+                SenderId.classify(address).let { it == SenderKind.DLT_HEADER || it == SenderKind.ALPHANUMERIC }
             else -> false
         }
     }

@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -79,7 +80,7 @@ class SmsRoleMonitor @Inject constructor(
 
     private fun reread(): Pair<Boolean, RoleChange> {
         val now = read(fallback = state.value)
-        val change = RoleTransitions.between(state.getAndSet(now), now)
+        val change = RoleTransitions.between(state.getAndUpdate { now }, now)
         if (change == RoleChange.LOST) Log.i(TAG, "no longer the default SMS app: holding sends and downloads")
         return now to change
     }

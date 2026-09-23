@@ -122,7 +122,7 @@ class NotificationSummaries @Inject constructor(
     private fun titleOf(category: Category): Int = when (category) {
         Category.PERSONAL -> R.string.channel_personal
         Category.OTP -> R.string.channel_otp
-        Category.TRANSACTION -> R.string.channel_transactions
+        Category.TRANSACTION -> R.string.channel_alerts
         Category.PROMOTION -> R.string.channel_promotions
         Category.SPAM -> R.string.channel_spam
         Category.UNKNOWN -> R.string.channel_other

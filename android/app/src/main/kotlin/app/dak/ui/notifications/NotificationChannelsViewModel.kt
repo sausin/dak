@@ -31,7 +31,7 @@ data class ChannelsUi(
     val appBlocked: Boolean = false,
     val sections: List<ChannelSection> = emptyList(),
     val conversations: List<ConversationChannels.Custom> = emptyList(),
-    /** Critical channels (OTP / Personal / Transactions, any SIM) that are blocked. */
+    /** Critical channels (Messages / OTP codes / Alerts, any SIM) that are blocked. */
     val blockedCritical: List<ChannelState> = emptyList(),
 )
 

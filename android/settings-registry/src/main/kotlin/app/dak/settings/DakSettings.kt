@@ -113,6 +113,13 @@ object DakSettings {
         options = listOf(ChoiceOption("normal", "Normal"), ChoiceOption("large", "Large")),
         keywords = listOf("one time password", "code", "verification", "text size"),
     )
+    val otpAutoCopy = boolSetting(
+        "notifications.otpAutoCopy", SettingsGroup.NOTIFICATIONS,
+        "Copy OTPs automatically",
+        "Put a new code on the clipboard as it arrives, hidden from clipboard previews. Off: a Copy button instead.",
+        default = true,
+        keywords = listOf("one time password", "otp", "code", "copy", "clipboard", "verification", "paste"),
+    )
     val otpAutoDelete = choiceSetting(
         "notifications.otpAutoDelete", SettingsGroup.NOTIFICATIONS,
         "OTP auto-delete", "Remove OTP messages automatically after they arrive.",
@@ -545,7 +552,7 @@ object DakSettings {
 
     /** Every setting, in registry (declaration) order. Backs search indexing, group listing and reset. */
     val all: List<SettingDef<*>> = listOf(
-        perCategoryAlerts, notificationChannels, otpDisplaySize, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
+        perCategoryAlerts, notificationChannels, otpDisplaySize, otpAutoCopy, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
         quickActions, selfTest, soundPerSim, bubbles, lockScreenPrivacy,
         tabSet, swipeRight, swipeLeft, inboxOtpCopy, senderMerges, blockList, autoArchivePromosDays, fakeCreditWarnings, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
         accounts, homeCurrency, hideBalancesOnLock, ratesSource, reconciliationToleranceMinor,

@@ -1,13 +1,9 @@
 package app.dak.notifications
 
 import android.content.BroadcastReceiver
-import android.content.ClipData
-import android.content.ClipDescription
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.PersistableBundle
 import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
@@ -69,18 +65,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
     }
 
+    /** Runs on the main thread (onReceive). */
     private fun copyCode(context: Context, code: String?) {
-        if (code.isNullOrEmpty()) return
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-        val clip = ClipData.newPlainText(context.getString(R.string.clip_label_code), code)
-        // Keep the code out of clipboard previews (Android 13+ honours the flag; the key is a plain string below 33).
-        clip.description.extras = PersistableBundle().apply {
-            putBoolean(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) ClipDescription.EXTRA_IS_SENSITIVE else "android.content.extra.IS_SENSITIVE",
-                true,
-            )
-        }
-        clipboard.setPrimaryClip(clip)
+        if (code.isNullOrEmpty() || !OtpClipboard.copy(context, code)) return
         // Android 13+ shows its own copy confirmation.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             Toast.makeText(context, context.getString(R.string.toast_code_copied, code), Toast.LENGTH_SHORT).show()

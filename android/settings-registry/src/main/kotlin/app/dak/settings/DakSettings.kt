@@ -421,7 +421,7 @@ object DakSettings {
     val autoLockAfter = choiceSetting(
         "privacy.autoLockAfter", SettingsGroup.BACKUP_DATA,
         "Auto-lock", "How long Dak can stay in the background before it asks again.",
-        default = "immediately",
+        default = "1m",
         options = listOf(
             ChoiceOption("immediately", "Immediately"),
             ChoiceOption("30s", "After 30 seconds"),

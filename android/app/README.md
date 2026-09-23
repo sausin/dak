@@ -277,3 +277,29 @@ Strings in `res/values/strings_safety.xml` (prefix `safe_`).
   `CostApprovals`), `allowUnattended(address(es), subId)` for automation forwards, rule-driven scheduled sends and
   notification quick replies (premium-rate refused unless approved). Governed by `simsSending.costWarnings`
   (default on); roaming prompts also need `simsSending.roamingWarnings`.
+
+## App lock (`security/`, `ui/lock/`)
+
+Opt-in lock for the whole app (Settings → Backup, data and privacy → App lock; offered at the end of onboarding),
+plus optional protection of sensitive screens with the lock off. `MainActivity` is a `FragmentActivity` because
+androidx.biometric's `BiometricPrompt` needs one.
+
+- `security/AppLockManager` (singleton): in-memory lock state (`state: StateFlow<AppLockState>` — `locked`,
+  `effective` method, `secureWindow`, `sensitiveUnlocked`), driven by `ProcessLifecycleOwner` (auto-lock timeout)
+  and `ACTION_SCREEN_OFF`. A new process always starts locked when the lock is on. `verifyPin` / `setPin` /
+  `clearPin` (PBKDF2WithHmacSHA256, 120k iterations, random salt; only the hash is stored, in `noBackupFilesDir`
+  via `AppLockStore`; escalating lockout after 5 wrong PINs, persisted across restarts and reboots).
+- Pure, unit-tested rules: `PinHasher`/`PinPolicy`, `LockoutSchedule`/`LockoutState`, `AppLockRules`,
+  `LockSession` (auto-lock timing, auth-prompt grace), `AutoLockTimeout`/`LockMethodChoice`/`RecentsProtection`
+  (the stored values of the registry rows `privacy.*`).
+- `security/DeviceAuthCapabilities`: `BiometricManager.canAuthenticate` + `KeyguardManager` state and the
+  authenticator combination per API level (30+: `BIOMETRIC_STRONG | DEVICE_CREDENTIAL`; 28–29:
+  `BIOMETRIC_WEAK | DEVICE_CREDENTIAL`; 26–27: keyguard confirm-credential screen).
+- Asking the user to confirm something sensitive: `ui/lock/rememberAppAuthGate()` →
+  `gate.authenticate(title, subtitle) { result: ConfirmResult -> }` (app PIN when chosen, else the phone's screen lock,
+  falling back to the app PIN; `UNAVAILABLE` when neither exists). `ui/bin/rememberAuthGate()` is the same thing with
+  the older `AuthResult` type.
+- Gating a whole destination: wrap it in `ui/lock/SensitiveScreenGate(title, onBack) { Screen(navigator) }` (done in
+  `DakNavHost` for bin, passbook, backup, automations, forwarding).
+- Notifications: with the lock on, Reply and Delete open the conversation (unlock first) via
+  `security/AppLockNotifications`; Copy code and Mark read still work in the background.

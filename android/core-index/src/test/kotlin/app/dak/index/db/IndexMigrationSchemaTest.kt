@@ -16,10 +16,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Checks that [IndexMigrations.MIGRATION_1_2] + [IndexMigrations.MIGRATION_2_3] (from version 1) and
- * [IndexMigrations.MIGRATION_2_3] alone (from version 2) produce exactly the schema Room generates for version 3 (the
- * same comparison Room makes when it opens a migrated database). Older versions are reconstructed from Room's
- * version-3 DDL minus what the migrations add, so the test needs no exported schema file.
+ * Checks that the migration chain from every older version (1, 2, 3) produces exactly the schema Room generates for
+ * the current version 4 (the same comparison Room makes when it opens a migrated database). Older versions are
+ * reconstructed from Room's current DDL minus what the migrations add, so the test needs no exported schema file.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -56,12 +55,27 @@ class IndexMigrationSchemaTest {
         ),
     )
 
-    @Test
-    fun migratedVersion1MatchesRoomVersion3() =
-        assertMigrates(listOf(delta12, delta23), listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3))
+    private val delta34 = Delta(
+        tables = emptySet(),
+        columns = mapOf(
+            Tables.MESSAGE to listOf(", `deliveryStatus` INTEGER NOT NULL DEFAULT -1", ", `deliveredAtMillis` INTEGER"),
+        ),
+    )
 
     @Test
-    fun migratedVersion2MatchesRoomVersion3() = assertMigrates(listOf(delta23), listOf(IndexMigrations.MIGRATION_2_3))
+    fun migratedVersion1MatchesRoomVersion4() = assertMigrates(
+        listOf(delta12, delta23, delta34),
+        listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4),
+    )
+
+    @Test
+    fun migratedVersion2MatchesRoomVersion4() = assertMigrates(
+        listOf(delta23, delta34),
+        listOf(IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4),
+    )
+
+    @Test
+    fun migratedVersion3MatchesRoomVersion4() = assertMigrates(listOf(delta34), listOf(IndexMigrations.MIGRATION_3_4))
 
     private fun assertMigrates(deltas: List<Delta>, migrations: List<androidx.room.migration.Migration>) {
         val context = ApplicationProvider.getApplicationContext<Context>()

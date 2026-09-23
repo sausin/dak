@@ -71,5 +71,22 @@ object IndexMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+    /** SQL of [MIGRATION_3_4], exposed for tests. */
+    val SQL_3_4: List<String> = listOf(
+        // IndexedMessage.deliveryStatus (DeliveryStatus.code, -1 = none) and deliveredAtMillis: delivery ticks.
+        "ALTER TABLE `${Tables.MESSAGE}` ADD COLUMN `deliveryStatus` INTEGER NOT NULL DEFAULT -1",
+        "ALTER TABLE `${Tables.MESSAGE}` ADD COLUMN `deliveredAtMillis` INTEGER",
+    )
+
+    /**
+     * 3 -> 4: delivery reports (double ticks). Additive only; existing rows read "no report" until the reconcile
+     * refreshes recent outgoing messages or a re-index rewrites them.
+     */
+    val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (sql in SQL_3_4) db.execSQL(sql)
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 }

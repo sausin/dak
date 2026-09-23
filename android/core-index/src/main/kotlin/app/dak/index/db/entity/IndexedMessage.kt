@@ -1,5 +1,6 @@
 package app.dak.index.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Fts4
 import androidx.room.FtsOptions
@@ -88,6 +89,15 @@ data class IndexedMessage(
      * `app.dak.index.enrich.RepeatRules`).
      */
     val repeatGroup: String? = null,
+    /**
+     * Delivery-report state of an outgoing message as `DeliveryStatus.code` (-1 none, 32 pending, 0 delivered,
+     * 64 failed; the provider's `Telephony.Sms.STATUS_*` values). Kept fresh for recent outgoing rows by the
+     * reconcile (`ProviderReconciler`), since reports can arrive minutes after sending.
+     */
+    @ColumnInfo(defaultValue = "-1")
+    val deliveryStatus: Int = -1,
+    /** When the delivery report arrived, if the provider recorded it. */
+    val deliveredAtMillis: Long? = null,
 ) {
     companion object {
         const val PREVIEW_LENGTH = 200

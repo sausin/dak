@@ -266,6 +266,24 @@ interface MessageDao {
     @Query("UPDATE indexed_message SET archived = :archived WHERE kind = :kind AND providerId = :providerId")
     suspend fun setArchived(kind: String, providerId: Long, archived: Boolean): Int
 
+    /**
+     * Outgoing rows since [sinceMillis] whose ticks can still change: sending / queued / failed (a retry moves it),
+     * or sent with a delivery report still pending (`deliveryStatus` 32). Uses the `dateMillis` index.
+     */
+    @Query(
+        "SELECT kind, providerId FROM indexed_message WHERE dateMillis >= :sinceMillis " +
+            "AND (box IN ('OUTBOX', 'QUEUED', 'FAILED') OR (box = 'SENT' AND deliveryStatus = 32)) " +
+            "ORDER BY dateMillis DESC LIMIT :limit",
+    )
+    suspend fun unsettledOutgoing(sinceMillis: Long, limit: Int): List<KeyRow>
+
+    /** Applies a provider send / delivery state change without re-reading the message. [box] is a `MessageBox` name. */
+    @Query(
+        "UPDATE indexed_message SET box = :box, deliveryStatus = :deliveryStatus, deliveredAtMillis = :deliveredAtMillis " +
+            "WHERE kind = :kind AND providerId = :providerId",
+    )
+    suspend fun setOutgoingState(kind: String, providerId: Long, box: String, deliveryStatus: Int, deliveredAtMillis: Long?): Int
+
     @Query("UPDATE indexed_message SET otpConsumedBy = :packageName WHERE kind = :kind AND providerId = :providerId")
     suspend fun setOtpConsumedBy(kind: String, providerId: Long, packageName: String?): Int
 

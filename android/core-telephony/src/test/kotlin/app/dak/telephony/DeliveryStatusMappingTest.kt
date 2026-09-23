@@ -36,7 +36,9 @@ class DeliveryStatusMappingTest {
     fun smsRaw3gpp2Status() {
         fun cdma(errorClass: Int, code: Int) = ((errorClass shl 8) or code) shl 16
         assertEquals(DeliveryStatus.DELIVERED, DeliveryStatusMapping.sms(MessageBox.SENT, cdma(0, 2)))
-        assertEquals(DeliveryStatus.PENDING, DeliveryStatusMapping.sms(MessageBox.SENT, cdma(0, 0)))
+        // Class 0 "deposited to internet" (1): not yet delivered. (Class 0 "accepted" is 0, indistinguishable from
+        // STATUS_COMPLETE, and our own receiver never stores raw values anyway.)
+        assertEquals(DeliveryStatus.PENDING, DeliveryStatusMapping.sms(MessageBox.SENT, cdma(0, 1)))
         assertEquals(DeliveryStatus.PENDING, DeliveryStatusMapping.sms(MessageBox.SENT, cdma(2, 4)))
         assertEquals(DeliveryStatus.FAILED, DeliveryStatusMapping.sms(MessageBox.SENT, cdma(3, 4)))
     }

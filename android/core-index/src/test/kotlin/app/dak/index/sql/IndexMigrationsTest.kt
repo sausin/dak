@@ -35,6 +35,22 @@ class IndexMigrationsTest {
         assertTrue(sql.any { it.contains("PRIMARY KEY(`accountId`, `messageKey`)") })
         assertTrue(sql.contains("CREATE INDEX IF NOT EXISTS `index_ledger_entry_accountId_dateMillis` ON `ledger_entry` (`accountId`, `dateMillis`)"))
         assertTrue(sql.any { it.startsWith("CREATE TABLE IF NOT EXISTS `account_type_override`") })
-        assertEquals(listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3), IndexMigrations.ALL.toList())
+    }
+
+    @Test
+    fun migration3To4AddsDeliveryColumnsOnly() {
+        assertEquals(3, IndexMigrations.MIGRATION_3_4.startVersion)
+        assertEquals(4, IndexMigrations.MIGRATION_3_4.endVersion)
+        assertEquals(
+            listOf(
+                "ALTER TABLE `indexed_message` ADD COLUMN `deliveryStatus` INTEGER NOT NULL DEFAULT -1",
+                "ALTER TABLE `indexed_message` ADD COLUMN `deliveredAtMillis` INTEGER",
+            ),
+            IndexMigrations.SQL_3_4,
+        )
+        assertEquals(
+            listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4),
+            IndexMigrations.ALL.toList(),
+        )
     }
 }

@@ -1,6 +1,7 @@
 package app.dak.index.sync
 
 import app.dak.core.model.Attachment
+import app.dak.core.model.DeliveryStatus
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.Message
 import app.dak.core.model.MessageKey
@@ -76,11 +77,13 @@ internal object IndexRowMapper {
             searchText = searchText(message.body),
             searchSender = searchSender(message.address, c.canonicalSender),
             repeatGroup = repeatGroup,
+            deliveryStatus = message.deliveryStatus.code,
+            deliveredAtMillis = message.deliveredAtMillis,
         )
     }
 
     /**
-     * Refreshes only the provider-owned, volatile fields (box, read state, SIM, thread, attachments) of an
+     * Refreshes only the provider-owned, volatile fields (box, read state, delivery report, SIM, thread, attachments) of an
      * already-enriched row whose body did not change, keeping its classification.
      */
     fun refresh(existing: IndexedMessage, message: Message, rules: GroupingRules, nowMillis: Long): IndexedMessage {
@@ -98,6 +101,8 @@ internal object IndexRowMapper {
             hasAttachment = message.attachments.isNotEmpty(),
             attachmentsJson = IndexJson.json.encodeToString(attachmentsSerializer, message.attachments),
             indexedAt = nowMillis,
+            deliveryStatus = message.deliveryStatus.code,
+            deliveredAtMillis = message.deliveredAtMillis,
         )
     }
 
@@ -118,6 +123,8 @@ internal object IndexRowMapper {
         read = row.read,
         seen = row.seen,
         attachments = attachments(row.attachmentsJson),
+        deliveryStatus = DeliveryStatus.fromCode(row.deliveryStatus),
+        deliveredAtMillis = row.deliveredAtMillis,
     )
 
     fun attachments(json: String): List<Attachment> =

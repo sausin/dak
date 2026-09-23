@@ -10,7 +10,7 @@ enum class AutoLockTimeout(val value: String, val millis: Long) {
     ;
 
     companion object {
-        val DEFAULT = IMMEDIATELY
+        val DEFAULT = MINUTE_1
         fun fromValue(value: String?): AutoLockTimeout = entries.firstOrNull { it.value == value } ?: DEFAULT
     }
 }

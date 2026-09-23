@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Security hardening (agent "redteam"). All names prefixed sec_. -->
+<resources>
+    <!-- Link warning: the host that will really open (punycode for look-alike letters). %1$s = host. -->
+    <string name="sec_link_real_host">Opens: %1$s</string>
+    <!-- Chooser title for attachments that are not opened directly (unknown or risky file types). -->
+    <string name="sec_attachment_save_title">Save or share attachment</string>
+</resources>

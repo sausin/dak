@@ -299,9 +299,13 @@ class BackupManager @Inject constructor(
             key = key,
             existingKeys = { kind, address, date, bodyHash -> ProviderSnapshot.dedupeKey(kind, address, date, bodyHash) in existing },
             attachmentSink = { sha, input ->
-                val file = File(tempDir, sha)
-                file.outputStream().use { input.copyTo(it) }
-                files[sha] = file
+                // Defence in depth: :backup only passes 64-hex names, but a name from a backup file must never
+                // become a path ("../../databases/…").
+                if (SHA256_HEX.matches(sha)) {
+                    val file = File(tempDir, sha)
+                    file.outputStream().use { input.copyTo(it) }
+                    files[sha] = file
+                }
             },
             fromBlobName = blob,
         ).collect { record ->
@@ -456,6 +460,9 @@ class BackupManager @Inject constructor(
 
     private companion object {
         const val MAX_INCREMENTALS = 14
+
+        /** Content-addressed attachment names: lower-case SHA-256 hex, never a path. */
+        val SHA256_HEX = Regex("^[0-9a-f]{64}$")
 
         /** Settings-JSON key carrying the sender fold rules (a JSON string, see `SenderMergeRepository.exportRules`). */
         const val FOLDS_KEY = "dak.index.senderFolds"

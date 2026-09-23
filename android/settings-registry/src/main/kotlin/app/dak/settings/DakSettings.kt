@@ -392,6 +392,16 @@ object DakSettings {
         "automations.scheduledSends", SettingsGroup.AUTOMATIONS,
         "Scheduled sends", "Messages queued to send at a later time.",
     )
+    val forwarding = actionSetting(
+        "automations.forwarding", SettingsGroup.AUTOMATIONS,
+        "Auto-forwarding", "Forward chosen senders to someone for a period, e.g. bank alerts to your CA. Free: sent from your own SIM.",
+        keywords = listOf("forward", "auto forward", "chartered accountant", "ca", "relay"),
+    )
+    val birthdayWishes = actionSetting(
+        "automations.birthdayWishes", SettingsGroup.AUTOMATIONS,
+        "Birthday wishes", "Birthdays from your contacts, with a wish sent or suggested on the day.",
+        keywords = listOf("birthday", "anniversary", "wish", "greeting", "contacts"),
+    )
     val webhooks = actionSetting(
         "automations.webhooks", SettingsGroup.AUTOMATIONS,
         "Webhooks", "Send a signed HTTP request when a rule fires.",
@@ -450,7 +460,7 @@ object DakSettings {
         deliveryReports, sendRateSpreading, exactAlarmPermission,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup, indexSchedule, rebuildIndex,
-        rulesList, scheduledSends, webhooks, sendApiKeys, auditLog,
+        rulesList, scheduledSends, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,
         translationLanguages, autoTranslateRules, downloadedPacks, freeTasterPack, packStorageLocation,
     )
 

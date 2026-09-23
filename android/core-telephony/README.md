@@ -28,6 +28,21 @@ ACTION_CHANGE_DEFAULT below), `SmsSegmentCounter.count(text)` → `SmsSegments`,
 reports, m-notifyresp-ind, per-SIM home-country override; SharedPreferences so receivers can read it
 synchronously), `SendRateLimiter`.
 
+## SMS cost classification (`cost/`, pure JVM)
+
+- `DestinationCostClassifier().classify(destination, simCountryIso, networkCountryIso, isRoaming): CostVerdict` —
+  libphonenumber `ShortNumberInfo.getExpectedCostForRegion` for short codes (judged in the SIM **home** region) and
+  `PhoneNumberUtil` number type / calling code for full numbers. `CostVerdict(destination, kind, destinationRegion,
+  roaming)`; `kind: CostKind` in precedence order `EMERGENCY` (info, never blocked), `PREMIUM_RATE` (strong),
+  `ALPHANUMERIC` (can't receive replies), `UNKNOWN_SHORT_CODE`, `INTERNATIONAL` (calling code ≠ home), `ROAMING`
+  (abroad only: domestic roaming is not flagged), `STANDARD_SHORT_CODE`, `TOLL_FREE`, `NORMAL`; `severity`
+  (`NONE`/`INFO`/`MILD`/`STRONG`) and `needsConfirmation` (MILD+).
+- `CostPolicy.toConfirm(verdicts, subId, approvedKeys, warnRoaming)`, `CostPolicy.allowUnattended(verdict, subId,
+  approvedKeys)` (premium-rate refused unless approved), `CostPolicy.approvalKey(destination, subId)`.
+- Note: libphonenumber 8.13.x has no premium or tariff data for Indian commercial short codes (5xxxx), so from an
+  Indian SIM they classify as `UNKNOWN_SHORT_CODE` (mild warning); `1909`, `121`, `198`, `199` are `TOLL_FREE`.
+- The Android wrapper (SIM home/network country, settings, approvals) is `app.dak.safety.SendCostGuard` in :app.
+
 ## Receiving
 
 - **SMS** (`SmsDeliverReceiver`): `goAsync()` + app-scope coroutine, 7 s budget. Parts assembled with
@@ -99,6 +114,6 @@ messages.
 
 ## Tests
 
-Pure logic is JVM-tested (`src/test`): E.164 normalisation, rate limiter, retry backoff, SMS/MMS result codes,
+Pure logic is JVM-tested (`src/test`): E.164 normalisation, SMS cost classification, rate limiter, retry backoff, SMS/MMS result codes,
 3GPP/3GPP2 delivery status, multipart progress, RESPOND_VIA_MESSAGE parsing, PDU → provider row mapping and
 thread-recipient rules, download-state and SIM codecs. Android classes are exercised on device (no Robolectric).

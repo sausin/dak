@@ -27,7 +27,7 @@ sealed interface ComposerEvent {
 /**
  * Composer state and actions shared by the conversation and new-message screens: draft text (kept in the
  * [SavedStateHandle] so it survives process death), attachments, reply SIM, MMS switch, segment counter, roaming
- * chip and normalisation hint, and the send / send-later paths.
+ * chip and normalisation hint, and the send / send-later paths (with the SMS cost confirmation, [CostPrompt]).
  */
 class ComposerDelegate(
     private val scope: CoroutineScope,

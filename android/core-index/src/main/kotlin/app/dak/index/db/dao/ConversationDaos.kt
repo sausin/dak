@@ -38,6 +38,9 @@ interface SenderMergeDao {
     @Query("SELECT * FROM sender_merge_group ORDER BY displayName COLLATE NOCASE")
     fun observeGroups(): Flow<List<SenderMergeGroup>>
 
+    @Query("SELECT * FROM sender_merge_group")
+    suspend fun allGroups(): List<SenderMergeGroup>
+
     @Query("SELECT mergeKey FROM sender_merge_group WHERE displayName LIKE :like ESCAPE '\\' LIMIT 50")
     suspend fun mergeKeysNamed(like: String): List<String>
 

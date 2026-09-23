@@ -6,6 +6,7 @@ import app.dak.automations.action.DefaultActionRegistry
 import app.dak.automations.action.Labeler
 import app.dak.automations.action.ReplyScheduler
 import app.dak.automations.action.SmsForwarder
+import app.dak.index.maintenance.MaintenanceTask
 import app.dak.telephony.IncomingMessageHandler
 import dagger.Binds
 import dagger.Module
@@ -15,7 +16,10 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import javax.inject.Singleton
 
-/** Android implementations of :automations' executor interfaces, and the automation runner hook. */
+/**
+ * Android implementations of :automations' executor interfaces, the automation runner hook, and the automations'
+ * contribution to the daily maintenance job.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class AutomationModule {
@@ -34,6 +38,9 @@ abstract class AutomationModule {
 
     @Binds @IntoSet
     abstract fun automationRunner(impl: AutomationRunner): IncomingMessageHandler
+
+    @Binds @IntoSet
+    abstract fun housekeepingTask(impl: AutomationMaintenanceTask): MaintenanceTask
 
     companion object {
         @Provides @Singleton

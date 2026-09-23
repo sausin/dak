@@ -49,6 +49,8 @@ internal object SettingsActions {
         DakSettings.sendApiKeys.key,
         DakSettings.auditLog.key,
         -> Routes.AUTOMATIONS
+        DakSettings.forwarding.key -> Routes.FORWARDING
+        DakSettings.birthdayWishes.key -> Routes.BIRTHDAYS
         else -> null
     }
 

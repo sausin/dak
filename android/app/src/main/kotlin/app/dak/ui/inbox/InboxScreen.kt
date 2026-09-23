@@ -146,6 +146,8 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 R.string.scr_bin_title to Routes.BIN,
                                 R.string.scr_passbook_title to Routes.PASSBOOK,
                                 R.string.scr_automations_title to Routes.AUTOMATIONS,
+                                R.string.fw_menu_forwarding to Routes.FORWARDING,
+                                R.string.fw_menu_birthdays to Routes.BIRTHDAYS,
                                 R.string.scr_backup_title to Routes.BACKUP,
                                 R.string.scr_blocked_title to Routes.BLOCKED,
                                 R.string.settings_title to Routes.settings(),

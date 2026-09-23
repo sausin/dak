@@ -66,6 +66,6 @@ webhooks and send API are not implemented.
 
 - Battery: see [battery.md](battery.md). The index DB open is deferred to the first (background) query, the
   settings snapshot is preloaded on IO, the classifier JSON is parsed once per process and the app-hash table is
-  persisted (built once). Still open: `ConsumedOtpDetector` rebuilds its own hash table per process (see
-  battery.md, "Deferred").
+  persisted (built once). The notifier reads consumed-OTP
+  attribution from that persisted table and posts muted conversations silently.
 - Navigation args are `Uri.decode`d twice in some ViewModels (a literal `%xx` gets mangled).

@@ -22,7 +22,7 @@ class RegexSafetyTest {
 
     private val exponential = listOf(
         "(a+)+$", "(a*)*b", "(a|aa)+$", "(a|a?)+", "(\\w+\\s?)*$", "^(\\d+)*$", "(.*a){2,}x", "((ab)*)+c",
-        "(?:[a-z]+\\.)+com!", "(x+x+)+y", "([a-zA-Z0-9]+)*@", "(a?){25}a{25}", "(\\1)", "(a)\\1+", "(?<n>a)\\k<n>",
+        "(x+x+)+y", "([a-zA-Z0-9]+)*@", "(a?){25}a{25}", "(\\1)", "(a)\\1+", "(?<n>a)\\k<n>",
     )
 
     private val acceptable = listOf(

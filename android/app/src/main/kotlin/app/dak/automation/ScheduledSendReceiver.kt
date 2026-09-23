@@ -19,12 +19,13 @@ import kotlinx.coroutines.launch
 
 /**
  * Alarm target for scheduled sends. Runs the due sends straight away inside the alarm's idle-whitelist window
- * (`goAsync`), and also enqueues [ScheduledSendWorker] as a backup in case the process is killed mid-way.
- * Also re-arms pending sends after a reboot or clock change (`BOOT_COMPLETED`, `TIME_SET`, `TIMEZONE_CHANGED`).
+ * (`goAsync`); only if that fails is [ScheduledSendWorker] enqueued to retry (the per-send WorkManager fallback armed
+ * by [ScheduledSendScheduler] covers a killed process), so a due send normally costs one wakeup.
  *
- * Also the target of the birthday prompt's Send / Skip actions ([ACTION_BIRTHDAY_SEND], [ACTION_BIRTHDAY_SKIP]), and
- * on boot/clock changes it re-posts the "Forwarding active" notification (ongoing notifications do not survive a
- * reboot) and gives [DailyHousekeeping] its daily chance.
+ * Also the target of the birthday prompt's Send / Skip actions ([ACTION_BIRTHDAY_SEND], [ACTION_BIRTHDAY_SKIP]).
+ * After a reboot or clock change (`BOOT_COMPLETED`, `TIME_SET`, `TIMEZONE_CHANGED`) it re-arms pending sends and
+ * re-posts the "Forwarding active" notification (ongoing notifications do not survive a reboot) — each only when a
+ * SharedPreferences flag says there is something to do, so an idle install never opens the index database here.
  *
  * Needs a manifest entry (see app/README.md, "Screens"): `<receiver android:name=".automation.ScheduledSendReceiver"
  * android:exported="false">` plus an intent filter for BOOT_COMPLETED if reboot re-arming is wanted.
@@ -39,7 +40,6 @@ class ScheduledSendReceiver : BroadcastReceiver() {
         fun birthdayGate(): BirthdaySendGate
         fun birthdayNotifications(): BirthdayNotifications
         fun forwardingStatus(): ForwardingStatusNotifier
-        fun housekeeping(): DailyHousekeeping
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -51,12 +51,9 @@ class ScheduledSendReceiver : BroadcastReceiver() {
             try {
                 when (action) {
                     ACTION_SEND_DUE -> {
-                        WorkManager.getInstance(app).enqueueUniqueWork(
-                            RUN_NOW_WORK,
-                            ExistingWorkPolicy.KEEP,
-                            OneTimeWorkRequestBuilder<ScheduledSendWorker>().addTag(ScheduledSendWorker.TAG).build(),
-                        )
-                        deps.executor().runDue()
+                        val ok = runCatching { deps.executor().runDue() }.isSuccess
+                        if (!ok) enqueueRetry(app)
+                        deps.scheduler().rearmPending()
                     }
                     ACTION_BIRTHDAY_SEND -> {
                         deps.birthdayNotifications().cancel(intent.getIntExtra(BirthdayNotifications.EXTRA_NOTIFICATION_ID, 0))
@@ -66,7 +63,8 @@ class ScheduledSendReceiver : BroadcastReceiver() {
                         if (tag != null && !number.isNullOrBlank() && !body.isNullOrBlank()) {
                             val subId = intent.getIntExtra(BirthdayNotifications.EXTRA_SUB_ID, -1)
                             if (deps.birthdayGate().sendFromPrompt(tag, number, body, subId, System.currentTimeMillis())) {
-                                deps.executor().runDue()
+                                val ok = runCatching { deps.executor().runDue() }.isSuccess
+                                if (!ok) enqueueRetry(app)
                             }
                         }
                     }
@@ -76,17 +74,26 @@ class ScheduledSendReceiver : BroadcastReceiver() {
                             ?.let { deps.birthdayGate().skipFromPrompt(it, System.currentTimeMillis()) }
                     }
                     else -> {
-                        // Boot / time set / time zone change.
-                        deps.forwardingStatus().refresh()
-                        deps.housekeeping().runIfDue()
+                        // Boot / time set / time zone change: only touch the database when there is something to do.
+                        if (deps.scheduler().mightHavePending()) deps.scheduler().rearmPending()
+                        if (deps.forwardingStatus().wasShowing()) deps.forwardingStatus().refresh()
                     }
                 }
-                deps.scheduler().rearmPending()
             } catch (e: Exception) {
-                // The WorkManager job enqueued above (or the per-send fallback) retries.
+                // The per-send WorkManager fallback (or the retry enqueued above) runs it later.
             } finally {
                 pending.finish()
             }
+        }
+    }
+
+    private fun enqueueRetry(app: Context) {
+        runCatching {
+            WorkManager.getInstance(app).enqueueUniqueWork(
+                RUN_NOW_WORK,
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<ScheduledSendWorker>().addTag(ScheduledSendWorker.TAG).build(),
+            )
         }
     }
 

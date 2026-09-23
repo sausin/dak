@@ -33,6 +33,15 @@ class ForwardingStatusNotifier @Inject constructor(
     private val rules: RuleRepository,
 ) {
 
+    private val flags by lazy { context.getSharedPreferences(FLAGS_PREFS, Context.MODE_PRIVATE) }
+
+    /** True when the last [refresh] found live forwarding rules (one SharedPreferences read, no database). */
+    fun wasShowing(): Boolean = flags.getBoolean(KEY_SHOWING, false)
+
+    private fun setShowing(showing: Boolean) {
+        if (wasShowing() != showing) flags.edit().putBoolean(KEY_SHOWING, showing).apply()
+    }
+
     /** Live forwarding rules (active or scheduled), for the notification and the Settings/Automations summary. */
     suspend fun liveSpecs(nowMillis: Long = System.currentTimeMillis()): List<ForwardingSpec> =
         rules.enabledRules()
@@ -45,8 +54,10 @@ class ForwardingStatusNotifier @Inject constructor(
         val manager = NotificationManagerCompat.from(context)
         if (live.isEmpty()) {
             manager.cancel(TAG, ID)
+            setShowing(false)
             return
         }
+        setShowing(true)
         if (!canNotify()) return
         ensureChannel(manager)
         val lines = live.map { summaryLine(context, it, nowMillis) }
@@ -108,6 +119,8 @@ class ForwardingStatusNotifier @Inject constructor(
         private const val TAG = "forwarding-status"
         private const val ID = 41_001
         private const val REQUEST_CODE = 41_001
+        private const val FLAGS_PREFS = "dak_forwarding_status"
+        private const val KEY_SHOWING = "showing"
 
         /** "HDFC Bank, Zerodha → Sharma CA (until 31 Jul 2026)" / "(from 1 Jul 2026)" / "(until you stop it)". */
         fun summaryLine(context: Context, spec: ForwardingSpec, nowMillis: Long): String {

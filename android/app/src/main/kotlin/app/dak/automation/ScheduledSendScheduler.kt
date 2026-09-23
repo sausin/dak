@@ -36,6 +36,8 @@ class ScheduledSendScheduler @Inject constructor(
     private val sims: SimRepository,
 ) : ReplyScheduler {
 
+    private val flags by lazy { context.getSharedPreferences(FLAGS_PREFS, Context.MODE_PRIVATE) }
+
     override suspend fun scheduleReply(to: String, subId: Int?, text: String, atMillis: Long): Boolean {
         if (to.isBlank()) return false
         schedule(addresses = listOf(to), body = text, subId = subId, atMillis = atMillis)
@@ -53,6 +55,7 @@ class ScheduledSendScheduler @Inject constructor(
     ): Long {
         val sub = subId?.takeIf { it != NO_SUB_ID } ?: sims.defaultSmsSubId()
         val id = store.schedule(addresses, body, sub, atMillis, conversationId = conversationId, ruleId = ruleId)
+        flags.edit().putBoolean(KEY_MIGHT_HAVE_PENDING, true).apply()
         arm(id, atMillis)
         return id
     }
@@ -71,8 +74,16 @@ class ScheduledSendScheduler @Inject constructor(
 
     /** Re-arms every pending send (after a reboot, a time change, or when a run finished). */
     suspend fun rearmPending() {
-        for (send in store.pending().first()) arm(send.id, send.sendAtMillis)
+        val pending = store.pending().first()
+        if (pending.isEmpty()) flags.edit().putBoolean(KEY_MIGHT_HAVE_PENDING, false).apply()
+        for (send in pending) arm(send.id, send.sendAtMillis)
     }
+
+    /**
+     * Cheap check (one SharedPreferences read, no database) for whether any send may still be pending: false only
+     * after [rearmPending] saw none and nothing was scheduled since. True on a fresh install's first check.
+     */
+    fun mightHavePending(): Boolean = flags.getBoolean(KEY_MIGHT_HAVE_PENDING, true)
 
     /** True when alarms can fire at the exact minute (always below Android 12). */
     fun canScheduleExact(): Boolean {
@@ -139,6 +150,8 @@ class ScheduledSendScheduler @Inject constructor(
 
     private companion object {
         const val TAG = "DakScheduledSend"
+        const val FLAGS_PREFS = "dak_scheduled_send_flags"
+        const val KEY_MIGHT_HAVE_PENDING = "might_have_pending"
         fun workName(id: Long) = "scheduled-send-$id"
     }
 }

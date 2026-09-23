@@ -36,7 +36,7 @@ class ConversationSqlBuilderTest {
         val columns = listOf(
             "conversationId", "dateMillis", "kind", "providerId", "threadId", "address", "mergeKey",
             "canonicalSender", "snippet", "category", "box", "hasAttachment", "unreadCount", "messageCount",
-            "subIds", "threadIds", "pinned", "muted", "archived", "starred", "groupName",
+            "subIds", "threadIds", "pinned", "muted", "archived", "starred", "groupName", "repeatGroup",
         )
         for (c in columns) {
             assertEquals(1, Regex("AS $c\\b").findAll(sql).count(), "column $c")

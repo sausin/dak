@@ -214,3 +214,27 @@ All screens keep the pinned signatures and get their ViewModel via `hiltViewMode
 
 Without them everything still compiles and degrades: scheduled sends fall back to WorkManager timing, the camera
 falls back to `TakePicturePreview`, and location sharing reports "unavailable".
+
+## Safety: fraud help and SMS cost warnings (`safety/`, `ui/fraud/`)
+
+Strings in `res/values/strings_safety.xml` (prefix `safe_`).
+
+- `safety.helplines.HelplineRepository.current(): HelplinePayload` — official helplines from
+  `assets/helplines-v1.json` (identical to `shared/formats/helplines-v1.json`, enforced by `HelplineBundleTest`);
+  `applyUpdate(json)` accepts only a signed copy with a higher `revision` (verifier is `RejectAllVerifier` until a
+  signing key is provisioned). `HelplineBundle.parseBundled/parseSigned/canonicalPayload` are pure.
+- `safety.helplines.UserHelplines` — user-entered numbers ("My bank's card-block number"), on device, always
+  shown as unverified. Dak ships no bank numbers.
+- `safety.FraudReport` — pure: `traiComplaintBody(text, sender, dateMillis, format)` (1909 complaint,
+  `<text>,<sender>,<dd/MM/yy>` by default) and `detailsText(...)` for pasting into Chakshu / cybercrime.gov.in.
+- `ui.fraud.FraudHelpScreen` (`Routes.fraudHelp(messageKey?)`): 1930 first, report flows for the message (1909 via
+  the composer, Chakshu / cybercrime portal with details copied, block sender, copy details), quick-dial tiles
+  (`ACTION_DIAL` only — no CALL_PHONE), source links, user bank numbers. Entry points: thread menu and bubble
+  long-press "Report fraud", the link-warning dialog's "Report", and the static launcher shortcut
+  (`res/xml/shortcuts.xml` per variant, action `IntentRoutes.ACTION_REPORT_FRAUD`).
+- `safety.SendCostGuard` — Android wrapper over `:core-telephony`'s `DestinationCostClassifier`:
+  `toConfirm(addresses, subId)` for interactive sends (the composer shows `CostWarningDialog` via
+  `ComposerUi.costPrompt`, for send now and send later; "Don't ask again" is stored per number + SIM in
+  `CostApprovals`), `allowUnattended(address(es), subId)` for automation forwards, rule-driven scheduled sends and
+  notification quick replies (premium-rate refused unless approved). Governed by `simsSending.costWarnings`
+  (default on); roaming prompts also need `simsSending.roamingWarnings`.

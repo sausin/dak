@@ -43,7 +43,7 @@ running. Work that happens during an incoming-SMS broadcast piggybacks on a wake
 | 4 | Consumed-OTP delete, 10 min after arrival | job | included in the 60 above, one job each | about 25–35 (usually while the screen is still on) | batch `moveToBin` | **Fixed.** Same sweep job. Never early (a retrying app can still read the code), at most 3 min late, so OTPs close together share a run. |
 | 5 | Provider ContentObserver → incremental reconcile | in-process only | about 600 runs (300 ms debounce, 1–2 provider changes per SMS), each walking the whole SMS table for a count | about 300 runs (3 s coalescing). The table-count walk runs at most once per 30 min | indexed `id > max` query, refresh of 20 recent rows | **Fixed.** Coalesced in `IndexSync`. Never keeps the process alive. |
 | 6 | Periodic provider reconcile (full deletion scan over all keys) | periodic job | 4 (every 6 h, battery not low) | folded into daily maintenance (row 9). The deletion scan is skipped when provider and index counts match | O(all messages) when it runs | **Fixed.** |
-| 7 | App-signature table (consumed-OTP detection) | at process start + when a hash is unknown | a package scan at **every process start** (about 150) + up to once a minute when a hash is unknown | built once per install. Refreshed incrementally by maintenance. An unknown hash refreshes at most once a minute, and a hash that stays unknown is not retried for 6 h (remembered across processes) | `getInstalledPackages` + SHA-256 for changed packages only | **Fixed** in `AppSignatureRegistry`. See the deferred item for `ConsumedOtpDetector`. |
+| 7 | App-signature table (consumed-OTP detection) | at process start + when a hash is unknown | a package scan at **every process start** (about 150) + up to once a minute when a hash is unknown | built once per install. Refreshed incrementally by maintenance. An unknown hash refreshes at most once a minute, and a hash that stays unknown is not retried for 6 h (remembered across processes) | `getInstalledPackages` + SHA-256 for changed packages only | **Fixed** in `AppSignatureRegistry`. The notifier now uses the same persisted table (`NotifierIndexLookups`, no refresh on this path); its old per-process rebuild (`ConsumedOtpDetector`) is deleted. |
 | 8 | `IndexSync.start()` scheduling | at process start | 2 periodic-work enqueues per process start (about 150 WorkManager DB writes) | one SharedPreferences read | – | **Fixed** (`MaintenanceScheduler` spec-version flag). |
 | 9 | Bin purge + audit trim | periodic job | 1 (daily, no constraints) | **1 maintenance job for everything** (daily, 6 h flex, **device idle + battery not low**) | a few deletes | **Fixed.** A catch-up run needing only battery-not-low happens if idle never came for 3 days. |
 | 10 | Stage-2 backfill / re-index | one-shot unique job | until done | until done | batches of 500, cursor saved after each batch | OK. Never periodic, stops once done. NOW = no constraints (the user's explicit choice), WHEN_CHARGING = charging, TONIGHT = 01:00–05:00, idle + battery not low. |
@@ -115,20 +115,14 @@ notification self-test screen. Release builds write nothing. On a heavy day, exp
 
 ## Deferred (owned by other areas; do these after the current wave lands)
 
-1. **`app/notifications/ConsumedOtpDetector`**: it rebuilds an in-memory hash table of every launcher app
-   (a `getPackageInfo` call and a SHA-256 per app) in every new process that sees an OTP carrying a retriever
-   hash, which is close to a full scan per OTP. `MessageNotifier` should instead call
-   `OtpLifecycle.shouldNotifySilently(message)` or `AppSignatureRegistry.consumerOf(otp, refreshOnMiss = false)`,
-   both suspend and backed by the persisted table. Then delete the detector. Doing this means making `buildOtp`
-   suspend.
-2. **`app/automation/ScheduledSendReceiver`**:
+1. **`app/automation/ScheduledSendReceiver`**:
    - `TIME_SET` / `TIMEZONE_CHANGED` / `BOOT_COMPLETED` call `rearmPending()`, which opens the index DB even
      when nothing is scheduled. Keep a SharedPreferences "has pending sends" flag and return early when it is
      false.
    - A due send currently has three wakeup sources: the exact alarm, the per-send WorkManager fallback, and the
      extra run-now job enqueued by the receiver. Enqueue the run-now job only if `runDue()` fails.
-3. **`DailyHousekeeping`** (automations): it piggybacks on existing wakeups, which is good. It should also
+2. **`DailyHousekeeping`** (automations): it piggybacks on existing wakeups, which is good. It should also
    contribute a `MaintenanceTask` that calls `runIfDue()`, so it still runs on days without messages. It should
    not get its own periodic worker.
-4. **`core-telephony` `TelephonyProviderReader.totalMessageCount()`** walks whole cursors to count. It is now
+3. **`core-telephony` `TelephonyProviderReader.totalMessageCount()`** walks whole cursors to count. It is now
    called at most once per 30 min. A `COUNT(*)`-style query would be cheaper where the provider supports it.

@@ -118,7 +118,7 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         copyPlain(context, details)
         return true
     }
-    fun open(helpline: Helpline) {
+    fun openHelpline(helpline: Helpline) {
         val ok = when (helpline.action) {
             HelplineAction.CALL -> FraudIntents.dial(context, helpline.target)
             HelplineAction.URL -> FraudIntents.openUrl(context, helpline.target)
@@ -145,7 +145,7 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ui.urgent?.let { urgent ->
-                item(key = "urgent") { UrgentCard(urgent, onCall = { open(urgent) }) }
+                item(key = "urgent") { UrgentCard(urgent, onCall = { openHelpline(urgent) }) }
             }
             val message = ui.message
             if (message != null) {
@@ -157,12 +157,12 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         onChakshu = { helpline ->
                             copyDetails()
                             Toast.makeText(context, R.string.safe_details_copied_paste, Toast.LENGTH_LONG).show()
-                            open(helpline)
+                            openHelpline(helpline)
                         },
                         onCyber = { helpline ->
                             copyDetails()
                             Toast.makeText(context, R.string.safe_details_copied_paste, Toast.LENGTH_LONG).show()
-                            open(helpline)
+                            openHelpline(helpline)
                         },
                         onBlock = viewModel::blockSender,
                         onCopy = { copyDetails() },
@@ -175,7 +175,7 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             }
             item(key = "helplines-title") { SectionTitle(stringResource(R.string.safe_section_helplines)) }
             items(ui.helplines, key = { "h:" + it.id }) { helpline ->
-                HelplineTile(helpline, onOpen = { open(helpline) }, onSource = { FraudIntents.openUrl(context, helpline.sourceUrl) })
+                HelplineTile(helpline, onOpen = { openHelpline(helpline) }, onSource = { FraudIntents.openUrl(context, helpline.sourceUrl) })
             }
             item(key = "bank-title") { SectionTitle(stringResource(R.string.safe_section_bank)) }
             items(ui.userHelplines, key = { "u:" + it.id }) { mine ->

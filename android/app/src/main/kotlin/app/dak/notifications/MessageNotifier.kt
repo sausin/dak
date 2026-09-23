@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import android.util.TypedValue
@@ -39,7 +40,9 @@ import javax.inject.Singleton
  * straight from :classify so the notification never waits for the index.
  *
  * - OTP: code large and bold (custom view), Copy / Delete now / Mark read, in-call security warning, and the quiet
- *   path for OTPs an app already consumed (Notifications → Advanced → Consumed OTP handling).
+ *   path for OTPs an app already consumed (Notifications → Advanced → Consumed OTP handling), looked up in the
+ *   index's persisted app-hash table ([NotifierIndexLookups]; no package scan on this path).
+ * - Muted conversations: still shown, but silently (no sound, vibration or heads-up), OTPs included.
  * - Personal: MessagingStyle per conversation with inline Reply (RemoteInput) and Mark read.
  * - Other categories: their own channel (promotions quiet, spam blocked by default) with Mark read / Delete.
  * - Channels: per-SIM copies on multi-SIM devices and per-conversation custom channels ([NotificationChannels],
@@ -55,7 +58,7 @@ class MessageNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val classifier: NotificationClassifier,
     private val contacts: AndroidContactLookup,
-    private val consumedOtps: ConsumedOtpDetector,
+    private val lookups: NotifierIndexLookups,
     private val callState: CallStateDetector,
     private val settings: SettingsStore,
     private val sims: SimRepository,
@@ -70,8 +73,11 @@ class MessageNotifier @Inject constructor(
     override suspend fun onIncoming(message: Message) {
         if (message.box != MessageBox.INBOX) return
         val classification = classifier.classify(message)
+        val otp = classification.otp
+        val consumer = if (classification.category == Category.OTP && otp != null) lookups.consumerOf(otp) else null
+        val muted = lookups.isMuted(message.address, message.threadId)
         val posted = try {
-            post(message, classification)
+            post(message, classification, consumer, muted)
         } catch (e: SecurityException) {
             false // POST_NOTIFICATIONS revoked between the check and notify()
         }
@@ -81,8 +87,11 @@ class MessageNotifier @Inject constructor(
     /**
      * Posts (or updates) the notification for [message]. Returns false when notifications are blocked; true also
      * when the message's channel is spam and blocked on purpose (spam is in-app only by default).
+     *
+     * @param otpConsumer the app that auto-read the OTP (quiet path), if any.
+     * @param muted the conversation is muted: post silently (no sound, vibration or heads-up).
      */
-    fun post(message: Message, classification: Classification): Boolean {
+    fun post(message: Message, classification: Classification, otpConsumer: String? = null, muted: Boolean = false): Boolean {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return false
         channels.ensureCreated()
@@ -91,11 +100,11 @@ class MessageNotifier @Inject constructor(
         val category = classification.category
         val custom = conversationChannels.channelFor(message.address, message.threadId)
         val built = if (category == Category.OTP && otp != null) {
-            buildOtp(message, otp, sender, custom?.first)
+            buildOtp(message, otp, sender, custom?.first, otpConsumer, muted)
         } else if (category == Category.PERSONAL || category == Category.UNKNOWN || custom != null) {
-            buildConversation(message, category, sender, custom)
+            buildConversation(message, category, sender, custom, muted)
         } else {
-            buildInformational(message, category, sender)
+            buildInformational(message, category, sender, muted)
         }
         if (channels.isBlocked(built.channelId)) return category == Category.SPAM
         manager.notify(built.target.tag, built.target.id, built.notification)
@@ -121,7 +130,14 @@ class MessageNotifier @Inject constructor(
 
     // ------------------------------------------------------------------------------------------------ OTP
 
-    private fun buildOtp(message: Message, otp: OtpInfo, sender: String, customChannel: String?): Built {
+    private fun buildOtp(
+        message: Message,
+        otp: OtpInfo,
+        sender: String,
+        customChannel: String?,
+        consumer: String?,
+        muted: Boolean,
+    ): Built {
         val template = RepeatCollapse.template(message.body)
         val now = System.currentTimeMillis()
         // A resent / duplicated OTP from the same thread replaces the previous one with the latest code.
@@ -136,13 +152,12 @@ class MessageNotifier @Inject constructor(
         val count = if (repeat) previous!!.notification.extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
         val sameCode = repeat && previous!!.notification.extras.getString(EXTRA_OTP_CODE) == otp.code
         val target = NotificationActions.Target(tag = if (repeat) previous!!.tag else "otp:${message.key}", id = ID_OTP)
-        val consumer = consumedOtps.consumerOf(otp)
         val handling = settings.get(DakSettings.consumedOtpHandling)
         val quiet = consumer != null && handling != "normal"
         val inCall = callState.isInCall()
         val large = settings.get(DakSettings.otpDisplaySize) == "large"
         val warning = if (inCall) context.getString(R.string.otp_in_call_warning) else null
-        val usedBy = consumer?.let { context.getString(R.string.otp_used_by, consumedOtps.labelOf(it)) }
+        val usedBy = consumer?.let { context.getString(R.string.otp_used_by, labelOf(it)) }
         val shownSender = RepeatCollapse.withCount(sender, count)
 
         val collapsed = RemoteViews(context.packageName, R.layout.notification_otp).apply {
@@ -173,7 +188,7 @@ class MessageNotifier @Inject constructor(
             .setCustomContentView(collapsed)
             .setCustomBigContentView(expanded)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setPriority(if (quiet) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
+            .setPriority(if (quiet || muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
             // An exact duplicate (same code) updates quietly; a new code alerts as the channel says.
             .setOnlyAlertOnce(sameCode)
             .addAction(0, context.getString(R.string.action_copy_code), NotificationActions.copyCode(context, target, otp.code))
@@ -188,6 +203,7 @@ class MessageNotifier @Inject constructor(
         builder.extras.putInt(EXTRA_REPEAT_COUNT, count)
         builder.extras.putString(EXTRA_OTP_CODE, otp.code)
         applyLockScreenPrivacy(builder, message, sender, isOtp = true)
+        if (muted) builder.setSilent(true)
         return Built(target, builder.build(), channel)
     }
 
@@ -206,7 +222,13 @@ class MessageNotifier @Inject constructor(
 
     // ------------------------------------------------------------------------------------------------ Personal
 
-    private fun buildConversation(message: Message, category: Category, sender: String, custom: Pair<String, String>?): Built {
+    private fun buildConversation(
+        message: Message,
+        category: Category,
+        sender: String,
+        custom: Pair<String, String>?,
+        muted: Boolean,
+    ): Built {
         val target = threadTarget(message)
         val contact = contacts.find(message.address)
         val me = Person.Builder().setName(context.getString(R.string.notification_you)).build()
@@ -242,7 +264,7 @@ class MessageNotifier @Inject constructor(
             .setContentTitle(sender)
             .setContentText(shown)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(if (muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
             .setOnlyAlertOnce(repeat)
         // Personal threads and custom channels are conversations: long-lived shortcut + shortcut/locus id on the
         // notification, so Android 11+ lists them under Conversations (priority, per-conversation settings).
@@ -281,6 +303,7 @@ class MessageNotifier @Inject constructor(
                 .build(),
         )
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
+        if (muted) builder.setSilent(true)
         return Built(target, builder.build(), channel)
     }
 
@@ -297,7 +320,7 @@ class MessageNotifier @Inject constructor(
 
     // ------------------------------------------------------------------------------------------------ Other
 
-    private fun buildInformational(message: Message, category: Category, sender: String): Built {
+    private fun buildInformational(message: Message, category: Category, sender: String, muted: Boolean): Built {
         val target = threadTarget(message)
         val body = displayBody(message)
         val now = System.currentTimeMillis()
@@ -322,7 +345,7 @@ class MessageNotifier @Inject constructor(
                 when (category) {
                     Category.SPAM -> NotificationCompat.PRIORITY_MIN
                     Category.PROMOTION -> NotificationCompat.PRIORITY_LOW
-                    else -> NotificationCompat.PRIORITY_DEFAULT
+                    else -> if (muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_DEFAULT
                 },
             )
             .setOnlyAlertOnce(state.isRepeat)
@@ -332,6 +355,7 @@ class MessageNotifier @Inject constructor(
         }
         writeState(builder.extras, state)
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
+        if (muted) builder.setSilent(true)
         return Built(target, builder.build(), channel)
     }
 
@@ -425,6 +449,14 @@ class MessageNotifier @Inject constructor(
         message.attachments.any { it.mimeType.startsWith("image/") } -> context.getString(R.string.notification_photo)
         message.attachments.isNotEmpty() -> context.getString(R.string.notification_attachment)
         else -> context.getString(R.string.notification_new_message)
+    }
+
+    /** Human-readable label of [packageName] (for "Used by Google Pay"), falling back to the package name. */
+    private fun labelOf(packageName: String): String = try {
+        val pm = context.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+    } catch (e: PackageManager.NameNotFoundException) {
+        packageName
     }
 
     /** SIM label only matters with more than one SIM. */

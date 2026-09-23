@@ -13,12 +13,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Once-a-day upkeep for time-boxed automations, piggybacking on work that already wakes the app — an incoming
- * message ([AutomationRunner]), a scheduled-send run ([ScheduledSendWorker]) or a reboot/clock change
- * ([ScheduledSendReceiver]) — instead of adding a periodic wakeup of its own:
+ * Once-a-day upkeep for time-boxed automations. It never schedules a wakeup of its own: it runs from the daily
+ * `dak-maintenance` job ([AutomationMaintenanceTask]) and piggybacks on work that already woke the app — an incoming
+ * message ([AutomationRunner]) or a scheduled-send run ([ScheduledSendWorker]) — whichever comes first each day:
  * - disables expired rules (forwarding "until 31 Jul") and logs it;
  * - refreshes the "Forwarding active" notification;
- * - re-scans contacts for birthdays and schedules the next wish per enabled contact.
+ * - re-scans contacts for birthdays and re-arms the next wish per enabled contact.
  */
 @Singleton
 class DailyHousekeeping @Inject constructor(

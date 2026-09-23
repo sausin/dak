@@ -21,9 +21,11 @@ import app.dak.telephony.internal.TAG
 import app.dak.telephony.internal.insertTolerant
 import app.dak.telephony.internal.safeQuery
 import app.dak.telephony.internal.updateTolerant
+import app.dak.telephony.mms.MmsReadReceipts
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -47,6 +49,8 @@ data class IncomingSms(
 @Singleton
 class TelephonyProviderWriter @Inject constructor(
     @ApplicationContext private val context: Context,
+    // Lazy: MmsReadReceipts -> MmsSendManager -> this writer.
+    private val readReceipts: dagger.Lazy<MmsReadReceipts>,
 ) : ProviderWriter {
 
     private val resolver get() = context.contentResolver
@@ -192,6 +196,8 @@ class TelephonyProviderWriter @Inject constructor(
     }
 
     override suspend fun markThreadRead(threadId: Long) {
+        // MMS read reports (opt-in): collected while the rows are still unread, sent once they are marked read.
+        val receipts = readReceipts.get().pendingInThread(threadId)
         withContext(Dispatchers.IO) {
             val values = ContentValues().apply {
                 put(SmsColumns.READ, 1)
@@ -205,15 +211,33 @@ class TelephonyProviderWriter @Inject constructor(
                 Log.w(TAG, "markThreadRead failed: ${e.javaClass.simpleName}")
             }
         }
+        sendReadReceipts(receipts)
     }
 
     override suspend fun markRead(key: MessageKey) {
+        val receipts = if (key.kind == MessageKind.MMS) {
+            readReceipts.get().pendingFor(key.providerId)
+        } else {
+            emptyList()
+        }
         withContext(Dispatchers.IO) {
             val values = ContentValues().apply {
                 put(SmsColumns.READ, 1)
                 put(SmsColumns.SEEN, 1)
             }
             resolver.updateTolerant(uriFor(key), values)
+        }
+        sendReadReceipts(receipts)
+    }
+
+    private suspend fun sendReadReceipts(receipts: List<MmsReadReceipts.Pending>) {
+        if (receipts.isEmpty()) return
+        try {
+            readReceipts.get().send(receipts)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "MMS read reports not sent: ${e.javaClass.simpleName}")
         }
     }
 

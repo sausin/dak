@@ -90,6 +90,7 @@ class HostileInputFuzzTest {
             }
             is DeliveryInd -> { addresses += pdu.to; tokens += pdu.messageId }
             is ReadOrigInd -> { pdu.from?.let(addresses::add); addresses += pdu.to; tokens += pdu.messageId }
+            is ReadRecInd -> { pdu.from?.let(addresses::add); addresses += pdu.to; tokens += pdu.messageId }
             is SendConf -> tokens += listOf(pdu.transactionId, pdu.messageId)
             is NotifyRespInd -> tokens += pdu.transactionId
             is AcknowledgeInd -> tokens += pdu.transactionId
@@ -116,7 +117,7 @@ class HostileInputFuzzTest {
     /** Grammar-aware random PDU: random header fields with random (often wrong) value encodings, then a body. */
     private fun randomPdu(random: Random): ByteArray {
         val out = ByteArrayOutputStream()
-        out.write(0x8C); out.write(if (random.nextInt(10) == 0) random.nextInt(256) else listOf(0x82, 0x84, 0x80, 0x86, 0x88, 0x81).random(random))
+        out.write(0x8C); out.write(if (random.nextInt(10) == 0) random.nextInt(256) else listOf(0x82, 0x84, 0x80, 0x86, 0x87, 0x88, 0x81).random(random))
         repeat(random.nextInt(0, 12)) {
             if (random.nextInt(12) == 0) {
                 out.write(randomText(random)); out.write(randomText(random)) // application header

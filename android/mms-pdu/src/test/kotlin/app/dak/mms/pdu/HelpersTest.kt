@@ -34,12 +34,14 @@ class HelpersTest {
     }
 
     @Test
-    fun smilEscapesAndOrdersTextLast() {
+    fun smilEscapesAndPutsTheCaptionWithTheImage() {
         val smil = Smil.build(listOf(Smil.Item("t.txt", Smil.Kind.TEXT), Smil.Item("a&b\".png", Smil.Kind.IMAGE), Smil.Item("s.amr", Smil.Kind.AUDIO)))
-        assertTrue(smil.startsWith("<smil><head><layout>"))
+        assertTrue(smil.startsWith("<smil><head><layout><root-layout width=\"320\" height=\"480\"/>"))
         assertTrue(smil.indexOf("a&amp;b&quot;.png") < smil.indexOf("t.txt"))
         assertTrue(smil.contains("<audio src=\"s.amr\"/>"))
-        assertEquals(3, Regex("<par ").findAll(smil).count())
+        // Image + caption in one slide, the audio in its own.
+        assertEquals(2, Regex("<par ").findAll(smil).count())
+        assertTrue(smil.contains("region=\"Image\"/><text src=\"t.txt\" region=\"Text\"/></par>"))
     }
 
     @Test

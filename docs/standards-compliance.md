@@ -9,6 +9,9 @@ scrubbing) is out of scope except where the client has to cooperate with it.
   `android/core-telephony`, `android/app` and `android/backup` at the same time, so line numbers may drift.
 - **P1 telephony update:** the rows for class 0, replace PIDs, multipart retry, MMS-CTR answers, carrier config,
   RESPOND_VIA_MESSAGE and role loss were re-checked after those fixes; their references point at that later commit.
+- **P2 MMS update:** the rows for read reports (m-read-rec-ind, m-read-orig-ind), X-Mms-Report-Allowed, SMIL
+  (send layout and receive order), carrier image dimensions, report enablement and the e-mail gateway were re-checked
+  after those fixes (backlog items 17–19); their references point at that later commit.
 - **Status values:** **Compliant**; **Partial** (implemented but with a gap that matters); **Missing**; **N/A**
   (the Android framework, modem or another system component handles it, and the API is named).
 - **Citations:** section numbers are given only where we are confident of them. Where a regulatory detail is
@@ -23,10 +26,10 @@ scrubbing) is out of scope except where the client has to cooperate with it.
 | 1 | 3GPP TS 23.040 (SMS transfer layer) | 9 | 2 | 0 | 6 | 17 |
 | 2 | 3GPP TS 23.038 (alphabets, DCS) + `scripts/sms-pdu.py` | 4 | 3 | 0 | 5 | 12 |
 | 3 | OMA MMS-ENC 1.3 + WAP-230 WSP encoding | 14 | 0 | 0 | 0 | 14 |
-| 4 | OMA MMS-CTR (client transactions) | 14 | 1 | 1 | 0 | 16 |
-| 5 | OMA MMS-CONF, 3GPP TS 23.140 / 26.140 (media, SMIL) | 6 | 3 | 0 | 0 | 9 |
+| 4 | OMA MMS-CTR (client transactions) | 16 | 0 | 0 | 0 | 16 |
+| 5 | OMA MMS-CONF, 3GPP TS 23.140 / 26.140 (media, SMIL) | 8 | 1 | 0 | 0 | 9 |
 | 6 | WAP-251 Push / WSP push | 1 | 1 | 0 | 2 | 4 |
-| 7 | Carrier config (CarrierConfigManager / SmsManager MMS config) | 7 | 1 | 2 | 2 | 12 |
+| 7 | Carrier config (CarrierConfigManager / SmsManager MMS config) | 10 | 0 | 0 | 2 | 12 |
 | 8 | RFC 5724 `sms:`/`smsto:` (+ `mms:`/`mmsto:`), SENDTO/SEND intents | 6 | 1 | 0 | 0 | 7 |
 | 9 | vCard 2.1/3.0/4.0 (RFC 6350), vCalendar | 2 | 3 | 0 | 1 | 6 |
 | 10 | Android default-SMS-app requirements | 14 | 3 | 0 | 0 | 17 |
@@ -35,7 +38,7 @@ scrubbing) is out of scope except where the client has to cooperate with it.
 | 13 | DPDP Act 2023 (India), GDPR (EU) | 1 | 5 | 0 | 2 | 8 |
 | 14 | Text safety: UAX #9, UTS #39, UTS #46 | 4 | 4 | 1 | 0 | 9 |
 | 15 | OWASP MASVS v2 (high level) | 8 | 0 | 0 | 0 | 8 |
-| | **Total** | **97** | **33** | **6** | **19** | **155** |
+| | **Total** | **105** | **28** | **3** | **19** | **155** |
 
 Findings to act on first (details are in the [backlog](#prioritised-remediation-backlog)):
 
@@ -49,6 +52,9 @@ Findings to act on first (details are in the [backlog](#prioritised-remediation-
 - **P1 MMS gaps (fixed):** m-notifyresp-ind (Retrieved / Deferred / Unrecognised) and m-acknowledge-ind are sent by
   default; carrier MMS config (group MMS, SMS→MMS thresholds, size, recipient, subject and text limits) is read per
   SIM through `CarrierConfigManager`.
+- **P2 MMS gaps (fixed):** opt-in MMS read receipts (m-read-rec-ind, default off), X-Mms-Report-Allowed from a
+  setting, image+caption SMIL slides, SMIL order on receive (hand-rolled bounded parser, no DTD / entities), carrier
+  image dimensions, report enablement and e-mail gateway.
 - **P1 role loss (fixed):** losing the default-SMS role holds queued and scheduled sends (never emergency texts),
   stops MMS downloads and makes the composer read-only with a "Make Dak your default SMS app" action.
 - **P1 URI bug (fixed):** `sms:` intents are parsed per RFC 5724 from the encoded URI (`navigation/SmsUriParser.kt`)
@@ -105,13 +111,13 @@ Dak must make its counter agree with what will actually be sent. The emulator to
 
 ## 3. OMA MMS-ENC 1.3 and WAP-230 WSP header encoding
 
-Dak has its own codec in `android/mms-pdu`. It sends m-send-req, m-notifyresp-ind and m-acknowledge-ind (the last
-is encodable but unused, see §4). It receives m-notification-ind, m-retrieve-conf, m-send-conf, m-delivery-ind
-and m-read-orig-ind.
+Dak has its own codec in `android/mms-pdu`. It sends m-send-req, m-notifyresp-ind, m-acknowledge-ind and (opt-in)
+m-read-rec-ind, see §4. It receives m-notification-ind, m-retrieve-conf, m-send-conf, m-delivery-ind and
+m-read-orig-ind.
 
 | Requirement | Dak implementation (file:line) | Status | Remediation | Test |
 |---|---|---|---|---|
-| Model and codec for every PDU type a client sends or receives | `mms-pdu/.../MmsPdu.kt:33-150`. Decoder `MmsPduDecoder.kt:169-259`, encoder `MmsPduEncoder.kt:12-50` | Compliant | Add m-read-rec-ind when §4's read-report row is done | Existing golden round-trip tests. Add AOSP-generated fixtures |
+| Model and codec for every PDU type a client sends or receives | `mms-pdu/.../MmsPdu.kt:33-173` (m-read-rec-ind `ReadRecInd` at `:158`). Decoder `MmsPduDecoder.kt:169-326` (read-rec-ind `:318`), encoder `MmsPduEncoder.kt:12-60` (read-rec-ind `:48`, MMS-ENC §6.7.2 header order) | Compliant | None | Golden round-trip tests; `ReadReportTest.readRecIndHasTheSpecifiedHeaderOrder` (exact bytes). Add AOSP-generated fixtures |
 | Header order: X-Mms-Message-Type, X-Mms-Transaction-ID, X-Mms-MMS-Version first; Content-Type last, followed by the body | `MmsPduEncoder.kt:100-104` (preamble), `:165-173` (Content-Type then body). The decoder stops at Content-Type (`MmsPduDecoder.kt:91-92`) | Compliant | None | Byte-level assertion on the first 3 headers |
 | m-send-req mandatory headers: type, TID, version, From, To/Cc/Bcc (at least one), Content-Type; From as Insert-address-token | `MmsPduEncoder.kt:52-66`, `fromField` `:131-141` (0x81 insert token when `from == null`) | Compliant | None | Decode an encoded send-req with AOSP `PduParser` in an instrumented test |
 | Address encoding: `/TYPE=PLMN` for numbers, e-mail addresses unchanged | `MmsAddress.kt:21-26` (separators stripped), `fromWire` `:11-15` | Compliant | None | Unit: `+91 98-765` → `+9198765/TYPE=PLMN`; `a@b.c` unchanged |
@@ -141,9 +147,9 @@ and m-read-orig-ind.
 | Retry policy for download and send (bounded, backoff) | Download: WorkManager exponential backoff from 30 s, 5 attempts (`MmsDownloadManager.kt:137,280-281`). Send: `RetryPolicy` 4 MMS attempts (`send/RetryPolicy.kt:6`, `MmsSendManager.kt:165-174`) | Compliant | None | Fake failures: attempt counts and delays |
 | m-send-conf X-Mms-Response-Status (OK, transient, permanent) and Message-ID kept for reports | `MmsSendManager.kt:100-114`; Message-ID persisted through `persister.markSent` | Compliant | None | Fixtures 0x80, 0xC0, 0xE1 |
 | m-delivery-ind matched to the sent message by Message-ID, status per recipient | `WapPushProcessor.kt:35` → `MmsPersister.applyDeliveryReport` | Compliant | None | Fixture delivery-ind: sent row shows delivered |
-| m-read-orig-ind (read report received for our message) | `WapPushProcessor.kt:36` | Compliant | None | Fixture read-orig-ind |
-| Send **m-read-rec-ind** when a received message has X-Mms-Read-Report = Yes and the user agrees | Not implemented. `read_report` is stored (`MmsProviderMapping.kt:83`) but never acted on | **Missing** | Add a user setting "Send read receipts for MMS" (default off, for privacy). When on, send m-read-rec-ind on first open. Needs the PDU type in `mms-pdu`. Also honour `MMS_CONFIG_MMS_READ_REPORT_ENABLED` | Unit + fixture |
-| X-Mms-Report-Allowed in notifyresp and acknowledge (whether the user allows delivery reports to the sender) | Field is supported (`MmsPduEncoder.kt:19,23`) but always null (`MmsSendManager.kt:122`) | Partial | Fill it from a privacy setting (default Yes, which matches AOSP) | Encoder test with the field present |
+| m-read-orig-ind (read report received for our message) | `WapPushProcessor.kt:40` → `MmsPersister.applyReadReport` (`:229`): stores `read_status`, and a Read / Deleted-without-being-read report counts as delivery for its sender (`DeliveryStatusMapping.readReportImpliesDelivery`, `:77`), so the double tick shows without a delivery report; a group message still waits for every recipient. The tick UI has no separate "read" state | Compliant | Optional: a "read" tick state (needs `read_status` in the index) | Fixture read-orig-ind; `SmilOrderMappingTest.readReportsImplyDelivery` |
+| Send **m-read-rec-ind** when a received message has X-Mms-Read-Report = Yes and the user agrees | Setting "Read receipts for MMS" (`simsSending.mmsReadReceipts`, **default off**, mirrored into `TelephonySettings.sendMmsReadReceipts` `:42` by `app/.../settings/TelephonySettingsSync.kt`). `TelephonyProviderWriter.markThreadRead` / `markRead` (`:198`, `:217`) collect unread received MMS with `rr` = Yes before marking them read and hand them to `mms/MmsReadReceipts.kt` (`:59-90`, at most 20 per call, once per message), which sends only when the SIM's carrier has `enableMMSReadReports` (`carrier/ReportPolicy.kt`). Per message, `MmsClientTransactions.readReceipt` (`:76`) requires a Message-ID and a personal sender (a phone number of ≥ 7 digits or an e-mail address): short codes, alphanumeric sender ids, hidden senders, advertisements and auto messages never get one. Reciprocal: when on, outgoing MMS ask for read reports too (`MmsSendManager.kt:76`) | Compliant | Verify on a carrier with `enableMMSReadReports` | `ReadReportTest` (exact bytes, round trip, decision cases); `ReportAndEmailPolicyTest.reportsNeedTheUserAndTheCarrier` |
+| X-Mms-Report-Allowed in notifyresp and acknowledge (whether the user allows delivery reports to the sender) | Every answer (Retrieved, Deferred, acknowledge, Unrecognised) carries it from the setting "Let senders see MMS delivery" (`simsSending.mmsDeliveryToSenders`, default Yes as AOSP; `TelephonySettings.allowMmsDeliveryReportsToSenders` `:50`; `MmsDownloadManager.kt:110,133,292,305,311`) | Compliant | None | `ReadReportTest.reportAllowedIsCarriedOnEveryAnswer` (wire bytes `0x91 0x81`) |
 | Unsupported or unrecognised notification: respond with X-Mms-Status = Unrecognised or Rejected | A WAP push the decoder rejects is passed to `MmsDownloadManager.onUndecodable` (`WapPushProcessor.kt:31-36`, `MmsDownloadManager.kt:302-306`): `MmsPduDecoder.peekPreamble` salvages type and TID, and a notification (or unknown type) with a TID gets NotifyRespInd(Unrecognised). Damaged delivery / read reports get no answer. Answers share the notification flood budget | Compliant | None | `ClientTransactionsTest.undecodableNotificationIsAnsweredUnrecognised`, `…unknownMessageType…`, `…damagedReports…` |
 | Download policy for roaming and size (user control, no silent roaming data) | `TelephonySettings.kt:21-29`; `MmsDownloadManager.kt:91-104` | Compliant | None | Roaming flag on: no auto-download |
 
@@ -157,11 +163,11 @@ checked against the MMS-CONF v1.3 tables before relying on them.
 | Requirement | Dak implementation (file:line) | Status | Remediation | Test |
 |---|---|---|---|---|
 | Stay within the carrier's message size limit (300 KB default and floor) | `MmsSendManager.kt:71-74,184` reads `maxMessageSize` through `carrier/CarrierConfigRepository.kt` (CarrierConfigManager first); the composer budgets parts against `min(compressor limit, carrier limit)` (`app/.../conversation/MessageSendController.kt:199-203`) | Compliant | None | Carrier config 100 KB: 2 MB photo fits and send succeeds |
-| Image adaptation to a widely supported format and resolution (JPEG, EXIF orientation applied, metadata dropped) | `MmsMediaCompressor.kt:43-50` and the compress loop: JPEG, longest edge ≤1600 px (`:127`), quality ladder, 200 MP decode guard. Re-encoding drops EXIF, so GPS is not leaked | Compliant | Take the max width and height from carrier config (§7) | HEIC/WebP/PNG input → JPEG ≤ limit, correct orientation |
-| Video and audio adaptation (3GPP/MP4 H.263/H.264, AMR-NB/AAC per TS 26.140 / 26.234 codecs) | Video and audio that fit are sent unchanged. Over the budget they are transcoded with platform codecs only, because Media3 is not a dependency: `app/.../conversation/MmsMediaCompressor.kt:53-67` calls `MmsMediaTranscoder.kt:49`. Video goes MediaExtractor → MediaCodec decoder → SurfaceTexture/GLES scale → H.264 encoder (Baseline requested) → MediaMuxer MP4, with AAC-LC audio. Audio-only input becomes AAC-LC in MP4. `MmsTranscodePlan.kt` derives resolution (176–640 px), frame rate (15/24), bitrate and container overhead from the budget, retries at 0.7× when the encoder overshoots, and refuses clips that cannot fit at ≥32 kbit/s video (about 15–25 s at 300 KB). Any codec, GL or timeout failure (120 s) falls back to the old refusal, and the snackbar suggests trimming or sharing from the source app. The limit still comes from `MmsMediaCompressor.messageLimitBytes` (TODO hook for carrier config, §7) | Compliant | Verify on devices (not yet run on hardware). Later: AMR-NB for voice notes; audio part file name uses the source extension (`MessageSendController.fileNameFor`, telephony stream) | 20 MB, 10 s phone video → MP4 under the limit, plays on a stock Messages client; 2-minute video → "too large" snackbar, no crash |
+| Image adaptation to a widely supported format and resolution (JPEG, EXIF orientation applied, metadata dropped) | `MmsMediaCompressor.kt:47-52` and the compress loop: JPEG within the carrier's max width × height (§7) and never above 1600 px (`MmsImageBounds.kt`), quality ladder, 200 MP decode guard. Re-encoding drops EXIF, so GPS is not leaked | Compliant | None | HEIC/WebP/PNG input → JPEG ≤ limit, correct orientation; `MmsImageBoundsTest` |
+| Video and audio adaptation (3GPP/MP4 H.263/H.264, AMR-NB/AAC per TS 26.140 / 26.234 codecs) | Video and audio that fit are sent unchanged. Over the budget they are transcoded with platform codecs only, because Media3 is not a dependency: `app/.../conversation/MmsMediaCompressor.kt:53-67` calls `MmsMediaTranscoder.kt:49`. Video goes MediaExtractor → MediaCodec decoder → SurfaceTexture/GLES scale → H.264 encoder (Baseline requested) → MediaMuxer MP4, with AAC-LC audio. Audio-only input becomes AAC-LC in MP4. `MmsTranscodePlan.kt` derives resolution (176–640 px), frame rate (15/24), bitrate and container overhead from the budget, retries at 0.7× when the encoder overshoots, and refuses clips that cannot fit at ≥32 kbit/s video (about 15–25 s at 300 KB). Any codec, GL or timeout failure (120 s) falls back to the old refusal, and the snackbar suggests trimming or sharing from the source app. The budget comes from the SIM's carrier `maxMessageSize` (`MmsPartBudget.of`, `CarrierConfigRepository`) | Compliant | Verify on devices (not yet run on hardware). Later: AMR-NB for voice notes; audio part file name uses the source extension (`MessageSendController.fileNameFor`, telephony stream) | 20 MB, 10 s phone video → MP4 under the limit, plays on a stock Messages client; 2-minute video → "too large" snackbar, no crash |
 | SMIL root part referenced by `start`, one presentation per message | `mms-pdu/.../Smil.kt:33-52`, `MmsMessageBuilder.kt:50-62` | Compliant | None | Parse the generated SMIL with an XML parser; every `src` resolves to a part Content-Location |
-| SMIL layout: image and text on the **same** slide (the usual MMS-CONF image+text content), root-layout size | Each item gets its own `<par>`, with text last (`Smil.kt:39-49`). `<root-layout/>` has no width or height (`:35`) | Partial | Pair the first image or video with the text in one `<par>`. Emit `root-layout width/height` (for example 320×480). Keep one `<par>` per extra media item | Golden SMIL string; render on AOSP Messaging and iOS: caption shows under the photo |
-| Receive-side presentation: follow the SMIL order and timing where present | SMIL is ignored. Parts render in PDU order and text parts are concatenated (`core-telephony/.../mms/MmsProviderMapping.kt:170-191`) | Partial | Parse the SMIL `<par>` order to sort attachments and pair captions. Skip timing | Fixture where the SMIL order differs from the PDU order |
+| SMIL layout: image and text on the **same** slide (the usual MMS-CONF image+text content), root-layout size | `Smil.slides` (`Smil.kt:60`): the text joins the first image or video slide (else the first media slide), one `<par>` per other media item; `<root-layout width="320" height="480"/>` (`:37,40`) | Compliant | Render check on AOSP Messaging and iOS (device plan) | `SmilTest.captionSharesTheSlideOfTheFirstImage` (golden string), `…generatedSmilParsesBackToTheSameSlides` |
+| Receive-side presentation: follow the SMIL order and timing where present | `MmsProviderMapping.presentationOrder` (`:220`) sorts the stored parts by the SMIL slides before `bodyAndAttachments` (`:197`): attachments and captions follow the sender's slide order, unreferenced parts keep part order at the end, and a missing or broken SMIL keeps part order. The parser (`mms-pdu/.../SmilPresentation.kt`) is a hand-rolled bounded tokenizer (64 K chars, 2048 elements, depth 32): DOCTYPE / PIs / comments / CDATA skipped unread, only the five XML entities and numeric references decoded (no XXE, no expansion), and `src` values are only compared with the message's own Content-ID / Content-Location / name, never loaded. Timing and regions ignored; captions are not re-paired per slide in the bubble (one body text) | Compliant | Optional: per-slide caption layout in the bubble | `SmilTest` (order, `cid:`, XXE / billion-laughs, limits, 20k-input fuzz), `SmilOrderMappingTest` |
 | Receive and render the core media types (JPEG/GIF/PNG/WBMP images, 3GP/MP4 video, AMR/AAC audio, text) and open unknown types safely | Images inline (`MessageBubble.kt:310-319`). Others go to system viewers through `AttachmentOpener.kt:20-29`, which sends dangerous types to a "Save or share" chooser as octet-stream | Compliant | None | Fixture with an APK and an SVG part: opens the chooser, not the installer or browser |
 | Text encoding of text parts (UTF-8 / us-ascii) | `MmsMessageBuilder.kt:41-48` (UTF-8 charset parameter) | Compliant | None | – |
 | Creation mode (restricted, warning, free): warn when content falls outside the content classes | Only the size limit is enforced. Arbitrary MIME types (PDF, APK, …) can be attached | Partial | Implement the "warning" creation mode: warn when a part is not in the core types or would need a higher content class | Attach a PDF: warning shown, send allowed |
@@ -189,11 +195,11 @@ supported source is `CarrierConfigManager.getConfigForSubId(subId)` with the `KE
 | MMS enabled and group MMS enabled (`MMS_CONFIG_MMS_ENABLED`, `MMS_CONFIG_GROUP_MMS_ENABLED`) | `SendModePolicy.plan`: group MMS only when `enableGroupMms`; otherwise text goes as individual SMS (one provider row per recipient) and media as one MMS per recipient (`MessageSendController.kt:176-183`), and the composer says so (`CarrierNotice.GROUP_AS_INDIVIDUAL`). With `enabledMMS` false, text stays SMS and media is refused with a reason | Compliant | None | `SendModePolicyTest.groupGoesAsGroupMmsOnlyWhenTheCarrierAllowsIt`, `…mmsDisabled…` |
 | Recipient limit (`MMS_CONFIG_RECIPIENT_LIMIT`) | `SendModePolicy.plan` blocks a group MMS above `recipientLimit` (`SendBlock.TOO_MANY_RECIPIENTS`); the composer shows the limit and send fails with the reason | Compliant | Optionally offer to split into several groups | `SendModePolicyTest.recipientAndTextLimits` |
 | Subject and text limits (`MMS_CONFIG_SUBJECT_MAX_LENGTH`, `MMS_CONFIG_TEXT_MAX_SIZE`) | Subject cut to `maxSubjectLength` code points before encoding (`MmsSendManager.kt:69`, `SendModePolicy.subject`); MMS text over `maxMessageTextSize` is refused with a reason (`SendBlock.TEXT_TOO_LONG`) | Compliant | Warn in the UI when a subject is cut (Dak has no subject field today) | `SendModePolicyTest.recipientAndTextLimits`, `…subjectIsCut…` |
-| Max image dimensions (`MMS_CONFIG_MAX_IMAGE_WIDTH/HEIGHT`) | Read into `CarrierMessagingConfig.maxImageWidth/Height` (AOSP defaults 640×480), but the compressor still uses a fixed 1600 px (`MmsMediaCompressor.kt:127`) | Partial | In `MmsMediaCompressor`, use `min(1600, carrier)` from `CarrierConfigRepository` | Unit |
-| Report enablement (`MMS_CONFIG_SMS_DELIVERY_REPORT_ENABLED`, `..._MMS_DELIVERY_REPORT_ENABLED`, `..._MMS_READ_REPORT_ENABLED`) | Only user settings (`TelephonySettings.kt:31-39`) | **Missing** | AND the user setting with the carrier flag, and hide toggles the carrier disables | Unit |
+| Max image dimensions (`MMS_CONFIG_MAX_IMAGE_WIDTH/HEIGHT`) | `MessageSendController.buildParts` (`:215`, `MmsPartBudget`) passes the SIM's box to `MmsMediaCompressor.prepare`; images are decoded (`:89`) and scaled (`:97`) to fit `maxImageWidth` × `maxImageHeight` in either orientation, capped at 1600 px (`MmsImageBounds.kt`; AOSP defaults 640×480). The old `SmsManager` read and its TODO are gone: the byte limit also comes from `CarrierConfigRepository` (`MmsMediaCompressor.kt:36`) | Compliant | None | `MmsImageBoundsTest` |
+| Report enablement (`MMS_CONFIG_SMS_DELIVERY_REPORT_ENABLED`, `..._MMS_DELIVERY_REPORT_ENABLED`, `..._MMS_READ_REPORT_ENABLED`) | Read into `CarrierMessagingConfig` (AOSP defaults on / off / off) and ANDed with the user settings in `carrier/ReportPolicy.kt`: SMS delivery reports (`TelephonyMessageSender.kt:84-87`), X-Mms-Delivery-Report and X-Mms-Read-Report on m-send-req (`MmsSendManager.kt:75-76`), m-read-rec-ind (`MmsReadReceipts.kt`). The hidden `requestMmsDeliveryReports` switch is replaced by the carrier flag. Toggles are not hidden per carrier (settings are global, SIMs differ): their summaries say "where the carrier supports it" | Compliant | Optional: hide or annotate the toggles when no active SIM supports the report | `ReportAndEmailPolicyTest` |
 | m-notifyresp-ind policy (`MMS_CONFIG_NOTIFY_WAP_MMSC_ENABLED`) | In AOSP this key decides **where** notifyresp / acknowledge go (the notification's Content-Location instead of the MMSC), not whether they are sent. `MmsSendManager.sendClientPdu` passes the (validated) Content-Location as `locationUrl` when it is set (`:126-133`); the answers themselves are on by default (§4) | Compliant | None | Unit on `CarrierMessagingConfig.notifyWapMmsc` |
 | Multipart SMS as separate messages (`MMS_CONFIG_SEND_MULTIPART_SMS_AS_SEPARATE_MESSAGES`) | When set, each `divideMessage` part goes with `sendTextMessage`, still tracked per part (`TelephonyMessageSender.kt:269-273`) | Compliant | None | Unit with a fake SmsManager (to do) |
-| E-mail recipients over SMS (`MMS_CONFIG_EMAIL_GATEWAY_NUMBER`, `MMS_CONFIG_ALIAS_ENABLED`) | Not read. E-mail recipients can only go by MMS | **Missing** | If a gateway number exists, send `"<email> <text>"` to it by SMS | Unit |
+| E-mail recipients over SMS (`MMS_CONFIG_EMAIL_GATEWAY_NUMBER`, `MMS_CONFIG_ALIAS_ENABLED`) | `emailGatewayNumber` read and validated (`CarrierMessagingConfig.kt:115`). `SendModePolicy.plan` (`:69`): a plain text to one e-mail address goes as SMS `"<address> <text>"` to the gateway (`MessageSendController.kt:175`, filed in the open e-mail conversation; from a new conversation it files under the gateway number), otherwise any e-mail recipient forces MMS (before, a plain text to an e-mail address was attempted as SMS); with MMS off and no gateway it is refused with a reason. Aliases (`aliasEnabled`) are not supported | Compliant | Optional: alias support | `ReportAndEmailPolicyTest.plainTextToOneEmailUsesTheCarrierGateway`, `…emailRecipientsNeedMmsWithoutAGateway` |
 
 ## 8. RFC 5724 `sms:`/`smsto:` (and `mms:`/`mmsto:`), SENDTO/SEND intents
 
@@ -349,8 +355,8 @@ categories to where Dak addresses them.
    or unsupported-version notifications. `enabledNotifyWapMMSC` picks the destination URL.
 7. **Done: Carrier MMS config** (`carrier/CarrierMessagingConfig.kt`, `CarrierConfigRepository.kt`,
    `SendModePolicy.kt`): MMS / group MMS enablement (individual messages otherwise), SMS→MMS thresholds, message
-   size, recipient, subject and text limits, separate-parts SMS. Image dimensions are read but not yet applied by
-   `MmsMediaCompressor` (§7).
+   size, recipient, subject and text limits, separate-parts SMS. Image dimensions are applied by
+   `MmsMediaCompressor` (P2 item 19).
 8. **Done: `sms:` / `smsto:` body parsing** in both entry points: intents (`navigation/SmsUriParser.kt`) and
    RESPOND_VIA_MESSAGE (`sms/RespondViaMessage.kt`, takes the encoded SSP).
 9. **Done: Losing the SMS role** (`role/SmsRoleMonitor.kt`, `send/HeldSendStore.kt`): sends held (never emergency
@@ -377,14 +383,17 @@ categories to where Dak addresses them.
 16. **UTS #46** instead of IDNA2003 (`classify/.../LinkExtractor.kt:66`). Generate the UTS #39 confusables from
     `confusables.txt` (`LookalikeDomainChecker.kt:159-173`). Add a mixed-script check for MMS and e-mail sender
     names.
-17. **More MMS-CTR:**
-    - m-read-rec-ind behind an opt-in setting.
-    - X-Mms-Report-Allowed.
-18. **SMIL:**
-    - Put image and caption on one slide, with root-layout dimensions (`mms-pdu/.../Smil.kt:35-49`).
-    - Follow SMIL order on receive (`mms/MmsProviderMapping.kt:170-191`).
-    - Add a "warning" creation mode for non-core media.
-19. **Remaining carrier config keys:** image dimensions in the compressor, report enablement, e-mail gateway (§7).
+17. **Done: More MMS-CTR** (§4):
+    - m-read-rec-ind behind the opt-in "Read receipts for MMS" (default off; personal senders only; carrier
+      `enableMMSReadReports`), and read reports received count as delivery.
+    - X-Mms-Report-Allowed from "Let senders see MMS delivery" (default on).
+18. **SMIL** (§5):
+    - Done: image and caption on one slide, root-layout 320×480 (`mms-pdu/.../Smil.kt`).
+    - Done: SMIL order on receive with a bounded, DTD-free parser (`mms-pdu/.../SmilPresentation.kt`,
+      `mms/MmsProviderMapping.presentationOrder`).
+    - Open: a "warning" creation mode for non-core media (composer UI).
+19. **Done: Remaining carrier config keys** (§7): image dimensions in the compressor, report enablement, e-mail
+    gateway.
 20. **Defensive block-list check** for MMS notifications (`WapPushProcessor.kt:34`).
 21. **Other SMS details:**
     - Placeholder for binary (8-bit, no port) SMS (`IncomingSmsProcessor.kt:49`).

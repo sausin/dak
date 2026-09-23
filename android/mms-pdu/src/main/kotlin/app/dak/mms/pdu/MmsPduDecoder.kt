@@ -4,7 +4,7 @@ package app.dak.mms.pdu
  * Decodes MMS encapsulation PDUs (OMA-MMS-ENC 1.0–1.3 with WSP header encoding).
  *
  * Supported: m-notification-ind, m-retrieve-conf, m-send-conf, m-delivery-ind, m-read-orig-ind, and (for
- * round-trips and re-sends) m-send-req, m-notifyresp-ind, m-acknowledge-ind. Unknown headers are skipped using the
+ * round-trips and re-sends) m-send-req, m-notifyresp-ind, m-acknowledge-ind, m-read-rec-ind. Unknown headers are skipped using the
  * generic WSP value rules; application headers are ignored. This function never throws.
  */
 object MmsPduDecoder {
@@ -313,6 +313,14 @@ object MmsPduDecoder {
                 to = h.texts(Field.TO).map(MmsAddress::fromWire),
                 dateSeconds = h.number(Field.DATE),
                 readStatus = h.octet(Field.READ_STATUS),
+                mmsVersion = version,
+            )
+            MessageType.READ_REC_IND -> ReadRecInd(
+                messageId = h.text(Field.MESSAGE_ID) ?: throw MissingHeaderException("Message-ID"),
+                to = h.texts(Field.TO).firstOrNull()?.let(MmsAddress::fromWire) ?: throw MissingHeaderException("To"),
+                from = h.from()?.address,
+                dateSeconds = h.number(Field.DATE),
+                readStatus = h.octet(Field.READ_STATUS) ?: ReadStatus.READ,
                 mmsVersion = version,
             )
             else -> throw UnsupportedTypeException(type)

@@ -10,6 +10,7 @@ import app.dak.mms.pdu.PduPart
 import app.dak.mms.pdu.Priority
 import app.dak.mms.pdu.RetrieveConf
 import app.dak.mms.pdu.SendReq
+import app.dak.mms.pdu.SmilPresentation
 import app.dak.mms.pdu.MessageType
 import app.dak.telephony.provider.MmsAddrColumns
 import app.dak.telephony.provider.MmsColumns
@@ -29,6 +30,8 @@ internal data class StoredPart(
     val name: String?,
     val fileName: String?,
     val contentLocation: String?,
+    /** `cid` (Content-ID, e.g. `<image1>`), for SMIL `cid:` references. */
+    val contentId: String? = null,
 )
 
 /**
@@ -187,8 +190,12 @@ internal object MmsProviderMapping {
         return result
     }
 
-    /** Body text (text/plain parts joined by newlines) and attachments (everything but text and SMIL). */
-    fun bodyAndAttachments(parts: List<StoredPart>): Pair<String, List<Attachment>> {
+    /**
+     * Body text (text/plain parts joined by newlines) and attachments (everything but text and SMIL), both in the
+     * presentation order of the message's SMIL when it has one ([presentationOrder]), else in part order.
+     */
+    fun bodyAndAttachments(stored: List<StoredPart>): Pair<String, List<Attachment>> {
+        val parts = presentationOrder(stored)
         val text = parts.filter { it.contentType.equals(ContentType.TEXT_PLAIN, ignoreCase = true) }
             .mapNotNull { it.text }
             .joinToString("\n")
@@ -202,6 +209,20 @@ internal object MmsProviderMapping {
                 )
             }
         return text to attachments
+    }
+
+    /**
+     * [parts] in the order the sender's SMIL presents them (slide by slide, see [SmilPresentation]): the SMIL is
+     * untrusted and only used to *sort* the message's own parts by Content-ID / Content-Location / name; nothing it
+     * names is ever loaded. Parts it does not reference follow in part order; without a usable SMIL (missing, not
+     * stored inline, malformed, over the parser's limits) the part order is kept.
+     */
+    fun presentationOrder(parts: List<StoredPart>): List<StoredPart> {
+        if (parts.size < 2) return parts
+        val smil = parts.firstOrNull { it.contentType.equals(ContentType.SMIL, ignoreCase = true) && !it.text.isNullOrEmpty() }
+            ?: return parts
+        val keys = parts.map { SmilPresentation.PartKey(it.contentId, it.contentLocation, it.name, it.fileName) }
+        return SmilPresentation.order(smil.text, keys).map { parts[it] }
     }
 
     /** `content://mms/part/<id>`: the URI apps (and our UI) use to open a stored part. */

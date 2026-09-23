@@ -131,8 +131,9 @@ data class OutgoingMms(
     val subject: String? = null,
     val threadId: Long? = null,
     /**
-     * The user's "Delivery reports" choice. A report is requested only when this AND
-     * [TelephonySettings.requestMmsDeliveryReports] (off by default: many MMSCs ignore them) are on.
+     * The user's "Delivery reports" choice. A report is requested only when this AND the carrier's
+     * `enableMMSDeliveryReports` (off in AOSP's defaults: many MMSCs ignore them) are on, see
+     * [app.dak.telephony.carrier.ReportPolicy].
      */
     val requestDeliveryReport: Boolean = true,
 )

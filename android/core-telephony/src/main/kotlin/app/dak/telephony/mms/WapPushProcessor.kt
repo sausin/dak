@@ -37,7 +37,7 @@ class WapPushProcessor @Inject constructor(
             is PduDecodeResult.Success -> when (val pdu = result.pdu) {
                 is NotificationInd -> downloads.onNotification(pdu, subId)
                 is DeliveryInd -> persister.applyDeliveryReport(pdu.messageId, pdu.status, pdu.to)
-                is ReadOrigInd -> pdu.messageId?.let { persister.applyReadReport(it, pdu.readStatus ?: ReadStatus.READ) }
+                is ReadOrigInd -> pdu.messageId?.let { persister.applyReadReport(it, pdu.readStatus ?: ReadStatus.READ, pdu.from) }
                 else -> Log.i(TAG, "ignoring WAP push of type 0x%02X".format(pdu.messageType))
             }
         }

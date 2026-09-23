@@ -17,7 +17,10 @@ enum class SendMode {
 
 /** Why a message cannot be sent as composed. */
 enum class SendBlock {
-    /** Media attached but the carrier has MMS switched off. */
+    /**
+     * The message needs MMS (media, or an e-mail recipient without a carrier e-mail gateway) but the carrier has MMS
+     * switched off.
+     */
     MMS_DISABLED,
 
     /** More recipients than the carrier's `recipientLimit` for one MMS. */
@@ -27,8 +30,12 @@ enum class SendBlock {
     TEXT_TOO_LONG,
 }
 
-/** [mode] to use, or [block] when the message cannot go out as composed (then [mode] is only a hint for the chip). */
-data class SendPlan(val mode: SendMode, val block: SendBlock? = null) {
+/**
+ * [mode] to use, or [block] when the message cannot go out as composed (then [mode] is only a hint for the chip).
+ * [emailGateway] is set when a text to one e-mail address goes as an SMS `"<address> <text>"` to the carrier's
+ * e-mail gateway number (`emailGatewayNumber`) instead of as MMS.
+ */
+data class SendPlan(val mode: SendMode, val block: SendBlock? = null, val emailGateway: String? = null) {
     val isMms: Boolean get() = mode != SendMode.SMS
 }
 
@@ -39,7 +46,10 @@ data class SendPlan(val mode: SendMode, val block: SendBlock? = null) {
  *   (`smsToMmsTextLengthThreshold`) threshold; carriers without a rule get [DEFAULT_SEGMENT_THRESHOLD] segments;
  * - several recipients share one group MMS only when the carrier has group MMS on. Otherwise plain texts go as SMS
  *   (one row per recipient, like a broadcast) and media goes as one MMS per recipient;
- * - with MMS switched off by the carrier, text always goes as SMS and media cannot be sent.
+ * - an e-mail recipient needs MMS (the MMSC routes it), except that a plain text to a single e-mail address goes by
+ *   SMS through the carrier's e-mail gateway number when it has one (as AOSP does);
+ * - with MMS switched off by the carrier, text always goes as SMS and media (or e-mail without a gateway) cannot be
+ *   sent.
  */
 object SendModePolicy {
     /** Segments above which a text goes as MMS when the carrier has no threshold (Dak's historical default). */
@@ -52,13 +62,17 @@ object SendModePolicy {
         textBytes: Int,
         hasAttachments: Boolean,
         config: CarrierMessagingConfig,
+        emailRecipients: Int = 0,
     ): SendPlan {
         val longText = isLongText(segments, textLength, config)
+        val email = emailRecipients > 0
+        val gateway = config.emailGatewayNumber?.takeIf { email && recipientCount == 1 && !hasAttachments && !longText }
+        if (gateway != null) return SendPlan(SendMode.SMS, emailGateway = gateway)
         if (!config.mmsEnabled) {
-            return if (hasAttachments) SendPlan(SendMode.MMS, SendBlock.MMS_DISABLED) else SendPlan(SendMode.SMS)
+            return if (hasAttachments || email) SendPlan(SendMode.MMS, SendBlock.MMS_DISABLED) else SendPlan(SendMode.SMS)
         }
         val group = recipientCount > 1
-        val needsMms = hasAttachments || longText
+        val needsMms = hasAttachments || longText || email
         val mode = when {
             group && !config.groupMmsEnabled -> if (needsMms) SendMode.MMS_PER_RECIPIENT else SendMode.SMS
             group || needsMms -> SendMode.MMS
@@ -78,6 +92,16 @@ object SendModePolicy {
         val byLength = config.smsToMmsLengthThreshold?.let { textLength > it } ?: false
         return bySegments || byLength
     }
+
+    /** True for an e-mail recipient (the only addresses with `@`; phone numbers and sender ids never have one). */
+    fun isEmailAddress(address: String): Boolean {
+        val a = address.trim()
+        val at = a.indexOf('@')
+        return at > 0 && at < a.length - 1
+    }
+
+    /** SMS body for [text] to [email] through the carrier's e-mail gateway: `"<address> <text>"` (AOSP format). */
+    fun emailGatewayBody(email: String, text: String): String = email.trim() + " " + text
 
     /** Subject cut to the carrier's `maxSubjectLength` (whole code points), or null when blank. */
     fun subject(subject: String?, config: CarrierMessagingConfig): String? {

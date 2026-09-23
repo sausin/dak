@@ -33,10 +33,23 @@ class TelephonySettings @Inject constructor(@ApplicationContext context: Context
         get() = prefs.getBoolean(KEY_SMS_DELIVERY_REPORTS, true)
         set(value) = prefs.edit().putBoolean(KEY_SMS_DELIVERY_REPORTS, value).apply()
 
-    /** Request MMS delivery reports (default off; many MMSCs ignore them). */
-    var requestMmsDeliveryReports: Boolean
-        get() = prefs.getBoolean(KEY_MMS_DELIVERY_REPORTS, false)
-        set(value) = prefs.edit().putBoolean(KEY_MMS_DELIVERY_REPORTS, value).apply()
+    /**
+     * "Read receipts for MMS" (default **off**, for privacy). When on, and the SIM's carrier supports MMS read reports
+     * (`enableMMSReadReports`, see [app.dak.telephony.carrier.ReportPolicy]), received MMS whose sender asked for a
+     * read report get an m-read-rec-ind when first marked read, and outgoing MMS ask for one. Mirrored from the
+     * `simsSending.mmsReadReceipts` setting by the app.
+     */
+    var sendMmsReadReceipts: Boolean
+        get() = prefs.getBoolean(KEY_MMS_READ_RECEIPTS, false)
+        set(value) = prefs.edit().putBoolean(KEY_MMS_READ_RECEIPTS, value).apply()
+
+    /**
+     * X-Mms-Report-Allowed on our m-notifyresp-ind / m-acknowledge-ind: whether the MMSC may tell a sender their MMS
+     * was delivered to us (default on, as AOSP). Mirrored from the `simsSending.mmsDeliveryToSenders` setting.
+     */
+    var allowMmsDeliveryReportsToSenders: Boolean
+        get() = prefs.getBoolean(KEY_MMS_REPORT_ALLOWED, true)
+        set(value) = prefs.edit().putBoolean(KEY_MMS_REPORT_ALLOWED, value).apply()
 
     /**
      * Answer the MMSC as OMA MMS-CTR expects (default on, as AOSP does): m-notifyresp-ind Retrieved after a download,
@@ -64,7 +77,8 @@ class TelephonySettings @Inject constructor(@ApplicationContext context: Context
         const val KEY_AUTO_DOWNLOAD = "mms_auto_download"
         const val KEY_AUTO_DOWNLOAD_ROAMING = "mms_auto_download_roaming"
         const val KEY_SMS_DELIVERY_REPORTS = "sms_delivery_reports"
-        const val KEY_MMS_DELIVERY_REPORTS = "mms_delivery_reports"
+        const val KEY_MMS_READ_RECEIPTS = "mms_read_receipts"
+        const val KEY_MMS_REPORT_ALLOWED = "mms_report_allowed"
         const val KEY_MMS_NOTIFY_RESPONSE = "mms_notify_response"
         const val KEY_COUNTRY_PREFIX = "home_country_"
     }

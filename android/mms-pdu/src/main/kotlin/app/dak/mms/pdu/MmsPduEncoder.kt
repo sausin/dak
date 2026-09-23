@@ -1,7 +1,7 @@
 package app.dak.mms.pdu
 
 /**
- * Encodes MMS PDUs. The PDUs a client sends are m-send-req, m-notifyresp-ind and m-acknowledge-ind; the other
+ * Encodes MMS PDUs. The PDUs a client sends are m-send-req, m-notifyresp-ind, m-acknowledge-ind and m-read-rec-ind; the other
  * types are encodable too so tests and tools can build realistic fixtures.
  *
  * Header order follows the spec: X-Mms-Message-Type, X-Mms-Transaction-ID, X-Mms-MMS-Version first and
@@ -44,6 +44,15 @@ object MmsPduEncoder {
                 fromField(w, pdu.from)
                 pdu.dateSeconds?.let { longField(w, Field.DATE, it) }
                 pdu.readStatus?.let { octetField(w, Field.READ_STATUS, it) }
+            }
+            is ReadRecInd -> {
+                // MMS-ENC 1.3 §6.7.2 order (as AOSP's PduComposer): type, version, Message-ID, To, From, Date, status.
+                preamble(w, pdu.messageType, null, pdu.mmsVersion)
+                textField(w, Field.MESSAGE_ID, pdu.messageId)
+                encodedField(w, Field.TO, MmsAddress.toWire(pdu.to))
+                fromField(w, pdu.from)
+                pdu.dateSeconds?.let { longField(w, Field.DATE, it) }
+                octetField(w, Field.READ_STATUS, pdu.readStatus)
             }
         }
         return w.toByteArray()

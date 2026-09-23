@@ -17,19 +17,36 @@ data class BillReminder(
 )
 
 /**
- * Extracts an [ExtractedTransaction] from an Indian bank/card/UPI/wallet SMS, or returns null
- * when the message is not a completed transaction (an OTP, a promotion, or a bill reminder).
+ * Extracts an [ExtractedTransaction] from a bank/card/UPI/wallet/loan SMS, or returns null when the message is not a
+ * completed transaction (an OTP, a promotion, a request, a mandate set-up, a failed or future movement, a statement,
+ * a balance alert or a bill reminder).
  *
- * This is deliberately a deterministic, regex-based parser (no ML), matching the "signed JSON
- * bundle of ... bank/OTP regexes" approach described for the classification pipeline: cheap,
- * offline, auditable, and easy to extend as new bank formats show up.
+ * This is deliberately a deterministic, rule-based parser (no ML), matching the "signed JSON bundle of ... bank/OTP
+ * regexes" approach described for the classification pipeline: cheap, offline and auditable. Its rules are about the
+ * structure and vocabulary of transaction SMS in general, never about one bank's template:
+ *
+ * 1. **Gates** ([DirectionCues]): OTPs (a safety footer such as "never share your OTP" does not count), promotions,
+ *    payment/collect requests and statements are never transactions. Failed / declined / cancelled movements are
+ *    not, unless the message also states a completed refund, reversal or credit (then it is that credit).
+ * 2. **Direction**: from the [Cue]s that state a movement as done ("debited", "credited", "spent", "received"; not
+ *    "will be debited", "if debited", "to be credited"). A completed refund / reversal wins; else the first finite
+ *    verb; else the first transaction noun ("txn of", "payment of", "Dr.", "deposit of") — and a message with only
+ *    nouns that also says it is scheduled, pending, set up or due is not a transaction. Transfer verbs (sent / paid /
+ *    transferred) are the user's credit when the money went "to you" / "to your" account.
+ * 3. **Whose numbers** ([InstrumentDetector], [NumberRef.isOwn]): each masked number gets a role from the words next
+ *    to it — the other party's (beneficiary / payee / recipient / remitter), "your", and which side of the movement
+ *    it is on. The other party's account never becomes the user's. A credit whose only named account is the other
+ *    party's destination ("INR 1,00,000 credited to beneficiary A/c XX5632 for your NEFT") is a confirmation of the
+ *    user's outgoing transfer: the user's debit when the SMS names the user's source account ("from your A/c
+ *    XX1234"), otherwise not a transaction (the debit comes in its own SMS).
+ * 4. **Amounts** ([AmountRoles]): balances, limits, dues, fees, cashback and bracketed equivalents are never the
+ *    transaction amount; of the rest, the one nearest the deciding verb is. A bare number is only read as money right
+ *    after "debited by / credited with" in an SMS whose other amounts, or Indian DLT sender, give its currency.
  */
 object TransactionParser {
 
-    private val otpPattern = Regex("""\botp\b|one[- ]time password|verification code|security code""", RegexOption.IGNORE_CASE)
-
     private val promoPattern = Regex(
-        """cashback up ?to|get flat|avail (?:the )?offer|%\s?off|use code|win\s|assured cashback|limited period|click here|exclusive offer|download (?:the )?app|hurry|t&c appl""",
+        """cashback up ?to|get flat|avail (?:the )?offer|%\s?off|use code|\bwin\s|assured cashback|limited period|click here|exclusive offer|download (?:the )?app|hurry|t&c appl|\bup\s?to\s+(?:rs\.?|inr|₹)|\bapply\s+now\b|\bpre-?approved\b|\beligible\s+for\b""",
         RegexOption.IGNORE_CASE,
     )
 
@@ -38,48 +55,42 @@ object TransactionParser {
         RegexOption.IGNORE_CASE,
     )
 
-    private val debitPattern = Regex(
-        """debited|spent|withdrawn|sent (?:rs|inr|₹|\$|usd|aed|eur)|paid (?:to|rs|inr|₹)|purchase|txn of|used for|used at|auto[- ]?debit|deducted|charged|a charge of|you paid|(?:was|has been) authori[sz]ed""",
-        RegexOption.IGNORE_CASE,
-    )
-
-    private val creditPattern = Regex(
-        """credited|received|deposited|refund(?:ed)?""",
-        RegexOption.IGNORE_CASE,
-    )
-
-    private val balanceContextPattern = Regex(
-        """av[ai]{0,2}l\.?\s*bal|available balance|(?:clr|clear)\s*bal|balance is|bal is|remaining balance|\bbalance\s*[:\-]|\bbal(?:ance)?\.?\s*[:\-]?\s*(?:inr|rs\.?|₹)""",
-        RegexOption.IGNORE_CASE,
-    )
-
-    /** A loan's amount still owed ("Outstanding principal: Rs 4,20,000"), used as the balance of a loan SMS. */
-    private val loanOutstandingPattern = Regex(
-        """outstanding(?:\s+(?:principal|amount|balance|loan))?(?:\s+(?:is|of))?\s*[:\-]?""",
-        RegexOption.IGNORE_CASE,
-    )
-
     /**
-     * The bank confirming that the user's own transfer reached the other party ("INR 1,00,000.00 credited to
-     * beneficiary A/c XX5632 for your NEFT"): money left the user, it did not arrive.
+     * The bank confirming that the user's own transfer reached the other party, with no account number to carry a
+     * role ("Rs 2,500 has been credited to the payee Ramesh").
      */
-    private val beneficiaryCreditPattern = Regex(
-        """\bcredited\s+(?:in)?to\s+(?:the\s+|your\s+)?(?:beneficiary|benef|bene|payee|recipient|receiver)|\b(?:beneficiary|payee|recipient)(?:'s)?\s+(?:bank\s+)?(?:a\s?/\s?c|account|acct)\.?\s*(?:(?:no\.?|number)\s*)?[x*]*\d*\s+(?:has\s+been\s+|is\s+|was\s+)?credited""",
+    private val creditToOtherParty = Regex(
+        """\bcredited\s+(?:in)?to\s+(?:the\s+|your\s+)?(?:beneficiary|benef|bene|payee|recipient|receiver)""",
         RegexOption.IGNORE_CASE,
     )
 
-    private val merchantPatterns = listOf(
-        Regex("""to\s+vpa\s+([\w.\-]+@[\w.\-]+)""", RegexOption.IGNORE_CASE),
-        Regex("""info\s*[:\-]\s*([^.\n]+)""", RegexOption.IGNORE_CASE),
-        Regex("""\bat\s+([A-Z0-9][A-Z0-9&.\-' ]{1,40}?)(?=\s+on\b|\s+via\b|[.,]|$)""", RegexOption.IGNORE_CASE),
-        Regex("""\bto\s+([A-Z0-9][A-Z0-9&.\-' ]{1,40}?)(?=\s+on\b|\s+via\b|[.,]|$)""", RegexOption.IGNORE_CASE),
+    /** A number with no currency right after "debited by / credited with" ("A/C X9876 debited by 250.0 on"). */
+    private val bareAmountAfterVerb = Regex(
+        """\b(?:debited|credited|withdrawn|deposited|paid|received|sent|transferred)\s+(?:by|with|for|of)\s+(\d{1,3}(?:,\d{2,3}){1,4}(?:\.\d{1,2})?|\d{1,10}(?:\.\d{1,2})?)(?![\d,])""" +
+            // ...and then ends the phrase: "debited by 250.0 on date", not "credited with 500 reward points".
+            """(?=\s+(?:on|at|to|from|towards|for|via|dated|ref|in|and|by|trf)\b|[ \t]*(?:[.,;:()]|$))""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    private val merchantVpaDebit = Regex("""\bto\s+(?:vpa\s+)?([\w.\-]+@[\w.\-]+)""", RegexOption.IGNORE_CASE)
+    private val merchantVpaCredit = Regex("""\b(?:from|by)\s+(?:vpa\s+)?([\w.\-]+@[\w.\-]+)""", RegexOption.IGNORE_CASE)
+    private val merchantInfo = Regex("""\binfo\s*[:\-]\s*([^.\n]+)""", RegexOption.IGNORE_CASE)
+    private const val NAME_END =
+        """(?=\s+(?:on|via|using|with|from|for|is|was|has|by|ref|and|in|txn|avl|dated|through|thru)\b|[.,;:(]|$)"""
+    private val merchantAt = Regex("""\bat\s+([A-Z][A-Z0-9&.\-' ]{1,40}?)$NAME_END""", RegexOption.IGNORE_CASE)
+    private val merchantTo = Regex("""\bto\s+([A-Z0-9][A-Z0-9&.\-' ]{1,40}?)$NAME_END""", RegexOption.IGNORE_CASE)
+
+    /** A "to X" capture that is an account, card or pronoun, not a payee name. */
+    private val notAName = Regex(
+        """^(?:your|you|ur|the|a\s?/\s?c|ac|acct|account|card|credit|debit|beneficiary|payee|vpa|an?|be|block|loan|bank|wallet|upi|mobile|report)\b""",
+        RegexOption.IGNORE_CASE,
     )
 
     private val referencePatterns = listOf(
-        Regex("""upi\s*ref(?:erence)?\.?\s*(?:no\.?)?\s*[:\-]?\s*(\d+)""", RegexOption.IGNORE_CASE),
-        Regex("""rrn\s*[:\-]?\s*(\d+)""", RegexOption.IGNORE_CASE),
-        Regex("""ref(?:erence)?\s*(?:no\.?)?\s*[:\-]?\s*(\w+)""", RegexOption.IGNORE_CASE),
-        Regex("""txn\s*id\s*[:\-]?\s*(\w+)""", RegexOption.IGNORE_CASE),
+        Regex("""\bupi\s*ref(?:erence)?\.?\s*(?:no\.?)?\s*[:\-]?\s*(\d+)""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:rrn|utr)\b\s*(?:no\.?)?\s*[:\-]?\s*(\w+)""", RegexOption.IGNORE_CASE),
+        Regex("""\bref(?:erence)?(?:\s*no)?\b\.?\s*[:\-]?\s*(\w+)""", RegexOption.IGNORE_CASE),
+        Regex("""\btxn\s*id\s*[:\-]?\s*(\w+)""", RegexOption.IGNORE_CASE),
     )
 
     /**
@@ -96,60 +107,67 @@ object TransactionParser {
         // once up front so every `\d` regex below (last4, reference, amounts) matches regardless
         // of the digit script the SMS was written in.
         val body = DigitNormalizer.normalizeDigits(rawBody)
-        if (otpPattern.containsMatchIn(body)) return null
+        if (DirectionCues.isOtp(body)) return null
         if (promoPattern.containsMatchIn(body)) return null
-        if (billReminderPattern.containsMatchIn(body)) return null
+        if (DirectionCues.request.containsMatchIn(body)) return null
+        if (DirectionCues.statement.containsMatchIn(body)) return null
 
-        val debitMatch = debitPattern.find(body)
-        val creditMatch = creditPattern.find(body)
-        val worded = when {
-            debitMatch != null && creditMatch != null -> {
-                if (debitMatch.range.first <= creditMatch.range.first) TransactionDirection.DEBIT else TransactionDirection.CREDIT
+        val cues = DirectionCues.find(body)
+        val strong = cues.filter { it.strong }
+        val refund = strong.firstOrNull { it.refund }
+        val failed = DirectionCues.failure.containsMatchIn(body)
+        val mainCue: Cue = when {
+            refund != null -> refund
+            failed -> strong.firstOrNull { it.direction == TransactionDirection.CREDIT } ?: return null
+            strong.isNotEmpty() -> strong.first()
+            cues.isEmpty() -> return null
+            DirectionCues.due.containsMatchIn(body) || billReminderPattern.containsMatchIn(body) -> return null
+            DirectionCues.pendingOrSetup.containsMatchIn(body) -> return null
+            else -> cues.first()
+        }
+        var direction = if (mainCue.transfer) DirectionCues.transferDirection(body, mainCue) else mainCue.direction
+
+        val refs = InstrumentDetector.findRefs(body)
+        if (direction == TransactionDirection.CREDIT && refund == null) {
+            // "INR 2,000 credited to A/c XX5632 of RAMESH from your A/c XX1234": the user's named account is the
+            // source, so for the user this is money out.
+            val yoursSource = refs.any { it.yours && !it.counterparty && it.side == Side.SOURCE }
+            val yoursElsewhere = refs.any { it.yours && !it.counterparty && it.side != Side.SOURCE }
+            if (yoursSource && !yoursElsewhere) {
+                direction = TransactionDirection.DEBIT
+            } else if (refs.none { it.isOwn(direction) } && goesToOtherParty(body, refs)) {
+                return null
             }
-            debitMatch != null -> TransactionDirection.DEBIT
-            creditMatch != null -> TransactionDirection.CREDIT
-            else -> return null
         }
 
-        val occurrences = MoneyParser.findAll(body, symbolMap)
-        if (occurrences.isEmpty()) return null
-
-        val detected = InstrumentDetector.detect(sender, body)
-        // "Credited to beneficiary ..." confirms the user's outgoing transfer. With the user's own account named it is
-        // that account's debit; without one there is nothing of the user's to record (the debit comes in its own SMS),
-        // and the payee's number must never become one of the user's accounts.
-        val direction = if (worded == TransactionDirection.CREDIT && beneficiaryCreditPattern.containsMatchIn(body)) {
-            if (detected.maskedNumber == null) return null
-            TransactionDirection.DEBIT
-        } else {
-            worded
-        }
+        val detected = InstrumentDetector.detect(sender, body, refs, direction)
+        direction = detected.directionOverride ?: direction
         val instrument = detected.instrument
-        val balanceOccurrence = pickBalanceOccurrence(body, occurrences, balanceContextPattern)
+
+        val amounts = AmountRoles.classify(body, MoneyParser.findAll(body, symbolMap))
+        val txnAmount = pickAmount(amounts, mainCue, direction)
+            ?: bareAmount(sender, body, amounts)
+            ?: return null
+        val balance = amounts.firstOrNull { it.role == AmountRole.BALANCE && it.occurrence !== txnAmount }?.occurrence
             ?: if (instrument == InstrumentType.LOAN && detected.linkedMaskedNumber == null) {
-                pickBalanceOccurrence(body, occurrences, loanOutstandingPattern)
+                amounts.firstOrNull { it.role == AmountRole.DUE && "outstanding" in it.beforeWords }?.occurrence
             } else {
                 null
             }
-        val txnOccurrence = occurrences.firstOrNull { it != balanceOccurrence } ?: occurrences.first()
 
         val maskedNumber = detected.maskedNumber
         val last4 = maskedNumber?.filter { it.isDigit() }?.takeLast(4)
-        val merchant = detectMerchant(body)
-        val reference = detectReference(body)
-        val institution = InstitutionTable.institutionFor(sender)
-
         return ExtractedTransaction(
             direction = direction,
-            amountMinor = txnOccurrence.money.amountMinor,
-            currency = txnOccurrence.money.currencyUpper,
+            amountMinor = txnAmount.money.amountMinor,
+            currency = txnAmount.money.currencyUpper,
             instrument = instrument,
             last4 = last4,
-            merchant = merchant,
-            reference = reference,
-            balanceMinor = balanceOccurrence?.money?.amountMinor,
-            balanceCurrency = balanceOccurrence?.money?.currencyUpper,
-            institution = institution,
+            merchant = detectMerchant(body, direction),
+            reference = detectReference(body),
+            balanceMinor = balance?.money?.amountMinor,
+            balanceCurrency = balance?.money?.currencyUpper,
+            institution = InstitutionTable.institutionFor(sender),
             maskedNumber = maskedNumber,
             linkedMaskedNumber = detected.linkedMaskedNumber,
         )
@@ -162,9 +180,9 @@ object TransactionParser {
         symbolMap: Map<String, String> = CurrencyTable.defaultSymbolToCurrency,
     ): BillReminder? {
         val body = DigitNormalizer.normalizeDigits(rawBody)
-        if (!billReminderPattern.containsMatchIn(body)) return null
+        if (!billReminderPattern.containsMatchIn(body) && !DirectionCues.due.containsMatchIn(body)) return null
         val amount = MoneyParser.findAll(body, symbolMap).firstOrNull() ?: return null
-        val dueHint = Regex("""due on[^.,\n]*""", RegexOption.IGNORE_CASE).find(body)?.value
+        val dueHint = Regex("""due\s+(?:on|by)[^.,\n]*""", RegexOption.IGNORE_CASE).find(body)?.value
         return BillReminder(
             amountMinor = amount.money.amountMinor,
             currency = amount.money.currencyUpper,
@@ -173,25 +191,70 @@ object TransactionParser {
         )
     }
 
-    private fun pickBalanceOccurrence(body: String, occurrences: List<MoneyOccurrence>, context: Regex): MoneyOccurrence? {
-        if (occurrences.size < 2) return null
-        val balanceKeywordMatch = context.find(body) ?: return null
-        // The balance amount is the occurrence closest to (and after, typically) the balance keyword.
-        return occurrences.minByOrNull { occurrence ->
-            kotlin.math.abs(occurrence.range.first - balanceKeywordMatch.range.first)
+    /** Whether the credit in [body] went to the other party (a beneficiary / payee destination). */
+    private fun goesToOtherParty(body: String, refs: List<NumberRef>): Boolean =
+        creditToOtherParty.containsMatchIn(body) || refs.any { it.counterparty && it.side != Side.SOURCE }
+
+    /**
+     * The transaction amount: of the amounts that are not a balance, limit, due, fee or equivalent (nor, for a debit,
+     * a cashback), the one nearest the cue that decided the direction.
+     */
+    private fun pickAmount(amounts: List<RoledAmount>, cue: Cue, direction: TransactionDirection): MoneyOccurrence? {
+        val candidates = amounts.filter {
+            it.role == AmountRole.NONE || (it.role == AmountRole.CASHBACK && direction == TransactionDirection.CREDIT)
         }
+        return candidates.minByOrNull { distance(it.occurrence.range, cue.range) }?.occurrence
     }
 
-    private fun detectMerchant(body: String): String? {
-        for (pattern in merchantPatterns) {
-            pattern.find(body)?.let { return it.groupValues[1].trim().trimEnd('.', ',') }
+    private fun distance(a: IntRange, b: IntRange): Int = when {
+        a.last < b.first -> b.first - a.last
+        b.last < a.first -> a.first - b.last
+        else -> 0
+    }
+
+    /**
+     * "A/C X9876 debited by 250.0": a number with no currency, right after the movement verb. Its currency is the one
+     * the SMS uses elsewhere (e.g. for the balance), else INR for an Indian DLT sender; otherwise it is not read.
+     */
+    private fun bareAmount(sender: String, body: String, amounts: List<RoledAmount>): MoneyOccurrence? {
+        val match = bareAmountAfterVerb.find(body) ?: return null
+        val currency = amounts.firstOrNull()?.occurrence?.money?.currencyUpper
+            ?: if (InstitutionTable.isDltSender(sender)) "INR" else return null
+        val group = match.groups[1] ?: return null
+        val money = try {
+            MoneyParser.parseAmount(group.value, currency)
+        } catch (e: NumberFormatException) {
+            return null
+        } catch (e: ArithmeticException) {
+            return null
+        }
+        if (money.amountMinor <= 0) return null
+        return MoneyOccurrence(money, group.range, group.value)
+    }
+
+    private fun detectMerchant(body: String, direction: TransactionDirection): String? {
+        val vpa = if (direction == TransactionDirection.DEBIT) merchantVpaDebit else merchantVpaCredit
+        vpa.find(body)?.let { return clean(it.groupValues[1]) }
+        merchantInfo.find(body)?.let { return clean(it.groupValues[1]) }
+        merchantAt.find(body)?.let { return clean(it.groupValues[1]) }
+        if (direction == TransactionDirection.DEBIT) {
+            for (m in merchantTo.findAll(body)) {
+                val name = m.groupValues[1]
+                if (!notAName.containsMatchIn(name)) return clean(name)
+            }
         }
         return null
     }
 
+    private fun clean(raw: String): String = raw.trim().trimEnd('.', ',')
+
     private fun detectReference(body: String): String? {
         for (pattern in referencePatterns) {
-            pattern.find(body)?.let { return it.groupValues[1] }
+            for (m in pattern.findAll(body)) {
+                val value = m.groupValues[1]
+                if (value.equals("no", ignoreCase = true) || value.equals("number", ignoreCase = true)) continue
+                return value
+            }
         }
         return null
     }

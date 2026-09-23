@@ -48,24 +48,57 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
     gap or thousands separator), `Rs 500/-`, `AED 120.50`, `USD 42.10`, `$42.10` (symbol default
     configurable via `symbolMap`), `€10`, `EUR 9,50` (European decimal comma, disambiguated from a
     thousands separator by matching the target currency's minor-unit digit count), `1.234,56`
-    (European thousands-dot), `1'234.50` (Swiss apostrophe thousands), and amounts written with any
-    non-ASCII decimal-digit script (see `DigitNormalizer`).
+    (European thousands-dot), `1'234.50` (Swiss apostrophe thousands), `Rs:500.00` (colon after the
+    currency), and amounts written with any non-ASCII decimal-digit script (see `DigitNormalizer`).
+  - Never money: a number glued to a letter, digit or mask with no currency before it (`XX1234 INR 500` is
+    ₹500, not ₹1,234), and a suffix currency followed by another number (`Ref 6248123 INR 500`, `12-09-2026
+    INR 750`: the code belongs to the next amount).
 
 ## `parser` — `TransactionParser`, `InstitutionTable`
 
 - **`TransactionParser.parse(sender: String, body: String, symbolMap = CurrencyTable.defaultSymbolToCurrency): ExtractedTransaction?`**
   (pass `CurrencyTable.symbolMapFor(regionHomeCurrency)` so `$` follows the SIM's region) — the main
-  entry point. Returns `null` for anything that isn't a completed transaction:
-  - OTPs that happen to mention an amount ("OTP for txn of Rs 500 is 123456").
-  - Promotions ("cashback up to", "flat X% off", "use code", ...).
-  - Bill/statement reminders ("due on", "minimum amount due", ...) — see `parseBillReminder` below.
-  - Otherwise extracts: direction (debit/credit keywords — debited, spent, withdrawn, sent, paid,
-    purchase, "txn of", used for/at, auto-debit vs. credited, received, deposited, refund),
-    amount + currency (via `MoneyParser`, picking the non-balance occurrence as the transaction
-    amount), instrument (see "Instruments" below), last-4 (card
-    or account, several header/format variants), merchant (`at X`, `to VPA x@y`, `Info: ...`, `to X`),
-    UPI/RRN/txn reference, available balance (amount + currency, from an "Avl/Available Bal[ance]"
-    context), and institution from the sender header.
+  entry point. Every rule is about the structure and vocabulary of transaction SMS in general — never one bank's
+  template or brand. Returns `null` for anything that isn't a completed transaction:
+  - OTPs that happen to mention an amount ("OTP for txn of Rs 500 is 123456", "Use 482913 to authorise..."); a
+    safety footer ("Never share your OTP", "Bank never asks for OTP") does not make a transaction alert an OTP.
+  - Promotions and offers ("cashback up to", "flat X% off", "up to Rs 5,00,000", "pre-approved", "apply now", ...).
+  - Payment / collect requests ("has requested Rs 500", "payment request"), statements and mini-statements.
+  - Failed, declined, cancelled, bounced, "could not be processed" movements — unless the message also states a
+    completed refund / reversal / credit, which is then the user's credit.
+  - Future, conditional or set-up movements ("will be debited", "to be credited", "if debited", "once it is
+    credited", "AutoPay set up", "e-mandate registered", "scheduled"), bill/due reminders — see `parseBillReminder`.
+  - Balance-only messages (every amount is a balance / limit / due) and service messages (only fees mentioned).
+  - Otherwise extracts, in this order (`DirectionCues`, `InstrumentDetector`, `AmountRoles`, internal; `SmsWords`
+    reads the few words next to a position within one clause):
+    - **Direction**: from the cues that state a movement as done. A completed refund/reversal wins; else the first
+      finite verb (debited, spent, withdrawn, charged, used for/at, sent/paid/transferred vs. credited, received,
+      deposited, disbursed, added to wallet/account); else the first transaction noun ("txn of", "payment of",
+      "purchase", "debit of", "withdrawal", "transfer", "Dr."/"Cr.", "deposit of"). Transfer verbs are the user's
+      credit when the money went "to you" / "to your" account (not card).
+    - **Whose numbers**: every masked number (A/c, Ac, a/c no., acct, account, card, DC/CC, loan; `XX1234`,
+      `X1234`, `**1234`, `...1234`, `4375XXXX1234` (leading digits dropped), `ending [with|in] 1234`, 3+ visible
+      digits, or exactly four unmasked digits right after the keyword) gets a role from its neighbouring words:
+      the other party's (beneficiary / payee / recipient / receiver / remitter / sender, before or right after it),
+      the user's ("your", "ur", "own", "linked to"), and its side (source: "from", "by", "debited [to]", "A/c XX1
+      debited"; destination: "to", "into", "towards", "in", "credited", "A/c XX2 credited"; means: "on", "using",
+      "via"). The user's numbers are: never the other party's; always "your"; cards and loans; otherwise any account
+      not on the far side of the movement (a debit's destination, a credit's source). So "debited from A/c XX1234 and
+      credited to A/c XX5632" is XX1234's debit and XX5632 is never recorded as the user's. A credit whose only named
+      account is the other party's destination ("credited to beneficiary A/c XX5632 for your NEFT") confirms the
+      user's outgoing transfer: the user's debit when the SMS also names "from your A/c ...", else `null`. A payment
+      *to* the user's card ("paid to Credit Card XX9876") is that card's credit, or the paying account's debit when
+      the account is named.
+    - **Amount**: each amount gets a role from its neighbouring words — balance, limit, due/outstanding, fee/charges/
+      markup, cashback/reward, or a converted equivalent (in brackets right after another amount, "approx", "INR
+      equivalent"). The transaction amount is the non-role amount nearest the deciding cue (a cashback only for a
+      credit); a number with no currency is only read right after "debited by / credited with" and before the end of
+      that phrase, in the currency the SMS uses elsewhere or INR for an Indian DLT sender ("debited by 250.0 on").
+    - **Balance**: the first amount with a balance role (Avl/Avail/Available Bal[ance], Bal, Clr Bal, "balance is",
+      "Balance:", "AvlBal"); for a loan SMS naming no account, the outstanding amount.
+    - Instrument (see "Instruments" below), last-4, merchant (`to [VPA] x@y` for debits, `from/by [VPA] x@y` for
+      credits, `Info: ...`, `at X`, `to X` when X is a name), UPI/RRN/UTR/ref/txn reference, and institution from
+      the sender header.
 - **Instruments** (`InstrumentDetector`, internal): `InstrumentType` = `BANK_ACCOUNT`, `CREDIT_CARD`,
   `DEBIT_CARD`, `PREPAID_CARD` (prepaid/forex/travel/multi-currency/gift cards, Wise/Revolut), `WALLET` (wallet,
   Amazon Pay balance, Airtel Money, MobiKwik...), `UPI` (VPA/UPI only, no account named), `LOAN`, `UNKNOWN`. Decided
@@ -80,7 +113,12 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   parse for due-date/minimum-due messages the main parser deliberately excludes.
 - **`InstitutionTable.institutionFor(sender: String): String?`** — small local sender→institution
   table (HDFCBK, ICICIB/ICICIT, SBI family, AXISBK, KOTAKB, PAYTMB, PHONPE, AMZNPB, and more Indian
-  banks); independent of `:classify`'s richer sender-identity table.
+  banks); independent of `:classify`'s richer sender-identity table. Display names only: a DLT header missing from
+  the table resolves to the header itself. `isDltSender(sender)` — whether a sender has the Indian DLT shape.
+- **Corpus** (`src/test/.../parser/corpus`): ~260 made-up messages in the many styles banks, cards, UPI apps,
+  wallets, lenders and a few foreign banks use, each with its expected outcome (null, or direction, amount, currency,
+  instrument, own number, linked account, balance, merchant, and account digits that must never become the user's).
+  Add a case there whenever a real-device message is misread; fix it with a general rule, not a template.
 
 ## `ledger` — `Account`, `LedgerEntry`, `Ledger`, `BalanceState`, `BillingCycle`
 
@@ -126,7 +164,7 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   (the shorter a suffix of the longer, >= 4 digits: `40065`/`440065`, `0065`/`440065`, or identical digits under two
   instruments). Scored by suffix length, non-overlapping timelines (format switch) and recency. Never merges;
   `AliasSuggestion(accountA, accountB, reason: AliasReason, score)`. `coOccurringPairs(accounts, bodies)` finds pairs
-  named together in one message (transfers) — distinct accounts. `MaskedNumbers.findAll(body)`.
+  named together in one message (transfers) — distinct accounts. `MaskedNumbers.findAll(body)` (the same number formats the parser reads).
 - **`AccountAliases(aliasToCanonical)`** — user-confirmed merges; `resolve(id)` (chains, cycle-safe),
   `membersOf(id)`, `canonicalOf(a, b)` (more digits wins). `Ledger.apply(..., aliases = ...)` posts alias inputs to
   the canonical account.

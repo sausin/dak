@@ -190,8 +190,10 @@ class DefaultMessageEnricher(
          * 3: fake-credit scam labels (`app.dak.classify.scam`).
          * 4: instrument groups (debit / prepaid / loan / UPI-vs-account detection, linked bank accounts); ledger
          *    entries are re-keyed by DB migration 2 -> 3 and refilled by this re-index.
+         * 5: canonical amount tokens (`app.dak.search.AmountTokens`) in the FTS text, so every spelling of an amount
+         *    matches.
          */
-        const val LOGIC_REVISION = 4
+        const val LOGIC_REVISION = 5
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

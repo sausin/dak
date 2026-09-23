@@ -12,6 +12,8 @@ import app.dak.index.enrich.Enrichment
 import app.dak.index.enrich.GroupingRules
 import app.dak.index.enrich.LinkDetector
 import app.dak.index.enrich.SenderGrouping
+import app.dak.finance.money.MoneyParser
+import app.dak.search.AmountTokens
 import app.dak.search.TextNormalizer
 import kotlinx.serialization.builtins.ListSerializer
 
@@ -71,7 +73,7 @@ internal object IndexRowMapper {
             bodyPreview = preview(message.body),
             attachmentsJson = IndexJson.json.encodeToString(attachmentsSerializer, message.attachments),
             templateVersion = version,
-            searchText = TextNormalizer.normalize(message.body),
+            searchText = searchText(message.body),
             searchSender = searchSender(message.address, c.canonicalSender),
             repeatGroup = repeatGroup,
         )
@@ -131,6 +133,22 @@ internal object IndexRowMapper {
     fun preview(body: String): String {
         val collapsed = body.replace(WHITESPACE, " ").trim()
         return if (collapsed.length <= IndexedMessage.PREVIEW_LENGTH) collapsed else collapsed.take(IndexedMessage.PREVIEW_LENGTH)
+    }
+
+    /**
+     * The FTS text of a body: the normalized body plus canonical amount tokens (`amt50000000 amtinr50000000`, see
+     * [AmountTokens]) for every amount it mentions, so any spelling of an amount finds it. Search-only: the
+     * displayed body, previews and highlights always come from the raw body.
+     */
+    fun searchText(body: String): String {
+        val normalized = TextNormalizer.normalize(body)
+        val amounts = try {
+            MoneyParser.findAllForSearch(body).mapNotNull { m -> m.hundredths?.let { it to m.currency } }
+        } catch (e: RuntimeException) {
+            emptyList() // amount tokens are a search nicety; never let them break indexing
+        }
+        val tokens = AmountTokens.indexText(amounts)
+        return if (tokens.isEmpty()) normalized else "$normalized $tokens"
     }
 
     fun searchSender(address: String, canonicalSender: String?): String =

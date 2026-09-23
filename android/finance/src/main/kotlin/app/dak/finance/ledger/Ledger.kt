@@ -64,8 +64,10 @@ object Ledger {
      *
      * @param rates used to compute an indicative home-currency value for a foreign-currency entry;
      *   when null (or the pair is not covered), foreign entries are posted with no indicative value.
-     * @param defaultHomeCurrency the account's home currency when no balance-bearing SMS states one
-     *   (defaults to INR, matching Indian institutions per the product spec).
+     * @param defaultHomeCurrency the account's home currency when no balance-bearing SMS states one, e.g. INR for
+     *   an Indian institution or the currency of the user's region (see `CurrencyTable.symbolMapFor`); null when
+     *   unknown, in which case the currency most of the account's own transactions are in is used. Never assumes a
+     *   country.
      * @param statementDayFor supplies a credit card's configured statement day; null leaves it unset.
      * @param aliases user-confirmed merges: inputs of an alias id are posted to the account it resolves to.
      * @param instrumentOverride the user's manual type for an account ("This is a credit card"), by canonical id;
@@ -79,7 +81,7 @@ object Ledger {
     fun apply(
         inputs: List<LedgerInput>,
         rates: RatesTable? = null,
-        defaultHomeCurrency: (institution: String?) -> String = { "INR" },
+        defaultHomeCurrency: (institution: String?) -> String? = { null },
         statementDayFor: (Account) -> Int? = { null },
         aliases: AccountAliases = AccountAliases.NONE,
         instrumentOverride: (accountId: String) -> InstrumentType? = { null },
@@ -93,7 +95,8 @@ object Ledger {
             val own = canonical.filter { it.viaAccountId == null }.ifEmpty { canonical }.ifEmpty { sorted }
             val sample = own.last().input.transaction
             val homeCurrency = sorted.firstNotNullOfOrNull { it.input.transaction.balanceCurrency }
-                ?: defaultHomeCurrency(sample.institution)
+                ?: defaultHomeCurrency(sample.institution)?.trim()?.uppercase()?.takeIf { it.length == 3 }
+                ?: dominantCurrency(sorted.map { it.input })
             val linked = own.lastOrNull { it.viaAccountId == null && Account.linkedIdOf(it.input.transaction) != null }
                 ?.let { Account.linkedIdOf(it.input.transaction) }
                 ?.let { aliases.resolve(it) }
@@ -129,6 +132,11 @@ object Ledger {
         )
         return listOf(Posting(primary), Posting(input.copy(transaction = bankTxn), viaAccountId = aliases.resolve(Account.idOf(txn))))
     }
+
+    /** The currency most of [inputs] are in (ties: the earliest seen), from the SMS themselves. */
+    private fun dominantCurrency(inputs: List<LedgerInput>): String =
+        inputs.groupingBy { it.transaction.currency.uppercase() }.eachCount()
+            .maxByOrNull { it.value }?.key ?: inputs.first().transaction.currency.uppercase()
 
     private fun buildEntry(input: LedgerInput, homeCurrency: String, rates: RatesTable?): LedgerEntry {
         val txn = input.transaction

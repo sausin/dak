@@ -76,12 +76,18 @@ object MoneyDisplay {
     fun formatIndicative(money: Money, locale: Locale = Locale.getDefault(), homeCurrency: String? = null): String =
         format(money, locale, homeCurrency, indicative = true)
 
-    /** The ISO currency this [locale]'s country conventionally uses, best-effort, falling back to INR. */
+    /**
+     * The ISO currency this [locale]'s country conventionally uses, best-effort. Never assumes a country: with no
+     * usable country the result matches no currency, so every amount is shown with its ISO code.
+     */
     private fun currencyForLocale(locale: Locale): String = try {
-        java.util.Currency.getInstance(locale).currencyCode
+        java.util.Currency.getInstance(locale)?.currencyCode ?: NO_CURRENCY
     } catch (e: IllegalArgumentException) {
-        "INR"
+        NO_CURRENCY
     }
+
+    /** ISO 4217's "no currency" code. */
+    private const val NO_CURRENCY = "XXX"
 
     private fun groupWestern(digits: String, separator: Char): String {
         if (digits.length <= 3) return digits

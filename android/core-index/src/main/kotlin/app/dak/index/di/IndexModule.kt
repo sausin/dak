@@ -19,6 +19,7 @@ import app.dak.index.repo.RatesSource
 import app.dak.index.scam.IndexScamContext
 import app.dak.index.sync.IncomingIndexer
 import app.dak.telephony.IncomingMessageHandler
+import app.dak.telephony.region.RegionProvider
 import dagger.Binds
 import dagger.BindsOptionalOf
 import dagger.Module
@@ -59,12 +60,14 @@ object IndexProvidesModule {
         contacts: Optional<ContactLookup>,
         cloud: Optional<CloudClassifier>,
         scamContext: IndexScamContext,
+        regions: RegionProvider,
     ): DefaultMessageEnricher {
         val lookup = contacts.orElse(NoContactLookup)
         return DefaultMessageEnricher(
             isContact = { address -> lookup.isContact(address) },
             cloud = cloud.orElse(NoCloudClassifier),
             scamContext = scamContext,
+            regionFor = { subId -> regions.forSubId(subId) },
         )
     }
 }

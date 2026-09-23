@@ -6,6 +6,7 @@ import app.dak.classify.MessageModel
 import app.dak.classify.NoCloudClassifier
 import app.dak.classify.SenderId
 import app.dak.classify.SenderKind
+import app.dak.classify.SenderRegion
 import app.dak.classify.TemplateBundle
 import app.dak.classify.scam.FakeCreditDetector
 import app.dak.classify.scam.HintDirection
@@ -19,6 +20,7 @@ import app.dak.core.model.MessageBox
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.parser.TransactionParser
 import app.dak.index.scam.ScamContextSource
+import app.dak.telephony.region.RegionProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -67,6 +69,8 @@ class DefaultMessageEnricher(
     private val modelLoader: () -> MessageModel = { ClassifierAssets.model },
     initialTemplates: (() -> TemplateBundle) = { ClassifierAssets.defaultTemplates },
     private val scamContext: ScamContextSource = ScamContextSource.None,
+    /** Region of the SIM a message arrived on (sender conventions such as India's DLT headers follow it). */
+    private val regionFor: (subId: Int) -> RegionProfile = { RegionProfile.UNKNOWN },
 ) : MessageEnricher {
 
     private val mutex = Mutex()
@@ -154,6 +158,8 @@ class DefaultMessageEnricher(
 
     override fun brandFoldKey(channel: String): String? = ensureState().templates.brandKey(channel)
 
+    private fun senderRegion(subId: Int): SenderRegion = SenderRegion.of(regionFor(subId).countryIso)
+
     private fun ensureState(): State {
         state?.let { return it }
         synchronized(this) {
@@ -162,8 +168,8 @@ class DefaultMessageEnricher(
             val model = modelLoader()
             val created = State(
                 templates = templates,
-                local = ClassifierPipeline(templates, model, NoCloudClassifier, isContact),
-                withCloud = ClassifierPipeline(templates, model, cloud, isContact),
+                local = ClassifierPipeline(templates, model, NoCloudClassifier, isContact, regionFor = ::senderRegion),
+                withCloud = ClassifierPipeline(templates, model, cloud, isContact, regionFor = ::senderRegion),
                 scam = FakeCreditDetector(templates),
             )
             state = created

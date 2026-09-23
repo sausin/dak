@@ -37,7 +37,8 @@ class TransactionParserTest {
         assertEquals(TransactionDirection.DEBIT, txn.direction)
         assertEquals(50000L, txn.amountMinor)
         assertEquals("5678", txn.last4)
-        assertEquals(InstrumentType.UPI, txn.instrument)
+        // A UPI payment that names the account debited belongs to that bank account.
+        assertEquals(InstrumentType.BANK_ACCOUNT, txn.instrument)
         assertEquals("swiggy@icici", txn.merchant)
         assertEquals("987654321012", txn.reference)
         assertEquals(1234567L, txn.balanceMinor)
@@ -117,7 +118,8 @@ class TransactionParserTest {
         )
         assertNotNull(txn)
         assertEquals(TransactionDirection.CREDIT, txn.direction)
-        assertEquals(InstrumentType.UPI, txn.instrument)
+        assertEquals(InstrumentType.BANK_ACCOUNT, txn.instrument)
+        assertEquals("3344", txn.last4)
         assertEquals("445566778899", txn.reference)
     }
 

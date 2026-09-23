@@ -94,6 +94,28 @@ bundle's brand table; `otp` is filled via `OtpExtractor` whenever the final cate
 Numeric, non-contact senders whose body contains a link get the `"unknown-sender-link"` label
 regardless of category.
 
+## Fake credit alerts (`app.dak.classify.scam`)
+
+Threat model: `docs/security/fake-credit-scams.md`. Pure on-device rules, thread-safe, bounded to the first 4,000
+characters.
+
+- `FakeCreditDetector(templates).evaluate(address, body, hint: TransactionHint? = null, knownAccounts:
+  Set<AccountHint> = emptySet(), isSavedContact = false, recentMessages: List<RecentMessage> = emptyList(),
+  dateMillis, region: String? = "IN"): ScamVerdict` returns `ScamVerdict(level: NONE|SUSPICIOUS|LIKELY_SCAM,
+  reasons: List<ScamReason>, claimedInstitution: String?, score)`.
+  - Verified bank or wallet DLT headers are never flagged.
+  - India's DLT rules apply only for region `IN`.
+  - A saved contact halves the score.
+- `isCandidate(address, body, region)` and `needsRecentMessages(address, body, region)` are cheap pre-checks. Use
+  them to skip loading contacts, accounts or history for most messages.
+- `ScamLabels` stores a verdict in a label set and reads it back:
+  - `scam:likely-fake-credit` or `scam:suspicious`
+  - `scam-reason:<code>` and `scam-claims:<bank>`
+  - `scam:user-dismissed`
+  - `excludedFromLedger(labels)`, `isFlaggedCredit(labels)` and `likePattern(label)` (for SQL `LIKE` over the
+    JSON label column).
+- `TransactionHint(direction: HintDirection?, amountMinor, last4)` keeps `:classify` independent of `:finance`.
+
 ## Links and lookalikes
 
 - `LinkExtractor.extract(body): List<ExtractedLink>`: finds `http(s)://` and bare `www.` URLs only (never

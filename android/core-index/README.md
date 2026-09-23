@@ -256,6 +256,18 @@ in both time directions. Template look-alikes with different data are never coll
 the newest copy with `repeatCount`; `repeatsOf(key)` lists every copy. (The old `OtpItem.repeatedLater` flag is
 still filled.)
 
+### Fake credit alerts (`app.dak.index.scam`)
+
+- `DefaultMessageEnricher` runs `FakeCreditDetector` on incoming messages. The context comes from
+  `ScamContextSource`, implemented by `IndexScamContext`: ledger accounts cached for 5 minutes, incoming rows from
+  the last 48 h via `MessageDao.recentForScamCheck`, and "Not a scam" overrides. The verdict is stored as
+  `ScamLabels` in `labels`, with no schema change. `LOGIC_REVISION` is 3.
+- `LedgerRepository` skips rows where `ScamLabels.excludedFromLedger(labels)` is true.
+- `ScamRepository`:
+  - `flaggedConversations(): Flow<Set<String>>` returns the conversations flagged in the last 30 days.
+  - `dismiss(key)` records "Not a scam" in `ScamOverrides` (SharedPreferences, message keys only), then force
+    re-ingests the message.
+
 ## How it works
 
 - **Encryption**: 32 random bytes, wrapped with AES-256-GCM key `dak_index_key` in AndroidKeyStore, stored in

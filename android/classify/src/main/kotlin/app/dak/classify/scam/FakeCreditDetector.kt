@@ -116,7 +116,8 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
             if (atBank.isEmpty()) {
                 reasons += ScamReason.NO_ACCOUNT_AT_BANK
             } else {
-                val mask = maskIn(text) ?: hint?.last4
+                // The other party's account in a transfer confirmation is not the user's, so it is never compared.
+                val mask = maskIn(COUNTERPARTY_ACCOUNT.regex.replace(text, " ")) ?: hint?.last4
                 if (mask != null && atBank.none { digitsMatch(it.maskedDigits, mask) }) reasons += ScamReason.UNKNOWN_ACCOUNT
             }
         }
@@ -249,8 +250,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         if (!hasAmount && hinted == null) return null
         if (!ACCOUNT_REF.containsMatchIn(text) && hinted == null) return null
         return when {
-            hinted == HintDirection.CREDIT || CREDIT_WORDS.containsMatchIn(text) -> Alert.CREDIT
-            hinted == HintDirection.DEBIT || DEBIT_WORDS.containsMatchIn(text) -> Alert.DEBIT
+            // "Credited to beneficiary ..." confirms the user's own outgoing transfer: money left, it did not arrive.
+            hinted == HintDirection.CREDIT || (CREDIT_WORDS.containsMatchIn(text) && !BENEFICIARY_CREDIT.containsMatchIn(text)) -> Alert.CREDIT
+            hinted == HintDirection.DEBIT || DEBIT_WORDS.containsMatchIn(text) || BENEFICIARY_CREDIT.containsMatchIn(text) -> Alert.DEBIT
             else -> null
         }
     }
@@ -378,7 +380,8 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         internal val allPatterns: List<GatedRegex>
             get() = listOf(
                 AMOUNT_BEFORE, AMOUNT_AFTER, MONEY_WORDS, ACCOUNT_REF, CREDIT_WORDS, DEBIT_WORDS, RETURN_REQUEST, MOBILE, VPA,
-                UPI_LINK, PIN_TO_RECEIVE, COLLECT, RECEIVE_BAIT, TRANSFER_MENTION, MASK, BARE_AMOUNT,
+                UPI_LINK, PIN_TO_RECEIVE, COLLECT, RECEIVE_BAIT, TRANSFER_MENTION, MASK, BARE_AMOUNT, COUNTERPARTY_ACCOUNT,
+                BENEFICIARY_CREDIT,
             )
 
         /** Plain numbers of 3-7 digits (or Indian-grouped "15,000"), as rupees in minor units. */
@@ -388,6 +391,18 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
             BARE_AMOUNT.findAll(text).take(8).mapNotNull { it.groupValues[1].replace(",", "").toLongOrNull()?.times(100) }.toSet()
 
         internal fun maskIn(text: String): String? = MASK.find(text)?.groupValues?.get(1)
+
+        /** The other party's account ("beneficiary A/c XX5632", "payee account XX1234"). */
+        private val COUNTERPARTY_ACCOUNT = GatedRegex(
+            """\b(?:beneficiary|benef|bene|payee|recipient|receiver)(?:'s)?\.?\s*(?:bank\s+)?(?:a\s?/\s?c|acc?t|account)\.?\s*(?:no\.?\s*)?[x*]*\d{3,}""",
+            O,
+        )
+
+        /** "Credited to beneficiary ...": the bank confirming the user's own outgoing transfer. */
+        private val BENEFICIARY_CREDIT = GatedRegex(
+            """\bcredited\s+(?:in)?to\s+(?:the\s+|your\s+)?(?:beneficiary|benef|bene|payee|recipient|receiver)""",
+            O,
+        )
 
         /** Masks match when the shorter visible tail is a suffix of the longer one (XX1234 vs XXXX001234). */
         internal fun digitsMatch(a: String, b: String): Boolean {

@@ -199,8 +199,11 @@ class DefaultMessageEnricher(
          * 6: courier / order / invoice updates classify as transactions (not promotions or spam, whatever their
          *    "rate us" / feedback links), carrier "now available to take calls" alerts as personal (not spam), and
          *    `-T` / `-S` DLT routes damp promotion / spam model scores (template bundle 2 + `ClassifierPipeline`).
+         * 7: single-character account masks (`A/c X5073`), bare `Bal INR` balances, unknown DLT bank headers keep their
+         *    own accounts instead of sharing `UNKNOWN`, and the other party's account in a transfer ("credited to
+         *    beneficiary A/c XX5632") is never the user's (such confirmations no longer create accounts).
          */
-        const val LOGIC_REVISION = 6
+        const val LOGIC_REVISION = 7
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

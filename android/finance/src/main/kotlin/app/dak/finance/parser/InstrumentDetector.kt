@@ -10,6 +10,8 @@ internal data class DetectedInstrument(
     val instrument: InstrumentType,
     val maskedNumber: String?,
     val linkedMaskedNumber: String? = null,
+    /** The other party's account ("credited to beneficiary A/c XX5632"): never one of the user's instruments. */
+    val counterpartyMaskedNumber: String? = null,
 )
 
 /**
@@ -25,7 +27,7 @@ internal data class DetectedInstrument(
  */
 internal object InstrumentDetector {
 
-    private enum class RefKind { DEBIT_CARD, CREDIT_CARD, PREPAID_CARD, CARD, LOAN, ACCOUNT, BARE }
+    private enum class RefKind { DEBIT_CARD, CREDIT_CARD, PREPAID_CARD, CARD, LOAN, ACCOUNT, COUNTERPARTY, BARE }
 
     private data class NumberRef(val kind: RefKind, val masked: String, val range: IntRange)
 
@@ -40,6 +42,11 @@ internal object InstrumentDetector {
     private val abbreviatedCardRef = Regex("""\b(DC|CC)\s*$NO$NUMBER""", RegexOption.IGNORE_CASE)
     private val loanRef = Regex(
         """\bloan\s*(?:(?:a\s?/\s?c|account|acct)\.?\s*)?$NO(?:$NUMBER|(\d{6,}))""",
+        RegexOption.IGNORE_CASE,
+    )
+    /** An account labelled as the other party's ("beneficiary A/c XX5632", "payee account XX1234"). */
+    private val counterpartyRef = Regex(
+        """\b(?:beneficiary|benef|bene|payee|recipient|receiver)(?:'s)?\.?\s*(?:bank\s+)?(?:a\s?/\s?c|account|acct)\.?\s*$NO$NUMBER""",
         RegexOption.IGNORE_CASE,
     )
     private val accountRef = Regex("""\b(?:a\s?/\s?c|account|acct)\.?\s*$NO$NUMBER""", RegexOption.IGNORE_CASE)
@@ -88,7 +95,14 @@ internal object InstrumentDetector {
     )
 
     fun detect(sender: String, body: String): DetectedInstrument {
-        val refs = findRefs(body)
+        val all = findRefs(body)
+        val counterparty = all.firstOrNull { it.kind == RefKind.COUNTERPARTY }?.masked
+        return detectOwn(sender, body, all.filter { it.kind != RefKind.COUNTERPARTY })
+            .copy(counterpartyMaskedNumber = counterparty)
+    }
+
+    /** [detect] over the user's own references (the other party's account already removed). */
+    private fun detectOwn(sender: String, body: String, refs: List<NumberRef>): DetectedInstrument {
         val card = refs.firstOrNull { it.kind in CARD_KINDS }
         val loan = refs.firstOrNull { it.kind == RefKind.LOAN }
         val account = refs.firstOrNull { it.kind == RefKind.ACCOUNT }
@@ -158,6 +172,8 @@ internal object InstrumentDetector {
             if (out.any { it.range.first <= match.range.last && match.range.first <= it.range.last }) return
             out += NumberRef(kind, masked, match.range)
         }
+        // First, so the other party's number is claimed before the plain account and bare patterns see it.
+        for (m in counterpartyRef.findAll(body)) add(RefKind.COUNTERPARTY, m, numberOf(m, 1))
         for (m in cardRef.findAll(body)) add(cardKind(m.groupValues[1]), m, numberOf(m, 2))
         for (m in abbreviatedCardRef.findAll(body)) {
             val kind = if (m.groupValues[1].equals("DC", ignoreCase = true)) RefKind.DEBIT_CARD else RefKind.CREDIT_CARD

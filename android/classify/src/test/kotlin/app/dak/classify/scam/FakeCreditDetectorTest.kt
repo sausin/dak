@@ -233,6 +233,17 @@ class FakeCreditDetectorTest {
     }
 
     @Test
+    fun `beneficiary confirmation is the user's own transfer, not a credit to an unknown account`() {
+        val known = setOf(AccountHint("HDFC Bank", "1234"))
+        val body = "Confirmation! INR 100,000.00 credited to beneficiary A/c XX5632 for your NEFT on 07-Dec-2024. Ref N34224216. - HDFC Bank"
+        val v = detector.evaluate("AX-FSTPAY", body, knownAccounts = known, dateMillis = now)
+        assertFalse(ScamReason.UNKNOWN_ACCOUNT in v.reasons, v.toString())
+        // A lookalike sender still counts as one; only the payee's account is ignored.
+        val fake = detector.evaluate("AX-FSTPAY", "INR 20,000.00 credited to HDFC Bank A/c XX9999 on 12-09-26.", knownAccounts = known, dateMillis = now)
+        assertTrue(ScamReason.UNKNOWN_ACCOUNT in fake.reasons)
+    }
+
+    @Test
     fun `unprefixed real bank header alone is not flagged but with a return request is`() {
         assertEquals(ScamLevel.NONE, detector.evaluate("HDFCBK", "INR 2,000.00 credited to HDFC Bank A/c XX1234", dateMillis = now).level)
         assertEquals(

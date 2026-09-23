@@ -59,6 +59,15 @@ object TransactionParser {
         RegexOption.IGNORE_CASE,
     )
 
+    /**
+     * The bank confirming that the user's own transfer reached the other party ("INR 1,00,000.00 credited to
+     * beneficiary A/c XX5632 for your NEFT"): money left the user, it did not arrive.
+     */
+    private val beneficiaryCreditPattern = Regex(
+        """\bcredited\s+(?:in)?to\s+(?:the\s+|your\s+)?(?:beneficiary|benef|bene|payee|recipient|receiver)|\b(?:beneficiary|payee|recipient)(?:'s)?\s+(?:bank\s+)?(?:a\s?/\s?c|account|acct)\.?\s*(?:(?:no\.?|number)\s*)?[x*]*\d*\s+(?:has\s+been\s+|is\s+|was\s+)?credited""",
+        RegexOption.IGNORE_CASE,
+    )
+
     private val merchantPatterns = listOf(
         Regex("""to\s+vpa\s+([\w.\-]+@[\w.\-]+)""", RegexOption.IGNORE_CASE),
         Regex("""info\s*[:\-]\s*([^.\n]+)""", RegexOption.IGNORE_CASE),
@@ -93,7 +102,7 @@ object TransactionParser {
 
         val debitMatch = debitPattern.find(body)
         val creditMatch = creditPattern.find(body)
-        val direction = when {
+        val worded = when {
             debitMatch != null && creditMatch != null -> {
                 if (debitMatch.range.first <= creditMatch.range.first) TransactionDirection.DEBIT else TransactionDirection.CREDIT
             }
@@ -106,6 +115,15 @@ object TransactionParser {
         if (occurrences.isEmpty()) return null
 
         val detected = InstrumentDetector.detect(sender, body)
+        // "Credited to beneficiary ..." confirms the user's outgoing transfer. With the user's own account named it is
+        // that account's debit; without one there is nothing of the user's to record (the debit comes in its own SMS),
+        // and the payee's number must never become one of the user's accounts.
+        val direction = if (worded == TransactionDirection.CREDIT && beneficiaryCreditPattern.containsMatchIn(body)) {
+            if (detected.maskedNumber == null) return null
+            TransactionDirection.DEBIT
+        } else {
+            worded
+        }
         val instrument = detected.instrument
         val balanceOccurrence = pickBalanceOccurrence(body, occurrences, balanceContextPattern)
             ?: if (instrument == InstrumentType.LOAN && detected.linkedMaskedNumber == null) {

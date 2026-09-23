@@ -46,6 +46,16 @@ internal object SeedCorpus {
         Category.TRANSACTION to "IndiGo: Your flight 6E-2145 booking is confirmed, PNR ABCDEF, departs 09:30 on 20-Sep.",
         Category.TRANSACTION to "Jio: Rs 249 recharge successful for your number, valid till 15-Oct-25.",
         Category.TRANSACTION to "Zomato order delivered! Hope you enjoyed your meal from Pizza Hub.",
+        // Courier / order / invoice updates: their "rate us" / "feedback" links are not marketing.
+        Category.TRANSACTION to "Your shipment AWB 51234567 was delivered to RAHUL. Please rate our service on the link.",
+        Category.TRANSACTION to "Ecom Express: Your parcel with AWB 998877 is in transit and will be delivered tomorrow. Track your shipment on the app.",
+        Category.TRANSACTION to "Shadowfax: Your order has been picked up and is arriving today. Share feedback after delivery.",
+        Category.TRANSACTION to "We have delivered your order 55667788 today. For feedback please click the link. Xpressbees",
+        Category.TRANSACTION to "Ekart: Your Flipkart shipment is arriving today, our agent will deliver it between 10 AM and 6 PM.",
+        Category.TRANSACTION to "Your Myntra order 7788 has been packed and handed over to the courier. Track the shipment here.",
+        Category.TRANSACTION to "Invoice INV-2024-5566 for your order of Rs 1,299 has been generated. Download the invoice from your account.",
+        Category.TRANSACTION to "Your electricity bill of Rs 1,840 for Aug is generated, due date 15-Sep. Ignore if already paid.",
+        Category.TRANSACTION to "India Post: Speed post article EK123456789IN delivered on 12-Sep. Thank you for using our services.",
 
         // PROMOTION
         Category.PROMOTION to "Flat 50% off on all electronics this weekend only! Shop now on Amazon.",
@@ -60,6 +70,7 @@ internal object SeedCorpus {
         Category.PROMOTION to "Zomato Gold: Unlimited free delivery this month, limited time offer.",
         Category.PROMOTION to "HDFC Bank: Flat 10% instant discount on your credit card at select merchants this festive season.",
         Category.PROMOTION to "Amazon: Great Indian Festival sale starts now, grab deals up to 70% off.",
+        Category.PROMOTION to "Order now and get 50% off on your first order, free delivery on all orders today!",
 
         // SPAM
         Category.SPAM to "Congratulations! You have won a lottery of Rs 25,00,000. Click here to claim your prize now.",
@@ -72,6 +83,7 @@ internal object SeedCorpus {
         Category.SPAM to "Dear customer your account has been suspended due to KYC pending, click here to verify now.",
         Category.SPAM to "Get instant loan approved in 5 minutes with zero documentation, apply now on this link.",
         Category.SPAM to "Your parcel is on hold due to unpaid customs fee, click here to pay and release your parcel.",
+        Category.SPAM to "India Post: your package could not be delivered due to incomplete address, update your address within 12 hours.",
 
         // PERSONAL
         Category.PERSONAL to "Hey are you free this evening? Let's catch up for coffee near the office.",
@@ -86,5 +98,8 @@ internal object SeedCorpus {
         Category.PERSONAL to "Did you finish the assignment? I still have two questions left",
         Category.PERSONAL to "Ghar aa jao jaldi, papa bula rahe hai",
         Category.PERSONAL to "Let's plan a trip next month, I found some great deals on hotels",
+        // Carrier call alerts are about a person (a missed caller, a number that is reachable again).
+        Category.PERSONAL to "Dear Customer, 9812345678 is now available to take calls.",
+        Category.PERSONAL to "Missed call alert: you have 2 missed calls from 9876543210, last at 10:42 AM.",
     )
 }

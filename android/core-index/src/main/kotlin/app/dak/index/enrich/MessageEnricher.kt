@@ -196,8 +196,11 @@ class DefaultMessageEnricher(
          *    entries are re-keyed by DB migration 2 -> 3 and refilled by this re-index.
          * 5: canonical amount tokens (`app.dak.search.AmountTokens`) in the FTS text, so every spelling of an amount
          *    matches.
+         * 6: courier / order / invoice updates classify as transactions (not promotions or spam, whatever their
+         *    "rate us" / feedback links), carrier "now available to take calls" alerts as personal (not spam), and
+         *    `-T` / `-S` DLT routes damp promotion / spam model scores (template bundle 2 + `ClassifierPipeline`).
          */
-        const val LOGIC_REVISION = 5
+        const val LOGIC_REVISION = 6
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

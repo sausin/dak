@@ -20,6 +20,29 @@ public data class SenderEntry(
     val regions: List<String> = emptyList(),
 )
 
+/**
+ * Which senders a [TemplateRule] is meant for. Evaluated by [ClassifierPipeline]; a private number is a full-length
+ * phone number (see [ClassifierPipeline]) and a saved contact counts as one whatever its address.
+ */
+@Serializable
+public enum class SenderScope {
+    /** Every sender (the default, and what older bundles mean). */
+    ANY,
+
+    /**
+     * Business senders only: skipped for saved contacts, and for private numbers where businesses cannot send from
+     * one ([SenderRegion.dltSenderIds]: in India alerts, orders and bills only come from DLT headers). Used for
+     * money / order / delivery wording that people also write to each other ("I paid", "did you receive it?").
+     */
+    BUSINESS,
+
+    /**
+     * Private numbers that are not saved contacts, and only where businesses cannot send from one
+     * ([SenderRegion.dltSenderIds]): a bank alert from such a number is a scam, not a transaction.
+     */
+    PRIVATE_NUMBER,
+}
+
 /** A single deterministic classification rule. */
 @Serializable
 public data class TemplateRule(
@@ -38,6 +61,8 @@ public data class TemplateRule(
      * default, and what older bundles carry) means the rule is generic and applies everywhere.
      */
     val regions: List<String> = emptyList(),
+    /** Which senders the rule is for ([SenderScope.ANY] when absent, so older bundles keep their meaning). */
+    val senderScope: SenderScope = SenderScope.ANY,
 )
 
 /** The payload of a template bundle: everything except the signature. */

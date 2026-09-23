@@ -112,9 +112,11 @@ class LogisticsAndCallAlertTest {
             "USPS: Your package is waiting for delivery. Please confirm your delivery address at https://usps-redeliver.top",
         )
         assertTrue("fraud-risk" in classify("+919812345678", "Your parcel is held, pay customs fee at bit.ly/3xYzAb").labels)
-        // LinkExtractor only sees http(s):// and www. links, so the sender-link label needs the scheme.
-        val c = classify("+919812345678", "Your parcel is held, pay customs fee at https://bit.ly/3xYzAb")
-        assertTrue("fraud-risk" in c.labels && "unknown-sender-link" in c.labels, c.labels.toString())
+        // Scheme-less links count as links, so the sender-link label does not need the scheme.
+        for (link in listOf("https://bit.ly/3xYzAb", "bit.ly/3xYzAb")) {
+            val c = classify("+919812345678", "Your parcel is held, pay customs fee at $link")
+            assertTrue("fraud-risk" in c.labels && "unknown-sender-link" in c.labels, c.labels.toString())
+        }
     }
 
     @Test

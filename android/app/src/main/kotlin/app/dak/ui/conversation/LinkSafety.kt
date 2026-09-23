@@ -54,7 +54,8 @@ object LinkSafety {
     /**
      * Opens [raw] in the browser; false when nothing can handle it or it is not a web link. Only `http`/`https`
      * ever open (a bare `www.` link gets `https://`), so a message can never launch `intent:`, `content:`, `file:`
-     * or `javascript:` URIs, whatever text surrounds them.
+     * or `javascript:` URIs, whatever text surrounds them. For a message link pass [ExtractedLink.url], which also
+     * gives scheme-less links (`bit.ly/x`) their `https://`.
      */
     fun open(context: Context, raw: String): Boolean {
         val uri = webUriOrNull(raw) ?: return false

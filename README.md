@@ -4,8 +4,10 @@
 
 The Android default-SMS app for the OTPs, bank alerts and tickets that Microsoft SMS Organizer's
 1M+ users lost when it shut down in May 2026 with no maintained successor. Free tier: 100%
-on-device, fully offline, nothing to trust us with. Premium: the same app, plus server-backed
-extras that only ever see ciphertext.
+on-device, fully offline, nothing to trust us with. Premium: the same app, plus opt-in server-backed
+extras — relay and sync only ever see ciphertext; the few that must read text (cloud categorisation of a
+masked message, AI search of your typed query) ask for explicit consent first and can be withdrawn any time
+(see the [privacy policy](docs/privacy-policy.md)).
 
 [![CI](https://github.com/sausin/dak/actions/workflows/android.yml/badge.svg)](https://github.com/sausin/dak/actions/workflows/android.yml)
 ![offline-first](https://img.shields.io/badge/free%20tier-offline--first-brightgreen)

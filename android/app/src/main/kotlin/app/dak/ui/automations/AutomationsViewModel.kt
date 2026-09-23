@@ -3,13 +3,20 @@ package app.dak.ui.automations
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.dak.automation.ForwardingHold
+import app.dak.automation.ForwardingHolds
 import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automation.OtpForwardConfirmations
+import app.dak.automation.OutboundAutomationGuard
 import app.dak.automation.RuleEntry
 import app.dak.automation.RuleRepository
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.presets.Presets
 import app.dak.automations.rule.Rule
+import app.dak.automations.rule.activeWindow
+import app.dak.automations.rule.isExpired
+import app.dak.automations.rule.sendsOffDevice
+import app.dak.automations.rule.withRestartedWindow
 import app.dak.automations.safety.RuleValidator
 import app.dak.automations.safety.ValidationIssue
 import app.dak.core.model.SimInfo
@@ -34,13 +41,29 @@ sealed interface SaveCheck {
     data object Incomplete : SaveCheck
     /** Forwards/relays OTP-capable messages: confirm with a biometric check, then call [AutomationsViewModel.confirmAndSave]. */
     data class NeedsConfirmation(val rule: Rule) : SaveCheck
+    /** Sends messages off the phone while no app lock is set up: "Set up app lock first". */
+    data object NeedsAppLock : SaveCheck
     data object Saved : SaveCheck
+}
+
+/** What turning a rule on needs from the screen ([AutomationsViewModel.checkEnable]). */
+sealed interface EnableCheck {
+    /** The rule could not be read. */
+    data object Unreadable : EnableCheck
+    /** It sends messages off the phone and no app lock is set up. */
+    data object NeedsAppLock : EnableCheck
+    /** Confirm with a biometric check, then [AutomationsViewModel.enable] with `confirmed = true`. */
+    data class NeedsConfirmation(val rule: Rule) : EnableCheck
+    /** Call [AutomationsViewModel.enable]. */
+    data class Ready(val rule: Rule) : EnableCheck
 }
 
 /**
  * Automations: rules list with enable toggles, the simple rule editor, presets, scheduled sends and the exact
  * alarm permission prompt. OTP-forwarding rules need a biometric confirmation to be created, to change recipient
- * and to be re-enabled ([OtpForwardConfirmations]).
+ * and to be re-enabled ([OtpForwardConfirmations]). Rules that send messages off the phone need an app lock
+ * ([OutboundAutomationGuard]), checked again when the change is applied. A rule whose period ended is used again with a
+ * fresh period of the same length when switched on.
  */
 @HiltViewModel
 class AutomationsViewModel @Inject constructor(
@@ -51,6 +74,8 @@ class AutomationsViewModel @Inject constructor(
     scheduledSends: ScheduledSendStore,
     private val sims: SimRepository,
     private val forwardingStatus: ForwardingStatusNotifier,
+    private val outboundGuard: OutboundAutomationGuard,
+    private val holds: ForwardingHolds,
 ) : ViewModel() {
 
     val entries: StateFlow<List<RuleEntry>?> = rules.observe()
@@ -76,30 +101,66 @@ class AutomationsViewModel @Inject constructor(
         val own = sims.sims.value.mapNotNull { it.number }.filter { it.isNotBlank() }.toSet()
         val issues = RuleValidator.validate(rule, entitlements, own)
         if (issues.isNotEmpty()) return SaveCheck.Invalid(issues)
+        if (lockMissingFor(rule)) return SaveCheck.NeedsAppLock
         if (confirmations.needsConfirmation(rule) && !confirmations.isConfirmed(rule)) return SaveCheck.NeedsConfirmation(rule)
+        holds.clear(rule.id)
         viewModelScope.launch { rules.save(rule) }
         return SaveCheck.Saved
     }
 
-    /** Called after a successful biometric check for [rule]. */
-    fun confirmAndSave(rule: Rule) {
+    /** Called after a successful biometric check for [rule]; false (nothing saved) when the app lock went meanwhile. */
+    fun confirmAndSave(rule: Rule): Boolean {
+        if (lockMissingFor(rule)) return false
         confirmations.confirm(rule)
+        holds.clear(rule.id)
         viewModelScope.launch { rules.save(rule) }
+        return true
     }
 
-    /** True when enabling [entry] needs a biometric confirmation first. */
-    fun needsConfirmationToEnable(entry: RuleEntry): Boolean {
-        val rule = entry.rule ?: return false
-        return confirmations.needsConfirmation(rule) && !confirmations.isConfirmed(rule)
+    /** Why [entry] is off when the app turned it off by itself (no app lock, recipient left contacts), else null. */
+    fun holdOf(entry: RuleEntry): ForwardingHold? = if (entry.stored.enabled) null else holds.reason(entry.stored.id)
+
+    /**
+     * What turning [entry] on needs. A rule whose period ended comes back with a fresh period of the same length from
+     * now ([withRestartedWindow]), so it is checked (and confirmed) as that new rule.
+     */
+    fun checkEnable(entry: RuleEntry): EnableCheck {
+        val stored = entry.rule ?: return EnableCheck.Unreadable
+        val now = System.currentTimeMillis()
+        val rule = (if (stored.isExpired(now)) stored.withRestartedWindow(now) else stored).copy(enabled = true)
+        if (lockMissingFor(rule)) return EnableCheck.NeedsAppLock
+        return if (confirmations.needsConfirmation(rule) && !confirmations.isConfirmed(rule)) {
+            EnableCheck.NeedsConfirmation(rule)
+        } else {
+            EnableCheck.Ready(rule)
+        }
     }
 
-    fun setEnabled(entry: RuleEntry, enabled: Boolean, confirmed: Boolean = false) {
-        if (confirmed) entry.rule?.let { confirmations.confirm(it) }
+    /**
+     * Turns [rule] (from [checkEnable]) on; false (nothing changed) when it sends messages off the phone and no app
+     * lock is set up any more. A re-used rule is saved with its new period.
+     */
+    fun enable(entry: RuleEntry, rule: Rule, confirmed: Boolean = false): Boolean {
+        if (lockMissingFor(rule)) return false
+        if (confirmed) confirmations.confirm(rule)
+        holds.clear(entry.stored.id)
+        val restarted = rule.activeWindow() != entry.rule?.activeWindow()
         viewModelScope.launch {
-            rules.setEnabled(entry.stored.id, enabled)
+            if (restarted) rules.save(rule) else rules.setEnabled(entry.stored.id, true)
+            forwardingStatus.refresh()
+        }
+        return true
+    }
+
+    fun disable(entry: RuleEntry) {
+        viewModelScope.launch {
+            rules.setEnabled(entry.stored.id, false)
             forwardingStatus.refresh()
         }
     }
+
+    /** True when [rule] would send messages off the phone while no app lock is set up. */
+    private fun lockMissingFor(rule: Rule): Boolean = rule.enabled && rule.sendsOffDevice() && !outboundGuard.securityReady()
 
     fun delete(entry: RuleEntry) {
         viewModelScope.launch {

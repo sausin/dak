@@ -49,6 +49,13 @@ object Routes {
 
     /** Time-boxed auto-forwarding rules (e.g. bank alerts to your CA for tax season). */
     const val FORWARDING = "forwarding"
+    /**
+     * What automations sent (the run log): one rule's history ([ARG_RULE_ID]), or every rule's, including deleted
+     * ones, when it is null.
+     */
+    const val AUTOMATION_HISTORY = "automationhistory?ruleId={ruleId}"
+    const val ARG_RULE_ID = "ruleId"
+    fun automationHistory(ruleId: String? = null): String = "automationhistory" + query(ARG_RULE_ID to ruleId)
     /** Birthday wishes picked up from contacts. */
     const val BIRTHDAYS = "birthdays"
     /** Fraud reporting: verified helplines, 1909 / cybercrime flows. Optional message to report. */

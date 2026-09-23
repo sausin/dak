@@ -24,7 +24,10 @@ import javax.inject.Singleton
  * the user confirms them again from the Forwarding or Automations screen.
  */
 @Singleton
-class OtpForwardConfirmations @Inject constructor(@ApplicationContext context: Context) {
+class OtpForwardConfirmations @Inject constructor(
+    @ApplicationContext context: Context,
+    private val reminders: OutboundRuleReminders,
+) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** True when [rule] forwards or relays and its conditions can match an OTP, or forwards SMS over a long period. */
@@ -35,9 +38,13 @@ class OtpForwardConfirmations @Inject constructor(@ApplicationContext context: C
     fun isConfirmed(rule: Rule): Boolean =
         !needsConfirmation(rule) || prefs.getString(rule.id, null) == fingerprint(rule)
 
-    /** Records a successful biometric confirmation of [rule] as it is now. */
+    /**
+     * Records a successful biometric confirmation of [rule] as it is now. Confirming (or extending) an enabled rule
+     * starts it forwarding, so it also arms the "Was this you?" reminder ([OutboundRuleReminders]).
+     */
     fun confirm(rule: Rule) {
         prefs.edit().putString(rule.id, fingerprint(rule)).apply()
+        reminders.armIfOutbound(rule)
     }
 
     fun forget(ruleId: String) {

@@ -11,11 +11,22 @@ enum class ForwardingHold {
     CONTACT_MISSING,
     /** Contacts access was revoked, so the recipient could not be checked. */
     CONTACTS_ACCESS,
+    /** The user switched the app lock off ([OutboundAutomationGuard]). */
+    LOCK_OFF,
+    /** The phone's screen lock was removed, leaving no app lock ([OutboundAutomationGuard]). */
+    SCREEN_LOCK_REMOVED,
+    /** No app lock was set up (rules from before app lock was required, or a lock that is not usable). */
+    LOCK_NEEDED,
+    ;
+
+    /** True for the holds [OutboundAutomationGuard] sets: the rule can come back once an app lock is set up. */
+    val needsAppLock: Boolean get() = this == LOCK_OFF || this == SCREEN_LOCK_REMOVED || this == LOCK_NEEDED
 }
 
 /**
- * Remembers why [AutomationRunner] paused a rule (it also disables it), so the Forwarding screen can say so. Cleared
- * when the user turns the rule back on, saves it again or deletes it.
+ * Remembers why the app turned a rule off by itself ([AutomationRunner]: recipient no longer a contact;
+ * [OutboundAutomationGuard]: no app lock), so the Forwarding and Automations screens can say so. Cleared when the user
+ * turns the rule back on, saves it again or deletes it.
  */
 @Singleton
 class ForwardingHolds @Inject constructor(@ApplicationContext context: Context) {

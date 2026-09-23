@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ForwardToInbox
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
@@ -59,11 +60,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automation.ForwardingHold
 import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automation.RuleEntry
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.forwarding.ForwardingStatus
 import app.dak.automations.rule.RelayChannel
+import app.dak.automations.rule.isExpired
 import app.dak.automations.safety.ValidationIssue
 import app.dak.core.model.Category
 import app.dak.core.model.SimInfo
@@ -78,13 +81,16 @@ import app.dak.ui.common.LockChip
 import app.dak.ui.common.WarningBanner
 import app.dak.ui.common.categoryLabel
 import app.dak.ui.common.rememberRelativeTimeFormatter
+import app.dak.ui.forwarding.AppLockNeededDialog
 import app.dak.ui.settings.UpgradeSheet
 import app.dak.ui.theme.DakTheme
 import kotlinx.coroutines.launch
 
 /**
  * Automations: rules with enable toggles, a simple rule editor for the common triggers and actions, presets,
- * scheduled sends, and premium actions shown locked. OTP-forwarding rules require a biometric confirmation.
+ * scheduled sends, and premium actions shown locked. OTP-forwarding rules require a biometric confirmation; rules that
+ * send messages off the phone need the app lock ([AppLockNeededDialog] otherwise). Rules whose period ended are listed
+ * apart and switch back on with a fresh period; each rule has its history of what was sent.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +106,7 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     var editing by remember { mutableStateOf<RuleDraft?>(null) }
     var upgradeFor by remember { mutableStateOf<Feature?>(null) }
     var issues by remember { mutableStateOf<List<ValidationIssue>>(emptyList()) }
+    var lockNeeded by remember { mutableStateOf(false) }
     val confirmTitle = stringResource(R.string.scr_auto_confirm_title)
     val confirmSubtitle = stringResource(R.string.scr_auto_confirm_subtitle)
     val noLockText = stringResource(R.string.scr_auto_needs_screen_lock)
@@ -111,6 +118,25 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 AuthResult.UNAVAILABLE -> scope.launch { snackbar.showSnackbar(noLockText) }
                 AuthResult.DENIED -> Unit
             }
+        }
+    }
+
+    fun turnOn(entry: RuleEntry) {
+        val rule = entry.rule
+        val spec = rule?.let { ForwardingSpec.fromRule(it) }
+        // Ended forwarding rules are used again from the Forwarding screen (contact and risky-recipient checks).
+        if (spec != null && spec.status(System.currentTimeMillis()) == ForwardingStatus.ENDED) {
+            navigator.navigate(Routes.FORWARDING)
+            return
+        }
+        when (val check = viewModel.checkEnable(entry)) {
+            EnableCheck.Unreadable -> Unit
+            EnableCheck.NeedsAppLock -> lockNeeded = true
+            is EnableCheck.NeedsConfirmation -> confirmThen {
+                // Re-checked when applied: the lock may have gone while the fingerprint prompt was up.
+                if (!viewModel.enable(entry, check.rule, confirmed = true)) lockNeeded = true
+            }
+            is EnableCheck.Ready -> if (!viewModel.enable(entry, check.rule)) lockNeeded = true
         }
     }
 
@@ -181,16 +207,15 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     )
                 }
             }
-            items(list, key = { it.stored.id }) { entry ->
+            val now = System.currentTimeMillis()
+            val (ended, current) = list.partition { it.rule?.isExpired(now) == true }
+            val rowItem: @Composable (RuleEntry, Boolean) -> Unit = { entry, isEnded ->
                 RuleRow(
                     entry = entry,
-                    onToggle = { enabled ->
-                        if (enabled && viewModel.needsConfirmationToEnable(entry)) {
-                            confirmThen { viewModel.setEnabled(entry, true, confirmed = true) }
-                        } else {
-                            viewModel.setEnabled(entry, enabled)
-                        }
-                    },
+                    hold = viewModel.holdOf(entry),
+                    ended = isEnded,
+                    onToggle = { enabled -> if (enabled) turnOn(entry) else viewModel.disable(entry) },
+                    onHistory = { navigator.navigate(Routes.automationHistory(entry.stored.id)) },
                     onEdit = {
                         val draft = entry.rule?.let { RuleDraft.fromRule(it) }
                         if (entry.rule?.let { ForwardingSpec.isForwarding(it) } == true) {
@@ -205,6 +230,11 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     onDelete = { viewModel.delete(entry) },
                 )
                 HorizontalDivider()
+            }
+            items(current, key = { it.stored.id }) { entry -> rowItem(entry, false) }
+            if (ended.isNotEmpty()) {
+                item(key = "ended-header") { SectionTitle(R.string.fw_section_ended) }
+                items(ended, key = { it.stored.id }) { entry -> rowItem(entry, true) }
             }
             item { SectionTitle(R.string.scr_auto_scheduled) }
             if (scheduled.isEmpty()) {
@@ -236,9 +266,9 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         SaveCheck.Saved -> editing = null
                         SaveCheck.Incomplete -> issues = listOf(ValidationIssue.NoActions)
                         is SaveCheck.Invalid -> issues = check.issues
+                        SaveCheck.NeedsAppLock -> lockNeeded = true
                         is SaveCheck.NeedsConfirmation -> confirmThen {
-                            viewModel.confirmAndSave(check.rule)
-                            editing = null
+                            if (viewModel.confirmAndSave(check.rule)) editing = null else lockNeeded = true
                         }
                     }
                 },
@@ -247,6 +277,16 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
     upgradeFor?.let { UpgradeSheet(feature = it, onDismiss = { upgradeFor = null }) }
+    if (lockNeeded) {
+        AppLockNeededDialog(
+            onSetUp = {
+                lockNeeded = false
+                editing = null
+                navigator.navigate(Routes.APP_LOCK)
+            },
+            onDismiss = { lockNeeded = false },
+        )
+    }
 }
 
 @Composable
@@ -260,24 +300,54 @@ private fun SectionTitle(res: Int) {
 }
 
 @Composable
-private fun RuleRow(entry: RuleEntry, onToggle: (Boolean) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun RuleRow(
+    entry: RuleEntry,
+    hold: ForwardingHold?,
+    ended: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onHistory: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     ListItem(
         modifier = Modifier.clickable(onClick = onEdit),
         headlineContent = { Text(entry.stored.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
-            Text(
-                if (entry.rule == null) stringResource(R.string.scr_auto_unreadable) else describe(entry),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column {
+                Text(
+                    if (entry.rule == null) stringResource(R.string.scr_auto_unreadable) else describe(entry),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                holdText(hold)?.let {
+                    Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                }
+                if (ended && entry.rule != null) {
+                    TextButton(onClick = { onToggle(true) }) { Text(stringResource(R.string.fw_row_use_again)) }
+                }
+            }
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onHistory) {
+                    Icon(Icons.Outlined.History, contentDescription = stringResource(R.string.fw_history_row_cd, entry.stored.name))
+                }
                 IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.action_delete)) }
-                Switch(checked = entry.stored.enabled, onCheckedChange = onToggle, enabled = entry.rule != null)
+                Switch(checked = entry.stored.enabled && !ended, onCheckedChange = onToggle, enabled = entry.rule != null)
             }
         },
     )
+}
+
+/** Why the app turned a rule off by itself, for its row. */
+@Composable
+private fun holdText(hold: ForwardingHold?): String? = when (hold) {
+    null -> null
+    ForwardingHold.CONTACT_MISSING -> stringResource(R.string.fw_status_paused_contact)
+    ForwardingHold.CONTACTS_ACCESS -> stringResource(R.string.fw_status_paused_access)
+    ForwardingHold.LOCK_OFF -> stringResource(R.string.fw_status_off_lock_off)
+    ForwardingHold.SCREEN_LOCK_REMOVED -> stringResource(R.string.fw_status_off_screen_lock)
+    ForwardingHold.LOCK_NEEDED -> stringResource(R.string.fw_status_off_lock_needed)
 }
 
 @Composable

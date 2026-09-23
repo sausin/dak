@@ -41,6 +41,22 @@ If the app crashes, `adb logcat -b crash` output (or a screenshot of the crash d
     recipient can only be picked from contacts; "Until I stop it" or > 1 hour shows the scam warning and asks for
     the fingerprint; deleting the recipient's contact pauses the rule on the next forward (with a notification).
     Birthday wishes list reads your contacts.
+18a. Forwarding needs app lock: with app lock off, turning on (or saving) a forwarding rule shows "Set up app lock
+    first" and its button opens App lock; nothing is saved as on. Turn app lock on, then enable the rule.
+18b. With a forwarding rule on, App lock → switch off: a "Turn off app lock?" dialog lists the rule(s); Cancel keeps
+    both; confirming asks for the fingerprint, then the rule reads "Turned off: app lock was switched off" and the
+    "Forwarding active" notification goes. Same with an app PIN as the only lock (no phone screen lock) → Remove PIN.
+    Removing the phone's screen lock in system settings while Dak uses it: on return, rules are off and a "Security
+    alerts" notification says why.
+18c. "Was this you?": enable a rule and wait 3 hours (or force it:
+    `adb shell cmd jobscheduler run -f app.dak <job id>` from `adb shell dumpsys jobscheduler | grep outbound`, or
+    temporarily lower `OutboundAutomations.REMINDER_DELAY_MILLIS` in a debug build). The alert shows the rule, when it
+    was turned on, "Still active" and the count sent; "Turn off" works from the lock screen without unlocking; "See
+    what was sent" opens its history. It repeats daily while the rule stays on.
+18d. Let a 1-hour rule end: it moves to "Ended — tap to use again"; switching it on starts a fresh hour from now
+    (a longer rule asks for the fingerprint again). Forward a message, then open the row's History (clock icon): the
+    message, recipient and "Sent" chip are listed; tapping opens the original message. Forwarding → ⋮ → Forwarding
+    history also shows rules that were deleted.
 19. Battery: after a normal day, Settings → Battery → Dak should be negligible.
 
 ## Known limitations going in

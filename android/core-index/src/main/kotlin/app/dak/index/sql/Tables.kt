@@ -25,6 +25,7 @@ object Tables {
     const val CONVERSATION_ALIAS = "conversation_alias"
     const val ACCOUNT_ALIAS = "account_alias"
     const val ACCOUNT_TYPE_OVERRIDE = "account_type_override"
+    const val AUTOMATION_RUN = "automation_run"
 }
 
 /** A SQL statement plus its positional bind arguments (only [String], [Long] and [Double] values). */

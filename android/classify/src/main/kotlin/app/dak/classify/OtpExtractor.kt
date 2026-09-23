@@ -50,11 +50,23 @@ public object OtpExtractor {
         RegexOption.IGNORE_CASE,
     )
 
+    // "OTP for txn of Rs 2,499 at SHOP on card XX4411 is 773201", "OTP for your application on the portal is 552910":
+    // a longer window, but only up to an explicit "is" right before the code.
+    private val codeAfterKeywordIs = GatedRegex(
+        """(?i)(?:$otpKeywordEn|$otpKeywordHi)[^\n]{0,90}?\bis\s*:?\s*((?=[A-Z]*\d)[A-Z0-9]{4,8})\b""",
+    )
+
+    // "Use 5521 as your one time password", "Enter 482913 as the verification code"
+    private val codeAsKeyword = GatedRegex(
+        """\b(?:use|enter)\s+([A-Z0-9]{4,8})\s+(?:as|is)\s+(?:your|the)?\s*(?:[\p{L}\d&'.-]{1,24}\s+){0,3}?(?:$otpKeywordEn)""",
+        RegexOption.IGNORE_CASE,
+    )
+
     // "code: 1234", "pin: 1234", "code is 1234"
     private val genericCode = GatedRegex("""(?i)\b(?:code|pin)\s*(?:is|:)\s*([A-Z0-9]{4,8})\b""")
 
     /** The keyword-gated patterns, for the prefilter equivalence test. */
-    internal val gatedPatterns: List<GatedRegex> get() = listOf(webOtpRegex, amountRegex, codeAfterKeyword, codeBeforeKeyword, genericCode)
+    internal val gatedPatterns: List<GatedRegex> get() = listOf(webOtpRegex, amountRegex, codeAfterKeyword, codeBeforeKeyword, codeAfterKeywordIs, codeAsKeyword, genericCode)
 
     /** Attempts to extract OTP info from [body]. Returns null if no OTP-shaped code is found. */
     public fun extract(rawBody: String): OtpInfo? {
@@ -113,6 +125,8 @@ public object OtpExtractor {
 
         firstValidCode(codeAfterKeyword, masked)?.let { return it }
         firstValidCode(codeBeforeKeyword, masked)?.let { return it }
+        firstValidCode(codeAfterKeywordIs, masked)?.let { return it }
+        firstValidCode(codeAsKeyword, masked)?.let { return it }
         firstValidCode(genericCode, masked)?.let { return it }
         return null
     }

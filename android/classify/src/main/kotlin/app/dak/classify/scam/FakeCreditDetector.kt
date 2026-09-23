@@ -234,11 +234,11 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         val entry = if (kind == SenderKind.DLT_HEADER || kind == SenderKind.ALPHANUMERIC) templates.sender(key) else null
         val family = entry?.brand?.let { BankNames.familyIn(it) }
         val verified = if (india) {
-            kind == SenderKind.DLT_HEADER && family != null && header?.trafficType != TrafficType.PROMOTIONAL
+            kind == SenderKind.DLT_HEADER && family != null && header?.route != TrafficType.PROMOTIONAL
         } else {
-            family != null && header?.trafficType != TrafficType.PROMOTIONAL
+            family != null && header?.route != TrafficType.PROMOTIONAL
         }
-        return Sender(kind, key, header?.trafficType, entry != null, entry?.brand, family, verified)
+        return Sender(kind, key, header?.route, entry != null, entry?.brand, family, verified)
     }
 
     // ------------------------------------------------------------------------------------------------ text

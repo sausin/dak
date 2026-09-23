@@ -333,6 +333,24 @@ class FakeCreditDetectorTest {
     }
 
     @Test
+    fun `scheme-less links and numeric promotional headers count`() {
+        // A scheme-less payment link in a fake alert is still a link.
+        val fake = detector.evaluate(
+            "+919876512345", "Rs 15,000 credited to your A/c XX4321 by IMPS. Check status at bit.ly/imps-status", dateMillis = now,
+        )
+        assertEquals(ScamLevel.LIKELY_SCAM, fake.level, fake.toString())
+        assertTrue(ScamReason.LINK_IN_ALERT in fake.reasons, fake.toString())
+        // A credit "alert" on a 6-digit (promotional-only) header.
+        val promo = detector.evaluate("VM-612345", "INR 5,000 credited to your A/c XX1234 by NEFT. -SBI", dateMillis = now)
+        assertTrue(ScamReason.PROMOTIONAL_ROUTE in promo.reasons, promo.toString())
+        // Genuine alerts from an unknown (not in the table) bank header with a scheme-less "not you?" link stay clean.
+        val genuine = detector.evaluate(
+            "JD-NIMBUS-T", "Rs 4,500.00 debited from A/c XX1234 on 12-03-26. Not you? Report at nmb.in/fraud", dateMillis = now,
+        )
+        assertEquals(ScamLevel.NONE, genuine.level, genuine.toString())
+    }
+
+    @Test
     fun `stays fast on hostile bodies`() {
         val hostile = listOf(
             "x".repeat(50_000), "X".repeat(50_000) + "1", "*".repeat(50_000), "1".repeat(50_000), "rs ".repeat(20_000),

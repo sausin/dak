@@ -215,7 +215,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             override fun onLink(item: MessageItem, link: ExtractedLink) {
                 val unknown = LinkSafety.UNKNOWN_SENDER_LINK_LABEL in item.labels
                 val warning = LinkSafety.warningFor(link, unknown)
-                if (warning != null) linkWarning = warning.copy(messageKey = item.key.toString()) else LinkSafety.open(context, link.raw)
+                if (warning != null) linkWarning = warning.copy(messageKey = item.key.toString()) else LinkSafety.open(context, link.url)
             }
             override fun onCopyOtp(item: MessageItem, code: String) {
                 copyToClipboard(context, code, sensitive = true)
@@ -418,7 +418,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     linkWarning?.let { warning ->
         LinkWarningDialog(
             warning = warning,
-            onOpen = { linkWarning = null; LinkSafety.open(context, warning.verdict.link.raw) },
+            onOpen = { linkWarning = null; LinkSafety.open(context, warning.verdict.link.url) },
             onDismiss = { linkWarning = null },
             onReport = warning.messageKey?.let { key -> { linkWarning = null; navigator.navigate(Routes.fraudHelp(key)) } },
         )

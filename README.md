@@ -135,9 +135,12 @@ Country-specific data for other markets comes later; the region seam is already 
   (replies come back 1:1), hard caps of 50/broadcast and 100/day, a versioned acceptable-use
   agreement on first use, an on-device spam-risk check with an extra confirmation, and a TRAI/1909
   note — see [`docs/terms-acceptable-use.md`](docs/terms-acceptable-use.md).
-- Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA, Mar 1–Jul 31") with
-  biometric confirmation required to forward OTPs, a persistent visible warning while any
-  forwarding rule is active, and cost warnings before a send that would leave the user's plan/rate.
+- Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA until 5:30 pm") to
+  saved contacts only (re-checked before every forward; a deleted contact pauses the rule), one
+  hour by default; longer or open-ended periods, extensions, OTPs and risky-looking recipients
+  (recently added contact, no SMS history, unusual number) need a scam warning plus biometric
+  confirmation. A persistent visible warning shows while any forwarding rule is active, and cost
+  warnings appear before a send that would leave the user's plan/rate.
   Notification channels per kind (Messages, OTP codes, Alerts, Promotions, General, Spam) can be
   split per SIM and per conversation.
 - Birthday/anniversary wishes from Contacts, opt-in, "ask first" or "send automatically", with

@@ -5,10 +5,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.text.format.DateFormat
+import android.util.Log
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import app.dak.R
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.forwarding.ForwardingStatus
@@ -16,8 +21,8 @@ import app.dak.navigation.IntentRoutes
 import app.dak.notifications.NotificationChannels
 import app.dak.navigation.Routes
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.text.DateFormat
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,7 +30,9 @@ import javax.inject.Singleton
  * Keeps forwarding visible: while any forwarding rule is active (or scheduled to start), a silent, low-priority,
  * ongoing notification says so ("Forwarding active: HDFC Bank → Sharma CA (until 31 Jul)"); tapping it opens the
  * Forwarding rules screen. [refresh] is called whenever rules change, when one expires, after a reboot and by the
- * daily housekeeping — there is no timer of its own.
+ * daily housekeeping. Since rules default to one hour, each refresh also arms a one-off [ForwardingBoundaryWorker] for
+ * the next start/end among live rules, so the notification (and the rule's enabled flag) follows the period closely.
+ * Enforcement itself does not depend on it: the rule engine compares every message's receive time with the period.
  */
 @Singleton
 class ForwardingStatusNotifier @Inject constructor(
@@ -51,6 +58,7 @@ class ForwardingStatusNotifier @Inject constructor(
     /** Posts, updates or removes the status notification to match the current rules. */
     suspend fun refresh(nowMillis: Long = System.currentTimeMillis()) {
         val live = runCatching { liveSpecs(nowMillis) }.getOrDefault(emptyList())
+        armBoundary(live, nowMillis)
         val manager = NotificationManagerCompat.from(context)
         if (live.isEmpty()) {
             manager.cancel(TAG, ID)
@@ -93,6 +101,29 @@ class ForwardingStatusNotifier @Inject constructor(
         }
     }
 
+    /** Arms (or cancels) the one-off refresh at the next start or end of a live rule. */
+    private fun armBoundary(live: List<ForwardingSpec>, nowMillis: Long) {
+        val next = live.mapNotNull { spec ->
+            val end = spec.endMillis
+            when {
+                nowMillis < spec.startMillis -> spec.startMillis
+                end != null -> end + 1
+                else -> null
+            }
+        }.minOrNull()
+        runCatching {
+            val work = WorkManager.getInstance(context)
+            if (next == null) {
+                work.cancelUniqueWork(ForwardingBoundaryWorker.NAME)
+            } else {
+                val request = OneTimeWorkRequestBuilder<ForwardingBoundaryWorker>()
+                    .setInitialDelay((next - nowMillis).coerceAtLeast(0L), TimeUnit.MILLISECONDS)
+                    .build()
+                work.enqueueUniqueWork(ForwardingBoundaryWorker.NAME, ExistingWorkPolicy.REPLACE, request)
+            }
+        }.onFailure { Log.w(TAG, "could not arm the forwarding boundary refresh", it) }
+    }
+
     private fun ensureChannel(manager: NotificationManagerCompat) {
         val channel = NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
             .setName(context.getString(R.string.fw_channel_status_name))
@@ -122,19 +153,28 @@ class ForwardingStatusNotifier @Inject constructor(
         private const val FLAGS_PREFS = "dak_forwarding_status"
         private const val KEY_SHOWING = "showing"
 
-        /** "HDFC Bank, Zerodha → Sharma CA (until 31 Jul 2026)" / "(from 1 Jul 2026)" / "(until you stop it)". */
+        /** "HDFC Bank, Zerodha → Sharma CA (until 31 Jul 2026, 17:30)" / "(from …)" / "(until you stop it)". */
         fun summaryLine(context: Context, spec: ForwardingSpec, nowMillis: Long): String {
             val from = spec.sources.joinToString(", ") { it.name }
             val to = spec.recipients.joinToString(", ") { it.label }
-            val format = DateFormat.getDateInstance(DateFormat.MEDIUM)
             val end = spec.endMillis
             val period = when {
-                nowMillis < spec.startMillis -> context.getString(R.string.fw_period_from, format.format(Date(spec.startMillis)))
-                end != null -> context.getString(R.string.fw_period_until, format.format(Date(end)))
+                nowMillis < spec.startMillis -> context.getString(R.string.fw_period_from, formatInstant(context, spec.startMillis))
+                end != null -> context.getString(R.string.fw_period_until, formatInstant(context, end))
                 else -> context.getString(R.string.fw_period_until_stopped)
             }
             val line = context.getString(R.string.fw_status_line, from, to, period)
             return if (spec.includeOtp) line + context.getString(R.string.fw_status_otp_suffix) else line
+        }
+
+        /** "23 Sep 2026, 17:30" / "Sep 23, 2026, 5:30 PM": locale date plus time in the device's 12/24-hour setting. */
+        fun formatInstant(context: Context, millis: Long): String {
+            val date = Date(millis)
+            return context.getString(
+                R.string.fw_date_time,
+                DateFormat.getMediumDateFormat(context).format(date),
+                DateFormat.getTimeFormat(context).format(date),
+            )
         }
     }
 }

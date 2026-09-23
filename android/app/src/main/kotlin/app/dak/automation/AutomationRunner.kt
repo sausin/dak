@@ -1,5 +1,6 @@
 package app.dak.automation
 
+import android.app.PendingIntent
 import android.content.Context
 import android.util.Log
 import app.dak.R
@@ -18,9 +19,11 @@ import app.dak.automations.action.ReplyScheduler
 import app.dak.automations.action.SmsForwarder
 import app.dak.automations.TemplateRenderer
 import app.dak.automations.action.ActionResult
+import app.dak.automations.forwarding.ForwardingRecipient
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.rule.ActionSpec
 import app.dak.automations.rule.Rule
+import app.dak.automations.rule.isForwardingOrRelay
 import app.dak.classify.scam.ScamLabels
 import app.dak.classify.scam.ScamLevel
 import app.dak.core.model.Category
@@ -34,6 +37,8 @@ import app.dak.index.bin.RecycleBin
 import app.dak.index.enrich.ConversationIds
 import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.ConversationRepository
+import app.dak.navigation.IntentRoutes
+import app.dak.navigation.Routes
 import app.dak.premium.Entitlements
 import app.dak.premium.PremiumGateway
 import app.dak.safety.FakeCreditCheck
@@ -54,8 +59,10 @@ import javax.inject.Singleton
  * i.e. after the notification (0) and the indexer (100), so the message's category, OTP and transaction are
  * already known. Returns immediately; evaluation and actions run on the application scope.
  *
- * Forwarding/relay actions of rules that can match an OTP only run once the rule was confirmed with a biometric
- * check in the Automations screen ([OtpForwardConfirmations]); otherwise they are skipped and audit-logged.
+ * Forwarding/relay actions of rules that can match an OTP, and SMS forwards over a long or open-ended period, only run
+ * once the rule was confirmed with a biometric check ([OtpForwardConfirmations]); otherwise they are skipped and
+ * audit-logged. Before every SMS forward the recipient must still be a phone contact ([ForwardingContacts]); if not,
+ * the rule is paused and the user notified.
  *
  * Time-boxed rules whose window has ended are disabled here, lazily, before evaluation ([DailyHousekeeping.expire]);
  * each incoming message also gives [DailyHousekeeping.runIfDue] its once-a-day chance. Forwards go through
@@ -81,6 +88,9 @@ class AutomationRunner @Inject constructor(
     private val undoCenter: AutomationUndoCenter,
     private val housekeeping: DailyHousekeeping,
     private val fakeCredit: FakeCreditCheck,
+    private val forwardingContacts: ForwardingContacts,
+    private val holds: ForwardingHolds,
+    private val forwardingStatus: ForwardingStatusNotifier,
     @ApplicationContext private val context: Context,
     @ApplicationScope private val scope: CoroutineScope,
 ) : IncomingMessageHandler {
@@ -103,19 +113,60 @@ class AutomationRunner @Inject constructor(
         val event = eventOf(message, item)
         val scam = scamLevelOf(message, item)
         val byId = enabled.associateBy(Rule::id)
+        val paused = mutableSetOf<String>()
         for (planned in RuleEngine.evaluate(event, enabled)) {
             val rule = byId[planned.ruleId] ?: continue
+            if (rule.id in paused) continue
             if (blockedByScamFlag(scam, planned.action)) {
                 audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "skipped: possible fake credit")
                 continue
             }
-            if (planned.requiresBiometricConfirmation && !confirmations.isConfirmed(rule)) {
-                audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "OTP forwarding not confirmed")
+            // OTP-capable forwards and SMS forwards over a long / open-ended period need a biometric confirmation.
+            if ((planned.requiresBiometricConfirmation || planned.action.isForwardingOrRelay()) && !confirmations.isConfirmed(rule)) {
+                audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "forwarding not confirmed (OTPs or long period)")
+                continue
+            }
+            val action = planned.action
+            if (action is ActionSpec.ForwardSms && !recipientStillContact(rule, action, event.messageKey)) {
+                paused += rule.id
                 continue
             }
             val result = registry.execute(planned, event, contextFor(planned, event))
             if (result is ActionResult.Success) labelForward(rule, planned.action, event.messageKey)
         }
+    }
+
+    /**
+     * SMS forwards only ever go to a phone contact. When the recipient's contact was deleted (or lost the number), or
+     * contacts access was revoked, the rule is paused, the reason remembered for the Forwarding screen
+     * ([ForwardingHolds]) and a notification posted; false means "do not forward".
+     */
+    private suspend fun recipientStillContact(rule: Rule, action: ActionSpec.ForwardSms, messageKey: String): Boolean {
+        val recipient = ForwardingSpec.fromRule(rule)?.recipients?.firstOrNull { it.number == action.to }
+            ?: ForwardingRecipient(action.to)
+        val check = forwardingContacts.check(rule.id, recipient)
+        if (check == RecipientContactCheck.OK) return true
+        val hold = if (check == RecipientContactCheck.NO_ACCESS) ForwardingHold.CONTACTS_ACCESS else ForwardingHold.CONTACT_MISSING
+        audit.log("rule:${rule.name}", "automation.paused", messageKey, "recipient not verifiable as a contact: ${hold.name}")
+        holds.hold(rule.id, hold)
+        rules.setEnabled(rule.id, false)
+        runCatching { forwardingStatus.refresh() }
+        val route = if (ForwardingSpec.isForwarding(rule)) Routes.FORWARDING else Routes.AUTOMATIONS
+        val open = PendingIntent.getActivity(
+            context,
+            rule.id.hashCode(),
+            IntentRoutes.open(context, route),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        notifications.post(
+            title = context.getString(R.string.fw_paused_notification_title, rule.name),
+            text = context.getString(
+                if (hold == ForwardingHold.CONTACTS_ACCESS) R.string.fw_paused_no_access else R.string.fw_paused_contact_missing,
+                recipient.label,
+            ),
+            contentIntent = open,
+        )
+        return false
     }
 
     /**

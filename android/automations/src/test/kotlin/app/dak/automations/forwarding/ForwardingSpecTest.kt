@@ -30,7 +30,7 @@ class ForwardingSpecTest {
 
     private val hdfc = ForwardingSource("m:HDFCBK", "HDFC Bank", mergeKey = "HDFCBK", addresses = listOf("VM-HDFCBK", "JD-HDFCBK"))
     private val itd = ForwardingSource("m:ITDEPT", "Income Tax Dept", mergeKey = "ITDEPT")
-    private val ca = ForwardingRecipient("+919876543210", "Sharma CA")
+    private val ca = ForwardingRecipient("+919876543210", "Sharma CA", contactKey = "0r12-ABC")
 
     private fun spec(
         includeOtp: Boolean = false,
@@ -144,6 +144,23 @@ class ForwardingSpecTest {
         val back = ForwardingSpec.fromRule(decoded)
         assertNotNull(back)
         assertEquals(original.copy(id = "id-1", createdAt = 10L), back)
+    }
+
+    @Test
+    fun `rules saved before contact keys read back as not from contacts`() {
+        val r = rule()
+        val legacy = r.copy(meta = r.meta - "forwarding.recipientContacts")
+        val back = ForwardingSpec.fromRule(legacy)!!
+        assertEquals(listOf(ForwardingRecipient("+919876543210", "Sharma CA")), back.recipients)
+        assertFalse(back.recipientsFromContacts)
+        assertTrue(ForwardingSpec.fromRule(r)!!.recipientsFromContacts)
+    }
+
+    @Test
+    fun `long period flag follows the policy`() {
+        assertTrue(spec(endMillis = null).isLongPeriod)
+        assertFalse(spec(endMillis = start + ForwardingPolicy.DEFAULT_DURATION_MILLIS).isLongPeriod)
+        assertTrue(spec(endMillis = start + 2 * ForwardingPolicy.DEFAULT_DURATION_MILLIS).isLongPeriod)
     }
 
     @Test

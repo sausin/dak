@@ -96,22 +96,51 @@ Country-specific data for other markets comes later; the region seam is already 
   checker for user-authored automation patterns, and JSON/XML nesting-bomb guards. Full surface-by-
   surface writeup in [`docs/security/threat-model.md`](docs/security/threat-model.md).
 
+### Fast to use, one-handed
+- **Inbox built for the thumb**: a bottom bar (places, search, compose FAB) instead of top-bar
+  search/overflow, configurable swipe actions (archive/delete/read/pin, with haptics, Undo and a
+  TalkBack alternative for every gesture), long-press multi-select with a bottom action bar, and an
+  inline **"Copy code" chip** on fresh OTP rows — the code without opening the thread.
+  In conversation: long-press action sheet, double-tap a bubble to copy its code or amount,
+  swipe-to-reply with any OTP in the quote masked, and a jump-to-latest FAB. Full review and what
+  shipped vs. deferred: [`docs/ux-review.md`](docs/ux-review.md).
+- **Delivery ticks** on outgoing messages (clock → single ✓ sent → double ✓✓ delivered, or a
+  failed/retry state), refreshed from a coalesced provider re-check rather than a new wakeup.
+- **Typed tappable entities** inside message text — phone, OTP, amount, masked account, UPI id,
+  reference/UTR, PNR, courier tracking — each with the action that makes sense for it (call/save a
+  number, copy a code); a scam-flagged message's phone number and UPI id warn before acting on them.
+- **App lock**: device lock (fingerprint/face/PIN via the system prompt) or an app PIN (PBKDF2,
+  salted hash only, escalating lockout on wrong tries), auto-lock timeout, "hide in Recents"
+  (`FLAG_SECURE`), and per-screen sensitive gating (bin, passbook, backup, automations, forwarding)
+  even with the lock off.
+
 ### Smart, but entirely local
 - DLT sender-header parsing (`VM-HDFCBK-S` → bank, traffic type) and brand folding/unfolding.
 - On-device classifier (deterministic template rules + a pure-Kotlin model) sorting messages into
   Personal / Transactions / OTP / Promotions / Spam — no network round trip.
 - Gmail-style search (`from:`, `category:`, `sim:`, `amount:>500`, `during:"last week"`, …) over a
   SQLCipher-backed FTS index, with saved searches and a preserved back stack.
-- Finance passbook that keeps every transaction in its **original currency**, shows balances as
-  `"unknown since <date>"` rather than inventing a number after a foreign spend, and reconciles
-  the indicative FX estimate against the bank's own settlement message days later.
+- **Amount normalisation**: `500,000.00`, `5,00,000`, `500000` and `5 lakh` are all the same amount
+  in search and the ledger (`amount:>50k`, `amount:1L..1cr` work too).
+- **Passbook grouped by instrument** — bank accounts, credit cards, debit cards, wallets, UPI,
+  prepaid/forex cards, loans — that keeps every transaction in its **original currency**, shows
+  balances as `"unknown since <date>"` rather than inventing a number after a foreign spend, and
+  reconciles the indicative FX estimate against the bank's own settlement message days later. A
+  debit-card or loan spend also reduces the linked bank account when the SMS names it explicitly.
 - Masked-account alias confirmation, so a passbook account is only linked to a bank once the
   masked digits actually match something the user confirmed.
+- **Broadcast lists with guardrails**: one message to up to 50 people, sent as individual SMS
+  (replies come back 1:1), hard caps of 50/broadcast and 100/day, a versioned acceptable-use
+  agreement on first use, an on-device spam-risk check with an extra confirmation, and a TRAI/1909
+  note — see [`docs/terms-acceptable-use.md`](docs/terms-acceptable-use.md).
 - Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA, Mar 1–Jul 31") with
-  biometric confirmation required to forward OTPs, and a persistent visible warning while any
-  forwarding rule is active.
+  biometric confirmation required to forward OTPs, a persistent visible warning while any
+  forwarding rule is active, and cost warnings before a send that would leave the user's plan/rate.
+  Notification channels can be split per SIM and per conversation.
 - Birthday/anniversary wishes from Contacts, opt-in, "ask first" or "send automatically", with
   English/Hindi templates.
+- Fake-credit scam detection flags a message before it ever reaches the passbook, with one-tap
+  access to fraud helplines (1930/1909/Chakshu/RBI).
 - Multi-SIM as a first-class dimension everywhere: SIM chips on every thread and bubble, per-SIM
   reply, roaming-aware E.164 number normalisation, roaming send warnings.
 - Unicode/Indic digits (Devanagari, Arabic-Indic) handled in masking and parsing; 30+ ISO 4217
@@ -173,6 +202,25 @@ The free tier's offline promise is a build guarantee, not a policy statement:
   injection, a confused-deputy `EXTRA_STREAM` path, MIME-type trust on attachment open) that are
   reported but not yet fixed — see the document for the full, honest list.
 
+## Performance
+
+Every message runs through classification, transaction parsing, fake-credit checks, link detection
+and FTS text normalisation. That path was profiled and cut roughly in half per message, with the
+old and new code proven to give **identical results** (same categories, confidences, OTPs and
+transactions — no re-index needed). Measured on a 50,000-message synthetic corpus, JVM 21:
+
+| Path (msgs/s, higher is better) | Before | After |
+| --- | ---: | ---: |
+| Classification only, 1 thread | 27,300 | 113,000 |
+| Full enrichment path, 1 thread | 7,000 | 14,200 |
+| Full enrichment path, 3 threads (as the indexer runs it) | 7,000 | 35,800 |
+
+A single-pass Aho-Corasick keyword prefilter skips regexes that cannot match, shared per-message
+analysis is computed once instead of three times, and the index writer now enriches on up to 3
+background threads with a single writer. A baseline profile (`app/src/main/baseline-prof.txt`)
+covers the hot classify/finance/index packages for AOT compilation. Full method, correctness proof
+and per-stage breakdown: [`docs/performance.md`](docs/performance.md).
+
 ## Battery
 
 The default-SMS role means the platform wakes Dak for every message; everything *on top of that*
@@ -197,7 +245,8 @@ classifier JSON parse) deferred and lazy.
 **Nothing has run on a real device yet.** Everything below compiles and is unit-tested in CI; the
 Phase 0 device pass (a Pixel and a Xiaomi, two SIMs, OTP autofill in Chrome and two banking apps,
 self-test with battery optimisation on) is the next gate before any of this is a real claim about
-a working app. Full detail: [`docs/status.md`](docs/status.md).
+a working app. Full detail: [`docs/status.md`](docs/status.md); the step-by-step first-phone
+checklist is [`docs/device-test-plan.md`](docs/device-test-plan.md).
 
 | Phase | Scope | State |
 | --- | --- | --- |
@@ -252,7 +301,7 @@ with its public API — start there for module-level detail: [`android/app`](and
 [`android/mms-pdu`](android/mms-pdu/README.md), [`android/search`](android/search/README.md),
 [`android/settings-registry`](android/settings-registry/README.md).
 
-As of this writing the test suite carries roughly **690 `@Test`s across 88 files**, concentrated
+As of this writing the test suite carries roughly **929 `@Test`s across 116 files**, concentrated
 in the JVM modules where logic can be checked without a device or emulator.
 
 ## Build

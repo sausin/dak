@@ -6,6 +6,7 @@ import androidx.work.Configuration
 import app.dak.automation.OutboundAutomationGuard
 import app.dak.di.IndexControl
 import app.dak.notifications.NotificationChannels
+import app.dak.settings.TelephonySettingsSync
 import app.dak.telephony.sms.SmsJournalReplayWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -22,6 +23,7 @@ class DakApplication : Application(), Configuration.Provider {
     @Inject lateinit var notificationChannels: NotificationChannels
     @Inject lateinit var indexControl: IndexControl
     @Inject lateinit var outboundGuard: OutboundAutomationGuard.Starter
+    @Inject lateinit var telephonySettingsSync: TelephonySettingsSync
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -36,6 +38,8 @@ class DakApplication : Application(), Configuration.Provider {
         indexControl.startInitialSync()
         // Off the main thread: follows the app lock and runs the one-time upgrade check.
         outboundGuard.start()
+        // MMS read-receipt / report-allowed choices into the telephony layer's synchronous settings.
+        telephonySettingsSync.start()
         // Incoming SMS journaled but not yet in the inbox (the process died mid-write): replay them.
         SmsJournalReplayWorker.scheduleIfPending(this)
     }

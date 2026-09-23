@@ -57,8 +57,9 @@ sealed interface SendOutcome {
  * [CarrierMessagingConfig]: media, group recipients when the carrier allows group MMS, or text past the carrier's
  * SMS→MMS threshold go as MMS; everything else as SMS, concatenated when long; a group without group MMS goes as
  * individual messages), normalises recipients to E.164 with the sending SIM's home country when enabled, and
- * compresses media to the carrier limit off the main thread. Cost confirmations (premium / short codes /
- * international / roaming) are asked by the composer via [costWarnings] before [send].
+ * compresses media to the carrier's size and image-dimension limits off the main thread. E-mail recipients go as MMS,
+ * or through the carrier's e-mail gateway number for a plain text to one address. Cost confirmations (premium /
+ * short codes / international / roaming) are asked by the composer via [costWarnings] before [send].
  *
  * While Dak is not the default SMS app ([isDefaultSmsApp]) only texts to emergency numbers are sent; the composer is
  * read-only otherwise.
@@ -98,7 +99,7 @@ class MessageSendController @Inject constructor(
         sendSubIdFor(subId)?.let { carrierConfig.forSubscription(it) } ?: CarrierMessagingConfig.DEFAULTS
 
     /** How a message would go out (SMS, group MMS or one MMS each) and whether the carrier refuses it as composed. */
-    fun plan(recipientCount: Int, text: String, attachments: List<ComposerAttachment>, subId: Int): SendPlan =
+    fun plan(recipientCount: Int, text: String, attachments: List<ComposerAttachment>, subId: Int, emailRecipients: Int = 0): SendPlan =
         SendModePolicy.plan(
             recipientCount = recipientCount,
             segments = segments(text).segments,
@@ -106,7 +107,12 @@ class MessageSendController @Inject constructor(
             textBytes = text.toByteArray(Charsets.UTF_8).size,
             hasAttachments = attachments.isNotEmpty(),
             config = carrierConfig(subId),
+            emailRecipients = emailRecipients,
         )
+
+    /** [plan] for these [recipients]: e-mail addresses need MMS, or the carrier's e-mail gateway for a plain text. */
+    fun plan(recipients: List<String>, text: String, attachments: List<ComposerAttachment>, subId: Int): SendPlan =
+        plan(recipients.size, text, attachments, subId, recipients.count(SendModePolicy::isEmailAddress))
 
     /** True when this message will go as MMS (shown as the "MMS" chip on the send button). */
     fun isMms(recipientCount: Int, text: String, attachments: List<ComposerAttachment>, subId: Int = -1): Boolean =
@@ -164,18 +170,24 @@ class MessageSendController @Inject constructor(
             return outcomeOf(sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = deliveryReports)))
         }
         val config = carrierConfig.forSubscription(sendSubId)
-        val plan = plan(targets.size, text, attachments, sendSubId)
+        val plan = plan(targets, text, attachments, sendSubId)
         plan.block?.let { return SendOutcome.Failed(SendProblem.CARRIER_LIMIT, blockText(it, config)) }
+        plan.emailGateway?.let { gateway ->
+            // One e-mail recipient, plain text, carrier e-mail gateway: SMS "<address> <text>" to the gateway, filed in
+            // the e-mail conversation.
+            val body = SendModePolicy.emailGatewayBody(targets.single(), text)
+            return outcomeOf(sender.sendSms(OutgoingSms(listOf(gateway), body, sendSubId, threadId, requestDeliveryReport = deliveryReports)))
+        }
         return when (plan.mode) {
             SendMode.SMS ->
                 outcomeOf(sender.sendSms(OutgoingSms(targets, text, sendSubId, threadId, requestDeliveryReport = deliveryReports)))
             SendMode.MMS -> {
-                val parts = buildParts(text, attachments, sendSubId, config) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
+                val parts = buildParts(text, attachments, config) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
                 outcomeOf(sender.sendMms(OutgoingMms(targets, text.ifEmpty { null }, sendSubId, parts, threadId = threadId, requestDeliveryReport = deliveryReports)))
             }
             SendMode.MMS_PER_RECIPIENT -> {
                 // Carrier without group MMS: one MMS per recipient, each filed in its own 1:1 thread.
-                val parts = buildParts(text, attachments, sendSubId, config) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
+                val parts = buildParts(text, attachments, config) ?: return SendOutcome.Failed(SendProblem.ATTACHMENT_TOO_LARGE)
                 val failures = targets.mapNotNull { to ->
                     val result = sender.sendMms(OutgoingMms(listOf(to), text.ifEmpty { null }, sendSubId, parts, threadId = null, requestDeliveryReport = deliveryReports))
                     (result as? SendResult.Failed)?.reason
@@ -196,20 +208,21 @@ class MessageSendController @Inject constructor(
         SendBlock.TEXT_TOO_LONG -> context.getString(TelephonyR.string.dak_telephony_mms_text_too_long)
     }
 
-    private suspend fun buildParts(text: String, attachments: List<ComposerAttachment>, subId: Int, config: CarrierMessagingConfig): List<OutgoingMmsPart>? {
+    private suspend fun buildParts(text: String, attachments: List<ComposerAttachment>, config: CarrierMessagingConfig): List<OutgoingMmsPart>? {
         if (attachments.isEmpty()) return emptyList()
-        // The carrier's maxMessageSize from CarrierConfigManager, never above what the compressor already assumes.
-        val messageLimit = minOf(compressor.messageLimitBytes(subId), config.maxMessageSizeBytes)
-        val limit = (messageLimit * HEADROOM).toInt() - text.toByteArray(Charsets.UTF_8).size
-        val budget = (limit / attachments.size).coerceAtLeast(MIN_PART_BUDGET)
+        // The SIM's carrier MMS config (CarrierConfigManager): maxMessageSize for the byte budget, and
+        // maxImageWidth / maxImageHeight for photos.
+        val limits = MmsPartBudget.of(config, text.toByteArray(Charsets.UTF_8).size, attachments.size)
+        val budget = limits.perPartBytes
+        val box = limits.imageBox
         return attachments.mapIndexed { index, a ->
             val prepared = when {
                 a.bytes != null && a.isImage -> {
                     val bitmap = android.graphics.BitmapFactory.decodeByteArray(a.bytes, 0, a.bytes.size)
-                    bitmap?.let { compressor.prepare(it, budget) }?.let { MmsMediaCompressor.Prepared("image/jpeg", it) }
+                    bitmap?.let { compressor.prepare(it, budget, box) }?.let { MmsMediaCompressor.Prepared("image/jpeg", it) }
                 }
                 a.bytes != null -> if (a.bytes.size <= budget) MmsMediaCompressor.Prepared(a.mimeType, a.bytes) else null
-                a.uri != null -> compressor.prepare(a.uri, a.mimeType, budget)
+                a.uri != null -> compressor.prepare(a.uri, a.mimeType, budget, box)
                 else -> null
             } ?: return null
             OutgoingMmsPart(prepared.mimeType, fileNameFor(index, a, prepared.mimeType), prepared.bytes)
@@ -217,11 +230,6 @@ class MessageSendController @Inject constructor(
     }
 
     private fun fileNameFor(index: Int, a: ComposerAttachment, mime: String): String = MmsPartNames.fileName(index, a.name, mime)
-
-    private companion object {
-        const val HEADROOM = 0.9
-        const val MIN_PART_BUDGET = 16 * 1024
-    }
 }
 
 /**

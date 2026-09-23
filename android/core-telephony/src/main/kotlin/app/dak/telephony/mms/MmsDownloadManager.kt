@@ -30,6 +30,7 @@ import app.dak.telephony.IncomingDispatcher
 import app.dak.telephony.MmsDownloadState
 import app.dak.telephony.SimRepository
 import app.dak.telephony.TelephonySettings
+import app.dak.telephony.carrier.ReportPolicy
 import app.dak.telephony.internal.PendingIntentFlags
 import app.dak.telephony.internal.SmsManagers
 import app.dak.telephony.internal.TAG
@@ -63,7 +64,8 @@ enum class DownloadAttemptResult { SUCCESS, RETRY, FAILURE }
  * 4. MMS-CTR answers ([MmsClientTransactions], on by default, [TelephonySettings.sendMmsNotifyResponse]):
  *    m-notifyresp-ind Retrieved after an immediate retrieval, Deferred when the fetch waits for a tap (auto-download
  *    off, roaming, too large, notification flood), m-acknowledge-ind after a deferred message is fetched, and
- *    Unrecognised for notifications we cannot read or whose major MMS version we do not implement.
+ *    Unrecognised for notifications we cannot read or whose major MMS version we do not implement. Each carries
+ *    X-Mms-Report-Allowed from [TelephonySettings.allowMmsDeliveryReportsToSenders].
  *
  * While Dak is not the default SMS app, attempts stop (rows stay Pending) and resume with the role
  * ([app.dak.telephony.role.SmsRoleMonitor]).
@@ -105,7 +107,7 @@ class MmsDownloadManager @Inject constructor(
             return
         }
         // A major MMS version we do not implement (e.g. 2.0): answer Unrecognised and fetch nothing (MMS-ENC).
-        MmsClientTransactions.forUnsupportedVersion(n)?.let { answer ->
+        MmsClientTransactions.forUnsupportedVersion(n, reportAllowed())?.let { answer ->
             Log.w(TAG, "MMS notification of unsupported version 0x%02X: answered Unrecognised".format(n.mmsVersion))
             if (existing == null) sendClientPdu(answer, subId, n.contentLocation)
             return
@@ -128,7 +130,7 @@ class MmsDownloadManager @Inject constructor(
                 states.set(id, MmsDownloadState.Failed(reason, 0))
                 // Deferred retrieval: tell the MMSC to keep the message (m-notifyresp-ind Deferred); the later
                 // user-initiated fetch is then acknowledged with m-acknowledge-ind (see store()).
-                MmsClientTransactions.deferred(n)?.let { answer ->
+                MmsClientTransactions.deferred(n, reportAllowed())?.let { answer ->
                     if (sendClientPdu(answer, subId, n.contentLocation)) states.markDeferred(id)
                 }
                 notifyHandlers(id)
@@ -287,7 +289,7 @@ class MmsDownloadManager @Inject constructor(
 
         // MMS-CTR: Retrieved for an immediate retrieval, m-acknowledge-ind when the notification was answered Deferred.
         val transactionId = info.transactionId ?: retrieved.transactionId
-        MmsClientTransactions.afterRetrieval(transactionId, wasDeferred = states.wasDeferred(id))
+        MmsClientTransactions.afterRetrieval(transactionId, wasDeferred = states.wasDeferred(id), reportAllowed = reportAllowed())
             ?.let { sendClientPdu(it, effectiveSub, info.contentLocation) }
         states.clearDeferred(id)
         reader.message(newKey)?.let { dispatcher.dispatch(it) }
@@ -300,10 +302,13 @@ class MmsDownloadManager @Inject constructor(
      * cost the same budget as notifications ([NotificationFloodGuard]): past it they are ignored.
      */
     suspend fun onUndecodable(bytes: ByteArray, subId: Int) {
-        val answer = MmsClientTransactions.forUndecodable(bytes) ?: return
+        val answer = MmsClientTransactions.forUndecodable(bytes, reportAllowed()) ?: return
         if (floodGuard.decide(null, System.currentTimeMillis()) != NotificationFloodGuard.Decision.AUTO_DOWNLOAD) return
         sendClientPdu(answer, subId, contentLocation = null)
     }
+
+    /** X-Mms-Report-Allowed for our answers: the user's "Let senders see MMS delivery" (default Yes). */
+    private fun reportAllowed(): Boolean = ReportPolicy.reportAllowed(settings.allowMmsDeliveryReportsToSenders)
 
     /** Sends an MMS-CTR answer unless the user turned them off; true when it was handed to the platform. */
     private suspend fun sendClientPdu(pdu: MmsPdu, subId: Int, contentLocation: String?): Boolean {

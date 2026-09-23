@@ -15,6 +15,7 @@ import app.dak.telephony.SendResult
 import app.dak.telephony.SimRepository
 import app.dak.telephony.TelephonySettings
 import app.dak.telephony.carrier.CarrierConfigRepository
+import app.dak.telephony.carrier.ReportPolicy
 import app.dak.telephony.cost.EmergencyNumberCheck
 import app.dak.telephony.internal.PendingIntentFlags
 import app.dak.telephony.internal.SmsManagers
@@ -80,7 +81,10 @@ class TelephonyMessageSender @Inject constructor(
         val recipients = sms.addresses.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         if (recipients.isEmpty()) return SendResult.Failed("No recipient")
         val subId = resolveSubId(sms.subId)
-        val deliveryReport = sms.requestDeliveryReport && settings.requestSmsDeliveryReports
+        // The user's choice AND the carrier's `enableSMSDeliveryReports` (ReportPolicy).
+        val deliveryReport = ReportPolicy.requestSmsDeliveryReport(
+            sms.requestDeliveryReport && settings.requestSmsDeliveryReports, carrierConfig.forSubscription(subId),
+        )
         if (!role.isDefaultNow()) return holdNewSms(recipients, sms, subId, deliveryReport)
         val threadId = if (recipients.size == 1) sms.threadId else null
         val keys = ArrayList<MessageKey>(recipients.size)

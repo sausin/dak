@@ -21,6 +21,7 @@ import app.dak.telephony.OutgoingMmsPart
 import app.dak.telephony.SendResult
 import app.dak.telephony.TelephonySettings
 import app.dak.telephony.carrier.CarrierConfigRepository
+import app.dak.telephony.carrier.ReportPolicy
 import app.dak.telephony.carrier.SendModePolicy
 import app.dak.telephony.internal.PendingIntentFlags
 import app.dak.telephony.internal.SmsManagers
@@ -63,13 +64,16 @@ class MmsSendManager @Inject constructor(
     ): SendResult {
         val thread = threadId?.takeIf { it > 0 } ?: writer.threadIdFor(addresses.toSet()).takeIf { it > 0 }
             ?: return SendResult.Failed("Could not open the conversation; is Dak the default SMS app?")
+        val config = carrierConfig.forSubscription(subId)
         val req = MmsMessageBuilder.build(
             to = addresses,
             text = text,
             attachments = parts.map { MmsMessageBuilder.Attachment(it.mimeType, it.fileName, it.bytes) },
-            subject = SendModePolicy.subject(subject, carrierConfig.forSubscription(subId)),
+            subject = SendModePolicy.subject(subject, config),
             dateSeconds = System.currentTimeMillis() / 1000,
-            requestDeliveryReport = requestDeliveryReport && settings.requestMmsDeliveryReports,
+            // X-Mms-Delivery-Report / X-Mms-Read-Report: the user's settings AND the carrier's report support.
+            requestDeliveryReport = ReportPolicy.requestMmsDeliveryReport(requestDeliveryReport, config),
+            requestReadReport = ReportPolicy.requestMmsReadReport(settings.sendMmsReadReceipts, config),
         )
         val bytes = MmsPduEncoder.encode(req)
         val limit = maxMessageSize(subId)
@@ -119,8 +123,8 @@ class MmsSendManager @Inject constructor(
     }
 
     /**
-     * Sends a client transaction PDU (m-notifyresp-ind or m-acknowledge-ind, see
-     * [app.dak.mms.pdu.MmsClientTransactions]) for a notification received on [subId]. Best effort: the result is only
+     * Sends a client transaction PDU (m-notifyresp-ind, m-acknowledge-ind or m-read-rec-ind, see
+     * [app.dak.mms.pdu.MmsClientTransactions]) for a message received on [subId]. Best effort: the result is only
      * logged. When the carrier sets `enabledNotifyWapMMSC` the PDU is posted to the notification's
      * [contentLocation] (as AOSP does), otherwise to the MMSC; an unsafe location is never used.
      */

@@ -13,7 +13,7 @@ when (val r = MmsPduDecoder.decode(bytes)) {          // never throws
         is RetrieveConf -> pdu.parts                   // + from/to/cc, subject, date, messageId, retrieveStatus
         is SendConf -> pdu.isOk                        // responseStatus, messageId
         is DeliveryInd, is ReadOrigInd -> Unit         // reports (ReadOrigInd decoded tolerantly: all fields optional)
-        else -> Unit                                   // SendReq / NotifyRespInd / AcknowledgeInd also decode
+        else -> Unit                                   // SendReq / NotifyRespInd / AcknowledgeInd / ReadRecInd also decode
     }
     is PduDecodeResult.Failure -> r.error              // Empty | Truncated | Malformed | UnsupportedMessageType | MissingHeader
 }
@@ -42,7 +42,15 @@ MmsPduEncoder.encode(AcknowledgeInd(transactionId))
 ```
 
 All modelled PDU types are encodable (useful for fixtures). `Smil.build(items)` generates a standard
-Image-over-Text layout, one `<par>` per media item, text last. File names are sanitised to `[A-Za-z0-9._-]` and
+Image-over-Text layout (root-layout 320×480), one `<par>` per media item, with the text in the first image/video
+slide (its caption). `MmsClientTransactions.readReceipt(...)` builds the m-read-rec-ind owed for a read message
+(personal senders only).
+
+## SMIL on receive
+
+`SmilPresentation.order(smil, parts)` returns the part indices in the sender's slide order (unreferenced parts
+last, part order when the SMIL is missing or broken). It is a bounded hand-rolled tokenizer, not an XML parser: no
+DTD / entity processing (no XXE), and `src` values are only compared with the message's own part headers. File names are sanitised to `[A-Za-z0-9._-]` and
 de-duplicated; they become each part's Content-Location, name parameter and `<Content-ID>`.
 
 ## Safety (hostile input)

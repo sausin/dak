@@ -74,7 +74,7 @@ class ComposerDelegate(
         val segments = controller.segments(t)
         val hint = normalizationHint(to, sub)
         hintVisible = hint != null
-        val plan = runCatching { controller.plan(to.size, t, a, sub) }.getOrNull()
+        val plan = runCatching { controller.plan(to, t, a, sub) }.getOrNull()
         // Without the SMS role the composer is read-only, except for a text to emergency numbers only.
         val readOnly = !isDefault && !(a.isEmpty() && controller.sendableWithoutRole(to, sub))
         ComposerUi(

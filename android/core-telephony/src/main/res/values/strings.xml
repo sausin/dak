@@ -24,7 +24,7 @@
     <string name="dak_telephony_not_default_body">You can read messages, but sending is paused. Scheduled and queued messages wait and go out when Dak is the default again. Texts to emergency numbers are always sent.</string>
     <string name="dak_telephony_make_default">Make Dak your default SMS app</string>
     <string name="dak_telephony_group_mms_off">This carrier does not support group MMS: each recipient gets their own copy</string>
-    <string name="dak_telephony_mms_disabled">This carrier does not support MMS: attachments cannot be sent</string>
+    <string name="dak_telephony_mms_disabled">This carrier does not support MMS: attachments and e-mail recipients cannot be sent</string>
     <string name="dak_telephony_too_many_recipients">This carrier allows at most %1$d recipients in one MMS</string>
     <string name="dak_telephony_mms_text_too_long">The text is too long for an MMS on this carrier</string>
 </resources>

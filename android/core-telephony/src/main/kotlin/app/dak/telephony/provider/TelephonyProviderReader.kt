@@ -399,6 +399,7 @@ class TelephonyProviderReader @Inject constructor(
                         name = c.string(MmsPartColumns.NAME),
                         fileName = c.string(MmsPartColumns.FILENAME),
                         contentLocation = c.string(MmsPartColumns.CONTENT_LOCATION),
+                        contentId = c.string(MmsPartColumns.CONTENT_ID),
                     )
                     out.getOrPut(c.long(MmsPartColumns.MSG_ID)) { ArrayList() } += c.int(MmsPartColumns.SEQ) to part
                 }

@@ -36,6 +36,17 @@ data class CarrierMessagingConfig(
     val notifyWapMmsc: Boolean = false,
     /** `sendMultipartSmsAsSeparateMessages`: the carrier cannot reassemble concatenated SMS. */
     val sendMultipartSmsAsSeparateMessages: Boolean = false,
+    /** `enableSMSDeliveryReports`: SMS delivery reports work on this carrier (AOSP default on). */
+    val smsDeliveryReportsEnabled: Boolean = true,
+    /** `enableMMSDeliveryReports`: the MMSC honours X-Mms-Delivery-Report (AOSP default off). */
+    val mmsDeliveryReportsEnabled: Boolean = false,
+    /** `enableMMSReadReports`: the MMSC relays read reports, both ways (AOSP default off). */
+    val mmsReadReportsEnabled: Boolean = false,
+    /**
+     * `emailGatewayNumber`: an SMS short number that forwards `"<e-mail address> <text>"` to that address; null when
+     * the carrier has none (then e-mail recipients need MMS).
+     */
+    val emailGatewayNumber: String? = null,
 ) {
     companion object {
         const val DEFAULT_MAX_MESSAGE_SIZE: Int = 300 * 1024
@@ -62,6 +73,13 @@ data class CarrierMessagingConfig(
         const val KEY_MAX_IMAGE_HEIGHT = "maxImageHeight"
         const val KEY_NOTIFY_WAP_MMSC_ENABLED = "enabledNotifyWapMMSC"
         const val KEY_SEND_MULTIPART_SMS_AS_SEPARATE_MESSAGES = "sendMultipartSmsAsSeparateMessages"
+        const val KEY_SMS_DELIVERY_REPORT_ENABLED = "enableSMSDeliveryReports"
+        const val KEY_MMS_DELIVERY_REPORT_ENABLED = "enableMMSDeliveryReports"
+        const val KEY_MMS_READ_REPORT_ENABLED = "enableMMSReadReports"
+        const val KEY_EMAIL_GATEWAY_NUMBER = "emailGatewayNumber"
+
+        /** Longest e-mail gateway number accepted (they are short codes; anything longer is a misconfiguration). */
+        const val MAX_GATEWAY_NUMBER_CHARS: Int = 20
 
         /**
          * Builds a config from a key lookup (`bundle.get(key)`). Missing, mistyped and nonsensical values fall back
@@ -86,7 +104,18 @@ data class CarrierMessagingConfig(
                 maxImageHeight = limit(KEY_MAX_IMAGE_HEIGHT) ?: d.maxImageHeight,
                 notifyWapMmsc = bool(KEY_NOTIFY_WAP_MMSC_ENABLED, d.notifyWapMmsc),
                 sendMultipartSmsAsSeparateMessages = bool(KEY_SEND_MULTIPART_SMS_AS_SEPARATE_MESSAGES, d.sendMultipartSmsAsSeparateMessages),
+                smsDeliveryReportsEnabled = bool(KEY_SMS_DELIVERY_REPORT_ENABLED, d.smsDeliveryReportsEnabled),
+                mmsDeliveryReportsEnabled = bool(KEY_MMS_DELIVERY_REPORT_ENABLED, d.mmsDeliveryReportsEnabled),
+                mmsReadReportsEnabled = bool(KEY_MMS_READ_REPORT_ENABLED, d.mmsReadReportsEnabled),
+                emailGatewayNumber = gatewayNumber(raw(KEY_EMAIL_GATEWAY_NUMBER) as? String),
             )
+        }
+
+        /** A dialable gateway number (`+`, digits), or null for blank / malformed values. */
+        internal fun gatewayNumber(raw: String?): String? {
+            val s = raw?.trim()?.takeIf { it.isNotEmpty() && it.length <= MAX_GATEWAY_NUMBER_CHARS } ?: return null
+            val body = s.removePrefix("+")
+            return s.takeIf { body.isNotEmpty() && body.all { it in '0'..'9' } }
         }
     }
 }

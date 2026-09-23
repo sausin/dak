@@ -104,6 +104,37 @@ default SMS app unless a step says otherwise.
     cannot inject WAP push). The MMSC log / `adb logcat -s DakTelephony` shows an m-notifyresp-ind Deferred; tapping
     to download then sends m-acknowledge-ind. With auto-download on, the answer is notifyresp Retrieved.
 
+## MMS P2 checks (read reports, SMIL, carrier limits)
+Most need a real carrier (the emulator cannot inject WAP push or reach an MMSC). Carrier values can be overridden
+with `adb shell cmd phone cc set-value -p <key> <value>` (verify the syntax for the Android version) and are
+re-read within 5 minutes or after a SIM change.
+27. **Read receipts off by default**: from another phone (e.g. AOSP Messaging or Samsung Messages with "read reports"
+    on), send Dak an MMS. Open it in Dak. With the default settings nothing is sent (`adb logcat -s DakTelephony`
+    shows no "sending MMS read report"), and Dak's own MMS carry no X-Mms-Read-Report.
+28. **Read receipts on**: Settings → SIMs and sending → advanced → **Read receipts for MMS** on, on a carrier with
+    `enableMMSReadReports=true`. Receive an MMS that asks for a read report, then open the conversation (or use the
+    notification's "Mark as read"): exactly one "sending MMS read report" log line, and the sender's phone shows the
+    message as read. Opening it again sends nothing. An MMS from a short code or an alphanumeric sender id gets no
+    receipt. With `enableMMSReadReports=false` nothing is sent even with the setting on.
+29. **Read report received**: with read receipts on, send an MMS to a phone that returns read reports and open it
+    there. Dak's bubble shows the double tick (delivered) even with "Delivery reports" off.
+30. **Report allowed**: turn **Let senders see MMS delivery** off, receive an MMS: the m-notifyresp-ind carries
+    X-Mms-Report-Allowed = No (MMSC log or a capture of the MMS APN traffic); the sender gets no delivery report.
+31. **Image + caption slide**: send a photo with a caption to AOSP Messaging and to an iPhone. The caption shows
+    under the photo on the same slide, not as a separate slide.
+32. **SMIL order on receive**: receive an MMS whose SMIL presents parts in another order than the PDU (e.g. from an
+    MMSC test tool, or two photos plus captions from AOSP Messaging's slideshow editor). Dak shows the attachments
+    and captions in the slide order; an MMS with no SMIL or a broken one shows the parts in PDU order.
+33. **Carrier image size**: with `maxImageWidth=320`, `maxImageHeight=240`, send a 12 MP photo: the sent JPEG is at
+    most 320×240 (landscape) or 240×320 (portrait) (check on the receiving phone or in `content://mms/part`). With
+    the defaults (640×480) a portrait photo arrives as 480×640, never wider than 1600 px on any carrier.
+34. **Report enablement**: with "Delivery reports" on and `enableMMSDeliveryReports=false`, MMS go without
+    X-Mms-Delivery-Report; with it true, they carry it and the double tick follows the m-delivery-ind. With
+    `enableSMSDeliveryReports=false`, SMS go without a status report request.
+35. **E-mail recipients**: text `someone@example.com` with no gateway configured: it goes as MMS. With
+    `emailGatewayNumber=6245` (carrier-specific), a plain text goes as an SMS "someone@example.com <text>" to 6245,
+    filed in the open e-mail conversation; with a photo attached it still goes as MMS.
+
 ## Known limitations going in
 - SMS Organizer import is heuristic until tested with a real backup file.
 - Premium features show as locked; that's expected.

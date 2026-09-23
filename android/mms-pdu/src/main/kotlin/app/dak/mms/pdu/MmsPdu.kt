@@ -148,3 +148,20 @@ data class ReadOrigInd(
 ) : MmsPdu {
     override val messageType: Int get() = MessageType.READ_ORIG_IND
 }
+
+/**
+ * m-read-rec-ind (our read report for a received message whose sender asked for one with X-Mms-Read-Report = Yes;
+ * OMA MMS-ENC 1.3 §6.7.2). The MMSC turns it into an m-read-orig-ind for the original sender. [to] is the original
+ * sender; [from] null encodes the Insert-address-token (the MMSC fills in our number). There is no transaction id:
+ * the PDU is one-way.
+ */
+data class ReadRecInd(
+    val messageId: String,
+    val to: String,
+    val from: String? = null,
+    val dateSeconds: Long? = null,
+    val readStatus: Int = ReadStatus.READ,
+    override val mmsVersion: Int = MmsVersion.DEFAULT,
+) : MmsPdu {
+    override val messageType: Int get() = MessageType.READ_REC_IND
+}

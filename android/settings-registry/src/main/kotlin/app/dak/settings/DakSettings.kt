@@ -341,8 +341,25 @@ object DakSettings {
     )
     val deliveryReports = boolSetting(
         "simsSending.deliveryReports", SettingsGroup.SIMS_SENDING,
-        "Delivery reports", "Ask the carrier to confirm each SMS was delivered. Uses a small amount of battery.",
+        "Delivery reports",
+        "Ask the carrier to confirm each message was delivered (MMS only where the carrier supports it). " +
+            "Uses a small amount of battery.",
         default = false, advanced = true,
+    )
+    val mmsReadReceipts = boolSetting(
+        "simsSending.mmsReadReceipts", SettingsGroup.SIMS_SENDING,
+        "Read receipts for MMS",
+        "When someone asks, tell them you have read their MMS, and ask for the same on MMS you send. Never sent to " +
+            "businesses or short codes. Only works where the carrier supports MMS read reports.",
+        default = false, advanced = true,
+        keywords = listOf("read receipt", "read report", "seen", "mms", "privacy"),
+    )
+    val mmsDeliveryToSenders = boolSetting(
+        "simsSending.mmsDeliveryToSenders", SettingsGroup.SIMS_SENDING,
+        "Let senders see MMS delivery",
+        "Allow the carrier to tell someone that their MMS reached you. Turn off to keep that private.",
+        default = true, advanced = true,
+        keywords = listOf("delivery report", "report allowed", "mms", "privacy"),
     )
     val sendRateSpreading = boolSetting(
         "simsSending.sendRateSpreading", SettingsGroup.SIMS_SENDING,
@@ -586,7 +603,7 @@ object DakSettings {
         tabSet, swipeRight, swipeLeft, inboxOtpCopy, senderMerges, blockList, autoArchivePromosDays, fakeCreditWarnings, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
         accounts, homeCurrency, hideBalancesOnLock, ratesSource, reconciliationToleranceMinor,
         sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings, costWarnings,
-        enterToSend, deliveryReports, sendRateSpreading, exactAlarmPermission, broadcastLists,
+        enterToSend, deliveryReports, mmsReadReceipts, mmsDeliveryToSenders, sendRateSpreading, exactAlarmPermission, broadcastLists,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup,
         privacyCenter, privacyPolicy, dataSharingChoices, exportMyData, deleteMyData,

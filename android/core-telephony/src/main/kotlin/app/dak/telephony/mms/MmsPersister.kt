@@ -9,6 +9,7 @@ import app.dak.mms.pdu.ContentType
 import app.dak.mms.pdu.MessageType
 import app.dak.mms.pdu.MmsCharset
 import app.dak.mms.pdu.MmsMessageBuilder
+import app.dak.mms.pdu.MmsStatus
 import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduPart
 import app.dak.mms.pdu.RetrieveConf
@@ -218,9 +219,22 @@ class MmsPersister @Inject constructor(
         return out.size
     }
 
-    /** m-read-orig-ind: sets `read_status` on our sent message with that Message-ID. */
-    suspend fun applyReadReport(messageId: String, readStatus: Int) {
+    /**
+     * m-read-orig-ind: sets `read_status` on our sent message with that Message-ID. A read report also proves
+     * delivery to its sender ([from], the recipient of our message), so it is recorded like an m-delivery-ind with
+     * X-Mms-Status Retrieved ([DeliveryStatusMapping.readReportImpliesDelivery]): the delivered tick then shows even
+     * without a delivery report, and a group message still waits for every recipient. A group read report without a
+     * sender address cannot be attributed and only sets `read_status`.
+     */
+    suspend fun applyReadReport(messageId: String, readStatus: Int, from: String? = null) {
         updateByMessageId(messageId, ContentValues().apply { put(MmsColumns.READ_STATUS, readStatus) })
+        if (!DeliveryStatusMapping.readReportImpliesDelivery(readStatus)) return
+        val recipients = withContext(Dispatchers.IO) {
+            resolver.safeQuery(ProviderUris.MMS, arrayOf(MmsColumns.ID), "${MmsColumns.MESSAGE_ID} = ?", arrayOf(messageId))
+                ?.use { c -> if (c.moveToFirst()) recipientCount(c.long(MmsColumns.ID)) else null }
+        } ?: return
+        if (recipients > 1 && from.isNullOrBlank()) return
+        applyDeliveryReport(messageId, MmsStatus.RETRIEVED, listOfNotNull(from?.takeIf { it.isNotBlank() }))
     }
 
     /**

@@ -129,6 +129,8 @@ class LockSession(initiallyLocked: Boolean) {
         private set
 
     private var backgroundSince: Long? = null
+    /** The current background period started while our own prompt was showing (the prompt caused it). */
+    private var backgroundForAuth = false
     private var authDepth = 0
 
     val authInProgress: Boolean get() = authDepth > 0
@@ -136,21 +138,30 @@ class LockSession(initiallyLocked: Boolean) {
     /** The app went to the background at [now]. */
     fun onBackground(now: Long, config: AppLockConfig, lockActive: Boolean) {
         backgroundSince = now
-        if (config.autoLock == AutoLockTimeout.IMMEDIATELY && !authInProgress) expire(lockActive)
+        backgroundForAuth = authInProgress
+        if (config.autoLock == AutoLockTimeout.IMMEDIATELY && !backgroundForAuth) expire(lockActive)
     }
 
-    /** The app came back to the foreground at [now]. */
+    /**
+     * The app came back to the foreground at [now]. Whether the prompt already finished (its result can arrive before
+     * or after this call) does not matter: what counts is why the app went to the background.
+     */
     fun onForeground(now: Long, config: AppLockConfig, lockActive: Boolean) {
         val since = backgroundSince ?: return
         backgroundSince = null
         val away = (now - since).coerceAtLeast(0L)
-        val limit = if (authInProgress) config.autoLock.millis + AUTH_GRACE_MILLIS else config.autoLock.millis
+        val limit = if (backgroundForAuth) config.autoLock.millis + AUTH_GRACE_MILLIS else config.autoLock.millis
+        backgroundForAuth = false
         if (away >= limit) expire(lockActive)
     }
 
     /** The screen turned off (whether or not the app was in the foreground). */
     fun onScreenOff(config: AppLockConfig, lockActive: Boolean) {
-        if (config.lockOnScreenOff) expire(lockActive)
+        if (config.lockOnScreenOff) {
+            // The screen going off is never caused by our prompt, so it also ends any auth grace.
+            backgroundForAuth = false
+            expire(lockActive)
+        }
     }
 
     /** The user authenticated on the lock screen. */

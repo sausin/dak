@@ -1,10 +1,10 @@
 package app.dak.finance.ledger
 
-import app.dak.finance.parser.InstitutionTable
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.InstrumentType
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.money.Money
+import app.dak.finance.parser.InstitutionTable
 import app.dak.finance.rates.RatesTable
 
 /** One classified message, ready to be posted to a ledger. */

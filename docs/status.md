@@ -36,7 +36,7 @@ platform MMS download over the carrier APN.
 | Gmail-style search, chips, saved searches, preserved back stack | Built (`search`, `core-index`, `app/ui/search`) — FTS4 (Room) rather than FTS5 |
 | One composer, attachments, automatic SMS→MMS, segment counter, group MMS | Built |
 | Light / dark / AMOLED / high contrast, system default, live switch, semantic tokens | Built (`app/ui/theme`) |
-| OTP notification (bold code, copy, delete), auto-delete, consumed-OTP detection | Built |
+| OTP notification (bold code, auto-copy with Copy fallback, mark read, delete), auto-delete, consumed-OTP detection | Built |
 | Recycle bin with deletedBy, 1-day OTP retention (premium-adjustable) | Built |
 | Blocking via shared `BlockedNumberContract` | Built |
 | E.164 normalisation per SIM home country, roaming chip, "sent as" hint | Built |

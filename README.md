@@ -69,7 +69,8 @@ Country-specific data for other markets comes later; the region seam is already 
 - In-app self-test, a restriction banner for OEM battery killers (Xiaomi/Oppo/Vivo/Realme), and
   `ContentObserver` + periodic reconcile so new messages never require leaving and re-entering a
   thread.
-- Big, bold OTP notification with tap-to-copy and delete-now; **consumed-OTP detection** via the
+- Big, bold OTP notification, copied to the clipboard on arrival (flagged sensitive, "Copied" shown
+  beside the code; a Copy button if auto-copy is off) with Mark read and Delete; **consumed-OTP detection** via the
   same SMS Retriever app-signature hashes Google publishes, so an OTP already read by your banking
   app goes silent and auto-deletes instead of nagging you.
 - Sender merge groups fold `VM-HDFCBK` / `JD-HDFCBK` / `AX-HDFCBK` into one "HDFC Bank" thread —
@@ -136,7 +137,8 @@ Country-specific data for other markets comes later; the region seam is already 
 - Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA, Mar 1–Jul 31") with
   biometric confirmation required to forward OTPs, a persistent visible warning while any
   forwarding rule is active, and cost warnings before a send that would leave the user's plan/rate.
-  Notification channels can be split per SIM and per conversation.
+  Notification channels per kind (Messages, OTP codes, Alerts, Promotions, General, Spam) can be
+  split per SIM and per conversation.
 - Birthday/anniversary wishes from Contacts, opt-in, "ask first" or "send automatically", with
   English/Hindi templates.
 - Fake-credit scam detection flags a message before it ever reaches the passbook, with one-tap

@@ -10,6 +10,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import app.dak.classify.ExtractedLink
 import app.dak.classify.LinkExtractor
+import app.dak.classify.unicode.UntrustedText
 
 /** Colours used when annotating a message body; always theme tokens passed in by the caller. */
 data class MessageTextColors(
@@ -33,7 +34,9 @@ fun annotateMessage(
     onOtp: ((String) -> Unit)? = null,
     onLink: ((ExtractedLink) -> Unit)? = null,
 ): AnnotatedString = buildAnnotatedString {
-    append(body)
+    // Explicit bidi overrides/embeddings/isolates in the body become invisible neutral characters (same length, so every
+    // offset below still points at the same text): an RLO cannot visually reverse a link, amount or code.
+    append(UntrustedText.neutralizeKeepingOffsets(body))
     for (range in highlights) {
         val start = range.first.coerceIn(0, body.length)
         val end = (range.last + 1).coerceIn(start, body.length)

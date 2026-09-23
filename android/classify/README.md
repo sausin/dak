@@ -161,17 +161,38 @@ characters.
   inside an e-mail address or another token, no Title-case label after a dot ("Thank you.In case…"), so "Rs.500",
   "A/c.No", "1.5GB", "B.Com", "Pvt.Ltd" and "name@mail.com" are never links. `ExtractedLink(raw, host, asciiHost,
   hasUserInfo)` + `isIdn`, `hasScheme` and `url` (what to open: `https://` added to `www.` and scheme-less links):
-  `host` is the Unicode host with userinfo and port stripped, and `asciiHost` its punycode form (show that one in
-  warnings).
+  `host` is the host as written with userinfo and port stripped, `asciiHost` the host a browser resolves (UTS #46
+  nontransitional ToASCII with the WHATWG URL flags; null when a browser would refuse it) and `unicodeHost` its
+  ToUnicode form. Show `HostDisplay.displayHost(asciiHost, readerScripts)` in warnings.
 - `LookalikeDomainChecker().check(link): LinkVerdict` — `OFFICIAL`, `SHORTENED`, `LOOKALIKE`,
   `SUSPICIOUS_TLD` or `UNKNOWN`, against a bundled list of official Indian bank/government/courier
   domains, a URL-shortener list, and a suspicious-TLD list. Lookalikes are flagged by brand name
   appearing in a subdomain label (`hdfc-bank-kyc.xyz`) or by edit distance (1-2) against an
-  official domain's label. IDN hosts are folded to a Latin skeleton (Cyrillic/Greek confusables) to name the
-  brand they imitate, and are always `LOOKALIKE` unless official. Links with userinfo (`https://bank.com@evil.xyz`)
-  are `LOOKALIKE`.
+  official domain's label. IDN hosts (and hosts that fail UTS #46) are reduced to their UTS #39 skeleton and
+  compared with the official domains' skeletons to name the brand they imitate, and are always `LOOKALIKE` unless
+  official. Links with userinfo (`https://bank.com@evil.xyz`) are `LOOKALIKE`.
 - `ClassifierPipeline.MAX_CLASSIFY_CHARS` (4000): only the head of a body is classified. This bounds the cost of
   every regex run on attacker text. `SecurityTest` is the ReDoS harness for all body regexes.
+
+## Text safety (`app.dak.classify.unicode`; docs/standards-compliance.md §14)
+
+- `UntrustedText` (UAX #9): `isolate` (FSI…PDI), `isolateLtr` (LRI…PDI), `isolateName`, `sanitizeName`,
+  `neutralize` and `neutralizeKeepingOffsets` (explicit embeddings/overrides/isolates removed or replaced by U+2060,
+  so text cannot close an isolate early or reverse what follows). The app's `BidiText` delegates here.
+- `Punycode` (RFC 3492) and `Uts46` (`toAscii` / `toUnicode`, nontransitional; `BROWSER` and `STRICT` option sets):
+  mapping table, NFC, Punycode, validity criteria, CONTEXTJ and the RFC 5893 Bidi rule. Passes Unicode's IdnaTestV2
+  (the Unicode-13-compatible subset in the test resources).
+- `Confusables.skeleton` / `looseSkeleton` / `caseFoldedSkeleton` / `isAsciiLookalike` (UTS #39 §4),
+  `ScriptCheck.restrictionLevel` / `hasMixedNumbers` / `hasMixedScriptWord` / `scriptsForLanguages` (UTS #39 §5),
+  `HostDisplay.displayHost(asciiHost, readerScripts)` (Unicode only for single-script labels the reader reads that do
+  not pass for Latin; punycode otherwise).
+- `SenderNameCheck.check(name)`: mixed-script and ASCII-look-alike sender names (`НDFCBK` with a Cyrillic Н). Feeds
+  `FakeCreditDetector` (`LOOKALIKE_SENDER`, `MIXED_SCRIPT_SENDER`) and the pipeline (such senders' links are treated
+  like an unknown number's).
+- Data: `src/main/resources/app/dak/classify/unicode/` (`idna-mapping.txt`, `idna-context.txt`, `confusables.txt`),
+  generated from Unicode 17.0.0 files by `tools/gen_unicode_tables.py`; each file's header records its sources and
+  their SHA-256. Unicode data is under the Unicode License v3 (https://www.unicode.org/license.txt). Tables load
+  lazily, so ASCII-only hosts and senders never parse them.
 
 ## Smart entities (`app.dak.classify.entities`)
 

@@ -25,6 +25,7 @@
     <string name="scam_reason_phone_claims_bank">A mobile number is pretending to be a bank.</string>
     <string name="scam_reason_unknown_sender_alert">A money alert from a sender that isn\'t a known bank or one of your contacts.</string>
     <string name="scam_reason_lookalike_sender">The sender name only looks like a bank\'s. Real bank alerts come from registered senders like XX-HDFCBK-S.</string>
+    <string name="scam_reason_mixed_script_sender">The sender name mixes letters or digits from different alphabets. Real senders never do this; imitations do.</string>
     <string name="scam_reason_unverified_sender">The sender isn\'t one of the bank\'s registered senders.</string>
     <string name="scam_reason_unprefixed_header">The sender name is missing the registered prefix real bank alerts carry.</string>
     <string name="scam_reason_promotional_route">A credit alert sent as an advertisement. Banks send alerts as transactional messages.</string>

@@ -4,6 +4,7 @@ import app.dak.classify.DigitNormalizer
 import app.dak.classify.LinkExtractor
 import app.dak.classify.SenderId
 import app.dak.classify.SenderKind
+import app.dak.classify.SenderNameCheck
 import app.dak.classify.TemplateBundle
 import app.dak.classify.TrafficType
 import app.dak.classify.text.GatedRegex
@@ -107,6 +108,16 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
                     else -> Unit
                 }
                 SenderKind.SHORT_CODE -> if (claimed != null) reasons += ScamReason.UNVERIFIED_SENDER
+            }
+        }
+
+        // --- Sender written with look-alike or mixed scripts (UTS #39), in any region and for any money message: a
+        // bank's header in Cyrillic or fullwidth letters is an imitation of that bank, other mixes are a spoof signal.
+        sender.spoof?.let { spoof ->
+            if (spoof.asciiLookalike && BankNames.familyOfHeaderSkeleton(spoof.skeleton) != null) {
+                reasons += ScamReason.LOOKALIKE_SENDER
+            } else if (spoof.mixedScript) {
+                reasons += ScamReason.MIXED_SCRIPT_SENDER
             }
         }
 
@@ -219,6 +230,8 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         val knownFamily: BankNames.Family?,
         /** A registered DLT header of a known bank/wallet, not on the promotional route. */
         val verified: Boolean,
+        /** UTS #39 findings for a non-ASCII sender name that mixes scripts or passes for ASCII; null otherwise. */
+        val spoof: SenderNameCheck.Result?,
     )
 
     private fun isIndia(region: String?): Boolean = region.equals(INDIA, ignoreCase = true)
@@ -238,7 +251,8 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         } else {
             family != null && header?.route != TrafficType.PROMOTIONAL
         }
-        return Sender(kind, key, header?.route, entry != null, entry?.brand, family, verified)
+        val spoof = SenderNameCheck.check(address)?.takeIf { it.suspicious }
+        return Sender(kind, key, header?.route, entry != null, entry?.brand, family, verified && spoof == null, spoof)
     }
 
     // ------------------------------------------------------------------------------------------------ text

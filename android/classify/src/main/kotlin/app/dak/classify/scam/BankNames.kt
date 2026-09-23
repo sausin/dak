@@ -1,6 +1,7 @@
 package app.dak.classify.scam
 
 import app.dak.classify.text.KeywordPrefilter
+import app.dak.classify.unicode.Confusables
 
 /**
  * Bank / wallet name families used to tell which institution a message claims to be from, and whether a sender
@@ -70,5 +71,16 @@ internal object BankNames {
     fun familyOfHeader(header: String): Family? {
         val upper = header.uppercase()
         return families.firstOrNull { f -> f.headerTokens.any { upper.contains(it) } }
+    }
+
+    /**
+     * The family whose header token appears in [skeleton], the case-folded UTS #39 skeleton of a sender name (see
+     * `SenderNameCheck`): finds `НDFCBK` (Cyrillic Н) and `ІСІСІ` (Cyrillic І, С) imitating HDFC and ICICI.
+     */
+    fun familyOfHeaderSkeleton(skeleton: String): Family? =
+        families.firstOrNull { f -> tokenSkeletons.getValue(f.id).any { skeleton.contains(it) } }
+
+    private val tokenSkeletons: Map<String, List<String>> by lazy {
+        families.associate { f -> f.id to f.headerTokens.map { Confusables.caseFoldedSkeleton(it) } }
     }
 }

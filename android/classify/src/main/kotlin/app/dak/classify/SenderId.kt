@@ -72,18 +72,21 @@ public object SenderId {
 
     /**
      * Parses [address] as an Indian DLT header, if it looks like one: a 2-letter prefix, a dash, an entity header
-     * (up to 20 letters and digits with at least one letter, or exactly 6 digits for a numeric promotional header),
+     * (up to 20 ASCII letters and digits with at least one letter, or exactly 6 digits for a numeric promotional
+     * header; DLT headers are ASCII, so `VM-НDFCBK` with a Cyrillic Н is not one),
      * and an optional dash + single-letter traffic-type suffix. Returns null for anything else (phone numbers, plain
      * short codes, free text, and other digit runs behind a dash such as `VM-12345` or `91-9876543210`).
      */
     public fun parseDltHeader(address: String): DltHeader? {
+        // ASCII only, checked before upper-casing: "ı" (dotless i) and "ſ" (long s) upper-case to I and S.
+        if (address.any { it.code >= 0x80 }) return null
         val trimmed = address.trim().uppercase()
         val parts = trimmed.split('-')
         if (parts.size !in 2..3) return null
         val prefix = parts[0]
         if (!prefixRegex.matches(prefix)) return null
         val entity = parts[1]
-        if (entity.isEmpty() || entity.length > 20 || !entity.all { it.isLetterOrDigit() }) return null
+        if (entity.isEmpty() || entity.length > 20 || !entity.all { it in 'A'..'Z' || it in '0'..'9' }) return null
         // An alphanumeric entity header has a letter. An all-digit one is a numeric promotional header, which is
         // exactly 6 ASCII digits: any other digit run is more likely a number split by a stray dash.
         if (entity.none { it.isLetter() } && !(entity.length == NUMERIC_HEADER_LENGTH && entity.all { it in '0'..'9' })) {

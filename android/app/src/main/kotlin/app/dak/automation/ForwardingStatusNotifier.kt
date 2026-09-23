@@ -133,7 +133,8 @@ class ForwardingStatusNotifier @Inject constructor(
                 end != null -> context.getString(R.string.fw_period_until, format.format(Date(end)))
                 else -> context.getString(R.string.fw_period_until_stopped)
             }
-            return context.getString(R.string.fw_status_line, from, to, period)
+            val line = context.getString(R.string.fw_status_line, from, to, period)
+            return if (spec.includeOtp) line + context.getString(R.string.fw_status_otp_suffix) else line
         }
     }
 }

@@ -269,7 +269,8 @@ class ConversationViewModel @Inject constructor(
     }
 
     private suspend fun buildHeader(addresses: List<String>): ConversationHeader = withContext(Dispatchers.IO) {
-        val mergeKey = ConversationIds.mergeKeyOf(conversationId)
+        // An id from an old notification/search link may have been folded elsewhere since; name the thread it opens.
+        val mergeKey = ConversationIds.mergeKeyOf(runCatching { conversations.resolveConversationId(conversationId) }.getOrDefault(conversationId))
         val mergeName = mergeKey?.let { runCatching { merges.group(it).first()?.displayName }.getOrNull() }
         val matches = addresses.map { it to contacts.find(it) }
         val names = matches.map { (address, match) -> match?.displayName ?: address }

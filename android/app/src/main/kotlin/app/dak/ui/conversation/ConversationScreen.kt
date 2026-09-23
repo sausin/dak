@@ -65,6 +65,11 @@ import app.dak.index.MessageItem
 import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
 import app.dak.telephony.MmsDownloadState
+import app.dak.ui.sendergroups.ChannelFilterRow
+import app.dak.ui.sendergroups.ConversationFoldEvent
+import app.dak.ui.sendergroups.ConversationFoldViewModel
+import app.dak.ui.sendergroups.FoldIntoDialog
+import app.dak.ui.sendergroups.UnfoldChannelDialog
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.text.BidiText
 import app.dak.ui.notifications.CustomNotifications
@@ -81,8 +86,11 @@ private val FONT_SCALES = listOf(0.85f, 1f, 1.15f, 1.3f)
 @Composable
 fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val viewModel: ConversationViewModel = hiltViewModel()
+    val foldVm: ConversationFoldViewModel = hiltViewModel()
     val context = LocalContext.current
-    val messages = viewModel.messages.collectAsLazyPagingItems()
+    val channelFilter by foldVm.channelFilter.collectAsStateWithLifecycle()
+    val foldChannels by foldVm.channels.collectAsStateWithLifecycle()
+    val messages = (if (channelFilter == null) viewModel.messages else foldVm.filteredMessages).collectAsLazyPagingItems()
     val header by viewModel.header.collectAsStateWithLifecycle()
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val sims by viewModel.simList.collectAsStateWithLifecycle()
@@ -98,6 +106,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     var simDialog by remember { mutableStateOf(false) }
     var styleDialog by remember { mutableStateOf(false) }
     var fontDialog by remember { mutableStateOf(false) }
+    var foldIntoDialog by remember { mutableStateOf(false) }
+    var unfoldDialog by remember { mutableStateOf(false) }
     var scrolledToHighlight by rememberSaveable { mutableStateOf(false) }
 
     val strings = remember(context) { ConversationStrings.load(context) }
@@ -124,6 +134,23 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
 
+    LaunchedEffect(foldVm) {
+        foldVm.events.collect { event ->
+            when (event) {
+                is ConversationFoldEvent.Moved -> {
+                    // This conversation now lives inside another one: show that one instead.
+                    navigator.back()
+                    navigator.openConversation(event.conversationId)
+                }
+                is ConversationFoldEvent.Unfolded -> {
+                    val result = snackbar.showSnackbar(context.getString(R.string.fold_snack_unfolded), actionLabel = strings.undo, duration = SnackbarDuration.Long)
+                    if (result == SnackbarResult.ActionPerformed) foldVm.undo(event.receipt)
+                }
+                ConversationFoldEvent.Failed -> snackbar.showSnackbar(context.getString(R.string.fold_snack_failed))
+            }
+        }
+    }
+
     // Opened from search: keep loading until the highlighted message is in the list, then scroll to it.
     val highlight = viewModel.highlightKey
     LaunchedEffect(messages.itemCount, highlight) {
@@ -137,7 +164,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
 
-    val bubbleActions = remember(viewModel) {
+    val bubbleActions = remember(viewModel, foldVm) {
         object : BubbleActions {
             override fun onLongPress(item: MessageItem) { messageMenuFor = item }
             override fun onLink(item: MessageItem, link: ExtractedLink) {
@@ -153,6 +180,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             override fun onRetrySend(item: MessageItem) = viewModel.retrySend(item.key)
             override fun onRetryMms(item: MessageItem) = viewModel.retryMms(item.key)
             override fun mmsState(item: MessageItem): Flow<MmsDownloadState> = viewModel.mmsState(item.key)
+            override suspend fun repeatsOf(item: MessageItem): List<MessageItem> = foldVm.repeatsOf(item.key)
         }
     }
 
@@ -199,6 +227,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             onFontSize = { fontDialog = true },
                             onCustomNotifications = { CustomNotifications.open(context, viewModel.conversationId, header.title, header.addresses) },
                             onBlock = { viewModel.block() },
+                            onFoldInto = { foldIntoDialog = true },
+                            onUnfold = if (foldChannels.size > 1) ({ unfoldDialog = true }) else null,
                             onReportSpam = {
                                 val latest = messages.itemSnapshotList.items.firstOrNull { it.box == MessageBox.INBOX }
                                 if (latest != null) navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(latest)))
@@ -214,6 +244,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
+            ChannelFilterRow(channels = foldChannels, selected = channelFilter, onSelect = foldVm::selectChannel)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (messages.loadState.refresh is LoadState.Loading && messages.itemCount == 0) {
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -232,6 +263,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             outgoingColors = prefs.bubbleStyle?.let { DakTheme.colors.avatars.getOrNull(Math.floorMod(it, DakTheme.colors.avatars.size)) },
                             forwardedTo = forwarded[item.key.toString()],
                             labels = (item.labels - LinkSafety.UNKNOWN_SENDER_LINK_LABEL) + userLabels[item.key.toString()].orEmpty(),
+                            channelLabel = if (foldChannels.size > 1 && !item.isOutgoing) item.address else null,
+                            sims = if (item.repeatCount > 1) sims else emptyList(),
                         )
                         Box {
                             MessageBubble(item = item, decor = decor, actions = bubbleActions)
@@ -278,6 +311,13 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             onDismiss = { styleDialog = false },
         )
     }
+    if (foldIntoDialog) {
+        val targets by foldVm.foldTargets.collectAsStateWithLifecycle()
+        FoldIntoDialog(targets = targets, onPick = { foldIntoDialog = false; foldVm.foldInto(it) }, onDismiss = { foldIntoDialog = false })
+    }
+    if (unfoldDialog) {
+        UnfoldChannelDialog(channels = foldChannels, onPick = { unfoldDialog = false; foldVm.unfold(it.channel) }, onDismiss = { unfoldDialog = false })
+    }
     if (fontDialog) {
         FontScaleDialog(
             selected = prefs.fontScale,
@@ -306,6 +346,8 @@ private fun ThreadMenu(
     onFontSize: () -> Unit,
     onCustomNotifications: () -> Unit,
     onBlock: () -> Unit,
+    onFoldInto: (() -> Unit)? = null,
+    onUnfold: (() -> Unit)? = null,
     onReportSpam: () -> Unit,
     onReportFraud: () -> Unit,
 ) {
@@ -320,6 +362,8 @@ private fun ThreadMenu(
         entry(R.string.scr_action_bubble_colour, onBubbleColour)
         entry(R.string.scr_action_text_size, onFontSize)
         entry(R.string.ch_action_custom_notifications, onCustomNotifications)
+        onFoldInto?.let { entry(R.string.fold_action_fold_into, it) }
+        onUnfold?.let { entry(R.string.fold_action_unfold_channel, it) }
         HorizontalDivider()
         entry(R.string.scr_action_block, onBlock)
         entry(R.string.scr_action_report_spam, onReportSpam)

@@ -16,8 +16,10 @@ import app.dak.index.bin.BinReceipt
 import app.dak.index.bin.DeletedBy
 import app.dak.index.bin.RecycleBin
 import app.dak.index.repo.ConversationRepository
+import app.dak.index.repo.FoldReceipt
 import app.dak.index.repo.SavedSearchItem
 import app.dak.index.repo.SavedSearchRepository
+import app.dak.index.repo.SenderMergeRepository
 import app.dak.index.sync.IndexMaintenance
 import app.dak.telephony.ProviderReader
 import app.dak.telephony.SimRepository
@@ -43,6 +45,9 @@ sealed interface InboxEvent {
     data object DeleteFailed : InboxEvent
     /** An automation archived or deleted something moments ago; offer undo. */
     data class Automation(val undo: AutomationUndo) : InboxEvent
+    /** Conversations were folded together; offer undo. */
+    data class Folded(val receipt: FoldReceipt) : InboxEvent
+    data object FoldFailed : InboxEvent
 }
 
 /**
@@ -57,6 +62,7 @@ class InboxViewModel @Inject constructor(
     private val reader: ProviderReader,
     private val bin: RecycleBin,
     private val undoCenter: AutomationUndoCenter,
+    private val folds: SenderMergeRepository,
     sims: SimRepository,
     maintenance: IndexMaintenance,
     savedSearches: SavedSearchRepository,
@@ -138,6 +144,19 @@ class InboxViewModel @Inject constructor(
 
     fun markRead(conversation: ConversationSummary) {
         viewModelScope.launch { conversations.markRead(conversation.conversationId) }
+    }
+
+    /** Folds the selected conversations into one (display only; the provider keeps its threads). */
+    fun foldTogether(conversationIds: List<String>, name: String?) {
+        if (conversationIds.size < 2) return
+        viewModelScope.launch {
+            val receipt = runCatching { folds.foldTogether(conversationIds, name) }.getOrNull()
+            eventChannel.trySend(if (receipt == null) InboxEvent.FoldFailed else InboxEvent.Folded(receipt))
+        }
+    }
+
+    fun undoFold(receipt: FoldReceipt) {
+        viewModelScope.launch { runCatching { folds.undo(receipt) } }
     }
 
     private suspend fun keysOf(conversation: ConversationSummary): List<MessageKey> =

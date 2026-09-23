@@ -85,6 +85,7 @@ import app.dak.ui.common.ReliabilityBanner
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.relativeTime
 import app.dak.ui.common.text.BidiText
+import app.dak.ui.sendergroups.RenameDialog
 import app.dak.ui.theme.DakTheme
 import java.text.NumberFormat
 
@@ -111,6 +112,9 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val conversations = viewModel.conversationsPaged.collectAsLazyPagingItems()
     val snackbar = remember { SnackbarHostState() }
     var overflow by remember { mutableStateOf(false) }
+    // Conversations selected for "Fold together" (id -> title), in selection order.
+    var selection by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var foldDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -128,6 +132,11 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     val r = snackbar.showSnackbar(event.undo.token.description, context.getString(R.string.scr_action_undo), duration = SnackbarDuration.Short)
                     if (r == SnackbarResult.ActionPerformed) viewModel.undoAutomation(event.undo)
                 }
+                is InboxEvent.Folded -> {
+                    val r = snackbar.showSnackbar(context.getString(R.string.fold_snack_folded), context.getString(R.string.scr_action_undo), duration = SnackbarDuration.Long)
+                    if (r == SnackbarResult.ActionPerformed) viewModel.undoFold(event.receipt)
+                }
+                InboxEvent.FoldFailed -> snackbar.showSnackbar(context.getString(R.string.fold_snack_failed))
             }
         }
     }
@@ -136,7 +145,11 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
+            if (selection.isNotEmpty()) FoldSelectionTopBar(
+                count = selection.size,
+                onClose = { selection = emptyMap() },
+                onFold = { foldDialog = true },
+            ) else TopAppBar(
                 title = { SearchEntry(onClick = { navigator.navigate(Routes.search()) }) },
                 actions = {
                     Box {
@@ -150,6 +163,7 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 R.string.fw_menu_birthdays to Routes.BIRTHDAYS,
                                 R.string.scr_backup_title to Routes.BACKUP,
                                 R.string.scr_blocked_title to Routes.BLOCKED,
+                                R.string.fold_action_manage to Routes.SENDER_GROUPS,
                                 R.string.settings_title to Routes.settings(),
                             ).forEach { (label, route) ->
                                 DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = { overflow = false; navigator.navigate(route) })
@@ -221,10 +235,16 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 conversation = c,
                                 sims = sims,
                                 showCategory = tab == InboxTab.ALL || tab == InboxTab.STARRED || tab == InboxTab.ARCHIVED,
-                                onOpen = { navigator.openConversation(c.conversationId) },
+                                onOpen = {
+                                    if (selection.isEmpty()) navigator.openConversation(c.conversationId)
+                                    else selection = toggled(selection, c)
+                                },
                                 onTogglePin = { viewModel.togglePinned(c) },
                                 onToggleMute = { viewModel.toggleMuted(c) },
                                 onMarkRead = { viewModel.markRead(c) },
+                                selected = c.conversationId in selection,
+                                selectionMode = selection.isNotEmpty(),
+                                onToggleSelect = { selection = toggled(selection, c) },
                             )
                         }
                     }
@@ -232,7 +252,27 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             }
         }
     }
+
+    if (foldDialog) {
+        val chosen = selection
+        RenameDialog(
+            initial = chosen.values.firstOrNull().orEmpty(),
+            title = stringResource(R.string.fold_name_title, chosen.size),
+            allowEmpty = true,
+            onSave = { name ->
+                foldDialog = false
+                selection = emptyMap()
+                viewModel.foldTogether(chosen.keys.toList(), name.ifBlank { null })
+            },
+            onDismiss = { foldDialog = false },
+        )
+    }
 }
+
+/** [selection] with [conversation] added or removed. */
+private fun toggled(selection: Map<String, String>, conversation: ConversationSummary): Map<String, String> =
+    if (conversation.conversationId in selection) selection - conversation.conversationId
+    else selection + (conversation.conversationId to conversation.title)
 
 @Composable
 private fun SearchEntry(onClick: () -> Unit) {
@@ -329,14 +369,17 @@ private fun ConversationRow(
     onTogglePin: () -> Unit,
     onToggleMute: () -> Unit,
     onMarkRead: () -> Unit,
+    selected: Boolean = false,
+    selectionMode: Boolean = false,
+    onToggleSelect: (() -> Unit)? = null,
 ) {
     var menu by remember { mutableStateOf(false) }
     val unread = conversation.unreadCount > 0
-    Box {
+    Box(if (selected) Modifier.background(MaterialTheme.colorScheme.secondaryContainer) else Modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(onClick = onOpen, onLongClick = { menu = true })
+                .combinedClickable(onClick = onOpen, onLongClick = { if (selectionMode && onToggleSelect != null) onToggleSelect() else menu = true })
                 .padding(horizontal = 16.dp, vertical = 10.dp)
                 .alpha(if (conversation.enriched) 1f else 0.85f),
             verticalAlignment = Alignment.CenterVertically,
@@ -368,6 +411,13 @@ private fun ConversationRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 2.dp)) {
+                    if (conversation.snippetRepeatCount > 1) {
+                        Text(
+                            stringResource(R.string.fold_inbox_repeat, conversation.snippetRepeatCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (showCategory && conversation.enriched && conversation.category != Category.UNKNOWN) CategoryChip(conversation.category)
                     val convSims = sims.filter { it.subId in conversation.subIds }
                     if (sims.size > 1) convSims.forEach { SimChip(sim = it, compact = true) }
@@ -404,6 +454,9 @@ private fun ConversationRow(
             )
             if (unread) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.action_mark_read)) }, onClick = { menu = false; onMarkRead() })
+            }
+            if (onToggleSelect != null) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.fold_action_select)) }, onClick = { menu = false; onToggleSelect() })
             }
         }
     }

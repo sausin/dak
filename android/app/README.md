@@ -213,7 +213,15 @@ All screens keep the pinned signatures and get their ViewModel via `hiltViewMode
 - `ui/passbook` — accounts/cards/wallets with honest `BalanceState` ("unknown since …"), card outstanding + statement
   day, monthly totals, entries with ≈ indicative FX + rate/date, settled markup, raw SMS inline and one tap to thread.
 - `ui/automations` — rules with toggles, simple editor (`RuleDraft` ↔ `Rule`), presets, premium actions locked,
-  biometric confirmation for OTP forwarding, scheduled sends with cancel, exact-alarm prompt.
+  biometric confirmation for OTP forwarding, scheduled sends with cancel, exact-alarm prompt; shortcut rows to
+  Auto-forwarding and Birthday wishes (forwarding rules open the Forwarding screen instead of the simple editor).
+- `ui/forwarding` (`Routes.FORWARDING`) — "Forwarding rules": list with Active / Scheduled / Paused / Ended, editor
+  (name, source senders picked from conversations incl. folded sender groups, optional categories + keyword,
+  recipients from the contact picker or typed, SIM, inclusive start/end dates or "until I stop", template, OTPs
+  excluded by default — including them needs the biometric check and shows a persistent warning).
+- `ui/birthdays` (`Routes.BIRTHDAYS`) — READ_CONTACTS request, global opt-in, Ask first / Send automatically, send
+  time, SIM, anniversaries toggle, default + per-contact templates (English/Hindi presets), next 60 days with
+  per-contact "Auto-send" and number choice.
 - `ui/backup` — folder picker, passphrase + recovery code dialog, backup now/schedule, exports, import, restore.
 - `ui/blocked` — shared system block list via `BlockedNumbers`.
 

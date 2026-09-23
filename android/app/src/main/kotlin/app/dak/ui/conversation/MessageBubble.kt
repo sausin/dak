@@ -32,7 +32,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +44,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,6 +77,10 @@ data class BubbleDecor(
     val outgoingColors: TonalColors?,
     val forwardedTo: String?,
     val labels: Set<String>,
+    /** Raw sender header/number shown as a small "via …" chip in a folded conversation, or null. */
+    val channelLabel: String? = null,
+    /** SIMs, to label each copy of a repeated message. */
+    val sims: List<SimInfo> = emptyList(),
 )
 
 /** Callbacks from a bubble. */
@@ -82,6 +92,9 @@ interface BubbleActions {
     fun onRetrySend(item: MessageItem)
     fun onRetryMms(item: MessageItem)
     fun mmsState(item: MessageItem): Flow<MmsDownloadState>
+
+    /** Every copy of a collapsed repeated message ([MessageItem.repeatCount] > 1), newest first. */
+    suspend fun repeatsOf(item: MessageItem): List<MessageItem> = emptyList()
 }
 
 private val OUTGOING_BOXES = setOf(MessageBox.SENT, MessageBox.OUTBOX, MessageBox.QUEUED, MessageBox.FAILED, MessageBox.DRAFT)
@@ -166,6 +179,52 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
         }
         item.otp?.let { otp -> OtpRow(item, otp.code, otp.consumedBy, actions) }
         MetaRow(item, decor, outgoing)
+        if (item.repeatCount > 1) RepeatRow(item, decor, actions)
+    }
+}
+
+/** "×3 · last 10:42" under a collapsed repeated message; tap lists each copy (time, SIM). */
+@Composable
+private fun RepeatRow(item: MessageItem, decor: BubbleDecor, actions: BubbleActions) {
+    var expanded by rememberSaveable(item.key.toString()) { mutableStateOf(false) }
+    val formatter = rememberRelativeTimeFormatter()
+    val last = remember(item.dateMillis, formatter) { formatter.format(item.dateMillis) }
+    val description = stringResource(R.string.fold_repeat_chip_description, item.repeatCount, formatter.formatAbsolute(item.dateMillis))
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { expanded = !expanded }
+            .semantics { contentDescription = description },
+    ) {
+        Text(
+            if (expanded) stringResource(R.string.fold_repeat_hide) else stringResource(R.string.fold_repeat_chip, item.repeatCount, last),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+    if (expanded) {
+        val copies by produceState(initialValue = emptyList<MessageItem>(), item.key, item.repeatCount) {
+            value = actions.repeatsOf(item)
+        }
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            for (copy in copies) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    decor.sims.firstOrNull { it.subId == copy.subId }?.let { SimChip(sim = it, compact = true) }
+                    Text(
+                        stringResource(R.string.fold_repeat_occurrence, formatter.formatAbsolute(copy.dateMillis)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = muted,
+                    )
+                    if (copy.address != item.address) {
+                        Text(BidiText.displaySafe(copy.address), style = MaterialTheme.typography.labelSmall, color = muted)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -276,6 +335,9 @@ private fun MetaRow(item: MessageItem, decor: BubbleDecor, outgoing: Boolean) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         decor.sim?.let { SimChip(sim = it, compact = true) }
+        decor.channelLabel?.let {
+            Text(stringResource(R.string.fold_chip_channel, BidiText.displaySafe(it)), style = MaterialTheme.typography.labelSmall, color = muted, maxLines = 1)
+        }
         if (item.starred) Icon(Icons.Outlined.Star, contentDescription = stringResource(R.string.scr_starred), modifier = Modifier.size(14.dp), tint = muted)
         Text(time, style = MaterialTheme.typography.labelSmall, color = muted)
         if (outgoing) {

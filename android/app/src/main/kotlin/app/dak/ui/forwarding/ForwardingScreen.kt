@@ -128,7 +128,12 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 ForwardingRuleRow(
                     row = row,
                     nowMillis = now,
-                    onEdit = { issues = emptyList(); incomplete = false; editing = row.spec },
+                    onEdit = {
+                        issues = emptyList()
+                        incomplete = false
+                        // Editing an ended rule (usually to extend it) turns it back on when saved.
+                        editing = if (row.spec.status(now) == ForwardingStatus.ENDED) row.spec.copy(enabled = true) else row.spec
+                    },
                     onToggle = { enabled ->
                         if (enabled && viewModel.needsConfirmationToEnable(row)) {
                             confirmThen { viewModel.setEnabled(row, true, confirmed = true) }

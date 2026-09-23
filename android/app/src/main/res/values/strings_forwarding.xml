@@ -59,6 +59,7 @@
     <string name="fw_status_title_one">Forwarding active</string>
     <string name="fw_status_title_many">%1$d forwarding rules active</string>
     <string name="fw_status_line">%1$s → %2$s (%3$s)</string>
+    <string name="fw_status_otp_suffix">" · includes OTPs"</string>
 
     <!-- Birthday wishes -->
     <string name="fw_bd_title">Birthday wishes</string>

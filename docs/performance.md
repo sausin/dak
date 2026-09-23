@@ -198,7 +198,7 @@ evaluation and a re-index.
     for the deletion scan).
 - **Baseline profile.** `app/src/main/baseline-prof.txt` holds hand-written wildcard rules for the hot packages:
   `app.dak.classify.**`, `app.dak.finance.parser.**`, `app.dak.finance.money.**`, `TextNormalizer`,
-  `app.dak.index.enrich.**`, `app.dak.index.sync.**` and `TelephonyProviderReader`. AGP 8 packages the file, and Play
+  `app.dak.index.enrich.**`, `app.dak.index.sync.**` and `TelephonyProviderReader`. AGP packages the file, and Play
   installs compile those methods ahead of time. Sideloaded installs apply it only with `androidx.profileinstaller`,
   which is not in the version catalog yet. Adding it needs this catalog line:
   `androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version = "1.4.1" }`, then

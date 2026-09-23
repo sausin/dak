@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -11,7 +10,7 @@ val ciVersionCode = (System.getenv("DAK_VERSION_CODE") ?: "1").toInt()
 
 android {
     namespace = "app.dak"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "app.dak"
@@ -65,14 +64,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs += listOf(
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
-            "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi",
-        )
-    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -80,6 +71,17 @@ android {
     testOptions { unitTests.isIncludeAndroidResources = true }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/versions/9/previous-compilation-data.bin")
+    }
+}
+
+// Built-in Kotlin (AGP 9+): jvmTarget follows compileOptions.targetCompatibility.
+kotlin {
+    compilerOptions {
+        optIn.addAll(
+            "androidx.compose.material3.ExperimentalMaterial3Api",
+            "androidx.compose.foundation.ExperimentalFoundationApi",
+            "androidx.compose.foundation.layout.ExperimentalLayoutApi",
+        )
     }
 }
 

@@ -158,6 +158,8 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
                 modifier = Modifier.padding(start = 12.dp, bottom = 2.dp),
             )
         }
+        val gestures = rememberBubbleGestures(item, actions)
+        SwipeToReply(enabled = item.body.isNotEmpty(), onReply = { actions.onReply(item) }) {
         Surface(
             shape = RoundedCornerShape(
                 topStart = 18.dp,
@@ -170,9 +172,12 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
             modifier = Modifier
                 .widthIn(max = 320.dp)
                 .clip(RoundedCornerShape(18.dp))
+                .semantics { customActions = gestures.accessibilityActions }
                 .combinedClickable(
                     onClick = { if (failed) actions.onRetrySend(item) },
                     onLongClick = { actions.onLongPress(item) },
+                    onLongClickLabel = gestures.longPressLabel,
+                    onDoubleClick = gestures.onDoubleTap,
                 ),
         ) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -180,6 +185,7 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
                 if (item.kind() == MessageKind.MMS && !outgoing) MmsDownloadRow(item, actions)
                 if (item.body.isNotEmpty()) Text(annotated, style = bodyStyle, color = content)
             }
+        }
         }
         item.otp?.let { otp -> OtpRow(item, otp.code, otp.consumedBy, actions) }
         MetaRow(item, decor, outgoing)

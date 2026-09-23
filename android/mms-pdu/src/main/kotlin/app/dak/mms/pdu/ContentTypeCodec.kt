@@ -33,25 +33,34 @@ internal class ParamsBuilder {
     fun build(mimeType: String): ContentType = ContentType(
         mimeType = mimeType,
         charset = charset,
-        type = type,
-        start = start,
-        startInfo = startInfo,
-        name = name,
-        fileName = fileName,
+        type = type?.takeIf { it.length <= MmsLimits.MAX_MIME_TYPE_CHARS },
+        start = start.bounded(),
+        startInfo = startInfo.bounded(),
+        name = name.bounded(),
+        fileName = fileName.bounded(),
         otherParameters = other.toMap(),
     )
 
     /** Applies an untyped (textual) parameter, mapping the names we model onto typed fields. */
     fun putUntyped(rawName: String, value: String) {
-        when (val key = rawName.trim().lowercase()) {
+        val key = rawName.trim().lowercase()
+        if (key.length > MmsLimits.MAX_TOKEN_CHARS || value.length > MmsLimits.MAX_TOKEN_CHARS) return
+        when (key) {
             "charset" -> charset = MmsCharset.fromName(value) ?: value.toIntOrNull()
             "type" -> type = value.lowercase()
             "start" -> start = value
             "start-info" -> startInfo = value
             "name" -> name = value
             "filename" -> fileName = value
-            else -> other[key] = value
+            else -> if (other.size < MAX_OTHER_PARAMETERS || key in other) other[key] = value
         }
+    }
+
+    private fun String?.bounded(): String? = this?.takeIf { it.length <= MmsLimits.MAX_TOKEN_CHARS }
+
+    private companion object {
+        /** Unmodelled parameters kept per content type (a hostile header can carry thousands). */
+        const val MAX_OTHER_PARAMETERS = 16
     }
 }
 
@@ -66,7 +75,7 @@ internal object ContentTypeCodec {
             r.readOctet()
             return ContentType(mediaName((b and 0x7F).toLong()))
         }
-        if (b >= 32) return ContentType(r.readTextString().trim().lowercase())
+        if (b >= 32) return ContentType(boundedMime(r.readTextString()))
         val body = r.slice(r.readValueLength())
         val mime = readMedia(body)
         val params = ParamsBuilder()
@@ -77,7 +86,16 @@ internal object ContentTypeCodec {
     /** Media-type inside the general form: Well-known-media (Integer-value) | Extension-media (Text-string). */
     private fun readMedia(r: WspReader): String {
         if (!r.hasMore()) return "application/octet-stream"
-        return if (r.nextIsIntegerValue()) mediaName(r.readIntegerValue()) else r.readTextString().trim().lowercase()
+        return if (r.nextIsIntegerValue()) mediaName(r.readIntegerValue()) else boundedMime(r.readTextString())
+    }
+
+    /**
+     * Lower-cased, trimmed media type; an oversized one (hostile: it is stored in provider columns) becomes
+     * `application/octet-stream`.
+     */
+    fun boundedMime(raw: String): String {
+        val mime = raw.trim().lowercase()
+        return if (mime.isEmpty() || mime.length > MmsLimits.MAX_MIME_TYPE_CHARS) "application/octet-stream" else mime
     }
 
     private fun mediaName(code: Long): String = WellKnownMedia.name(code) ?: "application/octet-stream"
@@ -108,7 +126,7 @@ internal object ContentTypeCodec {
             Param.TYPE -> into.type = if (r.peek() >= 0x80) {
                 mediaName((r.readOctet() and 0x7F).toLong())
             } else {
-                r.readTextString().trim().lowercase()
+                boundedMime(r.readTextString())
             }
             Param.NAME_1_1, Param.NAME -> into.name = r.readTextValue()
             Param.FILENAME_1_1, Param.FILENAME -> into.fileName = r.readTextValue()

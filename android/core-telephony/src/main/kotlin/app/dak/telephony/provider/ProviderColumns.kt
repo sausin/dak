@@ -123,6 +123,17 @@ internal object BoxMapping {
 
     fun boxToSmsType(box: MessageBox): Int = box.providerType
 
+    /**
+     * The box a restored or imported message is written to. Outbox and queued messages become failed ones: the send
+     * pipeline (and boot-time recovery, which re-enqueues QUEUED rows) would otherwise send them with no user action
+     * and no cost check, so a tampered backup could make the phone text a premium-rate number. A failed message
+     * still shows "tap to retry".
+     */
+    fun restoredBox(box: MessageBox): MessageBox = when (box) {
+        MessageBox.OUTBOX, MessageBox.QUEUED -> MessageBox.FAILED
+        else -> box
+    }
+
     fun mmsBoxToBox(msgBox: Int): MessageBox = when (msgBox) {
         MmsColumns.BOX_INBOX -> MessageBox.INBOX
         MmsColumns.BOX_SENT -> MessageBox.SENT

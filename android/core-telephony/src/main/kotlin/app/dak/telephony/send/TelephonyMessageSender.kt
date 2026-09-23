@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.telephony.TelephonyManager
 import android.util.Log
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
@@ -14,6 +15,7 @@ import app.dak.telephony.OutgoingStatus
 import app.dak.telephony.SendResult
 import app.dak.telephony.SimRepository
 import app.dak.telephony.TelephonySettings
+import app.dak.telephony.cost.EmergencyDestinations
 import app.dak.telephony.internal.PendingIntentFlags
 import app.dak.telephony.internal.SmsManagers
 import app.dak.telephony.internal.TAG
@@ -71,7 +73,9 @@ class TelephonyMessageSender @Inject constructor(
             val address = outgoingAddress(raw, subId)
             val key = writer.insertOutgoing(address, sms.body, subId, threadId, deliveryReport) ?: continue
             keys += key
-            val delay = limiter.reserve(System.currentTimeMillis())
+            // A text to an emergency number never waits for a rate-limit slot (or behind a bulk send).
+            val now = System.currentTimeMillis()
+            val delay = if (isEmergency(raw, subId)) limiter.reserveEmergency(now) else limiter.reserve(now)
             if (delay == 0L) {
                 dispatchSms(key.providerId, address, sms.body, subId, deliveryReport, attempt = 1)
             } else {
@@ -125,7 +129,7 @@ class TelephonyMessageSender @Inject constructor(
             MessageKind.SMS -> {
                 val row = loadSms(key.providerId) ?: return
                 if (row.type != SmsColumns.TYPE_QUEUED && row.type != SmsColumns.TYPE_OUTBOX && row.type != SmsColumns.TYPE_FAILED) return
-                if (!slotReserved) {
+                if (!slotReserved && !isEmergency(row.address, resolveSubId(row.subId))) {
                     val delay = limiter.reserve(System.currentTimeMillis())
                     if (delay > 0L) {
                         writer.markSmsStatus(key, OutgoingStatus.QUEUED)
@@ -198,6 +202,18 @@ class TelephonyMessageSender @Inject constructor(
     // --- Helpers --------------------------------------------------------------------------------------------
 
     private fun resolveSubId(requested: Int): Int = if (isUsableSubId(requested)) requested else sims.defaultSmsSubId()
+
+    /** Emergency destination for this SIM's home country or the network it is on (see [EmergencyDestinations]). */
+    private fun isEmergency(address: String, subId: Int): Boolean {
+        val home = runCatching { normalizer.homeCountry(subId) }.getOrNull()
+        val network = try {
+            val tm = context.getSystemService(TelephonyManager::class.java)
+            (if (tm != null && isUsableSubId(subId)) tm.createForSubscriptionId(subId) else tm)?.networkCountryIso
+        } catch (e: Exception) {
+            null
+        }
+        return EmergencyDestinations.isEmergency(address, home, network?.takeIf { it.isNotBlank() })
+    }
 
     private fun outgoingAddress(raw: String, subId: Int): String =
         if (settings.normalizeOutgoingNumbers) normalizer.normalize(raw, subId) else raw

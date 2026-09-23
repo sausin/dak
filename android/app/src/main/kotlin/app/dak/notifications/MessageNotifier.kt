@@ -163,7 +163,8 @@ class MessageNotifier @Inject constructor(
         copied: Boolean,
         muted: Boolean,
     ): Built {
-        val template = RepeatCollapse.template(message.body)
+        val shownBody = NotificationText.body(message.body)
+        val template = RepeatCollapse.template(shownBody)
         val now = System.currentTimeMillis()
         // A resent / duplicated OTP from the same thread replaces the previous one with the latest code.
         val previous = active().firstOrNull { sbn ->
@@ -200,14 +201,14 @@ class MessageNotifier @Inject constructor(
                 setTextViewText(R.id.otp_warning, warning)
             }
             setTextViewText(R.id.otp_sender, listOfNotNull(shownSender, usedBy).joinToString(" · "))
-            setTextViewText(R.id.otp_body, message.body)
+            setTextViewText(R.id.otp_body, shownBody)
         }
 
         // The title is what watches, summaries and screen readers show; the custom views draw the code themselves.
         val title = if (copied) context.getString(R.string.otp_code_copied, otp.code) else otp.code
         val builder = baseBuilder(channel = channel, message = message, smallIcon = R.drawable.ic_stat_otp, category = Category.OTP)
             .setContentTitle("$title · $shownSender")
-            .setContentText(warning ?: message.body)
+            .setContentText(warning ?: shownBody)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsed)
             .setCustomBigContentView(expanded)
@@ -555,7 +556,7 @@ class MessageNotifier @Inject constructor(
         )
 
     private fun displayBody(message: Message): String = when {
-        message.body.isNotBlank() -> message.body
+        message.body.isNotBlank() -> NotificationText.body(message.body)
         message.attachments.any { it.mimeType.startsWith("image/") } -> context.getString(R.string.notification_photo)
         message.attachments.isNotEmpty() -> context.getString(R.string.notification_attachment)
         else -> context.getString(R.string.notification_new_message)

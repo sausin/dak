@@ -19,6 +19,7 @@ import app.dak.mms.pdu.MessageType
 import app.dak.mms.pdu.MmsLimits
 import app.dak.mms.pdu.MmsPduDecoder
 import app.dak.mms.pdu.MmsSafety
+import app.dak.mms.pdu.NotificationFloodGuard
 import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduDecodeResult
 import app.dak.mms.pdu.RetrieveConf
@@ -74,6 +75,7 @@ class MmsDownloadManager @Inject constructor(
     private val sendManager: MmsSendManager,
 ) {
     private val resultLock = Mutex()
+    private val floodGuard = NotificationFloodGuard()
 
     /** Handles a received m-notification-ind. */
     suspend fun onNotification(n: NotificationInd, subId: Int) {
@@ -84,17 +86,26 @@ class MmsDownloadManager @Inject constructor(
             return
         }
         val existing = persister.findNotification(n.contentLocation, n.transactionId)
+        // A flood of forged notifications (each a new content location) must not fill the inbox or trigger unbounded
+        // fetches: past the hourly budgets new ones wait for a tap, and past the hard cap they are not stored at all.
+        val flood = if (existing == null) floodGuard.decide(n.from, System.currentTimeMillis()) else NotificationFloodGuard.Decision.AUTO_DOWNLOAD
+        if (flood == NotificationFloodGuard.Decision.DROP) {
+            Log.w(TAG, "dropping MMS notification: too many notifications this hour")
+            return
+        }
         val id = existing ?: persister.insertNotification(n, subId) ?: run {
             Log.e(TAG, "MMS notification could not be written to the provider")
             return
         }
         val roaming = sims.isRoaming(subId)
         val tooLarge = n.messageSize > MmsLimits.MAX_PDU_BYTES
-        if (!settings.autoDownloadMms || (roaming && !settings.autoDownloadMmsWhenRoaming) || tooLarge) {
+        val throttled = flood == NotificationFloodGuard.Decision.MANUAL
+        if (!settings.autoDownloadMms || (roaming && !settings.autoDownloadMmsWhenRoaming) || tooLarge || throttled) {
             if (existing == null) {
                 val reason = when {
                     tooLarge -> "Very large message: tap to download"
                     roaming -> "Roaming: tap to download"
+                    throttled -> "Many messages at once: tap to download"
                     else -> "Tap to download"
                 }
                 states.set(id, MmsDownloadState.Failed(reason, 0))

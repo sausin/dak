@@ -2,6 +2,7 @@ package app.dak.telephony
 
 import app.dak.mms.pdu.ContentType
 import app.dak.mms.pdu.MmsCharset
+import app.dak.mms.pdu.MmsLimits
 import app.dak.mms.pdu.MmsMessageBuilder
 import app.dak.mms.pdu.MmsTime
 import app.dak.mms.pdu.NotificationInd
@@ -180,5 +181,17 @@ class MmsMappingTest {
         for (s in states) assertEquals(s, MmsDownloadStateCodec.decode(MmsDownloadStateCodec.encode(s)))
         assertNull(MmsDownloadStateCodec.decode("f|x|y"))
         assertNull(MmsDownloadStateCodec.decode("?"))
+    }
+
+    @Test
+    fun hostileTextPartsAreBoundedBeforeTheProvider() {
+        // A 3 MB text slide would fail the Binder insert (message lost, re-fetched five times) or overflow the 2 MB
+        // CursorWindow on every later read; many medium slides must not add up to a huge body either.
+        val huge = PduPart(ContentType.of(ContentType.TEXT_PLAIN, MmsCharset.UTF_8), ByteArray(3 * 1024 * 1024) { 'a'.code.toByte() })
+        val medium = PduPart(ContentType.of(ContentType.TEXT_PLAIN, MmsCharset.UTF_8), ByteArray(60_000) { 'b'.code.toByte() })
+        val rows = MmsProviderMapping.partRows(listOf(huge) + List(10) { medium })
+        assertEquals(MmsLimits.MAX_INLINE_TEXT_CHARS, rows[0].text?.length)
+        assertTrue(rows.all { (it.text?.length ?: 0) <= MmsLimits.MAX_INLINE_TEXT_CHARS })
+        assertEquals(MmsLimits.MAX_MESSAGE_TEXT_CHARS, rows.sumOf { it.text?.length ?: 0 })
     }
 }

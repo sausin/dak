@@ -74,13 +74,37 @@ object LinkSafety {
 
     /** `http(s)://…` as-is, `www.…` with `https://` prefixed; null for any other scheme or an unparsable link. */
     internal fun webUriOrNull(raw: String): Uri? {
-        val trimmed = raw.trim()
-        val candidate = if (trimmed.startsWith("www.", ignoreCase = true)) "https://$trimmed" else trimmed
+        val candidate = normalizedWebLink(raw) ?: return null
         val uri = runCatching { Uri.parse(candidate) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase() ?: return null
         if (scheme != "http" && scheme != "https") return null
         if (uri.host.isNullOrEmpty()) return null
         return uri
+    }
+
+    /** Longest link Dak will hand to a browser. */
+    internal const val MAX_LINK_CHARS: Int = 4_096
+
+    /**
+     * The exact string that is opened for [raw], or null when it is not a plain web link. Pure (no Android types), so
+     * it is unit-tested directly.
+     *
+     * Backslashes become `/`: browsers (WHATWG URL parsing) treat `\` as a path separator in http(s) URLs, and so
+     * does the link checker, but `android.net.Uri` does not. Without this, `https://bank.example\@evil.example`
+     * would be checked (and opened by the browser) as `bank.example`, while Android's intent resolution — which picks
+     * the app that handles the link — would see host `evil.example`. Whitespace or control characters, and absurdly
+     * long links, are refused.
+     */
+    internal fun normalizedWebLink(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty() || trimmed.length > MAX_LINK_CHARS) return null
+        if (trimmed.any { it.isWhitespace() || it.isISOControl() }) return null
+        val candidate = (if (trimmed.startsWith("www.", ignoreCase = true)) "https://$trimmed" else trimmed).replace('\\', '/')
+        val separator = candidate.indexOf("://")
+        if (separator <= 0) return null
+        val scheme = candidate.substring(0, separator).lowercase()
+        if (scheme != "http" && scheme != "https") return null
+        return candidate
     }
 }
 

@@ -3,6 +3,10 @@ package app.dak.mms.pdu
 /** WSP multipart body (WAP-230 §8.5): uintvar count, then per part HeadersLen, DataLen, ContentType+Headers, Data. */
 internal object MultipartCodec {
     private const val MAX_NESTING = 3
+    private const val MAX_DISPOSITION_CHARS = 64
+
+    /** Empty or oversized (hostile, see [MmsLimits.MAX_TOKEN_CHARS]) part header values are treated as absent. */
+    private fun String?.boundedToken(): String? = this?.takeIf { it.isNotEmpty() && it.length <= MmsLimits.MAX_TOKEN_CHARS }
 
     /** Reads a multipart body; nested multiparts are flattened and all parts count towards [MmsLimits.MAX_PARTS]. */
     fun read(r: WspReader): List<PduPart> {
@@ -20,13 +24,15 @@ internal object MultipartCodec {
             val headersLength = r.readUintvarInt()
             val dataLength = r.readUintvarInt()
             val headers = r.slice(headersLength)
+            // The body stays a view over the PDU until we know it is a leaf: nested multiparts are parsed in place,
+            // so a 16 MiB PDU nested MAX_NESTING deep is never copied once per level.
+            val body = r.slice(dataLength)
             val contentType = ContentTypeCodec.read(headers)
-            val part = readPartHeaders(headers, contentType, r.readBytes(dataLength))
-            if (part.contentType.isMultipart && depth < MAX_NESTING) {
+            if (contentType.isMultipart && depth < MAX_NESTING) {
                 // Nested multipart (e.g. multipart/alternative inside related): flatten its children when valid.
                 val nested = ArrayList<PduPart>()
                 val valid = try {
-                    read(WspReader(part.data), depth + 1, nested)
+                    read(body.duplicate(), depth + 1, nested)
                     true
                 } catch (e: PduFormatException) {
                     false
@@ -34,12 +40,10 @@ internal object MultipartCodec {
                 if (valid) {
                     if (parts.size + nested.size > MmsLimits.MAX_PARTS) throw r.malformed("more than ${MmsLimits.MAX_PARTS} parts")
                     parts.addAll(nested)
-                } else {
-                    parts.add(part)
+                    return@repeat
                 }
-            } else {
-                parts.add(part)
             }
+            parts.add(readPartHeaders(headers, contentType, body.readRemaining()))
         }
     }
 
@@ -78,10 +82,10 @@ internal object MultipartCodec {
         return PduPart(
             contentType = contentType,
             data = data,
-            contentId = contentId?.takeIf { it.isNotEmpty() },
-            contentLocation = contentLocation?.takeIf { it.isNotEmpty() },
-            contentDisposition = disposition,
-            dispositionFileName = dispositionParams.fileName ?: dispositionParams.name,
+            contentId = contentId.boundedToken(),
+            contentLocation = contentLocation.boundedToken(),
+            contentDisposition = disposition?.takeIf { it.length <= MAX_DISPOSITION_CHARS },
+            dispositionFileName = (dispositionParams.fileName ?: dispositionParams.name).boundedToken(),
         )
     }
 

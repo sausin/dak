@@ -55,6 +55,9 @@ internal class WspReader(
         return sub
     }
 
+    /** An independent reader over this reader's unread octets (same backing array, no copy). */
+    fun duplicate(): WspReader = WspReader(data, position, end)
+
     fun malformed(detail: String): PduFormatException = PduFormatException(position, detail)
 
     private fun require(count: Int) {

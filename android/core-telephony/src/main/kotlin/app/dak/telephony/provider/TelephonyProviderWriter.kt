@@ -195,9 +195,13 @@ class TelephonyProviderWriter @Inject constructor(
         }
     }
 
-    override suspend fun restore(message: Message): MessageKey? = when (message.kind) {
-        MessageKind.SMS -> restoreSms(message)
-        MessageKind.MMS -> restoreMms(message)
+    override suspend fun restore(message: Message): MessageKey? {
+        // Never restore into the send queue (see BoxMapping.restoredBox): imported files are untrusted.
+        val safe = message.copy(box = BoxMapping.restoredBox(message.box))
+        return when (safe.kind) {
+            MessageKind.SMS -> restoreSms(safe)
+            MessageKind.MMS -> restoreMms(safe)
+        }
     }
 
     override suspend fun threadIdFor(addresses: Set<String>): Long = withContext(Dispatchers.IO) {

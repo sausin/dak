@@ -21,7 +21,7 @@ Off-device flows where Dak is (or will be) the fiduciary/controller, all off by 
 
 | Flow (`DataFlow`) | Personal data | Recipient | Status |
 |---|---|---|---|
-| `CLOUD_CLASSIFICATION` (Jev) | Sender ID (can be a person's phone number) + masked message text | Dak classification service (processor possible) | 🔜 not implemented; consent gate ready |
+| `CLOUD_CLASSIFICATION` (Jev) | Business sender ID (never a phone number: messages from people stay on the phone) + masked message text | Dak classification service (processor possible) | 🔜 not implemented; consent gate ready |
 | `WEBHOOKS` | Sender, message key, message text per rule template | User's own endpoint (Dak gateway possibly in between) | 🔜 |
 | `WEB_RELAY` | E2E-encrypted messages, pairing id, sizes/times | Dak relay | 🔜 |
 | `AI_SEARCH` | Typed search query | LLM provider (processor) | 🔜 |

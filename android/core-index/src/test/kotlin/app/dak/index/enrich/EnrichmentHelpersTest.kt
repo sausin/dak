@@ -70,6 +70,15 @@ class EnrichmentHelpersTest {
     }
 
     @Test
+    fun cloudStageNeverSeesPeople() {
+        assertTrue(DefaultMessageEnricher.cloudEligibleSender("VM-HDFCBK-T"))
+        assertTrue(DefaultMessageEnricher.cloudEligibleSender("56070"))
+        assertTrue(DefaultMessageEnricher.cloudEligibleSender("AMAZON"))
+        assertFalse(DefaultMessageEnricher.cloudEligibleSender("+919876543210"))
+        assertFalse(DefaultMessageEnricher.cloudEligibleSender("09876543210"))
+    }
+
+    @Test
     fun defaultEnricherClassifiesWithBundledTemplatesAndParsesTransactions() = runTest {
         val enricher = DefaultMessageEnricher(isContact = { false })
         assertTrue(enricher.version > 0)

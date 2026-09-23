@@ -62,4 +62,9 @@ class ScheduledSendRoleGateTest {
         assertEquals(ScheduledSendStatus.SENT, ScheduledSendRoleGate.statusAfter(SendResult.Queued(emptyList())))
         assertEquals(ScheduledSendStatus.FAILED, ScheduledSendRoleGate.statusAfter(SendResult.Failed("x")))
     }
+
+    @Test
+    fun `an emergency text never waits for the role`() {
+        assertNull(ScheduledSendRoleGate.waitUntil(isDefaultSmsApp = { false }, nowMillis = 0L, toEmergency = { true }))
+    }
 }

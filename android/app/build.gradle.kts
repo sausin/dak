@@ -17,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "app.dak"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = ciVersionCode
         versionName = ciVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

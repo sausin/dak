@@ -79,14 +79,15 @@ object Disclosures {
 
     val cloudClassification = Disclosure(
         flow = DataFlow.CLOUD_CLASSIFICATION,
-        version = 1,
+        version = 2,
         title = "Send unclear messages for a second opinion (Jev)",
         whatIsSent = listOf(
-            "The sender ID of a message Dak could not sort on its own: a business header such as \"VM-HDFCBK\", or the phone number if a person sent it.",
+            "The sender ID of a business message Dak could not sort on its own, such as \"VM-HDFCBK\" or a short code.",
             "A masked copy of that message: numbers, amounts, card numbers, links, email addresses and likely names are replaced with placeholders such as <NUM> before it leaves the phone.",
         ),
         whatIsNotSent = listOf(
             "OTP codes, amounts, account numbers and links (they are masked).",
+            "Anything from a person: messages from phone numbers, and those numbers, never leave the phone.",
             "Messages Dak can already sort on the phone, your contacts, and your other messages.",
         ),
         sentTo = "Dak's classification service (run by Dak or a processor working for Dak), over an encrypted connection.",

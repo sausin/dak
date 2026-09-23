@@ -17,10 +17,11 @@ Related: [privacy policy](privacy-policy.md), [privacy compliance (DPDP / GDPR)]
       `PrivacyPolicyTest`, fails when they differ).
 - [ ] In-app policy reachable in two taps: Settings → Privacy → Privacy policy (also from the first onboarding
       screen, and as a searchable row under Settings → Backup, data and privacy). It is bundled, so it works offline.
-- [ ] **Target API level (verify).** `app/build.gradle.kts` sets `targetSdk = 35`. Play's rule has been "within one
-      year of the latest Android release": from 31 August 2026 new apps and updates must target API 36 (Android 16).
-      Check the current deadline; if it has passed, raise `targetSdk` to 36 and re-test edge-to-edge, predictive back,
-      foreground-service and exact-alarm behaviour before submitting. (Not changed in this pass.)
+- [x] **Target API level.** `app/build.gradle.kts` sets `targetSdk = 36` (Android 16), meeting Play's 31 August 2026
+      requirement. Predictive back was already opted in (`enableOnBackInvokedCallback`) and no activity locks
+      orientation or resizability, so Android 16's large-screen and back changes need no code change. Before each
+      submission re-test on an Android 16 device: edge-to-edge insets, predictive back on every screen, foreground-
+      service start (MMS/journal replay), exact alarms for scheduled sends, and the flash-SMS notification.
 
 ## 2. SMS and Call Log permissions declaration
 

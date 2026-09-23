@@ -18,6 +18,7 @@ import app.dak.telephony.MessageSender
 import app.dak.telephony.NumberNormalizer
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.SendResult
+import app.dak.telephony.cost.EmergencyNumberCheck
 import app.dak.telephony.role.SmsRoleMonitor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
@@ -59,6 +60,7 @@ class ScheduledSendExecutor @Inject constructor(
     private val runLog: AutomationRunLog,
     private val audit: AuditLogRepository,
     private val role: SmsRoleMonitor,
+    private val emergency: EmergencyNumberCheck,
     @ApplicationContext private val context: Context,
 ) {
     private val mutex = Mutex()
@@ -85,7 +87,11 @@ class ScheduledSendExecutor @Inject constructor(
             // Checked before the gates and the throttle, so a send that waits for the role spends no rate-limit slot
             // and no daily allowance. Pushing the time forward (not only re-arming) keeps rearmPending from firing
             // the alarm again at once for a row that is already due.
-            val retryAt = ScheduledSendRoleGate.waitUntil(isDefaultSmsApp = { role.isDefaultNow() }, nowMillis = nowMillis)
+            val retryAt = ScheduledSendRoleGate.waitUntil(
+                isDefaultSmsApp = { role.isDefaultNow() },
+                nowMillis = nowMillis,
+                toEmergency = { emergency.allEmergency(current.addresses, current.subId) },
+            )
             if (retryAt != null) {
                 scheduler.reschedule(current.id, retryAt)
                 continue
@@ -181,9 +187,12 @@ internal object ScheduledSendRoleGate {
     /** How long a due send waits before the role is checked again. */
     const val RECHECK_MILLIS: Long = 15 * 60 * 1000L
 
-    /** Null when the send may go out now; otherwise when to look again (the row stays PENDING until then). */
-    fun waitUntil(isDefaultSmsApp: () -> Boolean, nowMillis: Long): Long? =
-        if (isDefaultSmsApp()) null else nowMillis + RECHECK_MILLIS
+    /**
+     * Null when the send may go out now; otherwise when to look again (the row stays PENDING until then). A text to an
+     * emergency number never waits: the sender dispatches those even without the role.
+     */
+    fun waitUntil(isDefaultSmsApp: () -> Boolean, nowMillis: Long, toEmergency: () -> Boolean = { false }): Long? =
+        if (isDefaultSmsApp() || toEmergency()) null else nowMillis + RECHECK_MILLIS
 
     /** The row's status once the sender has answered. */
     fun statusAfter(result: SendResult): ScheduledSendStatus = when (result) {

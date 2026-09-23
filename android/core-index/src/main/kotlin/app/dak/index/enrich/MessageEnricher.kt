@@ -106,7 +106,8 @@ class DefaultMessageEnricher(
 
     override suspend fun enrich(message: Message, allowCloud: Boolean): Enrichment {
         val s = ensureState()
-        val pipeline = if (allowCloud) s.withCloud else s.local
+        // Jev (the opt-in cloud stage) never sees messages from people: a phone-number sender stays on the phone.
+        val pipeline = if (allowCloud && cloudEligibleSender(message.address)) s.withCloud else s.local
         val classification = pipeline.classify(message.address, message.body, message.subId)
         val transaction = if (shouldParseTransaction(message.address, classification.category)) {
             // A bare "$" reads as the SIM region's own dollar (CAD, AUD, SGD...), else USD.
@@ -210,6 +211,12 @@ class DefaultMessageEnricher(
         const val LOGIC_REVISION = 8
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
+
+        /**
+         * Senders whose messages may go to the cloud stage: businesses (DLT headers, short codes, other alphanumeric
+         * IDs). A phone number is a person, and neither their number nor their text ever leaves the phone.
+         */
+        fun cloudEligibleSender(address: String): Boolean = SenderId.classify(address) != SenderKind.PHONE_NUMBER
 
         /**
          * Transactions are parsed for messages classified as transactions, and for unclassified messages from

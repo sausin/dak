@@ -363,8 +363,7 @@ categories to where Dak addresses them.
 13. **Play submission blockers:** mostly done, see `docs/play-submission.md`.
     - Done: in-app privacy policy (offline), per-flow prominent disclosure and consent, battery permission removed,
       declaration and Data safety answers prepared.
-    - Open: publish the policy and set `HOSTED_PRIVACY_POLICY_URL` and the contact; file the forms; check the
-      target API deadline (`targetSdk = 35`).
+    - Open: publish the policy and set `HOSTED_PRIVACY_POLICY_URL` and the contact; file the forms. Target API is 36.
 14. **DPDP/GDPR before premium or cloud launch:** groundwork done, see `docs/privacy-compliance.md`.
     - Done: consent records and withdrawal; local export and delete; retention schedule; breach runbook and DPIA
       outlines; 18+ confirmation.

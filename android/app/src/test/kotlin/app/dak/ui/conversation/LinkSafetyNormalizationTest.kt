@@ -1,5 +1,6 @@
 package app.dak.ui.conversation
 
+import app.dak.classify.LinkExtractor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -33,5 +34,17 @@ class LinkSafetyNormalizationTest {
         assertNull(LinkSafety.normalizedWebLink("https://bank.example/\u0000x"))
         assertNull(LinkSafety.normalizedWebLink("https://bank.example/a b"))
         assertNull(LinkSafety.normalizedWebLink("https://x.example/" + "a".repeat(LinkSafety.MAX_LINK_CHARS)))
+    }
+
+    @Test
+    fun realHostIsPunycodeForHomographsAndUnicodeForReadableIdns() {
+        fun host(body: String, vararg scripts: Character.UnicodeScript) =
+            LinkSafety.shownHost(LinkExtractor.extract(body).single(), scripts.toSet())
+        assertEquals("xn--pple-43d.com", host("https://аpple.com/")) // Cyrillic а
+        assertEquals("xn--pple-43d.com", host("https://аpple.com/", Character.UnicodeScript.CYRILLIC))
+        assertEquals("उदाहरण.भारत", host("https://उदाहरण.भारत/"))
+        assertEquals("उदाहरण.com", host("https://उदाहरण.com/", Character.UnicodeScript.DEVANAGARI))
+        assertEquals("xn--p1b6ci4b4b3a.com", host("https://उदाहरण.com/"))
+        assertEquals("evil.xyz", host("https://hdfcbank.com@evil.xyz/"))
     }
 }

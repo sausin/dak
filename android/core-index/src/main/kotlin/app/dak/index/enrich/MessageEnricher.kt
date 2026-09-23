@@ -207,8 +207,10 @@ class DefaultMessageEnricher(
          *    request and statement SMS are no longer transactions) and generic categorisation (template bundle 3:
          *    structure-based logistics / order / bill / booking / service rules, route-aware spam, scheme-less links,
          *    numeric DLT headers).
+         * 9: UTS #46 link hosts and UTS #39 sender checks: mixed-script / look-alike (non-ASCII) senders get the
+         *    unknown-sender-link and spoofing labels, non-ASCII "DLT headers" are no longer DLT headers.
          */
-        const val LOGIC_REVISION = 8
+        const val LOGIC_REVISION = 9
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

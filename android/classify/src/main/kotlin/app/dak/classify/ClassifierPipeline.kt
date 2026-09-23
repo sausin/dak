@@ -78,7 +78,10 @@ public class ClassifierPipeline(
         var labels = mutableSetOf<String>()
         val senderClass = senderClassOf(address)
         val links by lazy(LazyThreadSafetyMode.NONE) { LinkExtractor.extract(body) }
-        if (isUnknownNumeric(address, region) && links.isNotEmpty()) labels += "unknown-sender-link"
+        // A sender name written with look-alike or mixed scripts (`НDFCBK` with a Cyrillic Н; UTS #39) is an
+        // imitation, however business-like it looks: its links are treated like an unknown number's.
+        val spoofedSender = SenderNameCheck.isSuspicious(address)
+        if ((spoofedSender || isUnknownNumeric(address, region)) && links.isNotEmpty()) labels += "unknown-sender-link"
 
         // Template-dependent stages (rules, model scores) may come from the template-hash cache; see TemplateCache.
         val ruleGroup = mergeKey.uppercase().takeIf { it in restrictedHeaders }
@@ -113,9 +116,9 @@ public class ClassifierPipeline(
         } else {
             modelStage(address, body, senderEntry, region, dltHeader, senderClass, hasCode, entry)
         }
-        // A phone number nobody saved, sending a look-alike, suspicious-TLD or userinfo link: phishing, whatever the
-        // wording (OTP messages excluded: the code is what the user needs to see).
-        if (senderClass == SenderClass.UNKNOWN_NUMBER && candidate.category != Category.OTP && hasRiskyLink(links)) {
+        // A phone number nobody saved (or a look-alike sender name), sending a look-alike, suspicious-TLD or userinfo
+        // link: phishing, whatever the wording (OTP messages excluded: the code is what the user needs to see).
+        if ((senderClass == SenderClass.UNKNOWN_NUMBER || spoofedSender) && candidate.category != Category.OTP && hasRiskyLink(links)) {
             candidate = Classification(
                 category = Category.SPAM,
                 confidence = maxOf(candidate.confidence, RISKY_LINK_CONFIDENCE),

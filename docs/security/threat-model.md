@@ -98,8 +98,28 @@ Tests: `SecurityFuzzTest` runs a deterministic seeded structure-aware mutation f
 - The host is parsed by hand. Userinfo is stripped, so `https://bank.com@evil.xyz` resolves to `evil.xyz`, and
   links that carry userinfo are flagged.
 - Internationalised hosts used to parse to a null host and got no warning. They are now extracted with the
-  Unicode form and a punycode `asciiHost`. Confusable letters (Cyrillic, Greek, Armenian, fullwidth) are folded
-  to a Latin skeleton, so `hdfcbаnk.com` is flagged as imitating "HDFC Bank". Any other IDN host is flagged too.
+  host as written and an `asciiHost` from UTS #46 (nontransitional, IDNA2008 semantics, `unicode/Uts46.kt`) with the
+  flags and forbidden-host check the WHATWG URL standard uses, so `asciiHost` is the host the browser resolves.
+  `java.net.IDN` (IDNA2003) is no longer used: it turned `faß.de` into `fass.de`, a different domain. A host a
+  browser would refuse (invalid Punycode, a Bidi or CONTEXTJ violation, `evil.example／hdfcbank.com` whose fullwidth
+  solidus maps to `/`) gets no `asciiHost` and is flagged.
+- Look-alike hosts are reduced to their UTS #39 skeleton, generated from Unicode's `confusables.txt` (17.0.0) for
+  Latin, Cyrillic, Greek, Armenian, Cherokee, Devanagari, Bengali and Common characters, and compared with the
+  official domains' skeletons, so `hdfcbаnk.com`, `ｈｄｆｃｂａｎｋ.ｃｏｍ` and `𝐡𝐝𝐟𝐜𝐛𝐚𝐧𝐤.com` all name "HDFC Bank". Any other IDN host
+  is flagged too.
+- The warning dialog shows the host in Unicode only when UTS #39 finds it safe for the reader (single script, a
+  script of their languages or of the IDN TLD, not a whole-script look-alike of Latin such as all-Cyrillic
+  `раураl.com`), otherwise in punycode (`unicode/HostDisplay.kt`).
+
+### 4a. Sender names and bidi text (UAX #9, UTS #39)
+
+| Threat | Mitigation |
+| --- | --- |
+| A sender name, subject or snippet with RLO/LRE/isolate controls reorders the UI around it (U+202E before `gpj.exe`, an amount that reads backwards), or an Arabic/Urdu name pulls a neighbouring amount into RTL order | Untrusted text is wrapped in FSI…PDI after its scoped bidi controls are removed, so it cannot close the isolate early (`classify/.../unicode/UntrustedText.kt`, used through `BidiText` at every call site and in composed notification titles). Names also lose LRM/RLM and invisible characters; ZWJ/ZWNJ stay where Indic and Arabic spelling needs them. Conversation bubbles replace scoped controls with an invisible neutral character of the same length (offsets for OTP, search and links hold). |
+| A bank header imitated with look-alike letters (`НDFCBK` with a Cyrillic Н, `ＨＤＦＣＢＫ`, all-Cyrillic `АХІЅВК`) or digits from another script, arriving over MMS, e-mail gateways, RCS/aggregators or any non-GSM path | `SenderNameCheck` (UTS #39 restriction levels, mixed numbers and skeletons). A skeleton containing a bank's header token is `LOOKALIKE_SENDER`; other mixed-script names are `MIXED_SCRIPT_SENDER`; links from such senders are treated like an unknown number's (`unknown-sender-link` label, risky link → spam). DLT headers must be ASCII, and are checked before upper-casing (`ı` → `I`). |
+
+Residual: contact names are the user's own data and are not checked; isolate rendering in Compose and SystemUI is
+covered by unit tests only (see "Not yet verified on a device").
 
 ### 5. Backup and import files (`:backup`)
 
@@ -150,7 +170,8 @@ startup provider. `allowBackup=false`. The mutable PendingIntents are all explic
    decoding, and handles provider exceptions.
 3. **Link opening: fixed.** `LinkSafety.open` launches only parsed `http`/`https` URIs (`https://` is prefixed only
    to `www.` links), as `CATEGORY_BROWSABLE`. For IDN hosts and links with userinfo, the warning dialog shows the
-   host that will actually open, in punycode (`asciiHost`).
+   host that will actually open (`asciiHost`), in punycode unless `HostDisplay` finds the Unicode form safe for the
+   reader.
 4. **Attachments: fixed.** The sender-chosen MIME type no longer picks the handler.
    `ui/conversation/AttachmentOpener.kt` opens only image (not SVG), video and audio, `text/plain`, vCard and
    vCalendar with ACTION_VIEW. Anything else (APK, HTML, …) goes to a "Save or share" chooser as
@@ -260,6 +281,9 @@ contain bodies, codes or addresses.
 - **The SMS Organizer importer** buffers up to 128 MiB and parses in memory. That is acceptable for a
   user-initiated import, but low-RAM devices may still hit OOM near the cap.
 - **Network permissions** (see the baseline section) stay declared until the device test.
+- **Text safety (P2):** the `:app` side of the UAX #9 / UTS #46 work (`BidiText`, `LinkSafety`, `MessageText`,
+  notification titles) compiles only in CI; its logic lives in `:classify` and is JVM-tested. Isolate rendering
+  (Arabic/Urdu names in lists, the shade, an RTL UI) still needs a look on a device.
 - **Not yet verified on a device:** the `:app`, `:core-telephony` and `:core-index` changes compile only in CI, and their
   JVM tests (`MmsMappingTest`, `LinkDetectorSecurityTest`) run there. The wave-3 journal, flood guard, emergency
   bypass, restore mapping and notification changes are in the same position. Their pure parts (`SmsJournal`,

@@ -1,7 +1,7 @@
 package app.dak.classify
 
 import app.dak.classify.text.GatedRegex
-import java.net.IDN
+import app.dak.classify.unicode.Uts46
 
 /**
  * A URL found in a message body, with its parsed host.
@@ -9,8 +9,10 @@ import java.net.IDN
  * @property raw the link as it appears in the body: `http://…`, `https://…`, `www.…` or a scheme-less `name.tld/…`
  *   (see [LinkExtractor]). Other schemes such as `javascript:`, `intent:`, `content:`, `file:` or `tel:` are never
  *   extracted, so they can never become tappable.
- * @property host lower-cased host without `www.` and port, in its Unicode form; null when unparseable.
- * @property asciiHost the IDNA/punycode (`xn--…`) form of [host], or null when it cannot be converted.
+ * @property host lower-cased host without `www.` and port, as written (Unicode, or `xn--` labels); null when unparseable.
+ * @property asciiHost the host a browser resolves: UTS #46 ToASCII of [host] with the WHATWG URL flags (nontransitional,
+ *   so `faß.de` is `xn--fa-hia.de`; see [Uts46]), or null when a browser would refuse it (invalid label or Punycode,
+ *   Bidi or CONTEXTJ violation, a character that maps to a forbidden host code point).
  * @property hasUserInfo true for `https://brand.com@evil.example/` style links (the real host is after the `@`).
  */
 public data class ExtractedLink(
@@ -21,7 +23,13 @@ public data class ExtractedLink(
 ) {
     /** True when the host is an internationalised domain (non-ASCII, or punycode labels): possible homograph. */
     val isIdn: Boolean
-        get() = host?.any { it.code > 0x7F } == true || asciiHost?.split('.')?.any { it.startsWith("xn--") } == true
+        get() = host?.any { it.code > 0x7F } == true ||
+            host?.split('.')?.any { it.startsWith("xn--") } == true ||
+            asciiHost?.split('.')?.any { it.startsWith("xn--") } == true
+
+    /** The Unicode form of [asciiHost] (UTS #46 ToUnicode: mapped, NFC, `xn--` labels decoded), or null. */
+    val unicodeHost: String?
+        get() = asciiHost?.let { ascii -> Uts46.toUnicode(ascii).takeIf { it.ok }?.value }
 
     /** True when [raw] has an explicit `http://` / `https://` scheme. */
     val hasScheme: Boolean
@@ -85,18 +93,29 @@ public object LinkExtractor {
             hostPort.substringBefore(':')
         }
         val host = hostOnly.trimEnd('.').lowercase().removePrefix("www.").takeIf { isPlausibleHost(it) }
-        val ascii = host?.let { toAscii(it) }
+        val ascii = host?.let { if (it.startsWith("[")) it else toAscii(it) } // an IPv6 literal needs no IDNA
         return ExtractedLink(raw = raw, host = host, asciiHost = ascii, hasUserInfo = hasUserInfo)
     }
 
     private fun isPlausibleHost(host: String): Boolean =
         host.isNotEmpty() && host.length <= 253 && host.none { it.isWhitespace() || it.isISOControl() || it == '%' }
 
-    private fun toAscii(host: String): String? = try {
-        IDN.toASCII(host, IDN.ALLOW_UNASSIGNED).lowercase()
-    } catch (_: Exception) {
-        null
+    /**
+     * UTS #46 ToASCII as the WHATWG URL standard applies it to a host ("domain to ASCII", beStrict=false), then its
+     * forbidden-domain-code-point check: what the browser the link opens in would resolve, or null when it would refuse
+     * the URL.
+     */
+    internal fun toAscii(host: String): String? {
+        val result = Uts46.toAscii(host, Uts46.BROWSER)
+        if (!result.ok) return null
+        val ascii = result.value
+        if (ascii.isEmpty() || ascii.any { isForbiddenDomainChar(it) }) return null
+        return ascii
     }
+
+    /** WHATWG URL "forbidden domain code point" (C0 controls, space, `#%/:<>?@[\]^|`, DEL). */
+    private fun isForbiddenDomainChar(c: Char): Boolean =
+        c.code <= 0x20 || c.code == 0x7F || c in "#%/:<>?@[\\]^|"
 
     /**
      * Top-level domains that make `name.tld` a link on their own: the generic ones, India's, the ones SMS phishing

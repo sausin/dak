@@ -183,7 +183,8 @@ class MessageNotifier @Inject constructor(
         val large = settings.get(DakSettings.otpDisplaySize) == "large"
         val warning = if (inCall) context.getString(R.string.otp_in_call_warning) else null
         val usedBy = consumer?.let { context.getString(R.string.otp_used_by, labelOf(it)) }
-        val shownSender = RepeatCollapse.withCount(sender, count)
+        // Isolated (FSI…PDI): the sender name sits next to the code and "Used by …" in one line.
+        val shownSender = RepeatCollapse.withCount(BidiText.isolate(sender), count)
         val copiedLabel = if (copied) context.getString(R.string.otp_copied) else null
 
         val collapsed = RemoteViews(context.packageName, R.layout.notification_otp).apply {
@@ -363,7 +364,7 @@ class MessageNotifier @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val builder = baseBuilder(channel, message, R.drawable.ic_stat_dak, Category.UNKNOWN)
-            .setContentTitle(context.getString(R.string.scam_notification_title, sender))
+            .setContentTitle(context.getString(R.string.scam_notification_title, BidiText.isolate(sender)))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text + "\n\n" + displayBody(message)))
             .setColor(ContextCompat.getColor(context, R.color.dak_notification_warning))

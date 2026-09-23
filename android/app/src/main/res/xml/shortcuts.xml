@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static launcher shortcut: Report fraud. targetPackage must be the applicationId of this variant, so main,
+     debug, premium and premiumDebug each carry a copy (resource merging picks the most specific one). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_report_fraud"
+        android:shortcutDisabledMessage="@string/safe_shortcut_disabled"
+        android:shortcutId="report_fraud"
+        android:shortcutLongLabel="@string/safe_shortcut_long"
+        android:shortcutShortLabel="@string/safe_shortcut_short">
+        <intent
+            android:action="app.dak.action.REPORT_FRAUD"
+            android:targetClass="app.dak.MainActivity"
+            android:targetPackage="app.dak" />
+    </shortcut>
+</shortcuts>

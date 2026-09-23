@@ -3,6 +3,7 @@ package app.dak.ui.automations
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automation.OtpForwardConfirmations
 import app.dak.automation.RuleEntry
 import app.dak.automation.RuleRepository
@@ -49,6 +50,7 @@ class AutomationsViewModel @Inject constructor(
     private val scheduler: ScheduledSendScheduler,
     scheduledSends: ScheduledSendStore,
     private val sims: SimRepository,
+    private val forwardingStatus: ForwardingStatusNotifier,
 ) : ViewModel() {
 
     val entries: StateFlow<List<RuleEntry>?> = rules.observe()
@@ -93,11 +95,17 @@ class AutomationsViewModel @Inject constructor(
 
     fun setEnabled(entry: RuleEntry, enabled: Boolean, confirmed: Boolean = false) {
         if (confirmed) entry.rule?.let { confirmations.confirm(it) }
-        viewModelScope.launch { rules.setEnabled(entry.stored.id, enabled) }
+        viewModelScope.launch {
+            rules.setEnabled(entry.stored.id, enabled)
+            forwardingStatus.refresh()
+        }
     }
 
     fun delete(entry: RuleEntry) {
-        viewModelScope.launch { rules.delete(entry.stored.id) }
+        viewModelScope.launch {
+            rules.delete(entry.stored.id)
+            forwardingStatus.refresh()
+        }
     }
 
     /** Adds the built-in example rules (disabled, so nothing happens until the user turns one on). */

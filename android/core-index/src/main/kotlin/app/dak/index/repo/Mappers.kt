@@ -14,13 +14,19 @@ import app.dak.index.db.dao.ConversationRow
 import app.dak.index.db.entity.ConversationPrefs
 import app.dak.index.db.entity.IndexedMessage
 import app.dak.index.enrich.ConversationIds
+import app.dak.index.enrich.SenderGrouping
 import app.dak.index.sync.IndexRowMapper
 import app.dak.telephony.ProviderThread
 
 /** Mapping from index rows / provider objects to the UI types. */
 internal object Mappers {
 
-    fun messageItem(row: IndexedMessage, otpRepeatedLater: Boolean = false): MessageItem = MessageItem(
+    fun messageItem(
+        row: IndexedMessage,
+        otpRepeatedLater: Boolean = false,
+        repeatCount: Int = 1,
+        repeatOf: MessageKey? = null,
+    ): MessageItem = MessageItem(
         key = MessageKey(row.kind, row.providerId),
         conversationId = row.conversationId,
         threadId = row.threadId,
@@ -45,7 +51,14 @@ internal object Mappers {
         starred = row.starred,
         archived = row.archived,
         enriched = true,
+        repeatCount = repeatCount.coerceAtLeast(1),
+        repeatOf = repeatOf,
+        channel = channelOf(row.address),
     )
+
+    /** Sender channel of an address, or null for a group-MMS recipient list. */
+    fun channelOf(address: String): String? =
+        if (SenderGrouping.isAddressList(address)) null else SenderGrouping.channelOf(address)
 
     /** A message read straight from the provider (not indexed yet): no enrichment. */
     fun providerMessageItem(message: Message): MessageItem = MessageItem(
@@ -69,9 +82,10 @@ internal object Mappers {
         starred = false,
         archived = false,
         enriched = false,
+        channel = channelOf(message.address),
     )
 
-    fun conversationSummary(row: ConversationRow, contacts: ContactLookup): ConversationSummary {
+    fun conversationSummary(row: ConversationRow, contacts: ContactLookup, snippetRepeatCount: Int = 1): ConversationSummary {
         val merged = ConversationIds.isMergeGroup(row.conversationId)
         val title = if (merged) {
             row.groupName ?: row.canonicalSender ?: row.address
@@ -98,6 +112,7 @@ internal object Mappers {
             lastBox = row.box,
             hasAttachment = row.hasAttachment,
             enriched = true,
+            snippetRepeatCount = snippetRepeatCount.coerceAtLeast(1),
         )
     }
 

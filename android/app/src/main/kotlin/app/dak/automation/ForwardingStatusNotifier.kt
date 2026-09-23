@@ -13,6 +13,7 @@ import app.dak.R
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.forwarding.ForwardingStatus
 import app.dak.navigation.IntentRoutes
+import app.dak.notifications.NotificationChannels
 import app.dak.navigation.Routes
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.text.DateFormat
@@ -85,6 +86,7 @@ class ForwardingStatusNotifier @Inject constructor(
         val channel = NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
             .setName(context.getString(R.string.fw_channel_status_name))
             .setDescription(context.getString(R.string.fw_channel_status_description))
+            .setGroup(NotificationChannels.GROUP_APP)
             .setShowBadge(false)
             .setVibrationEnabled(false)
             .setSound(null, null)

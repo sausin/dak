@@ -7,6 +7,7 @@ import app.dak.automations.rule.conditionsCanMatchOtp
 import app.dak.automations.rule.isForwardingOrRelay
 import app.dak.automations.safety.Addresses
 import app.dak.automations.safety.ForwardLoopGuard
+import app.dak.automations.safety.RegexSafety
 import app.dak.core.model.TransactionDirection
 import java.time.Instant
 import java.time.ZoneOffset
@@ -110,6 +111,9 @@ public object RuleEngine {
 
     private fun matchesRegex(input: String, pattern: String): Boolean {
         val bounded = if (input.length > MAX_REGEX_INPUT_LENGTH) input.substring(0, MAX_REGEX_INPUT_LENGTH) else input
+        // A pattern that can backtrack exponentially never runs against sender-controlled text (rules saved before
+        // this check existed are caught here; the validator reports them in the editor).
+        if (!RegexSafety.isSafe(pattern)) return false
         return try {
             Pattern.compile(pattern).matcher(bounded).find()
         } catch (e: PatternSyntaxException) {

@@ -265,11 +265,12 @@ internal fun ForwardingEditor(
         SourcePickerDialog(
             viewModel = viewModel,
             selectedIds = spec.sources.map { it.conversationId }.toSet(),
-            onDone = { picked ->
+            onDone = { checkedIds, loaded ->
                 pickingSources = false
-                val kept = spec.sources.filter { s -> picked.any { it.conversationId == s.conversationId } }
+                val kept = spec.sources.filter { it.conversationId in checkedIds }
+                val keptIds = kept.map { it.conversationId }.toSet()
                 scope.launch {
-                    val added = picked.filter { p -> kept.none { it.conversationId == p.conversationId } }.map { viewModel.sourceOf(it) }
+                    val added = loaded.values.filter { it.conversationId !in keptIds }.map { viewModel.sourceOf(it) }
                     onChange(spec.copy(sources = kept + added))
                 }
             },

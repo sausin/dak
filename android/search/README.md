@@ -58,12 +58,16 @@ Structured `Filter`s are never part of this string — they resolve against enri
 ### `TextNormalizer` (object)
 
 ```kotlin
-fun normalize(s: String): String
+fun normalize(s: String, stripArabicDiacritics: Boolean = true): String
 ```
 
-Lower-case → NFKC → strip Latin combining diacritics (`U+0300..U+036F`) → NFC. Indic combining
-marks (matras, virama, ...) live in their own Unicode blocks and are never touched. Used for both
-indexing text and query terms so the two sides of a match agree.
+Lower-case → NFKC → strip Latin combining diacritics (`U+0300..U+036F`) and, by default, Arabic
+tashkil (fatha/damma/kasra/sukun/shadda/tanwin - `Mn`-category marks in the Arabic Unicode block,
+so a query without them still matches a fully-voweled body) → NFC. Indic combining marks (matras,
+virama, ...) live in their own Unicode blocks and are never touched. ZWJ/ZWNJ (`U+200C`/`U+200D`)
+are always dropped: they change how an Indic/Arabic conjunct *renders* but carry no meaning for
+matching, so text differing only in their presence normalizes identically. Used for both indexing
+text and query terms so the two sides of a match agree.
 
 ### `SuggestionEngine` / `SavedSearch`
 

@@ -30,7 +30,7 @@ class AutomationNotifications @Inject constructor(@ApplicationContext private va
     /** Posts a plain notification; false when notifications are not allowed. */
     fun post(title: String, text: String, contentIntent: PendingIntent? = null): Boolean {
         if (!canNotify()) return false
-        val notification = NotificationCompat.Builder(context, NotificationChannels.OTHER)
+        val notification = NotificationCompat.Builder(context, NotificationChannels.AUTOMATION)
             .setSmallIcon(R.drawable.ic_stat_dak)
             .setContentTitle(title)
             .setContentText(text)

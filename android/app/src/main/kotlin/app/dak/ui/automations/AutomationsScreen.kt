@@ -17,8 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ForwardToInbox
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
@@ -55,13 +58,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automation.RuleEntry
+import app.dak.automations.forwarding.ForwardingSpec
+import app.dak.automations.forwarding.ForwardingStatus
 import app.dak.automations.rule.RelayChannel
 import app.dak.automations.safety.ValidationIssue
 import app.dak.core.model.Category
 import app.dak.core.model.SimInfo
 import app.dak.index.repo.ScheduledSend
 import app.dak.navigation.DakNavigator
+import app.dak.navigation.Routes
 import app.dak.premium.Feature
 import app.dak.ui.bin.AuthResult
 import app.dak.ui.bin.rememberAuthGate
@@ -137,6 +144,22 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     )
                 }
             }
+            item {
+                ShortcutRow(
+                    icon = { Icon(Icons.Outlined.ForwardToInbox, contentDescription = null) },
+                    title = stringResource(R.string.fw_title),
+                    summary = stringResource(R.string.fw_shortcut_summary),
+                    onClick = { navigator.navigate(Routes.FORWARDING) },
+                )
+            }
+            item {
+                ShortcutRow(
+                    icon = { Icon(Icons.Outlined.Cake, contentDescription = null) },
+                    title = stringResource(R.string.fw_bd_title),
+                    summary = stringResource(R.string.fw_bd_shortcut_summary),
+                    onClick = { navigator.navigate(Routes.BIRTHDAYS) },
+                )
+            }
             item { SectionTitle(R.string.scr_auto_rules) }
             val list = entries.orEmpty()
             if (entries != null && list.isEmpty()) {
@@ -161,8 +184,14 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     },
                     onEdit = {
                         val draft = entry.rule?.let { RuleDraft.fromRule(it) }
-                        if (draft != null) { issues = emptyList(); editing = draft }
-                        else scope.launch { snackbar.showSnackbar(context.getString(R.string.scr_auto_advanced_rule)) }
+                        if (entry.rule?.let { ForwardingSpec.isForwarding(it) } == true) {
+                            navigator.navigate(Routes.FORWARDING)
+                        } else if (draft != null) {
+                            issues = emptyList()
+                            editing = draft
+                        } else {
+                            scope.launch { snackbar.showSnackbar(context.getString(R.string.scr_auto_advanced_rule)) }
+                        }
                     },
                     onDelete = { viewModel.delete(entry) },
                 )
@@ -243,8 +272,24 @@ private fun RuleRow(entry: RuleEntry, onToggle: (Boolean) -> Unit, onEdit: () ->
 }
 
 @Composable
+private fun ShortcutRow(icon: @Composable () -> Unit, title: String, summary: String, onClick: () -> Unit) {
+    ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
+        leadingContent = icon,
+        headlineContent = { Text(title) },
+        supportingContent = { Text(summary, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+    )
+}
+
+@Composable
 private fun describe(entry: RuleEntry): String {
     val rule = entry.rule ?: return ""
+    ForwardingSpec.fromRule(rule)?.let { spec ->
+        val now = System.currentTimeMillis()
+        val line = ForwardingStatusNotifier.summaryLine(LocalContext.current, spec, now)
+        return if (spec.status(now) == ForwardingStatus.ENDED) stringResource(R.string.fw_status_ended) + " · " + line else line
+    }
     val actions = rule.actions.joinToString { it::class.simpleName.orEmpty() }
     return stringResource(R.string.scr_auto_rule_summary, actions)
 }

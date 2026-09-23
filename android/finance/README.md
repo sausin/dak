@@ -19,18 +19,26 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   - `+`, `-`, `unaryMinus`, `abs()`, `compareTo` — all require matching currencies (throw otherwise).
   - `Money.ofMajor(BigDecimal, currency)`, `Money.convert(amount, toCurrency, rate)`, `Money.zero(currency)`.
 - **`CurrencyTable`** — minor-unit exponents, default display symbols, the default
-  symbol→ISO map (`$`→USD, `₹`/`Rs`/`Rs.`→INR, `€`→EUR, `£`→GBP, `¥`→JPY), and the set of ISO codes
-  recognised as bare currency codes (AED, USD, GBP, SGD, THB, KWD, ...).
+  symbol/word→ISO map (`$`/`US$`→USD, `₹`/`Rs`/`Rs.`/`रु`/`रू`/`रुपये`/`ரூ`→INR, `€`→EUR, `£`→GBP,
+  `¥`/`円`→JPY, `元`/`RMB`→CNY, `₩`→KRW, `৳`/`Tk`→BDT, `₨`→PKR, `රු`→LKR, `د.إ`→AED, `ر.س`/`﷼`→SAR,
+  `฿`→THB, `RM`→MYR, `Rp`→IDR, `₱`→PHP, `₫`→VND, `₺`→TRY, `C$`→CAD, `A$`→AUD, `S$`→SGD, `HK$`→HKD),
+  and the set of ISO codes recognised as bare currency codes (AED, USD, GBP, SGD, THB, KWD, CHF, ...).
+- **`DigitNormalizer`** (internal) — folds any Unicode `Nd` decimal digit (Devanagari, Bengali,
+  Gujarati, Gurmukhi, Tamil, Telugu, Kannada, Malayalam, Arabic-Indic, Extended Arabic-Indic,
+  full-width, ...) to ASCII `0`-`9` before any numeric regex/`BigDecimal` parsing runs. Used by
+  `MoneyParser` and `TransactionParser`; not part of the public API.
 - **`MoneyParser`** — parses amounts as written in SMS text.
   - `parse(text, symbolMap = CurrencyTable.defaultSymbolToCurrency): Money?` — first amount found
     with an explicit currency symbol/code attached; a bare number is never treated as money.
   - `findAll(text, symbolMap): List<MoneyOccurrence>` — every such amount, each with its match
     range, so callers can reason about which amount in a longer message is which (see
     `TransactionParser`).
-  - Handles: `Rs.1,234.50`, `INR 1234`, `₹ 12,34,567` (Indian grouping), `Rs 500/-`, `AED 120.50`,
-    `USD 42.10`, `$42.10` (symbol default configurable via `symbolMap`), `€10`, `EUR 9,50`
-    (European decimal comma, disambiguated from a thousands separator by matching the target
-    currency's minor-unit digit count).
+  - Handles: `Rs.1,234.50`, `INR 1234`, `₹ 12,34,567` (Indian grouping, also with an NBSP/narrow-NBSP
+    gap or thousands separator), `Rs 500/-`, `AED 120.50`, `USD 42.10`, `$42.10` (symbol default
+    configurable via `symbolMap`), `€10`, `EUR 9,50` (European decimal comma, disambiguated from a
+    thousands separator by matching the target currency's minor-unit digit count), `1.234,56`
+    (European thousands-dot), `1'234.50` (Swiss apostrophe thousands), and amounts written with any
+    non-ASCII decimal-digit script (see `DigitNormalizer`).
 
 ## `parser` — `TransactionParser`, `InstitutionTable`
 

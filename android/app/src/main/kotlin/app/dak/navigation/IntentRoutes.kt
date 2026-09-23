@@ -13,6 +13,9 @@ object IntentRoutes {
     /** Extra carrying a concrete route (from [Routes] builders) to open. */
     const val EXTRA_ROUTE = "app.dak.extra.ROUTE"
 
+    /** Action of the static "Report fraud" launcher shortcut (res/xml/shortcuts.xml). */
+    const val ACTION_REPORT_FRAUD = "app.dak.action.REPORT_FRAUD"
+
     private val smsSchemes = setOf("sms", "smsto", "mms", "mmsto")
 
     /** Intent that opens MainActivity at [route] (used by notifications, widgets, shortcuts). */
@@ -39,6 +42,7 @@ object IntentRoutes {
                 val address = intent.getStringExtra("address")
                 Routes.compose(to = address, body = bodyExtra(intent))
             }
+            ACTION_REPORT_FRAUD -> Routes.fraudHelp()
             else -> null
         }
     }

@@ -32,6 +32,8 @@ data class ConversationRow(
     val archived: Boolean,
     val starred: Boolean,
     val groupName: String?,
+    /** Repeat group of the newest message (to show "×3" on the snippet), if any. */
+    val repeatGroup: String? = null,
 )
 
 /** One grouped search row produced by `SearchSqlBuilder.messages`. */

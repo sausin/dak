@@ -24,7 +24,13 @@ public class ClassifierPipeline(
 ) {
 
     /** Classifies one message. [subId] is accepted for future SIM-scoped rules; unused today. */
-    public suspend fun classify(address: String, body: String, @Suppress("UNUSED_PARAMETER") subId: Int): Classification {
+    public suspend fun classify(address: String, body: String, @Suppress("UNUSED_PARAMETER") subId: Int): Classification =
+        classifyBounded(address, if (body.length > MAX_CLASSIFY_CHARS) body.substring(0, MAX_CLASSIFY_CHARS) else body)
+
+    private suspend fun classifyBounded(address: String, body: String): Classification {
+        // Only the head of a message is classified: templates, the model and OTP extraction all key off the first
+        // few hundred characters, and bounding the input bounds the worst case of every regex run on it (MMS text
+        // parts can be megabytes of sender-chosen text).
         val dltHeader = SenderId.parseDltHeader(address)
         val mergeKey = SenderId.mergeKey(address)
         val senderEntry = templates.sender(mergeKey)
@@ -93,6 +99,11 @@ public class ClassifierPipeline(
     private fun ruleRegex(rule: TemplateRule): Regex? = ruleRegexCache.getOrPut(rule.id) {
         runCatching { Regex(rule.pattern, setOf(RegexOption.IGNORE_CASE)) }
     }.getOrNull()
+
+    public companion object {
+        /** Characters of a body the pipeline looks at. */
+        public const val MAX_CLASSIFY_CHARS: Int = 4_000
+    }
 
     private fun trafficTypeLabel(dltHeader: DltHeader?): Set<String> = when (dltHeader?.trafficType) {
         TrafficType.PROMOTIONAL -> setOf("dlt-promotional")

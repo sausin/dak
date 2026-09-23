@@ -43,6 +43,22 @@ public class LookalikeDomainChecker(
             return LinkVerdict(link, LinkRisk.LOOKALIKE, matchedBrand = brand)
         }
 
+        // Internationalised hosts: fold confusable letters (Cyrillic "а", Greek "ο", …) to Latin and re-check, so
+        // "hdfcbаnk.com" names the brand it imitates. Any other IDN host is still flagged: SMS phishing uses them
+        // almost exclusively as homographs, and a warning costs a legitimate IDN link only one extra tap.
+        if (link.isIdn) {
+            val skeleton = Confusables.skeleton(host)
+            val brand = domainToBrand[skeleton]
+                ?: domainToBrand.entries.firstOrNull { skeleton.endsWith(".${it.key}") }?.value
+                ?: lookalikeBrand(skeleton)
+            return LinkVerdict(link, LinkRisk.LOOKALIKE, matchedBrand = brand)
+        }
+
+        // "https://hdfcbank.com@evil.example/": the part before '@' is decoration, the host is what opens.
+        if (link.hasUserInfo) {
+            return LinkVerdict(link, LinkRisk.LOOKALIKE)
+        }
+
         val tld = host.substringAfterLast('.', missingDelimiterValue = "")
         if (tld.isNotEmpty() && tld in suspiciousTlds) {
             return LinkVerdict(link, LinkRisk.SUSPICIOUS_TLD)
@@ -136,5 +152,23 @@ public class LookalikeDomainChecker(
         public fun defaultSuspiciousTlds(): Set<String> = setOf(
             "xyz", "tk", "top", "click", "info", "loan", "work", "gq", "cf", "ml", "buzz",
         )
+    }
+}
+
+/** Minimal confusable-letter folding (Unicode TR39 style) for the scripts SMS homograph phishing actually uses. */
+internal object Confusables {
+    private val MAP: Map<Char, Char> = buildMap {
+        // Cyrillic
+        "аa бb вb гr дd еe ёe һh іi јj кk лn мm нh оo пn рp сc тt уy хx ѕs ԁd ԛq ԝw ӏl ɡg".split(' ').forEach { put(it[0], it[1]) }
+        // Greek
+        "αa βb γy δd εe ηn ιi κk μu νv οo ρp τt υu χx ωw ϲc".split(' ').forEach { put(it[0], it[1]) }
+        // Latin look-alikes and Armenian
+        "ıi ȷj ɑa ɩi ʟl ոn սu օo ցg ԁd".split(' ').forEach { put(it[0], it[1]) }
+    }
+
+    /** Lower-cases, NFKC-normalises (fullwidth → ASCII) and folds confusable letters to their Latin skeleton. */
+    fun skeleton(host: String): String {
+        val normalized = java.text.Normalizer.normalize(host.lowercase(), java.text.Normalizer.Form.NFKC)
+        return buildString(normalized.length) { for (c in normalized) append(MAP[c] ?: c) }
     }
 }

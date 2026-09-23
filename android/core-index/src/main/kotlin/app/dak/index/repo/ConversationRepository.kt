@@ -25,6 +25,8 @@ import app.dak.telephony.ProviderWriter
 import app.dak.telephony.SimRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -47,6 +49,7 @@ class ConversationRepository @Inject constructor(
     private val reader: ProviderReader,
     private val writer: ProviderWriter,
     private val sims: SimRepository,
+    private val folds: FoldEngine,
     contacts: Optional<ContactLookup>,
 ) {
     private val messageDao = db.messageDao()
@@ -65,11 +68,39 @@ class ConversationRepository @Inject constructor(
             ConversationPagingSource(tab, subId)
         }.flow
 
-    /** Messages of a conversation, newest first (body included; it is stored encrypted in the index). */
-    fun messages(conversationId: String, pageSize: Int = 50): Flow<PagingData<MessageItem>> =
-        Pager(PagingConfig(pageSize = pageSize, enablePlaceholders = false)) {
-            MessagePagingSource(conversationId)
-        }.flow
+    /**
+     * Messages of a conversation, newest first (body included; it is stored encrypted in the index). Only the newest
+     * copy of each repeat group is returned ([MessageItem.repeatCount] tells how many there are; see [repeatsOf]).
+     * [channel] restricts a folded conversation to one sender channel ([MessageItem.channel]). An id whose messages
+     * moved elsewhere (a fold or unfold since the link was made) resolves to where they are now.
+     */
+    fun messages(conversationId: String, pageSize: Int = 50, channel: String? = null): Flow<PagingData<MessageItem>> = flow {
+        val resolved = folds.resolve(conversationId)
+        emitAll(
+            Pager(PagingConfig(pageSize = pageSize, enablePlaceholders = false)) {
+                MessagePagingSource(resolved, channel)
+            }.flow,
+        )
+    }
+
+    /**
+     * The conversation id to use for [conversationId]: itself, or — when a fold/unfold moved its messages — the id
+     * they live under now. Notification and search deep links go through this.
+     */
+    suspend fun resolveConversationId(conversationId: String): String =
+        withContext(Dispatchers.IO) { folds.resolve(conversationId) }
+
+    /** Every copy of [key]'s repeat group, newest first (the first is the one the thread shows); empty if none. */
+    suspend fun repeatsOf(key: MessageKey): List<MessageItem> = withContext(Dispatchers.IO) {
+        val row = messageDao.get(key.kind.name, key.providerId) ?: return@withContext emptyList()
+        val group = row.repeatGroup ?: return@withContext emptyList()
+        val rows = messageDao.repeatsOf(group)
+        if (rows.size < 2) return@withContext emptyList()
+        val head = MessageKey(rows.first().kind, rows.first().providerId)
+        rows.mapIndexed { i, r ->
+            Mappers.messageItem(r, repeatCount = rows.size, repeatOf = if (i == 0) null else head)
+        }
+    }
 
     /** One message, live. Null while not indexed (or deleted). */
     fun message(key: MessageKey): Flow<MessageItem?> =
@@ -79,10 +110,13 @@ class ConversationRepository @Inject constructor(
     suspend fun conversationIdOf(key: MessageKey): String? =
         messageDao.get(key.kind.name, key.providerId)?.conversationId
 
-    fun prefs(conversationId: String): Flow<ConversationPrefs?> = prefsDao.observe(conversationId)
+    fun prefs(conversationId: String): Flow<ConversationPrefs?> = flow {
+        emitAll(prefsDao.observe(folds.resolve(conversationId)))
+    }
 
     /** Marks every message of the conversation read, in the index and in the provider. */
-    suspend fun markRead(conversationId: String): Unit = withContext(Dispatchers.IO) {
+    suspend fun markRead(requestedId: String): Unit = withContext(Dispatchers.IO) {
+        val conversationId = folds.resolve(requestedId)
         val threads = threadsOf(conversationId)
         messageDao.markConversationRead(conversationId)
         for (threadId in threads) {
@@ -113,7 +147,8 @@ class ConversationRepository @Inject constructor(
      * The SIM to reply from: the user's per-conversation choice, else the SIM of the last incoming message, else
      * the system default SMS subscription. A SIM that is no longer present falls back to the default.
      */
-    suspend fun replySimFor(conversationId: String): Int = withContext(Dispatchers.IO) {
+    suspend fun replySimFor(requestedId: String): Int = withContext(Dispatchers.IO) {
+        val conversationId = folds.resolve(requestedId)
         val chosen = prefsDao.get(conversationId)?.replySubId
         val lastIncoming = ConversationIds.threadIdOf(conversationId)?.let { messageDao.lastIncomingSubIdInThread(it) }
             ?: messageDao.lastIncomingSubId(conversationId)
@@ -125,7 +160,8 @@ class ConversationRepository @Inject constructor(
      * Recipients to reply to: for a thread, the provider's recipient list (group MMS included); for a merge group,
      * the most recent sender address.
      */
-    suspend fun addressesFor(conversationId: String): List<String> = withContext(Dispatchers.IO) {
+    suspend fun addressesFor(requestedId: String): List<String> = withContext(Dispatchers.IO) {
+        val conversationId = folds.resolve(requestedId)
         val threadId = ConversationIds.threadIdOf(conversationId)
         if (threadId != null) {
             val fromProvider = runCatching { reader.threads().firstOrNull { it.threadId == threadId }?.addresses }.getOrNull()
@@ -158,8 +194,9 @@ class ConversationRepository @Inject constructor(
     private suspend fun threadsOf(conversationId: String): List<Long> =
         ConversationIds.threadIdOf(conversationId)?.let { listOf(it) } ?: messageDao.threadIdsOf(conversationId)
 
-    private suspend fun updatePrefs(conversationId: String, change: (ConversationPrefs) -> ConversationPrefs) {
+    private suspend fun updatePrefs(requestedId: String, change: (ConversationPrefs) -> ConversationPrefs) {
         withContext(Dispatchers.IO) {
+            val conversationId = folds.resolve(requestedId)
             prefsMutex.withLock {
                 val current = prefsDao.get(conversationId) ?: ConversationPrefs(conversationId)
                 prefsDao.put(change(current).copy(updatedAt = System.currentTimeMillis()))
@@ -185,8 +222,10 @@ class ConversationRepository @Inject constructor(
                 .also { indexedTotal = it }
             val out = ArrayList<ConversationSummary>(limit)
             if (offset < total) {
-                rawDao.conversations(ConversationSqlBuilder.page(tab, subId, limit, offset).toSupport())
-                    .mapTo(out) { Mappers.conversationSummary(it, contacts) }
+                val rows = rawDao.conversations(ConversationSqlBuilder.page(tab, subId, limit, offset).toSupport())
+                val groups = rows.mapNotNull { it.repeatGroup }.distinct()
+                val counts = if (groups.isEmpty()) emptyMap() else messageDao.repeatCounts(groups).associate { it.repeatGroup to it.n }
+                rows.mapTo(out) { Mappers.conversationSummary(it, contacts, it.repeatGroup?.let { g -> counts[g] } ?: 1) }
             }
             val remaining = limit - out.size
             if (remaining > 0) {
@@ -220,24 +259,36 @@ class ConversationRepository @Inject constructor(
     /** Indexed messages newest first, then (while backfilling, threads only) older ones from the provider. */
     private inner class MessagePagingSource(
         private val conversationId: String,
+        private val channel: String?,
     ) : OffsetPagingSource<MessageItem>(db, arrayOf(Tables.MESSAGE, Tables.BACKFILL_STATE)) {
 
         private val threadId: Long? = ConversationIds.threadIdOf(conversationId)
         private var indexedCount: Int? = null
+        private var visibleCount: Int? = null
+        private var channelAddresses: List<String>? = null
 
         override suspend fun loadRange(offset: Int, limit: Int): List<MessageItem> {
-            val rows = if (threadId != null) {
-                messageDao.pageByThread(threadId, limit, offset)
-            } else {
-                messageDao.pageByConversation(conversationId, limit, offset)
+            val rows = when {
+                threadId != null -> messageDao.pageByThread(threadId, limit, offset)
+                channel != null -> {
+                    val addresses = channelAddresses ?: messageDao.addressesOf(conversationId)
+                        .filter { Mappers.channelOf(it) == channel }
+                        .also { channelAddresses = it }
+                    if (addresses.isEmpty()) emptyList() else messageDao.pageByConversationAddresses(conversationId, addresses, limit, offset)
+                }
+                else -> messageDao.pageByConversation(conversationId, limit, offset)
             }
-            val out = rows.mapTo(ArrayList<MessageItem>(limit)) { Mappers.messageItem(it.message, it.otpRepeatedLater) }
+            val out = rows.mapTo(ArrayList<MessageItem>(limit)) {
+                Mappers.messageItem(it.message, it.otpRepeatedLater, it.repeatCount)
+            }
             val tid = threadId
             if (out.size < limit && tid != null && !backfillComplete()) {
                 // Indexed rows are the newest part of the thread (the backfill runs newest to oldest), so provider
-                // positions line up with combined offsets; skip anything that is already indexed.
+                // positions line up with combined offsets; skip anything that is already indexed. Older copies of
+                // repeat groups are indexed but not returned, hence the visible/indexed distinction.
                 val count = indexedCount ?: messageDao.countInThread(tid).also { indexedCount = it }
-                val providerOffset = maxOf(count, offset + out.size)
+                val visible = visibleCount ?: messageDao.countVisibleInThread(tid).also { visibleCount = it }
+                val providerOffset = count + maxOf(0, offset + out.size - visible)
                 val seen = out.mapTo(HashSet<MessageKey>()) { it.key }
                 runCatching { reader.messagesInThread(tid, limit - out.size, providerOffset) }
                     .getOrDefault(emptyList())

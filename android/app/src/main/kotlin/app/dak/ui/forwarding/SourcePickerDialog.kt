@@ -36,13 +36,15 @@ import app.dak.ui.common.categoryLabel
 
 /**
  * Full-screen picker of source channels: every conversation, including folded sender groups ("HDFC Bank" is one
- * row however many headers it uses), searchable by name or address. Returns the checked conversations.
+ * row however many headers it uses), searchable by name or address. [onDone] gets the checked conversation ids and
+ * the summaries of those that were loaded (a previously chosen source that never scrolled into view has no summary;
+ * the caller keeps its existing entry).
  */
 @Composable
 internal fun SourcePickerDialog(
     viewModel: ForwardingViewModel,
     selectedIds: Set<String>,
-    onDone: (List<ConversationSummary>) -> Unit,
+    onDone: (checkedIds: Set<String>, loaded: Map<String, ConversationSummary>) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val items = viewModel.sourceCandidates.collectAsLazyPagingItems()
@@ -107,20 +109,11 @@ internal fun SourcePickerDialog(
                     )
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
                     TextButton(onClick = {
-                        // Already-chosen sources that never scrolled into view keep their original entry (by id).
-                        val picked = checked.mapNotNull { (id, summary) -> summary ?: placeholderFor(id) }
-                        onDone(picked)
+                        val loaded = checked.entries.mapNotNull { (id, summary) -> summary?.let { id to it } }.toMap()
+                        onDone(checked.keys.toSet(), loaded)
                     }) { Text(stringResource(R.string.fw_done)) }
                 }
             }
         }
     }
-}
-
-/** Stand-in for a previously chosen source whose summary was not loaded; the editor keeps the existing source. */
-private fun placeholderFor(conversationId: String): ConversationSummary? = null.also { PendingKeep.ids += conversationId }
-
-/** Ids of kept-but-unloaded sources, consumed by the editor right after [SourcePickerDialog] returns. */
-internal object PendingKeep {
-    val ids: MutableSet<String> = mutableSetOf()
 }

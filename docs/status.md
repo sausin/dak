@@ -64,10 +64,8 @@ webhooks and send API are not implemented.
 
 ## Runtime risks to check first on a device
 
-- The index DB (Keystore unwrap + SQLCipher open) can open on the main thread when the first
-  ViewModel injects a repository; move `IndexProvidesModule.openedIndex` behind a suspend opener
-  if it shows up as jank/ANR on slow phones.
-- First SMS in a cold process loads classifier JSON and may rebuild the consumed-OTP hash table
-  inside the receiver's time budget.
-- Settings adapter does a `runBlocking` first read on the main thread (`appearanceNow()`).
+- Battery: see [battery.md](battery.md). The index DB open is deferred to the first (background) query, the
+  settings snapshot is preloaded on IO, the classifier JSON is parsed once per process and the app-hash table is
+  persisted (built once). Still open: `ConsumedOtpDetector` rebuilds its own hash table per process (see
+  battery.md, "Deferred").
 - Navigation args are `Uri.decode`d twice in some ViewModels (a literal `%xx` gets mangled).

@@ -108,6 +108,10 @@ public object RuleValidator {
             java.util.regex.Pattern.compile(pattern)
         } catch (e: PatternSyntaxException) {
             into += ValidationIssue.InvalidRegex(location, pattern, e.message ?: "invalid pattern")
+            return
         }
+        // Message bodies are attacker-controlled: refuse patterns that can backtrack exponentially (the engine
+        // skips them too, see RuleEngine.matchesRegex).
+        RegexSafety.problem(pattern)?.let { into += ValidationIssue.InvalidRegex(location, pattern, it) }
     }
 }

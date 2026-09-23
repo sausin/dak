@@ -65,6 +65,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Launcher shortcut "Report fraud" (app.dak.action.REPORT_FRAUD, see IntentRoutes). -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
 
             <!-- Required for the default SMS role: compose to an address. -->
             <intent-filter>

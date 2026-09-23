@@ -36,6 +36,8 @@ data class ConversationSummary(
      * category, SIM or finance enrichment.
      */
     val enriched: Boolean,
+    /** How many copies the snippet's message has (see [MessageItem.repeatCount]); 1 when it is not repeated. */
+    val snippetRepeatCount: Int = 1,
 )
 
 /** OTP details on a message. */
@@ -81,6 +83,19 @@ data class MessageItem(
     val archived: Boolean,
     /** False when read straight from the provider (not indexed yet). */
     val enriched: Boolean,
+    /**
+     * Copies of this message in its repeat group (exact duplicate within 24 h, or the same OTP code within 10 min;
+     * see `app.dak.index.enrich.RepeatRules`), including itself; 1 when not repeated. Thread pages return only the
+     * newest copy of a group; [app.dak.index.repo.ConversationRepository.repeatsOf] lists all of them.
+     */
+    val repeatCount: Int = 1,
+    /** For an older copy listed by `repeatsOf`: the key of the newest copy (the one the thread shows); else null. */
+    val repeatOf: MessageKey? = null,
+    /**
+     * Sender channel (`SenderId.mergeKey` of [address]: `HDFCBK` for `VM-HDFCBK`), for per-bubble channel chips and
+     * the channel filter of a folded conversation. Null for group-MMS address lists.
+     */
+    val channel: String? = null,
 )
 
 /** One search result: a conversation with its chosen matching message. */

@@ -25,8 +25,11 @@ import app.dak.index.db.entity.AccountRow
 import app.dak.index.db.entity.LedgerEntryRow
 import app.dak.index.sync.IndexRowMapper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -67,6 +70,7 @@ data class AccountSummary(
  * `app.dak.finance.reconcile.Reconciler` and persisted (entries + cached balance). The user-set statement day is
  * preserved across recomputes.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class LedgerRepository @Inject constructor(
     private val db: DakIndexDatabase,
@@ -81,19 +85,27 @@ class LedgerRepository @Inject constructor(
     fun accounts(): Flow<List<AccountSummary>> =
         ledgerDao.observeAccounts().map { rows -> rows.map { toSummary(it) } }.flowOn(Dispatchers.Default)
 
+    /** One account; an id merged into another account shows that (canonical) account. */
     fun account(accountId: String): Flow<AccountSummary?> =
-        ledgerDao.observeAccount(accountId).map { it?.let { row -> toSummary(row) } }
+        canonicalId(accountId).flatMapLatest { id -> ledgerDao.observeAccount(id) }.map { it?.let { row -> toSummary(row) } }
 
-    /** Entries of one account, newest first. */
+    /** Entries of one account (merged accounts included), newest first. */
     fun entries(accountId: String): Flow<List<LedgerEntry>> =
-        ledgerDao.observeEntries(accountId).map { rows -> rows.map { toEntry(it) } }
+        canonicalId(accountId).flatMapLatest { id -> ledgerDao.observeEntries(id) }.map { rows -> rows.map { toEntry(it) } }
+
+    /** The canonical id [accountId] resolves to under the user's merges, live. */
+    fun canonicalId(accountId: String): Flow<String> = aliasDao.observeAll()
+        .map { rows -> AccountAliases(rows.filter { it.same }.associate { it.aliasId to it.canonicalId }).resolve(accountId) }
+        .distinctUntilChanged()
 
     /** Source message of a ledger entry (to open it in its thread). */
     fun messageKeyOf(entry: LedgerEntry): MessageKey? = MessageKey.parse(entry.messageKey)
 
     fun ledger(accountId: String): Flow<AccountLedger?> =
-        combine(ledgerDao.observeAccount(accountId), ledgerDao.observeEntries(accountId)) { account, entries ->
-            account?.let { row -> AccountLedger(toAccount(row), entries.map { e -> toEntry(e) }.sortedBy { e -> e.dateMillis }) }
+        canonicalId(accountId).flatMapLatest { id ->
+            combine(ledgerDao.observeAccount(id), ledgerDao.observeEntries(id)) { account, entries ->
+                account?.let { row -> AccountLedger(toAccount(row), entries.map { e -> toEntry(e) }.sortedBy { e -> e.dateMillis }) }
+            }
         }.flowOn(Dispatchers.Default)
 
     fun monthlyTotals(accountId: String): Flow<List<MonthlyTotal>> =
@@ -113,8 +125,9 @@ class LedgerRepository @Inject constructor(
     /** Sets a credit card's statement day (1..31, or null to clear). */
     suspend fun setStatementDay(accountId: String, statementDay: Int?) {
         require(statementDay == null || statementDay in 1..31) { "statementDay must be 1..31" }
-        ledgerDao.setStatementDay(accountId, statementDay)
-        recompute(listOf(accountId))
+        val id = loadAliases().resolve(accountId)
+        ledgerDao.setStatementDay(id, statementDay)
+        recompute(listOf(id))
     }
 
     /** Recomputes the given accounts from their indexed transaction messages (merged accounts included). */
@@ -267,7 +280,8 @@ class LedgerRepository @Inject constructor(
                 accountId = row.id,
                 institution = row.institution,
                 type = account.type,
-                visibleDigits = Account.partsOf(row.id)?.third?.takeIf { d -> d.all { it.isDigit() } } ?: account.visibleDigits,
+                // Ids carry every visible digit (see Account.idOf); an account with no number at all never matches.
+                visibleDigits = if (row.last4 == null) null else Account.partsOf(row.id)?.third?.takeIf { d -> d.all { it.isDigit() } },
                 firstSeenMillis = spans[row.id]?.firstSeen ?: row.lastActivityMillis,
                 lastSeenMillis = row.lastActivityMillis,
             )
@@ -277,7 +291,7 @@ class LedgerRepository @Inject constructor(
         val raw = AccountMatcher.suggest(observations, decidedPairs = decided, aliases = aliases)
         if (raw.isEmpty()) return emptyList()
         val involved = raw.flatMap { listOf(it.accountA, it.accountB) }.distinct()
-        val bodies = aliases.let { a -> involved.flatMap { a.membersOf(it) }.distinct() }
+        val bodies = involved.flatMap { aliases.membersOf(it) }.distinct()
             .chunked(CHUNK).flatMap { messageDao.bodiesOfAccounts(it, CO_OCCURRENCE_SCAN) }
         val coOccurring = AccountMatcher.coOccurringPairs(observations.filter { it.accountId in involved }, bodies.asSequence())
         val byId = accounts.associateBy { it.id }

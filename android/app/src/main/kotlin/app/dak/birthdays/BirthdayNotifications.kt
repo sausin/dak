@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -16,14 +15,15 @@ import app.dak.automations.birthdays.OccasionKind
 import app.dak.automations.birthdays.WishTag
 import app.dak.navigation.IntentRoutes
 import app.dak.navigation.Routes
+import app.dak.notifications.NotificationChannels
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The "Ask me first" prompt on the day: "Ravi's birthday today" with the prepared wish and Send / Edit / Skip.
- * Send and Skip go to [ScheduledSendReceiver] (already registered, not exported); Edit opens the composer
- * pre-filled.
+ * The "Ask me first" prompt on the day: "Ravi's birthday today" with the prepared wish and Send / Edit / Skip,
+ * posted on the automation channel ([NotificationChannels.AUTOMATION]). Send and Skip go to [ScheduledSendReceiver]
+ * (already registered, not exported); Edit opens the composer pre-filled.
  */
 @Singleton
 class BirthdayNotifications @Inject constructor(@ApplicationContext private val context: Context) {
@@ -32,7 +32,6 @@ class BirthdayNotifications @Inject constructor(@ApplicationContext private val 
     fun prompt(tag: WishTag, name: String, number: String, body: String, subId: Int): Boolean {
         if (!canNotify()) return false
         val manager = NotificationManagerCompat.from(context)
-        ensureChannel(manager)
         val id = notificationId(tag)
         val title = context.getString(
             if (tag.kind == OccasionKind.ANNIVERSARY) R.string.fw_bd_prompt_title_anniversary else R.string.fw_bd_prompt_title,
@@ -46,7 +45,7 @@ class BirthdayNotifications @Inject constructor(@ApplicationContext private val 
             IntentRoutes.open(context, Routes.compose(to = number, body = body)),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, NotificationChannels.AUTOMATION)
             .setSmallIcon(R.drawable.ic_stat_dak)
             .setContentTitle(title)
             .setContentText(body)
@@ -83,15 +82,6 @@ class BirthdayNotifications @Inject constructor(@ApplicationContext private val 
         return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun ensureChannel(manager: NotificationManagerCompat) {
-        manager.createNotificationChannel(
-            NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
-                .setName(context.getString(R.string.fw_channel_birthdays_name))
-                .setDescription(context.getString(R.string.fw_channel_birthdays_description))
-                .build(),
-        )
-    }
-
     private fun canNotify(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -102,7 +92,6 @@ class BirthdayNotifications @Inject constructor(@ApplicationContext private val 
     }
 
     companion object {
-        const val CHANNEL_ID = "birthday_wishes"
         const val EXTRA_TAG = "app.dak.extra.BIRTHDAY_TAG"
         const val EXTRA_NUMBER = "app.dak.extra.BIRTHDAY_NUMBER"
         const val EXTRA_BODY = "app.dak.extra.BIRTHDAY_BODY"

@@ -35,7 +35,9 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
 - `OtpExtractor.extract(body): OtpInfo?` (core-model `OtpInfo`) — finds 4-8 digit or labelled
   alphanumeric codes (English + Hindi phrasing), a trailing 11-char SMS Retriever hash, and a
   trailing WebOTP `@domain #code` line. Ignores amounts, dates, phone numbers and masked account
-  tails (`XX1234`).
+  tails (`XX1234`). Non-ASCII decimal digits (Devanagari, Bengali, Arabic-Indic, full-width, ...)
+  are normalized to ASCII before matching, so `OtpInfo.code` is always ASCII digits (needed for
+  copy/autofill) regardless of the script the OTP arrived in.
 - `AppSignatureHash.compute(packageName, signatureBytes): String` /
   `compute(packageName, hexSignature): String` — Google's `AppSignatureHelper` algorithm exactly.
 - `ConsumedOtpMatcher(hashesByPackage, browserPackages).consumerOf(otp): String?` — resolves the
@@ -52,7 +54,9 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
 ## On-device model
 
 - `Tokenizer.tokenize(text): List<String>` — Unicode letter/digit/combining-mark tokenizer;
-  script-agnostic (Latin, Devanagari, Hinglish).
+  script-agnostic (Latin, Devanagari, Hinglish). ZWJ/ZWNJ (`U+200D`/`U+200C`) inside a word never
+  split the token (they are legitimate inside Indic/Arabic conjuncts) but are dropped from the
+  token text itself, so the same word tokenizes identically whether or not the source used one.
 - `MessageModel` — `fun interface { fun predict(text): Map<Category, Float> }`, the seam a
   TFLite/ONNX model can implement later.
 - `NaiveBayesModel.loadDefault(): NaiveBayesModel` — small multinomial Naive Bayes with Laplace

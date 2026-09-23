@@ -71,6 +71,31 @@
             </intent-filter>
         </service>
 
+        <!--
+            Default SMS app changed (sent to the old and the new default, Android 7+). Exported so the platform can
+            deliver it; the action is a protected broadcast and the receiver re-reads the role instead of trusting it.
+        -->
+        <receiver
+            android:name="app.dak.telephony.role.DefaultSmsChangedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.action.DEFAULT_SMS_PACKAGE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Class 0 (flash) SMS: Save / Dismiss from the notification, and the dialog. Never exported. -->
+        <receiver
+            android:name="app.dak.telephony.sms.FlashMessageReceiver"
+            android:exported="false" />
+        <activity
+            android:name="app.dak.telephony.sms.FlashMessageActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Results of our own PendingIntents: never exported. -->
         <receiver
             android:name="app.dak.telephony.sms.SmsStatusReceiver"

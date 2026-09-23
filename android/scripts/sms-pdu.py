@@ -7,6 +7,8 @@ with an explicit international type.
     ./sms-pdu.py VD-HDFCBK-T "Rs.2,500.00 debited from A/c XX1234 on 23-09-26. UPI Ref 612345678901"
     ./sms-pdu.py --send VD-HDFCBK-T "Your OTP is 482913"          # runs adb itself
     ./sms-pdu.py --send -s emulator-5556 +919876543210 "नमस्ते"     # pick a device; Unicode -> UCS-2
+    ./sms-pdu.py --flash +919876543210 "Shown at once"             # class 0 (flash) SMS
+    ./sms-pdu.py --pid 41 +919876543210 "Balance: Rs 900"           # replace short message type 1
 
 Prints one `adb emu sms pdu <hex>` line per part (long texts become a concatenated multipart SMS).
 Run it on the machine where the emulator runs; needs only Python 3 (and adb on PATH for --send).
@@ -117,7 +119,7 @@ def split_ucs2(text, size):
     return parts
 
 
-def build_pdus(sender, text, when, ref=None):
+def build_pdus(sender, text, when, ref=None, pid=0x00, flash=False):
     oa = encode_originator(sender)
     scts = encode_timestamp(when)
     septets = gsm_septets(text)
@@ -146,7 +148,9 @@ def build_pdus(sender, text, when, ref=None):
             ud = udh + chunk
             udl = len(ud)
         first = 0x04 | (0x40 if multipart else 0)  # SMS-DELIVER, no more messages, UDHI when split
-        tpdu = bytes([first]) + oa + bytes([0x00, dcs]) + scts + bytes([udl]) + ud
+        # DCS general coding group with a message class: bit 4 set, class in bits 1..0 (class 0 = flash).
+        coding = (dcs | 0x10) if flash else dcs
+        tpdu = bytes([first]) + oa + bytes([pid, coding]) + scts + bytes([udl]) + ud
         pdus.append("00" + tpdu.hex().upper())  # 00: no SMSC address, the emulator's modem fills none in
     return pdus
 
@@ -158,10 +162,15 @@ def main():
     ap.add_argument("--send", action="store_true", help="run `adb emu sms pdu` for each part instead of printing")
     ap.add_argument("-s", "--serial", help="adb device serial, e.g. emulator-5554 (when several are running)")
     ap.add_argument("--minutes-ago", type=int, default=0, help="backdate the service-centre timestamp")
+    ap.add_argument("--pid", type=lambda v: int(v, 16), default=0x00,
+                    help="TP-PID in hex: 40 = type 0 (silent), 41..47 = replace short message type 1..7")
+    ap.add_argument("--flash", action="store_true", help="message class 0 (flash SMS): DCS 0x10 / 0x18 for UCS-2")
     args = ap.parse_args()
+    if not 0 <= args.pid <= 0xFF:
+        sys.exit("--pid must be one octet (00..FF)")
 
     when = datetime.datetime.now().astimezone() - datetime.timedelta(minutes=args.minutes_ago)
-    pdus = build_pdus(args.sender, args.text, when)
+    pdus = build_pdus(args.sender, args.text, when, pid=args.pid, flash=args.flash)
     adb = ["adb"] + (["-s", args.serial] if args.serial else [])
     for pdu in pdus:
         if args.send:

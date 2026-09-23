@@ -38,6 +38,47 @@ object MmsPduDecoder {
     /** Convenience: decodes and returns the PDU only when it is of type [T]. */
     inline fun <reified T : MmsPdu> decodeAs(bytes: ByteArray): T? = decode(bytes).getOrNull() as? T
 
+    /**
+     * Salvages X-Mms-Message-Type, X-Mms-Transaction-ID and X-Mms-MMS-Version from a PDU that [decode] rejects
+     * (truncated, malformed, unknown type, missing mandatory header), reading headers until the first error. MMS-ENC
+     * puts these three first, so even a badly damaged notification usually yields its transaction id, which is what
+     * an m-notifyresp-ind "Unrecognised" answer needs (see [MmsClientTransactions.forUndecodable]). Never throws;
+     * null when not even one of the three could be read.
+     */
+    fun peekPreamble(bytes: ByteArray): PduPreamble? {
+        if (bytes.isEmpty() || bytes.size > MmsLimits.MAX_PDU_BYTES) return null
+        var type: Int? = null
+        var transactionId: String? = null
+        var version: Int? = null
+        try {
+            val r = WspReader(bytes)
+            var headers = 0
+            while (r.hasMore() && headers < MAX_PREAMBLE_HEADERS) {
+                val b = r.peek()
+                if (b < 0x80) break // application header or garbage: the preamble is over
+                r.readOctet()
+                headers++
+                when (val field = b and 0x7F) {
+                    Field.MESSAGE_TYPE -> type = r.readOctet()
+                    Field.MMS_VERSION -> version = r.readOctet() and 0x7F
+                    Field.TRANSACTION_ID -> transactionId = r.readTextString()
+                        .takeIf { it.isNotEmpty() && it.length <= MmsLimits.MAX_TOKEN_CHARS }
+                    Field.CONTENT_TYPE -> break
+                    else -> readField(field, r)
+                }
+            }
+        } catch (e: Exception) {
+            // Keep whatever was read before the damage.
+        } catch (e: StackOverflowError) {
+            // Same.
+        }
+        if (type == null && transactionId == null && version == null) return null
+        return PduPreamble(type, transactionId, version)
+    }
+
+    /** Headers [peekPreamble] reads at most before giving up (the preamble is the first three). */
+    private const val MAX_PREAMBLE_HEADERS = 32
+
     // --- Headers --------------------------------------------------------------------------------------------
 
     private class MissingHeaderException(val header: String) : Exception(header)

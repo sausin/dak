@@ -16,34 +16,38 @@ import javax.inject.Singleton
 class SendProgressStore @Inject constructor(@ApplicationContext context: Context) {
     private val prefs = context.getSharedPreferences("dak_send_progress", Context.MODE_PRIVATE)
 
-    /** Starts (or restarts, for a retry) tracking of [id] with [partCount] parts. */
+    /** Starts (or restarts, for a retry) tracking of [id] with [partCount] parts for send [attempt]. */
     @Synchronized
-    fun begin(id: Long, partCount: Int, nowMillis: Long) {
+    fun begin(id: Long, partCount: Int, nowMillis: Long, attempt: Int = 0) {
         pruneOlderThan(nowMillis - MAX_AGE_MILLIS)
-        put(id, PartProgress(partCount = partCount, startedAtMillis = nowMillis))
+        put(id, PartProgress(partCount = partCount, startedAtMillis = nowMillis, attempt = attempt))
     }
 
-    /** Records a sent part; true once the whole message counts as sent. */
+    /**
+     * Records one part's sent result ([ok], else [resultCode]) of [attempt]. Returns the progress exactly once per
+     * attempt, when the attempt has just settled (see [PartProgress.outcome]); null while parts are still in flight,
+     * once the outcome was already handed out, and for a late report from an older attempt.
+     */
     @Synchronized
-    fun recordSent(id: Long, part: Int, partCount: Int): Boolean {
-        val next = get(id, partCount).withSent(part)
-        put(id, next)
-        return next.isFullySent
-    }
-
-    /** Records a failed part; true only for the first failure of the current attempt. */
-    @Synchronized
-    fun recordFailure(id: Long, partCount: Int): Boolean {
+    internal fun recordSendResult(id: Long, part: Int, partCount: Int, attempt: Int, ok: Boolean, resultCode: Int): PartProgress? {
         val current = get(id, partCount)
-        if (current.failed) return false
-        put(id, current.withFailure())
-        return true
+        if (current.attempt != 0 && attempt != 0 && current.attempt != attempt) return null
+        val next = if (ok) current.withSent(part) else current.withFailedPart(part, resultCode)
+        if (next.resolved || !next.isSettled) {
+            put(id, next)
+            return null
+        }
+        put(id, next.copy(resolved = true))
+        return next
     }
 
     /** Records a delivered part; true once every part counts as delivered. */
     @Synchronized
     fun recordDelivered(id: Long, part: Int, partCount: Int): Boolean {
-        val next = get(id, partCount).withDelivered(part)
+        val current = get(id, partCount)
+        // A partly sent message stays failed: reports for the parts that did go out must not turn it "delivered".
+        if (current.failedParts.isNotEmpty()) return false
+        val next = current.withDelivered(part)
         put(id, next)
         return next.isFullyDelivered
     }

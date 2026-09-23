@@ -69,10 +69,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import app.dak.R
 import app.dak.core.model.SimInfo
+import app.dak.telephony.DefaultSmsRole
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.TokenChip
+import app.dak.ui.common.WarningBanner
 import app.dak.ui.theme.DakTheme
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
@@ -83,6 +87,7 @@ import java.io.File
 import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
+import app.dak.telephony.R as TelephonyR
 
 /** Everything the composer shows besides the draft text; built by the screen's ViewModel. */
 data class ComposerUi(
@@ -103,7 +108,31 @@ data class ComposerUi(
     val enabled: Boolean = true,
     /** A send waiting for a cost confirmation (premium / short code / international / roaming), or null. */
     val costPrompt: CostPrompt? = null,
+    /**
+     * Another app is the default SMS app: sending is paused (queued and scheduled messages wait) and the composer
+     * offers to take the role back. [enabled] stays true only for a text to emergency numbers.
+     */
+    val notDefaultApp: Boolean = false,
+    /** What the carrier's MMS rules do to this message, if anything worth telling. */
+    val carrierNotice: CarrierNotice? = null,
+    /** The carrier's MMS recipient limit, for [CarrierNotice.TOO_MANY_RECIPIENTS]. */
+    val recipientLimit: Int? = null,
 )
+
+/** Carrier-config effects on the message being composed (see [app.dak.telephony.carrier.SendModePolicy]). */
+enum class CarrierNotice {
+    /** Group MMS is off for this carrier: each recipient gets their own message. */
+    GROUP_AS_INDIVIDUAL,
+
+    /** MMS is off for this carrier: attachments cannot be sent. */
+    MMS_DISABLED,
+
+    /** More recipients than one MMS may carry on this carrier. */
+    TOO_MANY_RECIPIENTS,
+
+    /** Text over the carrier's MMS text limit. */
+    TEXT_TOO_LONG,
+}
 
 /** Callbacks from the composer to its ViewModel. */
 interface ComposerActions {
@@ -119,6 +148,9 @@ interface ComposerActions {
 
     /** The user cancelled the pending [ComposerUi.costPrompt] send. */
     fun onDismissCost() {}
+
+    /** The system "default SMS app" dialog closed (or the screen resumed): re-check the role. */
+    fun onRoleResult() {}
 }
 
 /**
@@ -145,50 +177,95 @@ fun Composer(
     ui.costPrompt?.let { prompt ->
         CostWarningDialog(prompt = prompt, onConfirm = actions::onConfirmCost, onDismiss = actions::onDismissCost)
     }
-    Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 2.dp) {
-        Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ComposerStatusRow(ui, actions)
-            if (ui.attachments.isNotEmpty()) AttachmentStrip(ui.attachments, actions::onRemoveAttachment)
-            if (trayOpen) AttachmentTray(onAttachment = actions::onAddAttachment, onText = { actions.onTextChange(joinText(text, it)) }, onDone = { trayOpen = false })
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick = { trayOpen = !trayOpen }, enabled = ui.enabled) {
-                    Icon(if (trayOpen) Icons.Outlined.Close else Icons.Outlined.Add, contentDescription = stringResource(R.string.scr_composer_attach))
-                }
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = actions::onTextChange,
-                    modifier = Modifier.weight(1f).let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
-                    enabled = ui.enabled,
-                    placeholder = { Text(stringResource(if (ui.isMms) R.string.scr_composer_hint_mms else R.string.scr_composer_hint_sms)) },
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = if (enterToSend) ImeAction.Send else ImeAction.Default,
-                    ),
-                    keyboardActions = KeyboardActions(onSend = { if (canSend) actions.onSend() }),
-                    maxLines = 6,
-                    shape = RoundedCornerShape(24.dp),
-                )
-                Box {
-                    SendButton(
-                        isMms = ui.isMms,
-                        enabled = canSend,
-                        onClick = actions::onSend,
-                        onLongClick = { laterMenu = true },
+    // The role can be changed in system settings while Dak is in the background.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { actions.onRoleResult() }
+    Column(modifier.fillMaxWidth()) {
+        if (ui.notDefaultApp) NotDefaultAppBanner(onRoleResult = actions::onRoleResult)
+        Surface(modifier = Modifier.fillMaxWidth(), tonalElevation = 2.dp) {
+            Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ComposerStatusRow(ui, actions)
+                ui.carrierNotice?.let { CarrierNoticeText(it, ui.recipientLimit) }
+                if (ui.attachments.isNotEmpty()) AttachmentStrip(ui.attachments, actions::onRemoveAttachment)
+                if (trayOpen) AttachmentTray(onAttachment = actions::onAddAttachment, onText = { actions.onTextChange(joinText(text, it)) }, onDone = { trayOpen = false })
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(onClick = { trayOpen = !trayOpen }, enabled = ui.enabled) {
+                        Icon(if (trayOpen) Icons.Outlined.Close else Icons.Outlined.Add, contentDescription = stringResource(R.string.scr_composer_attach))
+                    }
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = actions::onTextChange,
+                        modifier = Modifier.weight(1f).let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
+                        enabled = ui.enabled,
+                        placeholder = { Text(stringResource(if (ui.isMms) R.string.scr_composer_hint_mms else R.string.scr_composer_hint_sms)) },
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = if (enterToSend) ImeAction.Send else ImeAction.Default,
+                        ),
+                        keyboardActions = KeyboardActions(onSend = { if (canSend) actions.onSend() }),
+                        maxLines = 6,
+                        shape = RoundedCornerShape(24.dp),
                     )
-                    DropdownMenu(expanded = laterMenu, onDismissRequest = { laterMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.scr_composer_send_in_hour)) },
-                            onClick = { laterMenu = false; actions.onScheduleSend(System.currentTimeMillis() + 60 * 60_000L) },
+                    Box {
+                        SendButton(
+                            isMms = ui.isMms,
+                            enabled = canSend,
+                            onClick = actions::onSend,
+                            onLongClick = { laterMenu = true },
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.scr_composer_send_tomorrow)) },
-                            onClick = { laterMenu = false; actions.onScheduleSend(tomorrowAtNine()) },
-                        )
+                        DropdownMenu(expanded = laterMenu, onDismissRequest = { laterMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.scr_composer_send_in_hour)) },
+                                onClick = { laterMenu = false; actions.onScheduleSend(System.currentTimeMillis() + 60 * 60_000L) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.scr_composer_send_tomorrow)) },
+                                onClick = { laterMenu = false; actions.onScheduleSend(tomorrowAtNine()) },
+                            )
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/**
+ * Shown above the composer while another app is the default SMS app: messages can be read, sending is paused
+ * (queued and scheduled messages wait), and one tap asks the system to make Dak the default again.
+ */
+@Composable
+private fun NotDefaultAppBanner(onRoleResult: () -> Unit) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { onRoleResult() }
+    WarningBanner(
+        title = stringResource(TelephonyR.string.dak_telephony_not_default_title),
+        body = stringResource(TelephonyR.string.dak_telephony_not_default_body),
+        actionLabel = stringResource(TelephonyR.string.dak_telephony_make_default),
+        onAction = {
+            val request = runCatching { DefaultSmsRole.requestIntent(context) }.getOrNull()
+            val launched = request != null && runCatching { launcher.launch(request) }.isSuccess
+            if (!launched) {
+                // No role dialog on this device: the system's default-apps screen instead.
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun CarrierNoticeText(notice: CarrierNotice, recipientLimit: Int?) {
+    val text = when (notice) {
+        CarrierNotice.GROUP_AS_INDIVIDUAL -> stringResource(TelephonyR.string.dak_telephony_group_mms_off)
+        CarrierNotice.MMS_DISABLED -> stringResource(TelephonyR.string.dak_telephony_mms_disabled)
+        CarrierNotice.TOO_MANY_RECIPIENTS -> stringResource(TelephonyR.string.dak_telephony_too_many_recipients, recipientLimit ?: 0)
+        CarrierNotice.TEXT_TOO_LONG -> stringResource(TelephonyR.string.dak_telephony_mms_text_too_long)
+    }
+    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

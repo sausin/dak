@@ -23,6 +23,8 @@ import app.dak.telephony.provider.TelephonyProviderReader
 import app.dak.telephony.provider.TelephonyProviderWriter
 import app.dak.telephony.region.RegionProvider
 import app.dak.telephony.region.TelephonyRegionProvider
+import app.dak.telephony.role.SmsRoleMonitor
+import app.dak.telephony.sms.FlashMessages
 import app.dak.telephony.send.SendRateLimiter
 import app.dak.telephony.send.TelephonyMessageSender
 import app.dak.telephony.sim.TelephonySimRepository
@@ -146,6 +148,8 @@ interface TelephonyEntryPoint {
     fun mmsSendManager(): MmsSendManager
     fun messageSender(): TelephonyMessageSender
     fun outboxRecovery(): OutboxRecovery
+    fun smsRoleMonitor(): SmsRoleMonitor
+    fun flashMessages(): FlashMessages
 
     @TelephonyScope
     fun telephonyScope(): CoroutineScope

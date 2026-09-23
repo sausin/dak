@@ -7,6 +7,8 @@ scrubbing) is out of scope except where the client has to cooperate with it.
 - **Snapshot:** commit `80b0844` (branch `claude/sms-android-emulator-testing-9xxtq5`). All `file:line`
   references point at that commit. Other work is editing `android/finance`, `android/classify`, `android/mms-pdu`,
   `android/core-telephony`, `android/app` and `android/backup` at the same time, so line numbers may drift.
+- **P1 telephony update:** the rows for class 0, replace PIDs, multipart retry, MMS-CTR answers, carrier config,
+  RESPOND_VIA_MESSAGE and role loss were re-checked after those fixes; their references point at that later commit.
 - **Status values:** **Compliant**; **Partial** (implemented but with a gap that matters); **Missing**; **N/A**
   (the Android framework, modem or another system component handles it, and the API is named).
 - **Citations:** section numbers are given only where we are confident of them. Where a regulatory detail is
@@ -18,22 +20,22 @@ scrubbing) is out of scope except where the client has to cooperate with it.
 
 | # | Standard / rule set | Compliant | Partial | Missing | N/A | Rows |
 |---|---|---|---|---|---|---|
-| 1 | 3GPP TS 23.040 (SMS transfer layer) | 6 | 3 | 2 | 6 | 17 |
-| 2 | 3GPP TS 23.038 (alphabets, DCS) + `scripts/sms-pdu.py` | 4 | 2 | 1 | 5 | 12 |
-| 3 | OMA MMS-ENC 1.3 + WAP-230 WSP encoding | 13 | 1 | 0 | 0 | 14 |
-| 4 | OMA MMS-CTR (client transactions) | 10 | 2 | 4 | 0 | 16 |
+| 1 | 3GPP TS 23.040 (SMS transfer layer) | 9 | 2 | 0 | 6 | 17 |
+| 2 | 3GPP TS 23.038 (alphabets, DCS) + `scripts/sms-pdu.py` | 4 | 3 | 0 | 5 | 12 |
+| 3 | OMA MMS-ENC 1.3 + WAP-230 WSP encoding | 14 | 0 | 0 | 0 | 14 |
+| 4 | OMA MMS-CTR (client transactions) | 14 | 1 | 1 | 0 | 16 |
 | 5 | OMA MMS-CONF, 3GPP TS 23.140 / 26.140 (media, SMIL) | 6 | 3 | 0 | 0 | 9 |
 | 6 | WAP-251 Push / WSP push | 1 | 1 | 0 | 2 | 4 |
-| 7 | Carrier config (CarrierConfigManager / SmsManager MMS config) | 1 | 2 | 7 | 2 | 12 |
+| 7 | Carrier config (CarrierConfigManager / SmsManager MMS config) | 7 | 1 | 2 | 2 | 12 |
 | 8 | RFC 5724 `sms:`/`smsto:` (+ `mms:`/`mmsto:`), SENDTO/SEND intents | 6 | 1 | 0 | 0 | 7 |
 | 9 | vCard 2.1/3.0/4.0 (RFC 6350), vCalendar | 2 | 3 | 0 | 1 | 6 |
-| 10 | Android default-SMS-app requirements | 13 | 4 | 0 | 0 | 17 |
+| 10 | Android default-SMS-app requirements | 14 | 3 | 0 | 0 | 17 |
 | 11 | Google Play SMS/Call Log policy, Data safety | 2 | 3 | 3 | 0 | 8 |
 | 12 | India TRAI TCCCPR 2018 and amendments | 4 | 1 | 2 | 1 | 8 |
 | 13 | DPDP Act 2023 (India), GDPR (EU) | 0 | 3 | 3 | 2 | 8 |
 | 14 | Text safety: UAX #9, UTS #39, UTS #46 | 4 | 4 | 1 | 0 | 9 |
 | 15 | OWASP MASVS v2 (high level) | 6 | 2 | 0 | 0 | 8 |
-| | **Total** | **78** | **35** | **23** | **19** | **155** |
+| | **Total** | **92** | **32** | **12** | **19** | **155** |
 
 Findings to act on first (details are in the [backlog](#prioritised-remediation-backlog)):
 
@@ -42,13 +44,15 @@ Findings to act on first (details are in the [backlog](#prioritised-remediation-
   lost.
 - **P0: emergency texts can be queued.** All sends, including broadcasts, share one process-wide rate limiter. A
   text to an emergency number can wait behind a bulk send.
-- **P1 SMS gaps:** class 0 (flash) SMS are not shown immediately. "Replace short message" (TP-PID 0x41–0x47) is
-  ignored. A partial multipart failure re-sends every part.
-- **P1 MMS gaps:** the MMS-CTR acknowledgements are off by default (`m-notifyresp-ind`) or never sent (Deferred
-  status, `m-acknowledge-ind`). Carrier MMS config is mostly ignored: group MMS enablement, the SMS→MMS threshold,
-  recipient and subject limits.
-- **P1 URI bug (fixed):** the `sms:` body was decoded twice and cut at `&`. It is now parsed per RFC 5724 from
-  the encoded URI (`navigation/SmsUriParser.kt`). `RESPOND_VIA_MESSAGE` in `core-telephony` still has the old bug.
+- **P1 SMS gaps (fixed):** class 0 (flash) SMS are shown at once and stored only on "Save"; "Replace short
+  message" (TP-PID 0x41–0x47) replaces in place; a partial multipart failure is no longer re-sent automatically.
+- **P1 MMS gaps (fixed):** m-notifyresp-ind (Retrieved / Deferred / Unrecognised) and m-acknowledge-ind are sent by
+  default; carrier MMS config (group MMS, SMS→MMS thresholds, size, recipient, subject and text limits) is read per
+  SIM through `CarrierConfigManager`.
+- **P1 role loss (fixed):** losing the default-SMS role holds queued and scheduled sends (never emergency texts),
+  stops MMS downloads and makes the composer read-only with a "Make Dak your default SMS app" action.
+- **P1 URI bug (fixed):** `sms:` intents are parsed per RFC 5724 from the encoded URI (`navigation/SmsUriParser.kt`)
+  and RESPOND_VIA_MESSAGE likewise (`sms/RespondViaMessage.kt`): decoded once, `&` kept.
 
 ---
 
@@ -66,9 +70,9 @@ how to report status.
 | Missing segments or segment timeout | Framework keeps partial segments in `raw` and expires them. The behaviour differs between Android versions, and Dak never sees partial messages | N/A (framework) | Document it. Optionally show a "message may be incomplete" hint where an OEM delivers partials | Inject 2 of 3 parts. Confirm nothing reaches Dak and nothing crashes |
 | Application port addressing (IEI 0x04/0x05, §9.2.3.24.3/4) and data SMS | Framework routes port-addressed SMS to `DATA_SMS_RECEIVED` or the WAP push path. Dak registers no data-SMS receiver (`core-telephony/src/main/AndroidManifest.xml:39-57`) | N/A (framework `InboundSmsHandler` port dispatch) | None. Do not add a `DATA_SMS_RECEIVED` receiver without a use case | Port-addressed PDU: assert no inbox row and no crash |
 | 8-bit data DCS **without** a port (binary SMS) | `messageBody` is null for 8-bit data. `IncomingSmsProcessor.kt:49` stores `""`, so the user sees an empty bubble | Partial | Detect `SmsMessage.getUserData()` when the body is null. Store a placeholder such as "[binary message, N bytes]" and keep the hex in a side table | PDU with DCS 0x04 and no UDH: assert a readable placeholder |
-| TP-PID type 0 ("silent" SMS, §9.2.3.9): acknowledge, do not display or store | Framework: `GsmInboundSmsHandler` acknowledges and drops type-0 messages before SMS_DELIVER | N/A (framework `GsmInboundSmsHandler`) | None | PDU with PID 0x40: assert no row and no notification |
-| TP-PID "Replace Short Message Type 1–7" (0x41–0x47, §9.2.3.9): replace the earlier message from the same originator with the same PID | Not handled. `IncomingSmsProcessor.kt:53-65` always inserts. The PID is stored (`TelephonyProviderWriter.kt:71`) but never matched | **Missing** | Before inserting, if the PID is in 0x41..0x47, update the newest inbox row with the same `address` and `protocol` (body, date, `read=0`) instead of inserting a new one. The legacy AOSP Mms app did the same | Two PDUs with PID 0x41 from the same sender: assert one row with the second body |
-| TP-DCS message class 0 (flash, from the 23.038 DCS): display immediately; the ME need not store it | Not handled. No class check (no `messageClass` use in the codebase), so class 0 is stored and notified like normal SMS | **Missing** | If `parts[0].messageClass == SmsMessage.MessageClass.CLASS_0`, show a high-priority heads-up notification plus an in-app dialog with "Save" and "Dismiss", and do not write to the inbox unless the user saves. Full-screen intents are restricted on Android 14+, so do not rely on them | PDU with DCS 0x10: assert a dialog or heads-up and no inbox row until "Save" |
+| TP-PID type 0 ("silent" SMS, §9.2.3.9): acknowledge, do not display or store | Framework: `GsmInboundSmsHandler` acknowledges and drops type-0 messages before SMS_DELIVER. Dak drops PID 0x40 again as a second line for OEM builds that do not (`sms/IncomingSmsPolicy.kt:48-51`, applied at `IncomingSmsProcessor.kt:85-91` and in the journal replay at `:166-170`) | N/A (framework `GsmInboundSmsHandler`) | None | PDU with PID 0x40 (`sms-pdu.py --pid 40`): assert no row and no notification. Unit: `IncomingSmsPolicyTest` |
+| TP-PID "Replace Short Message Type 1–7" (0x41–0x47, §9.2.3.9): replace the earlier message from the same originator with the same PID | `IncomingSmsPolicy` classifies 0x41–0x47 as REPLACE (`sms/IncomingSmsPolicy.kt:48-56`, 3GPP format only). `IncomingSmsProcessor.storeNew` (`:197-200`) calls `TelephonyProviderWriter.replaceIncoming` (`provider/TelephonyProviderWriter.kt:87-107`), which overwrites the newest inbox row with the same `address` and `protocol` (body, dates, service centre, SIM; `read=0`, `seen=0`) and keeps its id and thread. With no earlier row the message is inserted. Journal replays stay idempotent (the replaced row matches by body and date) | Compliant | None | Two PDUs from the same sender with `sms-pdu.py --pid 41`: one row with the second body. Unit: `IncomingSmsPolicyTest.replaceTypesOneToSeven` |
+| TP-DCS message class 0 (flash, from the 23.038 DCS): display immediately; the ME need not store it | Decision: follow stock Android (AOSP ClassZeroActivity): show at once, store only when the user taps **Save**. `IncomingSmsProcessor.kt:93-96` hands class 0 to `sms/FlashMessages.kt:52-89`: a high-importance (heads-up) notification on its own channel with the full text and Save / Dismiss actions; tapping it opens `FlashMessageActivity` (`:204`), a framework AlertDialog (plain text, no clickable links). Save inserts the message as read (`:92-96`) and does not re-announce it. One notification per sender (a newer flash replaces the older). Full-screen intents and background activity starts are not used (restricted on Android 14+ / 10+). If notifications are off for Dak or the channel, the message is stored as a normal SMS so it is never lost unseen. Class 0 wins over the replace PIDs; PID 0x40 wins over class 0 | Compliant | None | `sms-pdu.py --flash`: heads-up shown, no inbox row until Save; Save → one read row; Dismiss → nothing stored. Unit: `IncomingSmsPolicyTest.classZeroIsFlashAndWinsOverReplace` |
 | Class 2 (SIM-specific) storage, SIM data download (PID 0x7F) | Modem or framework: `UsimDataDownloadHandler` handles SIM data download, and class-2 storage happens in the modem/RIL | N/A (modem, `UsimDataDownloadHandler`) | Optional P2: a "SIM messages" viewer (the platform API for this is restricted) | Not testable on the emulator |
 | Message-waiting indication (DCS groups 1100–1110, UDH special-SMS IEI 0x01, CPHS) | The framework updates the voicemail indicator. Dak drops store=false MWI (`IncomingSmsProcessor.kt:45`) and stores store=true ones | Compliant | None | MWI "discard" DCS 0xC8: assert no row |
 | TP-SRR (status report request, §9.2.3.5) on submit | The delivery `PendingIntent` is passed only when the user enables reports: `send/TelephonyMessageSender.kt:67,165-173` | Compliant | None | Enable delivery reports and send. The emulator returns a status report. Assert `status` becomes COMPLETE |
@@ -77,7 +81,7 @@ how to report status.
 | Validity period (TP-VP, §9.2.3.12) | Public `SmsManager` has no validity-period parameter, so the SMSC default or carrier config applies | N/A (framework / SMSC) | None. If a hidden-API alternative ever appears, avoid it | – |
 | Reply path (TP-RP, Annex D): a reply should go through the originating SC | Flag stored (`TelephonyProviderWriter.kt:73`), but replies always use the default SC (`TelephonyMessageSender.kt:171-173` pass `scAddress = null`) | Partial | When replying to a message with `reply_path_present=1`, pass its `service_center` as `scAddress`. Gate this behind a setting, because some carriers reject foreign SCs | Unit: the reply builder picks the SC when the flag is set |
 | SMS-SUBMIT segmentation and concatenated submit | `divideMessage` + `sendMultipartTextMessage` on the per-subscription `SmsManager` (`TelephonyMessageSender.kt:156-174`). TP-MR and UDH are built by the framework | Compliant | None | Send 400 GSM characters. Assert 3 parts and 1 provider row |
-| Retry after a failed segment (avoid duplicates at the recipient) | Any part failure triggers a whole-message retry (`SmsStatusProcessor.kt:47-50,58-63` then `TelephonyMessageSender.kt:136,157-174`). Parts that already went out are sent again, so the recipient sees duplicate or garbled concatenations | Partial | Auto-retry only if **no** part reported `RESULT_OK` in that attempt. Otherwise mark FAILED with "partially sent" and let the user choose to resend | Instrumented test: fake `SmsManager` that fails part 2 of 3. Assert no automatic resend of parts 1 and 3 |
+| Retry after a failed segment (avoid duplicates at the recipient) | Per-part results are recorded for the attempt (`sms/PartProgress.kt:61-73`, `send/SendStores.kt:32-43`) and nothing is decided until every part (or the last part) has reported (`sms/SmsStatusProcessor.kt:49-58`). No part sent → normal retry policy (a whole resend cannot duplicate anything). Some parts sent → FAILED with "Only k of n parts were sent…" and **no** automatic resend (`SmsStatusProcessor.markPartlySent`, `:69-73`); late delivery reports cannot flip it to delivered. Trade-off: SMS cannot resend only the missing parts (a resend is a new concatenation with a new reference), so the user's retry resends the whole message knowingly. On OEMs that fire only the last part's intent, a failed last part with silently sent earlier parts is indistinguishable from "nothing sent" and is still retried | Compliant | None | Unit: `MultipartOutcomeTest` (part 2 of 3 fails → PARTIAL, not retried; all fail → retry). Instrumented with a fake SmsManager still to do |
 
 ## 2. 3GPP TS 23.038: alphabets, data coding scheme, segment counting
 
@@ -96,7 +100,7 @@ Dak must make its counter agree with what will actually be sent. The emulator to
 | `scripts/sms-pdu.py`: default alphabet and extension table are correct | `android/scripts/sms-pdu.py:23-27` (index = septet value; the extension table maps `\f ^ { } \ [ ~ ] \| €`) | Compliant | None | `python3 sms-pdu.py +91… "{[€]}"`, then decode with `SmsMessage.createFromPdu` in a JVM test |
 | `sms-pdu.py`: septet packing with fill bits after the UDH, UDL counted in septets including the UDH | `sms-pdu.py:48-60,140-147` | Compliant | None | Multipart GSM text: round-trip through `SmsMessage` |
 | `sms-pdu.py`: UCS-2 handling of non-BMP characters | `sms-pdu.py:108-117` emits UTF-16 (surrogate pairs kept together, never split). Strictly, 23.038 UCS-2 has no surrogates. Android and most handsets accept UTF-16, so this matches real traffic | Partial | Document that it matches Android's behaviour. Add a `--strict-ucs2` flag that rejects non-BMP characters so strict-decoder paths can be tested | Emoji text: 70-unit boundary does not split a pair |
-| `sms-pdu.py`: fixtures for the rest of 23.040/23.038 (16-bit concat refs, out-of-order or missing parts, shift-table IEIs 0x24/0x25, class 0, PID 0x40/0x41–0x47, MWI, 8-bit ports, status reports) | Only SMS-DELIVER with 8-bit refs, DCS 0x00/0x08 and PID 0 (`sms-pdu.py:120-151`) | **Missing** | Add flags: `--ref16`, `--order 3,1,2`, `--drop N`, `--dcs HEX`, `--pid HEX`, `--class 0`, `--port N`, `--nls hi`. These are needed to test the P1 items in §1 | Each flag gets a JVM round-trip test through `SmsMessage.createFromPdu` |
+| `sms-pdu.py`: fixtures for the rest of 23.040/23.038 (16-bit concat refs, out-of-order or missing parts, shift-table IEIs 0x24/0x25, class 0, PID 0x40/0x41–0x47, MWI, 8-bit ports, status reports) | SMS-DELIVER with 8-bit refs, DCS 0x00/0x08; `--pid HEX` (type 0, replace types) and `--flash` (class 0: DCS 0x10 / 0x18) added (`sms-pdu.py:120-160,170-176`) | Partial | Still to add: `--ref16`, `--order 3,1,2`, `--drop N`, `--dcs HEX`, `--port N`, `--nls hi`, MWI and status reports | Each flag gets a JVM round-trip test through `SmsMessage.createFromPdu` |
 | Alphanumeric TP-OA: at most 11 characters, GSM 7-bit packed, TON/NPI 0xD0, length in semi-octets | `sms-pdu.py:69-82` (`(septets*7+3)//4` useful semi-octets) | Compliant | None | `VD-HDFCBK-T` (11 characters) decodes to the same string |
 
 ## 3. OMA MMS-ENC 1.3 and WAP-230 WSP header encoding
@@ -115,7 +119,7 @@ and m-read-orig-ind.
 | Content-Type `application/vnd.wap.multipart.related` with `start` and `type` parameters, SMIL root | `MmsMessageBuilder.kt:62` (`start=<smil>`, `type=application/smil`). `ContentTypeCodec.kt:157-199` writes `Start` (0x0A) and `Type` (0x09). These are the WSP 1.2 tokens AOSP also emits. The decoder accepts both the 1.2 and 1.4 tokens (`ContentTypeCodec.kt:14-20,115-116`) | Compliant | None | Hex fixture compared against an AOSP-encoded send-req |
 | Part headers: Content-ID as quoted `<id>`, Content-Location, optional Content-Disposition | `MultipartCodec.kt:88-122`. The builder sets no disposition (`MmsMessageBuilder.kt:31-37`), which suits carriers without disposition support | Compliant | If needed, honour `MMS_CONFIG_SUPPORT_MMS_CONTENT_DISPOSITION` | Round-trip test with disposition on and off |
 | Text part charset parameter; decode default when no charset is given | Builder sets UTF-8 (`MmsMessageBuilder.kt:41-48`). The decoder falls back to UTF-8, a tolerant superset of the us-ascii default (`PduPart.kt:34-37`) | Compliant | None | Part without charset and Latin-1 bytes: no crash |
-| X-Mms-MMS-Version: send the right version and handle a major version we do not support | Always sends 1.2 (`PduConstants.kt:30`). The decoder stores the version (`MmsPduDecoder.kt:171`) but never rejects an unknown **major** version | Partial | If a received PDU has major version ≠ 1, answer the notification with `X-Mms-Status = Unrecognised` (see §4) and do not download it | Fixture with version 0x20 (2.0): assert no download and an Unrecognised response |
+| X-Mms-MMS-Version: send the right version and handle a major version we do not support | Always sends 1.2 (`PduConstants.kt:30`). A received notification of another major version (e.g. 2.0) is answered m-notifyresp-ind Unrecognised and not stored or fetched (`mms-pdu/.../MmsClientTransactions.kt` `forUnsupportedVersion`; `core-telephony/.../mms/MmsDownloadManager.kt:107-112`) | Compliant | None | `ClientTransactionsTest.unsupportedMajorVersionIsUnrecognised` (version 0x20 fixture) |
 | Unknown well-known and application headers are skipped without failing | `MmsPduDecoder.kt:94-98,114-117` | Compliant | None | Fuzz corpus (already partly in tests) |
 | Robust decoding of hostile input (size, part count, nesting, addresses; never throws) | `MmsSafety.kt:10-22` (16 MiB, 256 parts, 100 addresses, 1024-character texts). `MmsPduDecoder.kt:12-36` turns every failure into `PduDecodeResult.Failure` | Compliant | Owned by the security work stream | Fuzz with Jazzer or a random-mutation JVM test |
 | Transaction-ID unique and printable | `MmsMessageBuilder.kt:72` (`T` + hex time + random 64-bit) | Compliant | None | Unit: 10k IDs are unique and ASCII |
@@ -129,9 +133,9 @@ and m-read-orig-ind.
 | Receive m-notification-ind (WAP push) and hand it to the download pipeline on the right SIM | `mms/WapPushProcessor.kt:28-38`, `MmsDownloadManager.kt:79-107`, subscription from `internal/SubscriptionExtras.kt:27-41` | Compliant | None | Emulator: `adb emu` cannot inject WAP push, so use an instrumented test that broadcasts to `WapPushDeliverReceiver` with a fixture |
 | Content-Location sanity (absolute http(s), no loopback) and de-duplication of repeated notifications | `MmsSafety.kt:41-62`; `MmsDownloadManager.kt:82-86,159-163,256`; de-dup by location or TID at `:86`; unique work per location at `:141` | Compliant | None | Same notification twice: one row and one download |
 | Immediate retrieval (automatic download) through the platform MMS service | `MmsDownloadManager.kt:93-106,254-272` (`downloadMultimediaMessage` per subscription) | Compliant | None | Instrumented test with a fake MMSC (MockWebServer over loopback is refused by design, so use a test-only override) |
-| After immediate retrieval, send **m-notifyresp-ind** with X-Mms-Status = Retrieved (the platform download API does not send it) | Implemented (`MmsSendManager.kt:121-139`, called at `MmsDownloadManager.kt:248-249`) but **off by default** (`TelephonySettings.kt:45-47`) | Partial | Default it to on, or follow carrier config (`MMS_CONFIG_NOTIFY_WAP_MMSC_ENABLED`, see §7). Some MMSCs re-send notifications or keep messages until expiry without it | Unit: after a successful store, the encoder receives NotifyRespInd(Retrieved) |
-| Deferred retrieval (auto-download off, roaming, too large): send m-notifyresp-ind with X-Mms-Status = **Deferred** | Not sent. `MmsDownloadManager.kt:93-104` only marks the row "Tap to download" | **Missing** | Send NotifyRespInd(status = DEFERRED) when deferring. Record that the message was deferred on the notification row | Unit: with auto-download off, a NotifyRespInd(Deferred) is encoded and dispatched |
-| After a later user-initiated retrieval of a deferred message: send **m-acknowledge-ind** (not notifyresp) | Never sent. `AcknowledgeInd` exists (`MmsPdu.kt:121-127`, `MmsPduEncoder.kt:21-24`) but is unused, and the download path always sends notifyresp (`MmsDownloadManager.kt:249`) | **Missing** | In `store()`, if the notification was deferred, send AcknowledgeInd(TID, reportAllowed); otherwise send NotifyRespInd(Retrieved) | Unit: deferred then retry then store → AcknowledgeInd |
+| After immediate retrieval, send **m-notifyresp-ind** with X-Mms-Status = Retrieved (the platform download API does not send it) | On by default (`TelephonySettings.kt:41-50`, kept as a switch). After the retrieved message is stored, `MmsClientTransactions.afterRetrieval` picks the answer (`MmsDownloadManager.kt:288-292`), sent by `MmsSendManager.sendClientPdu` (`:126-150`) to the MMSC, or to the notification's Content-Location when the carrier sets `enabledNotifyWapMMSC` (the key's AOSP meaning: where to send, not whether) | Compliant | None | `ClientTransactionsTest.immediateRetrievalIsAnsweredRetrieved` (exact bytes) |
+| Deferred retrieval (auto-download off, roaming, too large, notification flood): send m-notifyresp-ind with X-Mms-Status = **Deferred** | When a new notification is left for a tap, `MmsClientTransactions.deferred` is sent and the row is marked deferred (`MmsDownloadManager.kt:130-133`, `MmsDownloadStateStore.markDeferred`). Flood-throttled notifications are answered too; dropped ones (past the hourly hard cap) are not | Compliant | None | `ClientTransactionsTest.deferredThenRetrievedIsAcknowledged` |
+| After a later user-initiated retrieval of a deferred message: send **m-acknowledge-ind** (not notifyresp) | `store()` sends `AcknowledgeInd` when the row was answered Deferred, NotifyRespInd(Retrieved) otherwise, then clears the flag (`MmsDownloadManager.kt:288-292`) | Compliant | None | `ClientTransactionsTest.deferredThenRetrievedIsAcknowledged` (exact bytes) |
 | m-retrieve-conf X-Mms-Retrieve-Status handling (transient vs permanent, error text shown) | `MmsDownloadManager.kt:234-240` | Compliant | None | Fixture with status 0xC1 (transient) → retry; 0xE0 (permanent) → no retry |
 | Expiry: do not fetch after X-Mms-Expiry | `MmsDownloadManager.kt:154-158`; expiry stored at `MmsProviderMapping.kt:54` | Compliant | None | Notification with past absolute expiry → "Expired" state and no fetch |
 | Retry policy for download and send (bounded, backoff) | Download: WorkManager exponential backoff from 30 s, 5 attempts (`MmsDownloadManager.kt:137,280-281`). Send: `RetryPolicy` 4 MMS attempts (`send/RetryPolicy.kt:6`, `MmsSendManager.kt:165-174`) | Compliant | None | Fake failures: attempt counts and delays |
@@ -140,7 +144,7 @@ and m-read-orig-ind.
 | m-read-orig-ind (read report received for our message) | `WapPushProcessor.kt:36` | Compliant | None | Fixture read-orig-ind |
 | Send **m-read-rec-ind** when a received message has X-Mms-Read-Report = Yes and the user agrees | Not implemented. `read_report` is stored (`MmsProviderMapping.kt:83`) but never acted on | **Missing** | Add a user setting "Send read receipts for MMS" (default off, for privacy). When on, send m-read-rec-ind on first open. Needs the PDU type in `mms-pdu`. Also honour `MMS_CONFIG_MMS_READ_REPORT_ENABLED` | Unit + fixture |
 | X-Mms-Report-Allowed in notifyresp and acknowledge (whether the user allows delivery reports to the sender) | Field is supported (`MmsPduEncoder.kt:19,23`) but always null (`MmsSendManager.kt:122`) | Partial | Fill it from a privacy setting (default Yes, which matches AOSP) | Encoder test with the field present |
-| Unsupported or unrecognised notification: respond with X-Mms-Status = Unrecognised or Rejected | Decode failures and unknown types are only logged (`WapPushProcessor.kt:32,37`) | **Missing** | On an undecodable PDU with a TID, or an unsupported major version, send NotifyRespInd(Unrecognised) | Fixture with an unknown message type and a TID |
+| Unsupported or unrecognised notification: respond with X-Mms-Status = Unrecognised or Rejected | A WAP push the decoder rejects is passed to `MmsDownloadManager.onUndecodable` (`WapPushProcessor.kt:31-36`, `MmsDownloadManager.kt:302-306`): `MmsPduDecoder.peekPreamble` salvages type and TID, and a notification (or unknown type) with a TID gets NotifyRespInd(Unrecognised). Damaged delivery / read reports get no answer. Answers share the notification flood budget | Compliant | None | `ClientTransactionsTest.undecodableNotificationIsAnsweredUnrecognised`, `…unknownMessageType…`, `…damagedReports…` |
 | Download policy for roaming and size (user control, no silent roaming data) | `TelephonySettings.kt:21-29`; `MmsDownloadManager.kt:91-104` | Compliant | None | Roaming flag on: no auto-download |
 
 ## 5. OMA MMS-CONF, 3GPP TS 23.140 / TS 26.140: content, media and SMIL
@@ -152,7 +156,7 @@ checked against the MMS-CONF v1.3 tables before relying on them.
 
 | Requirement | Dak implementation (file:line) | Status | Remediation | Test |
 |---|---|---|---|---|
-| Stay within the carrier's message size limit (300 KB default and floor) | `MmsSendManager.kt:71-74,176-188`; `app/.../conversation/MmsMediaCompressor.kt:30-37` (`MMS_CONFIG_MAX_MESSAGE_SIZE`, default 300 KB) | Compliant | Move to `CarrierConfigManager` keys (see §7) | Carrier config 100 KB: 2 MB photo fits and send succeeds |
+| Stay within the carrier's message size limit (300 KB default and floor) | `MmsSendManager.kt:71-74,184` reads `maxMessageSize` through `carrier/CarrierConfigRepository.kt` (CarrierConfigManager first); the composer budgets parts against `min(compressor limit, carrier limit)` (`app/.../conversation/MessageSendController.kt:199-203`) | Compliant | None | Carrier config 100 KB: 2 MB photo fits and send succeeds |
 | Image adaptation to a widely supported format and resolution (JPEG, EXIF orientation applied, metadata dropped) | `MmsMediaCompressor.kt:43-50` and the compress loop: JPEG, longest edge ≤1600 px (`:127`), quality ladder, 200 MP decode guard. Re-encoding drops EXIF, so GPS is not leaked | Compliant | Take the max width and height from carrier config (§7) | HEIC/WebP/PNG input → JPEG ≤ limit, correct orientation |
 | Video and audio adaptation (3GPP/MP4 H.263/H.264, AMR-NB/AAC per TS 26.140 / 26.234 codecs) | Video and audio that fit are sent unchanged. Over the budget they are transcoded with platform codecs only, because Media3 is not a dependency: `app/.../conversation/MmsMediaCompressor.kt:53-67` calls `MmsMediaTranscoder.kt:49`. Video goes MediaExtractor → MediaCodec decoder → SurfaceTexture/GLES scale → H.264 encoder (Baseline requested) → MediaMuxer MP4, with AAC-LC audio. Audio-only input becomes AAC-LC in MP4. `MmsTranscodePlan.kt` derives resolution (176–640 px), frame rate (15/24), bitrate and container overhead from the budget, retries at 0.7× when the encoder overshoots, and refuses clips that cannot fit at ≥32 kbit/s video (about 15–25 s at 300 KB). Any codec, GL or timeout failure (120 s) falls back to the old refusal, and the snackbar suggests trimming or sharing from the source app. The limit still comes from `MmsMediaCompressor.messageLimitBytes` (TODO hook for carrier config, §7) | Compliant | Verify on devices (not yet run on hardware). Later: AMR-NB for voice notes; audio part file name uses the source extension (`MessageSendController.fileNameFor`, telephony stream) | 20 MB, 10 s phone video → MP4 under the limit, plays on a stock Messages client; 2-minute video → "too large" snackbar, no crash |
 | SMIL root part referenced by `start`, one presentation per message | `mms-pdu/.../Smil.kt:33-52`, `MmsMessageBuilder.kt:50-62` | Compliant | None | Parse the generated SMIL with an XML parser; every `src` resolves to a part Content-Location |
@@ -178,17 +182,17 @@ supported source is `CarrierConfigManager.getConfigForSubId(subId)` with the `KE
 
 | Requirement | Dak implementation (file:line) | Status | Remediation | Test |
 |---|---|---|---|---|
-| Max message size per SIM | `MmsSendManager.kt:176-184`; `MmsMediaCompressor.kt:30-37` | Compliant | Switch to `CarrierConfigManager` | Override config in an instrumented test |
+| Max message size per SIM | `carrier/CarrierConfigRepository.kt` (per subscription: `CarrierConfigManager.getConfigForSubId`, then the deprecated `SmsManager.getCarrierConfigValues`, then defaults; cached 5 min) → `CarrierMessagingConfig.maxMessageSizeBytes`, used by `MmsSendManager.kt:184` and `MessageSendController.kt:199-203` | Compliant | None | `CarrierMessagingConfigTest` |
 | User-Agent / UAProf (`x-wap-profile`) headers on MMSC HTTP | Platform `MmsService` adds them from carrier config, because Dak passes `configOverrides = null` (`MmsSendManager.kt:155`, `MmsDownloadManager.kt:267`) | N/A (framework `MmsService`) | None | – |
 | MMS APN, MMSC URL, proxy, HTTP params | Platform `MmsService` | N/A (framework) | None | – |
-| SMS→MMS conversion threshold (`MMS_CONFIG_SMS_TO_MMS_TEXT_THRESHOLD` / `..._LENGTH_THRESHOLD`) | Hard-coded 10 segments (`app/.../conversation/MessageSendController.kt:60-61,152`) | Partial | Use the carrier value when > 0. Otherwise keep 10. Many Indian users are on SMS-bundled plans where MMS is billed or unsupported, so show the switch clearly (the "MMS" chip already exists) | Unit with an injected config |
-| MMS enabled and group MMS enabled (`MMS_CONFIG_MMS_ENABLED`, `MMS_CONFIG_GROUP_MMS_ENABLED`) | Not read. More than one recipient always means MMS (`MessageSendController.kt:60-61`) | **Missing** | If group MMS is disabled or MMS is disabled, send individual SMS per recipient (a broadcast-style fan-out with one provider row each) and tell the user | Config false + 2 recipients → 2 SMS rows |
-| Recipient limit (`MMS_CONFIG_RECIPIENT_LIMIT`) | Not enforced | **Missing** | Block or split above the limit | Unit |
-| Subject and text limits (`MMS_CONFIG_SUBJECT_MAX_LENGTH`, `MMS_CONFIG_TEXT_MAX_SIZE`) | Not enforced | **Missing** | Truncate the subject with a warning, and check the text size before building | Unit |
-| Max image dimensions (`MMS_CONFIG_MAX_IMAGE_WIDTH/HEIGHT`) | Fixed 1600 px (`MmsMediaCompressor.kt:127`) | Partial | Use `min(1600, carrier)` | Unit |
+| SMS→MMS conversion threshold (`MMS_CONFIG_SMS_TO_MMS_TEXT_THRESHOLD` / `..._LENGTH_THRESHOLD`) | `carrier/SendModePolicy.kt` uses the carrier's segment threshold (`smsToMmsTextThreshold`) and length threshold (`smsToMmsTextLengthThreshold`) when > 0, else 10 segments; `MessageSendController.plan` (`:101-109`) feeds the composer's MMS chip and the send path | Compliant | None | `SendModePolicyTest.carrierThresholdsReplaceTheDefault` |
+| MMS enabled and group MMS enabled (`MMS_CONFIG_MMS_ENABLED`, `MMS_CONFIG_GROUP_MMS_ENABLED`) | `SendModePolicy.plan`: group MMS only when `enableGroupMms`; otherwise text goes as individual SMS (one provider row per recipient) and media as one MMS per recipient (`MessageSendController.kt:176-183`), and the composer says so (`CarrierNotice.GROUP_AS_INDIVIDUAL`). With `enabledMMS` false, text stays SMS and media is refused with a reason | Compliant | None | `SendModePolicyTest.groupGoesAsGroupMmsOnlyWhenTheCarrierAllowsIt`, `…mmsDisabled…` |
+| Recipient limit (`MMS_CONFIG_RECIPIENT_LIMIT`) | `SendModePolicy.plan` blocks a group MMS above `recipientLimit` (`SendBlock.TOO_MANY_RECIPIENTS`); the composer shows the limit and send fails with the reason | Compliant | Optionally offer to split into several groups | `SendModePolicyTest.recipientAndTextLimits` |
+| Subject and text limits (`MMS_CONFIG_SUBJECT_MAX_LENGTH`, `MMS_CONFIG_TEXT_MAX_SIZE`) | Subject cut to `maxSubjectLength` code points before encoding (`MmsSendManager.kt:69`, `SendModePolicy.subject`); MMS text over `maxMessageTextSize` is refused with a reason (`SendBlock.TEXT_TOO_LONG`) | Compliant | Warn in the UI when a subject is cut (Dak has no subject field today) | `SendModePolicyTest.recipientAndTextLimits`, `…subjectIsCut…` |
+| Max image dimensions (`MMS_CONFIG_MAX_IMAGE_WIDTH/HEIGHT`) | Read into `CarrierMessagingConfig.maxImageWidth/Height` (AOSP defaults 640×480), but the compressor still uses a fixed 1600 px (`MmsMediaCompressor.kt:127`) | Partial | In `MmsMediaCompressor`, use `min(1600, carrier)` from `CarrierConfigRepository` | Unit |
 | Report enablement (`MMS_CONFIG_SMS_DELIVERY_REPORT_ENABLED`, `..._MMS_DELIVERY_REPORT_ENABLED`, `..._MMS_READ_REPORT_ENABLED`) | Only user settings (`TelephonySettings.kt:31-39`) | **Missing** | AND the user setting with the carrier flag, and hide toggles the carrier disables | Unit |
-| m-notifyresp-ind policy (`MMS_CONFIG_NOTIFY_WAP_MMSC_ENABLED`) | Not read. Notifyresp is off by default (`TelephonySettings.kt:45-47`) | **Missing** | Drive the default from this key (see §4) | Unit |
-| Multipart SMS as separate messages (`MMS_CONFIG_SEND_MULTIPART_SMS_AS_SEPARATE_MESSAGES`) | Not read. Always sends concatenated (`TelephonyMessageSender.kt:170-174`) | **Missing** | When set, send each `divideMessage` part with `sendTextMessage` | Unit with a fake SmsManager |
+| m-notifyresp-ind policy (`MMS_CONFIG_NOTIFY_WAP_MMSC_ENABLED`) | In AOSP this key decides **where** notifyresp / acknowledge go (the notification's Content-Location instead of the MMSC), not whether they are sent. `MmsSendManager.sendClientPdu` passes the (validated) Content-Location as `locationUrl` when it is set (`:126-133`); the answers themselves are on by default (§4) | Compliant | None | Unit on `CarrierMessagingConfig.notifyWapMmsc` |
+| Multipart SMS as separate messages (`MMS_CONFIG_SEND_MULTIPART_SMS_AS_SEPARATE_MESSAGES`) | When set, each `divideMessage` part goes with `sendTextMessage`, still tracked per part (`TelephonyMessageSender.kt:269-273`) | Compliant | None | Unit with a fake SmsManager (to do) |
 | E-mail recipients over SMS (`MMS_CONFIG_EMAIL_GATEWAY_NUMBER`, `MMS_CONFIG_ALIAS_ENABLED`) | Not read. E-mail recipients can only go by MMS | **Missing** | If a gateway number exists, send `"<email> <text>"` to it by SMS | Unit |
 
 ## 8. RFC 5724 `sms:`/`smsto:` (and `mms:`/`mmsto:`), SENDTO/SEND intents
@@ -228,7 +232,7 @@ supported source is `CarrierConfigManager.getConfigForSubId(subId)` with the `KE
 | Provider writes (outgoing): outbox → sent / failed (+`error_code`), queued, delivery `status`, thread ids through `Telephony.Threads.getOrCreateThreadId` | `TelephonyProviderWriter.kt:85-161,203-212`; MMS boxes at `:127-139` | Compliant | Note that `date_sent` is overwritten with the delivery time on DELIVERED (`:116-122`), which departs from the column's usual meaning. Keep it only if interop with the other app that will read these rows has been checked | Switch the default app to Google Messages: sent, failed and delivered states display correctly |
 | `seen` vs `read` semantics (seen when the user has been notified or viewed the list; read when opened) | `markThreadRead` / `markRead` set both (`TelephonyProviderWriter.kt:163-187`) | Compliant | Optionally set `seen=1` when the inbox list is shown, so other apps' badges clear | – |
 | Incoming SMS must survive slow starts and provider errors (the framework deletes the raw PDU once SMS_DELIVER completes) | `IncomingSmsProcessor.kt:36-78` runs inside `runAsync` with a **cancellable** 7 s timeout (`internal/ReceiverSupport.kt:17,33`). If the insert fails (`key == null`, line 66), the message is only logged and notified, never stored | Partial | Write the PDUs and extras to an app-private journal (no-backup dir) as the first step. Run the insert in `NonCancellable`. If the insert fails, schedule WorkManager replay from the journal and delete the journal entry only after the insert succeeds | Instrumented: fake writer that returns null once, then succeeds → message present after replay; kill the process mid-receive |
-| Losing the role: listen for `ACTION_DEFAULT_SMS_PACKAGE_CHANGED` (`EXTRA_IS_DEFAULT_SMS_APP`), switch to read-only, disable compose, offer to restore | Banner (`ui/common/ReliabilityBanner.kt:68-70`) and a send-time error ("is Dak the default SMS app?", `TelephonyMessageSender.kt:83`). No receiver for the broadcast; the composer is not disabled | Partial | Register a manifest receiver for `Telephony.Sms.Intents.ACTION_DEFAULT_SMS_PACKAGE_CHANGED`: cancel queued work (retries, scheduled sends, broadcasts) and flip UI state. Gate the composer on `SmsRole.isDefault` | Switch the default to another app: queued sends are cancelled and the composer shows "Make Dak default" |
+| Losing the role: listen for `ACTION_DEFAULT_SMS_PACKAGE_CHANGED` (`EXTRA_IS_DEFAULT_SMS_APP`), switch to read-only, disable compose, offer to restore | `role/SmsRoleMonitor.kt` + `DefaultSmsChangedReceiver` (manifest, exported for the protected broadcast; the role is re-read, the extra is not trusted). Also re-checked on app resume (`ui/common/ReliabilityBanner.kt:57`, composer `ON_RESUME`), before each send attempt and at boot (`OutboxRecovery`). While not default nothing is dropped: due QUEUED / outbox rows and new sends (scheduled sends, broadcasts) are **held** (`send/HeldSendStore.kt`; `TelephonyMessageSender.kt:84,120-135,180-205`) and MMS downloads stop with rows left Pending (`MmsDownloadManager.kt:179-185`); on regain held sends go out through the rate limiter and downloads resume (`TelephonyMessageSender.resumeHeld`, `:214`). Texts to emergency numbers are never held: sent at once, with or without a provider row (`dispatchUnpersisted`, `:288`), and the composer stays usable for emergency-only recipients. The composer is read-only with a "Make Dak your default SMS app" banner (`ui/conversation/Composer.kt:183,237-262`, `ComposerDelegate.kt:79-91`); the inbox banner requests the role directly | Compliant | If SEND_SMS is revoked together with the role on a given Android version, an emergency text fails with a visible reason: consider handing it to the new default app via `ACTION_SENDTO` | Switch the default to another app: composer read-only with "Make Dak default"; a scheduled send comes due and waits; switch back: it goes out. Unit: `HeldSendTest` |
 | Android 8–15 background limits: short receivers, WorkManager for long work, FGS type on 14+ | `ReceiverSupport.kt:17-42` (`goAsync`); expedited MMS work `MmsDownloadManager.kt:138`; `SystemForegroundService` `dataSync` type (`core-telephony/src/main/AndroidManifest.xml:107-110`) | Compliant | Watch the Android 15 `dataSync` 6 h cap for bulk broadcasts | – |
 | Multi-SIM: subscription id from delivery intents, per-SIM SmsManager, per-SIM MMS config, reply on the receiving SIM | `SubscriptionExtras.kt:19-41` (AOSP and OEM keys, slot fallback); `AndroidSupport.kt:30-37`; `MmsSendManager.kt:178-181` | Compliant | When no extra is present the SIM falls back to the default SMS SIM (`SubscriptionExtras.kt:40`). Label such rows "SIM unknown" rather than guessing | Dual-SIM emulator (`-prop` two SIMs) |
 | Emergency: never delay or block texts to emergency numbers | Emergency numbers are classified (`cost/DestinationCostClassifier.kt:55`), but every send goes through the **process-wide** `SendRateLimiter` (`TelephonyMessageSender.kt:74`, singleton at `di/TelephonyModule.kt:95`). Broadcasts share it (`BroadcastService.kt:79`), so a text to 112/911 can be queued behind a bulk send | Partial | Skip the limiter, queue and cost dialog for `CostKind.EMERGENCY` and send at once. Never auto-block an emergency short code | Unit: fill the limiter, send to 112 → dispatched with delay 0 |
@@ -335,31 +339,24 @@ categories to where Dak addresses them.
 
 ### P1: interoperability, regulatory, store policy
 
-3. **Class 0 (flash) SMS:** display immediately and store only on "Save". `IncomingSmsProcessor.kt:47-65`.
-4. **Replace-short-message PIDs 0x41–0x47:** update in place instead of inserting. `IncomingSmsProcessor.kt:53-65`,
-   `provider/TelephonyProviderWriter.kt:62-79`.
-5. **No automatic whole-message retry after a partial multipart send** (duplicate or garbled concatenations).
-   `sms/SmsStatusProcessor.kt:47-63`, `send/TelephonyMessageSender.kt:136,157-174`.
-6. **MMS-CTR acknowledgements.**
-   - Turn on `m-notifyresp-ind` (Retrieved) by default, or drive it from `MMS_CONFIG_NOTIFY_WAP_MMSC_ENABLED`
-     (`TelephonySettings.kt:45-47`).
-   - Send Deferred when not auto-downloading (`MmsDownloadManager.kt:93-104`).
-   - Send `m-acknowledge-ind` after a deferred retrieval (`MmsDownloadManager.kt:248-249`; `MmsPdu.kt:121-127` is
-     currently unused).
-7. **Carrier MMS config.**
-   - Honour `MMS_CONFIG_MMS_ENABLED` and `MMS_CONFIG_GROUP_MMS_ENABLED`, and fall back to individual SMS for group
-     sends.
-   - Use the carrier SMS→MMS threshold instead of the hard-coded 10 segments.
-   - Location: `app/.../conversation/MessageSendController.kt:60-61,152`. Move to `CarrierConfigManager`
-     (`MmsSendManager.kt:177`).
-8. ~~**`sms:` / `smsto:` body parsing**~~ Done in the app (`navigation/SmsUriParser.kt`). Still open:
-   `core-telephony/.../sms/RespondViaMessage.kt:19-22` (telephony stream) needs the same fix, by moving the
-   parser to a shared module or copying it.
-9. **Losing the SMS role:** add an `ACTION_DEFAULT_SMS_PACKAGE_CHANGED` receiver, cancel queued sends, disable the
-   composer and prompt. The only current signal is `ui/common/ReliabilityBanner.kt:68-70`.
-10. ~~**Video and audio adaptation for MMS**~~ Done with platform MediaCodec (`MmsMediaTranscoder.kt`,
-    `MmsTranscodePlan.kt`). Still to do: device verification, and taking the limit from carrier config once §7
-    lands (TODO in `MmsMediaCompressor.messageLimitBytes`).
+3. **Done: Class 0 (flash) SMS** shown at once (heads-up + dialog), stored only on "Save" (`sms/FlashMessages.kt`,
+   `sms/IncomingSmsPolicy.kt`, `IncomingSmsProcessor.kt`). See §1.
+4. **Done: Replace-short-message PIDs 0x41–0x47** replace in place (`TelephonyProviderWriter.replaceIncoming`).
+5. **Done: No automatic whole-message retry after a partial multipart send.** Per-part outcome per attempt
+   (`sms/PartProgress.kt`, `SmsStatusProcessor.markPartlySent`); partial sends are FAILED with an accurate reason.
+6. **Done: MMS-CTR acknowledgements** (`mms-pdu/.../MmsClientTransactions.kt`, `MmsDownloadManager.kt`): Retrieved by
+   default, Deferred when a download waits, m-acknowledge-ind after a deferred retrieval, Unrecognised for undecodable
+   or unsupported-version notifications. `enabledNotifyWapMMSC` picks the destination URL.
+7. **Done: Carrier MMS config** (`carrier/CarrierMessagingConfig.kt`, `CarrierConfigRepository.kt`,
+   `SendModePolicy.kt`): MMS / group MMS enablement (individual messages otherwise), SMS→MMS thresholds, message
+   size, recipient, subject and text limits, separate-parts SMS. Image dimensions are read but not yet applied by
+   `MmsMediaCompressor` (§7).
+8. **Done: `sms:` / `smsto:` body parsing** in both entry points: intents (`navigation/SmsUriParser.kt`) and
+   RESPOND_VIA_MESSAGE (`sms/RespondViaMessage.kt`, takes the encoded SSP).
+9. **Done: Losing the SMS role** (`role/SmsRoleMonitor.kt`, `send/HeldSendStore.kt`): sends held (never emergency
+   texts), downloads paused, composer read-only with "Make Dak your default SMS app"; everything resumes with the role.
+10. **Video and audio adaptation for MMS** (Media3 Transformer → H.264/AAC MP4 or 3GP; AMR/AAC audio).
+    `app/.../conversation/MmsMediaCompressor.kt:43-50`.
 11. **DLT numeric promotional headers** (`VM-612345[-P]`) and the prefix description. `classify/.../SenderId.kt:32-35,73`.
     Coordinate with the classify work stream.
 12. ~~**1909 complaint from the receiving SIM.**~~ Done (`ui/fraud/ComplaintSim.kt`, compose route `sub` argument).
@@ -383,14 +380,11 @@ categories to where Dak addresses them.
 17. **More MMS-CTR:**
     - m-read-rec-ind behind an opt-in setting.
     - X-Mms-Report-Allowed.
-    - Unrecognised response for undecodable or unsupported-version PDUs (`WapPushProcessor.kt:32,37`;
-      `MmsPduDecoder.kt:171`).
 18. **SMIL:**
     - Put image and caption on one slide, with root-layout dimensions (`mms-pdu/.../Smil.kt:35-49`).
     - Follow SMIL order on receive (`mms/MmsProviderMapping.kt:170-191`).
     - Add a "warning" creation mode for non-core media.
-19. **Remaining carrier config keys:** recipient limit, subject and text limits, image dimensions, report
-    enablement, separate-parts SMS, e-mail gateway (§7).
+19. **Remaining carrier config keys:** image dimensions in the compressor, report enablement, e-mail gateway (§7).
 20. **Defensive block-list check** for MMS notifications (`WapPushProcessor.kt:34`).
 21. **Other SMS details:**
     - Placeholder for binary (8-bit, no port) SMS (`IncomingSmsProcessor.kt:49`).
@@ -400,8 +394,8 @@ categories to where Dak addresses them.
     - Inline vCard parsing and "Add contact" (`MessageBubble.kt:321-333`).
     - Accept `text/vcard`, `text/calendar` and `text/x-vcalendar` shares (`AndroidManifest.xml:98`).
     - Cap vCard size with a no-photo fallback (`Composer.kt:422`).
-23. **`scripts/sms-pdu.py` fixture flags:** `--ref16`, `--order`, `--drop`, `--dcs`, `--pid`, `--class`, `--port`,
-    `--nls`, `--strict-ucs2`. These make items 3–5 testable on the emulator.
+23. **`scripts/sms-pdu.py` fixture flags:** `--pid` and `--flash` exist; still to add `--ref16`, `--order`, `--drop`,
+    `--dcs`, `--port`, `--nls`, `--strict-ucs2`.
 24. **Direct-boot-aware receive** with a content-free pre-unlock notification.
 25. **TRAI:** complaint-window hint and a DND management entry.
 26. **MASVS hardening:**

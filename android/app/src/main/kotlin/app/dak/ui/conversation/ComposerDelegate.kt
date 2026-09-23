@@ -7,6 +7,9 @@ import androidx.lifecycle.SavedStateHandle
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.core.model.NO_SUB_ID
 import app.dak.telephony.SimRepository
+import app.dak.telephony.carrier.SendBlock
+import app.dak.telephony.carrier.SendMode
+import app.dak.telephony.carrier.SendPlan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,16 +67,20 @@ class ComposerDelegate(
         recipients,
         subId,
         sims.sims,
-    ) { (t, a, s, prompt), to, sub, simList ->
+        controller.isDefaultSmsApp,
+    ) { (t, a, s, prompt), to, sub, simList, isDefault ->
         val sim = simList.firstOrNull { it.subId == sub } ?: sims.sim(sub)
         val roaming = sub != NO_SUB_ID && runCatching { sims.isRoaming(sub) }.getOrDefault(false)
         val segments = controller.segments(t)
         val hint = normalizationHint(to, sub)
         hintVisible = hint != null
+        val plan = runCatching { controller.plan(to.size, t, a, sub) }.getOrNull()
+        // Without the SMS role the composer is read-only, except for a text to emergency numbers only.
+        val readOnly = !isDefault && !(a.isEmpty() && controller.sendableWithoutRole(to, sub))
         ComposerUi(
             text = t,
             attachments = a,
-            isMms = controller.isMms(to.size, t, a),
+            isMms = plan?.isMms ?: a.isNotEmpty(),
             segments = segments,
             showSegments = a.isEmpty() && (segments.segments > 3 || (roaming && segments.segments > 0)),
             sim = sim,
@@ -81,10 +88,18 @@ class ComposerDelegate(
             roaming = roaming,
             normalizedHint = hint,
             sending = s,
-            enabled = to.isNotEmpty(),
+            enabled = to.isNotEmpty() && !readOnly,
             costPrompt = prompt,
+            notDefaultApp = !isDefault,
+            carrierNotice = plan?.let { carrierNoticeOf(it, to.size, sub) },
+            recipientLimit = plan?.takeIf { it.block == SendBlock.TOO_MANY_RECIPIENTS }?.let { controller.carrierConfig(sub).recipientLimit },
         )
     }.stateIn(scope, SharingStarted.Eagerly, ComposerUi())
+
+    /** The system role dialog closed (or the app resumed): re-read the default-SMS role. */
+    override fun onRoleResult() {
+        controller.refreshRole()
+    }
 
     /** Adds media shared from another app (ACTION_SEND). */
     fun addShared(items: List<ComposerAttachment>) {
@@ -210,6 +225,14 @@ class ComposerDelegate(
         val raw = to.first()
         val normalized = runCatching { controller.normalized(raw, sub) }.getOrDefault(raw)
         return normalized.takeIf { it != raw && it.filter(Char::isDigit) != raw.filter(Char::isDigit) }
+    }
+
+    private fun carrierNoticeOf(plan: SendPlan, recipientCount: Int, sub: Int): CarrierNotice? = when {
+        plan.block == SendBlock.MMS_DISABLED -> CarrierNotice.MMS_DISABLED
+        plan.block == SendBlock.TOO_MANY_RECIPIENTS -> CarrierNotice.TOO_MANY_RECIPIENTS
+        plan.block == SendBlock.TEXT_TOO_LONG -> CarrierNotice.TEXT_TOO_LONG
+        recipientCount > 1 && plan.mode != SendMode.MMS -> CarrierNotice.GROUP_AS_INDIVIDUAL.takeIf { !controller.carrierConfig(sub).groupMmsEnabled }
+        else -> null
     }
 
     /** Draft-side inputs of [ui]. */

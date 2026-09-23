@@ -16,9 +16,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Checks that the migration chain from every older version (1, 2, 3, 4) produces exactly the schema Room generates for
- * the current version 5 (the same comparison Room makes when it opens a migrated database). Older versions are
- * reconstructed from Room's current DDL minus what the migrations add, so the test needs no exported schema file.
+ * Checks that the migration chain from every older version (1, 2, 3, 4, 5) produces exactly the schema Room generates
+ * for the current version 6 (the same comparison Room makes when it opens a migrated database). Older versions are
+ * reconstructed from Room's current DDL minus what the migrations add (newest first), so the test needs no exported
+ * schema file.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -67,26 +68,48 @@ class IndexMigrationSchemaTest {
         indices = setOf("index_${Tables.AUTOMATION_RUN}_ruleId_atMillis", "index_${Tables.AUTOMATION_RUN}_atMillis"),
     )
 
-    @Test
-    fun migratedVersion1MatchesRoomVersion5() = assertMigrates(
-        listOf(delta12, delta23, delta34, delta45),
-        listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5),
+    private val delta56 = Delta(
+        tables = emptySet(),
+        columns = mapOf(
+            Tables.LEDGER_ENTRY to listOf(
+                ", `transfer` INTEGER NOT NULL DEFAULT 0",
+                ", `investmentAction` TEXT",
+                ", `units` TEXT",
+                ", `unitPrice` TEXT",
+            ),
+            Tables.ACCOUNT to listOf(", `unitsHeld` TEXT"),
+        ),
     )
 
     @Test
-    fun migratedVersion2MatchesRoomVersion5() = assertMigrates(
-        listOf(delta23, delta34, delta45),
-        listOf(IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5),
+    fun migratedVersion1MatchesRoomVersion6() = assertMigrates(
+        listOf(delta12, delta23, delta34, delta45, delta56),
+        listOf(
+            IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5,
+            IndexMigrations.MIGRATION_5_6,
+        ),
     )
 
     @Test
-    fun migratedVersion3MatchesRoomVersion5() = assertMigrates(
-        listOf(delta34, delta45),
-        listOf(IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5),
+    fun migratedVersion2MatchesRoomVersion6() = assertMigrates(
+        listOf(delta23, delta34, delta45, delta56),
+        listOf(IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6),
     )
 
     @Test
-    fun migratedVersion4MatchesRoomVersion5() = assertMigrates(listOf(delta45), listOf(IndexMigrations.MIGRATION_4_5))
+    fun migratedVersion3MatchesRoomVersion6() = assertMigrates(
+        listOf(delta34, delta45, delta56),
+        listOf(IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6),
+    )
+
+    @Test
+    fun migratedVersion4MatchesRoomVersion6() = assertMigrates(
+        listOf(delta45, delta56),
+        listOf(IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6),
+    )
+
+    @Test
+    fun migratedVersion5MatchesRoomVersion6() = assertMigrates(listOf(delta56), listOf(IndexMigrations.MIGRATION_5_6))
 
     private fun assertMigrates(deltas: List<Delta>, migrations: List<androidx.room.migration.Migration>) {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -110,7 +133,9 @@ class IndexMigrationSchemaTest {
         for (row in ordered) {
             if (row.name in newTables || row.name in newIndices) continue
             var sql = row.sql
-            for (delta in deltas) {
+            // Newest first: a table a migration replaced wholesale (2 -> 3) is swapped for its old DDL only after the
+            // columns later migrations added to the current DDL are taken out.
+            for (delta in deltas.asReversed()) {
                 delta.replacedTables[row.name]?.let { sql = it }
                 for (column in delta.columns[row.name].orEmpty()) {
                     assertTrue(sql.contains(column), "Room DDL of ${row.name} no longer contains $column: $sql")

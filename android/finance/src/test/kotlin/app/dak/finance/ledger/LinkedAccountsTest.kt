@@ -128,8 +128,10 @@ class LinkedAccountsTest {
 
     @Test
     fun `every instrument maps to its own account type`() {
+        val investments = setOf(InstrumentType.MUTUAL_FUND, InstrumentType.DEMAT)
         for (instrument in InstrumentType.entries) {
-            assertEquals(instrument.name, AccountType.of(instrument).name)
+            val expected = if (instrument in investments) AccountType.INVESTMENT.name else instrument.name
+            assertEquals(expected, AccountType.of(instrument).name)
         }
     }
 

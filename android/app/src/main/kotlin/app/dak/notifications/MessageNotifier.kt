@@ -124,10 +124,13 @@ class MessageNotifier @Inject constructor(
             val copied = !quiet && settings.get(DakSettings.otpAutoCopy) && !channels.isBlocked(channel) &&
                 OtpClipboard.copyFromBackground(context, otp.code)
             buildOtp(message, otp, sender, channel, otpConsumer, quiet, copied, muted)
-        } else if (category == Category.PERSONAL || category == Category.UNKNOWN || custom != null) {
+        } else if (custom != null ||
+            ((category == Category.PERSONAL || category == Category.UNKNOWN) && !ChannelRouting.isInvestmentAlert(category, classification.labels))
+        ) {
             buildConversation(message, category, sender, custom, muted)
         } else {
-            buildInformational(message, category, sender, muted)
+            // Investment labels pick the channel: a demat security alert is loud, a routine fund / broker update quiet.
+            buildInformational(message, category, sender, muted, classification.labels)
         }
         if (channels.isBlocked(built.channelId)) return category == Category.SPAM
         manager.notify(built.target.tag, built.target.id, built.notification)
@@ -379,13 +382,13 @@ class MessageNotifier @Inject constructor(
 
     // ------------------------------------------------------------------------------------------------ Other
 
-    private fun buildInformational(message: Message, category: Category, sender: String, muted: Boolean): Built {
+    private fun buildInformational(message: Message, category: Category, sender: String, muted: Boolean, labels: Set<String> = emptySet()): Built {
         val target = threadTarget(message)
         val body = displayBody(message)
         val now = System.currentTimeMillis()
         val state = RepeatCollapse.next(readState(activeTarget(target)?.notification?.extras), body, RepeatCollapse.template(body), now)
         val latest = RepeatCollapse.withCount(body, state.count)
-        val channel = channels.channelFor(ChannelRouting.baseChannel(category), message.subId, sims.sims.value)
+        val channel = channels.channelFor(ChannelRouting.baseChannel(category, labels = labels), message.subId, sims.sims.value)
         val style = if (state.lines.size > 1) {
             NotificationCompat.InboxStyle()
                 .setBigContentTitle(sender)

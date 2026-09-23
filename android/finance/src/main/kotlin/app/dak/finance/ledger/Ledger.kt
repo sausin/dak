@@ -2,6 +2,7 @@ package app.dak.finance.ledger
 
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.InstrumentType
+import app.dak.core.model.InvestmentAction
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.money.Money
 import app.dak.finance.parser.InstitutionTable
@@ -20,6 +21,9 @@ data class AccountLedger(val account: Account, val entries: List<LedgerEntry>) {
      * The account's balance, honestly: the value from the latest balance-bearing SMS, or
      * [BalanceState.Unknown] if an unsettled (typically foreign) transaction happened since then.
      */
+    /** Units / shares the latest SMS that stated them says the account holds (investment accounts), or null. */
+    val unitsHeld: String? by lazy { sortedEntries.lastOrNull { it.unitsHeld != null }?.unitsHeld }
+
     val balanceState: BalanceState by lazy {
         val balanceEntries = sortedEntries.filter { it.balanceAfter != null }
         val last = balanceEntries.maxByOrNull { it.dateMillis } ?: return@lazy BalanceState.NoInfo
@@ -111,7 +115,13 @@ object Ledger {
                 linkedAccountId = linked,
             )
             account = account.copy(statementDay = statementDayFor(account))
-            val entries = sorted.map { buildEntry(it.input, homeCurrency, rates).copy(viaAccountId = it.viaAccountId) }
+            val investment = account.type.isInvestment
+            val entries = sorted.map { posting ->
+                val entry = buildEntry(posting.input, homeCurrency, rates).copy(viaAccountId = posting.viaAccountId)
+                // Every movement of an investment account except a dividend is the user's own money moving between
+                // the bank and the investment (also when the user set the type by hand); never spending or income.
+                if (investment && !entry.transfer && entry.investmentAction != InvestmentAction.DIVIDEND) entry.copy(transfer = true) else entry
+            }
             AccountLedger(account, entries)
         }
     }
@@ -160,7 +170,7 @@ object Ledger {
                 balanceAfter = balanceAfter,
                 merchant = txn.merchant,
                 reference = txn.reference,
-            )
+            ).withInvestment(txn)
         } else {
             val rate = rates?.rate(original.currencyUpper, homeUpper)
             val indicative = rate?.let { Money.convert(original, homeUpper, it) }
@@ -176,7 +186,15 @@ object Ledger {
                 balanceAfter = balanceAfter,
                 merchant = txn.merchant,
                 reference = txn.reference,
-            )
+            ).withInvestment(txn)
         }
     }
+
+    private fun LedgerEntry.withInvestment(txn: ExtractedTransaction): LedgerEntry = copy(
+        transfer = txn.ownTransfer,
+        investmentAction = txn.investmentAction,
+        units = txn.units,
+        unitPrice = txn.unitPrice,
+        unitsHeld = txn.unitsHeld,
+    )
 }

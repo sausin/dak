@@ -54,10 +54,10 @@ import app.dak.ui.common.rememberRelativeTimeFormatter
 import app.dak.ui.theme.DakTheme
 
 /**
- * Passbook: accounts, cards, wallets and loans found in bank SMS, grouped by instrument (Bank accounts, Credit cards,
- * Debit cards, Wallets, UPI, Prepaid & forex cards, Loans, Other). Each collapsible section's header totals its
- * balances / outstanding / spend per currency, and says how many balances are unknown rather than guessing. A ledger,
- * not a budget.
+ * Passbook: accounts, cards, wallets, loans and investments found in SMS, grouped by instrument (Bank accounts, Credit
+ * cards, Debit cards, Wallets, UPI, Prepaid & forex cards, Loans, Investments, Other). Each collapsible section's
+ * header totals its balances / outstanding / spend / current value per currency, and says how many are unknown rather
+ * than guessing. A ledger, not a budget.
  */
 @Composable
 fun PassbookScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
@@ -156,7 +156,7 @@ private fun AccountRow(item: AccountGroupItem, onClick: () -> Unit) {
         headlineContent = { Text(accountTitle(account), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         overlineContent = {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                TypeChip(account.type)
+                TypeChip(account.type, instrument = account.instrument)
                 val masked = maskedSuffix(account)
                 if (masked.isNotEmpty()) Text(masked, style = MaterialTheme.typography.labelSmall)
             }
@@ -192,6 +192,25 @@ private fun AccountRow(item: AccountGroupItem, onClick: () -> Unit) {
                             BalanceLine(summary.balance)
                         }
                     }
+                    AccountType.INVESTMENT -> {
+                        // The current value as the fund / broker last stated it, and the units held when known.
+                        if (summary.balance is BalanceState.NoInfo) {
+                            Text(
+                                stringResource(R.string.inst_row_no_value),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            BalanceLine(summary.balance)
+                        }
+                        summary.unitsHeld?.let { units ->
+                            Text(
+                                stringResource(R.string.inst_units_held, unitsText(units)),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     AccountType.UPI, AccountType.UNKNOWN -> Unit
                     else -> BalanceLine(summary.balance)
                 }
@@ -213,10 +232,10 @@ private fun AccountRow(item: AccountGroupItem, onClick: () -> Unit) {
     )
 }
 
-/** "HDFC Bank debit card ••1234". */
+/** "HDFC Bank debit card ••1234", "PEAKMF mutual fund folio ••1234". */
 @Composable
 fun accountTitle(account: Account): String {
-    val kind = stringResource(kindRes(account.type))
+    val kind = stringResource(kindRes(account))
     // Every digit the bank shows (e.g. ••440065), so two formats of one number are told apart.
     val digits = maskedSuffix(account).let { if (it.isEmpty()) "" else " $it" }
     return "${account.institution} $kind$digits"

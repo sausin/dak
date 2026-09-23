@@ -23,8 +23,9 @@ If the app crashes, `adb logcat -b crash` output (or a screenshot of the crash d
 7. MMS: receive a photo; send a photo (composer switches to MMS automatically).
 8. Search: `from:hdfc`, `amount:>1000`, `has:otp`, an amount typed as `5,00,000` vs `500000`.
 9. Folding: bank senders (VM-/JD-/AX-HDFCBK) show as one conversation; unfold one from the menu.
-10. Passbook: accounts grouped (bank / credit card / debit card / wallet…); balances look right or say
-    "unknown since"; any "is XX40065 the same as XX440065?" card behaves.
+10. Passbook: accounts grouped (bank / credit card / debit card / wallet… / investments); balances look right or say
+    "unknown since"; any "is XX40065 the same as XX440065?" card behaves; SIP debits are not counted as spending
+    (steps 41–46).
 11. Recycle bin: delete a message → Undo; delete again → it's in the bin → Restore.
 12. Scam flag: a credit-alert-looking SMS from a normal 10-digit number (ask a friend to send one) shows the
     red warning and never touches the passbook.
@@ -161,6 +162,39 @@ re-read within 5 minutes or after a SIM change.
 40. **E-mail recipients**: text `someone@example.com` with no gateway configured: it goes as MMS. With
     `emailGatewayNumber=6245` (carrier-specific), a plain text goes as an SMS "someone@example.com <text>" to 6245,
     filed in the open e-mail conversation; with a photo attached it still goes as MMS.
+
+## Investments in the Passbook (`sms-pdu.py`)
+Made-up senders and numbers; every rule is generic, so any fund / broker header behaves the same.
+41. **SIP, both sides**: `./sms-pdu.py --send VM-NOVABK-S "Rs.5,000.00 debited from A/c XX4321 on 05-09-26 towards
+    ACH D- PEAK MF SIP. Avl Bal Rs.45,000.00"`, then `./sms-pdu.py --send VM-PEAKMF-S "Dear Investor, your SIP
+    instalment of Rs.5,000.00 in Peak Flexi Cap Fund - Direct Growth, Folio No. XXXX1234 has been processed. Units
+    allotted: 45.678 at NAV Rs.109.4563 on 05-Sep-2026."`. Expected: the bank debit notifies on **Alerts**, the
+    allotment quietly on **General**. Passbook: the bank account's balance is Rs 45,000 and its "This month" / header
+    spend does **not** include the Rs 5,000 (the account screen says it moved to your investments); a new
+    **Investments** section (after Loans) holds "PEAKMF mutual fund folio ••1234" with a "Purchase / SIP" entry of
+    +Rs 5,000 showing "45.678 units @ ₹109.4563".
+42. **Valuation**: `./sms-pdu.py --send VM-PEAKMF-S "Dear Investor, the current value of your investments in Folio
+    XXXX1234 as on 19-Sep-2026 is Rs 1,23,456.78. Units held: 1,127.890."`. Expected: the folio row and the
+    Investments header show "Current value ₹1,23,456.78" (as of that message) and "1,127.89 units held"; the entry
+    reads "Valuation" with no +/- amount; the message bubble has no amount chip.
+43. **Redemption and IDCW**: `./sms-pdu.py --send BZ-ORBITM-S "Redemption of 50.000 units from Orbit Liquid Fund,
+    Folio 12345678/90 processed at NAV Rs 2,450.5000. Amount of Rs 1,22,525.00 will be credited to your bank a/c
+    XX4321 in 1-2 working days."` → an ORBITM folio ••5678 with a −Rs 1,22,525 "Redemption"; bank account XX4321 gets
+    **no** entry from it. `./sms-pdu.py --send VM-PEAKMF-S "IDCW of Rs 1,250.00 declared under Peak Equity Income Fund
+    for folio XXXX1234 has been paid to your bank a/c XX4321 on 20-Sep-2026."` → "Dividend / IDCW" +Rs 1,250 on the
+    folio, counted under "Dividends" for the month.
+44. **Contract note**: `./sms-pdu.py --send VM-ZENBRK-S "Contract Note for 12-Sep-2026: Bought 10 ACME INDUSTRIES
+    LTD @ 2,345.50. Net amount payable Rs 23,480.25 incl. charges. Client ID AB1234."` → "ZENBRK demat account
+    ••1234" in Investments, entry "ACME INDUSTRIES LTD · Bought · 10 units @ ₹2,345.5", +Rs 23,480.25.
+45. **Security alerts are loud and never in the ledger**: `./sms-pdu.py --send JM-DEPOSI-S "10 shares of ACME LTD
+    (ISIN INE123A01016) debited from your demat a/c XXXX5678 on 18-Sep-2026. If not done by you, contact your DP
+    immediately."` and `./sms-pdu.py --send VM-ZENBRK-S "Pledge created for 50 shares of BETA POWER in your demat a/c
+    XXXX5678 in favour of your broker. Value Rs 60,000."`. Expected: both notify as heads-up on **Alerts**; no
+    Passbook entry or account appears for them.
+46. **Not investments**: `./sms-pdu.py --send VM-PEAKMF-P "NFO alert! Peak Manufacturing Fund opens on 01-Oct-2026.
+    Invest now with SIP starting Rs 500."` lands in Promotions; `./sms-pdu.py --send VM-PEAKMF-S "123456 is your OTP
+    to confirm redemption of 50 units in folio XXXX1234. Do not share."` is an OTP (copy chip, OTP channel); neither
+    touches the Passbook.
 
 ## Known limitations going in
 - SMS Organizer import is heuristic until tested with a real backup file.

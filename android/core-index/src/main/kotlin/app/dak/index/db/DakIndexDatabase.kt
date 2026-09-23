@@ -71,7 +71,7 @@ import app.dak.index.db.entity.SenderMergeGroup
         AccountTypeOverrideRow::class,
         AutomationRunRow::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(IndexConverters::class)

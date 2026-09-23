@@ -46,6 +46,28 @@ class FakeCreditDetectorTest {
         Sample("VK-AMAZON-P", "Great Indian Festival! Up to 80% off on mobiles. Shop now at amazon.in"),
     )
 
+    /**
+     * A fund's allotment or a broker's contract note from a header the bundle does not know is recorded as a credit to
+     * the folio / demat account (money invested). It must never be taken for a fake bank credit, or the ledger would
+     * drop it.
+     */
+    @Test
+    fun `investment confirmations from unknown headers are not fake credits`() {
+        val bodies = listOf(
+            "Dear Investor, your SIP instalment of Rs.5,000.00 in Peak Flexi Cap Fund - Direct Growth, Folio No. XXXX1234 has been processed. Units allotted: 45.678 at NAV Rs.109.4563 on 05-Sep-2026.",
+            "15.500 units redeemed from Silver Arbitrage Fund (Folio: 55443322) at NAV Rs 30.1200. Redemption amount Rs 466.86 credited to your registered bank account.",
+            "IDCW of Rs 1,250.00 declared under Peak Equity Income Fund for folio XXXX1234 has been paid to your bank a/c XX4321 on 20-Sep-2026.",
+            "Contract Note for 12-Sep-2026: Bought 10 ACME INDUSTRIES LTD @ 2,345.50. Net amount payable Rs 23,480.25 incl. charges. Client ID AB1234.",
+            "Dear Investor, the current value of your investments in Folio XXXX1234 as on 19-Sep-2026 is Rs 1,23,456.78. Units held: 1,127.890.",
+        )
+        for (header in listOf("VM-PEAKMF-S", "JD-ZENBRK-T", "AX-NEWAMC")) {
+            for (body in bodies) {
+                val v = detector.evaluate(header, body, hint = TransactionHint(HintDirection.CREDIT, 500_000L, "1234"), dateMillis = now)
+                assertTrue(v.level != ScamLevel.LIKELY_SCAM, "$header: $body -> $v")
+            }
+        }
+    }
+
     @Test
     fun `genuine corpus is never flagged`() {
         for (s in genuine) {

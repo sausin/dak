@@ -1,6 +1,5 @@
 package app.dak.finance.passbook
 
-import app.dak.core.model.TransactionDirection
 import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountType
 import app.dak.finance.ledger.BalanceState
@@ -24,10 +23,11 @@ data class AccountFacts(
  *
  * [amounts] is what the group's header shows: the sum of stated balances for bank accounts, wallets, prepaid cards
  * and loans (a loan's balance is its stated outstanding), the sum of billing-cycle outstandings for credit cards,
- * and this month's spend for debit cards, UPI and other. [missingCount] accounts contributed nothing to [amounts]
- * because their balance/outstanding is not known (no SMS stated it, or it went unknown after a foreign spend), so
- * the header can say the total is partial instead of pretending it is complete. [spentThisMonth] is always the
- * group's debits this month.
+ * this month's spend for debit cards, UPI and other, and the stated current values of investments. [missingCount]
+ * accounts contributed nothing to [amounts] because their balance/outstanding/value is not known (no SMS stated it,
+ * or it went unknown after a foreign spend), so the header can say the total is partial instead of pretending it is
+ * complete. [spentThisMonth] is always the group's spending this month (debits that are not own-account or
+ * investment transfers).
  */
 data class GroupTotals(
     val kind: TotalKind,
@@ -37,14 +37,22 @@ data class GroupTotals(
 )
 
 /** Which figure a [GroupTotals.amounts] is. */
-enum class TotalKind { BALANCE, OUTSTANDING, SPENT_THIS_MONTH }
+enum class TotalKind {
+    BALANCE,
+    OUTSTANDING,
+    SPENT_THIS_MONTH,
+
+    /** Investments: the sum of the current values SMS last stated (valuation / holdings statements). */
+    CURRENT_VALUE,
+}
 
 /** One Passbook section: accounts of one [type], most recently active first, with [totals]. */
 data class AccountGroup<T>(val type: AccountType, val items: List<T>, val totals: GroupTotals)
 
 /**
  * Groups accounts for the Passbook: Bank accounts, Credit cards, Debit cards, Wallets, UPI, Prepaid & forex cards,
- * Loans, Other ([AccountType] order). Empty groups are left out. Pure; callers supply per-account [AccountFacts].
+ * Loans, Investments, Other ([AccountType] order). Empty groups are left out. Pure; callers supply per-account
+ * [AccountFacts].
  */
 object AccountGroups {
 
@@ -56,6 +64,7 @@ object AccountGroups {
         AccountType.BANK_ACCOUNT, AccountType.WALLET, AccountType.PREPAID_CARD, AccountType.LOAN -> TotalKind.BALANCE
         AccountType.CREDIT_CARD -> TotalKind.OUTSTANDING
         AccountType.DEBIT_CARD, AccountType.UPI, AccountType.UNKNOWN -> TotalKind.SPENT_THIS_MONTH
+        AccountType.INVESTMENT -> TotalKind.CURRENT_VALUE
     }
 
     /** Groups [items] by their account's type; [facts] describes each item. [lastActivity] orders within a group. */
@@ -74,7 +83,7 @@ object AccountGroups {
         val kind = totalKindOf(type)
         val spent = sum(members.flatMap { it.spentThisMonth })
         return when (kind) {
-            TotalKind.BALANCE -> {
+            TotalKind.BALANCE, TotalKind.CURRENT_VALUE -> {
                 val known = members.mapNotNull { (it.balance as? BalanceState.Known)?.balance }
                 GroupTotals(kind, sum(known), members.size - known.size, spent)
             }
@@ -86,9 +95,12 @@ object AccountGroups {
         }
     }
 
-    /** Debits of [entries] dated on/after [sinceMillis], one [Money] per original currency. */
+    /**
+     * Spending of [entries] dated on/after [sinceMillis], one [Money] per original currency: debits, except transfers
+     * to the user's own accounts and investments ([LedgerEntry.transfer]: a SIP debit is money moved, not spent).
+     */
     fun spentSince(entries: List<LedgerEntry>, sinceMillis: Long): List<Money> =
-        sum(entries.filter { it.direction == TransactionDirection.DEBIT && it.dateMillis >= sinceMillis }.map { it.original })
+        sum(entries.filter { with(Passbook) { it.isSpend } && it.dateMillis >= sinceMillis }.map { it.original })
 
     /** Start (UTC midnight of day 1) of the calendar month containing [nowMillis], as [Passbook.monthlyTotals] uses. */
     fun monthStartUtc(nowMillis: Long): Long {

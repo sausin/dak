@@ -1,5 +1,6 @@
 package app.dak.finance.ledger
 
+import app.dak.core.model.InvestmentAction
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.money.Money
 import java.math.BigDecimal
@@ -37,7 +38,29 @@ data class LedgerEntry(
      * with this set to the card's id, on the account). Null for the account's own SMS.
      */
     val viaAccountId: String? = null,
+    /**
+     * Money moved between the user's own accounts or into / out of their own investments: a bank's SIP / mutual-fund
+     * debit, a fund's allotment, a redemption payout, a trade. It moves the balance like any entry but is never
+     * counted as spending or income ([app.dak.finance.passbook.AccountGroups.spentSince],
+     * [app.dak.finance.passbook.Passbook.monthlyTotals]). Every entry of an investment account except a dividend is
+     * one.
+     */
+    val transfer: Boolean = false,
+    /** For an investment account: what the entry records (purchase, redemption, switch, dividend, buy, sell, valuation). */
+    val investmentAction: InvestmentAction? = null,
+    /** Units / shares moved, a plain decimal string, when the SMS stated them. */
+    val units: String? = null,
+    /** NAV / price per unit, a plain decimal string in [original]'s currency, when the SMS stated it. */
+    val unitPrice: String? = null,
+    /**
+     * Units / shares held after the entry, when the SMS stated them. Not persisted per entry (the index keeps the
+     * account's latest, `AccountLedger.unitsHeld`), so it is null on entries read back from storage.
+     */
+    val unitsHeld: String? = null,
 ) {
+    /** A statement of value only (no money moved): shown as a valuation line, never summed. */
+    val isValuation: Boolean get() = investmentAction == InvestmentAction.VALUATION
+
     val isForeign: Boolean get() = original.currencyUpper != (indicativeHome?.currencyUpper ?: original.currencyUpper)
 
     /** The best-known value of this entry in home currency: the settled/indicative value, or the original if neither exists. */

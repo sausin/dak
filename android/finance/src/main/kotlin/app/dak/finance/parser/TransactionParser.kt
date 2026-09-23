@@ -108,6 +108,8 @@ object TransactionParser {
         // of the digit script the SMS was written in.
         val body = DigitNormalizer.normalizeDigits(rawBody)
         if (DirectionCues.isOtp(body)) return null
+        // A mutual-fund folio's or demat account's own message (allotment, redemption, trade, valuation, alert).
+        InvestmentParser.parse(sender, body, symbolMap)?.let { return it.transaction }
         if (promoPattern.containsMatchIn(body)) return null
         if (DirectionCues.request.containsMatchIn(body)) return null
         if (DirectionCues.statement.containsMatchIn(body)) return null
@@ -170,8 +172,38 @@ object TransactionParser {
             institution = InstitutionTable.institutionFor(sender),
             maskedNumber = maskedNumber,
             linkedMaskedNumber = detected.linkedMaskedNumber,
+            ownTransfer = isInvestmentTransfer(body, direction),
         )
     }
+
+    /** Money the bank moved into the user's investments (a SIP / mutual-fund / trading-account debit). */
+    private val investmentPurpose = Regex(
+        """\bSIP\b|\bmutual\s*funds?\b|\bMF\b|\bsystematic\s+investment\b|\bfolio\b|""" +
+            """\b(?:demat|trading|broking)\s+(?:a\s?/\s?c|account|acct)\b""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Money back from the user's investments (redemption proceeds, a trading-account withdrawal), not income. */
+    private val investmentReturn = Regex("""\bredemption\b|\bredeemed\b|\bredeem\b""", RegexOption.IGNORE_CASE)
+    private val investmentIncome = Regex("""\bdividend\b|\bIDCW\b|\binterest\b""", RegexOption.IGNORE_CASE)
+
+    /**
+     * Whether a bank / card movement is the user's own money moving into or out of their investments: a debit
+     * towards a SIP, a mutual fund, a folio or a demat / trading account; a credit of redemption proceeds or from a
+     * trading account (dividends and interest are income). The investment side records the same money
+     * ([InvestmentParser]), so neither side is spending or income.
+     */
+    internal fun isInvestmentTransfer(body: String, direction: TransactionDirection): Boolean = when (direction) {
+        TransactionDirection.DEBIT -> investmentPurpose.containsMatchIn(body)
+        TransactionDirection.CREDIT -> !investmentIncome.containsMatchIn(body) &&
+            (investmentReturn.containsMatchIn(body) || investmentPurpose.containsMatchIn(body))
+    }
+
+    /** Whether [body] reads as a promotion or offer ("cashback up to", "apply now", "% off"). */
+    internal fun isPromotion(body: String): Boolean = promoPattern.containsMatchIn(body)
+
+    /** The UPI / RRN / UTR / ref / txn id reference of [body], if any. */
+    internal fun referenceOf(body: String): String? = detectReference(body)
 
     /** Parses [body] as a bill/statement-due reminder, or null if it doesn't look like one. */
     fun parseBillReminder(

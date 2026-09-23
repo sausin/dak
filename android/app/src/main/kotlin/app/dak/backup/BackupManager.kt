@@ -31,6 +31,7 @@ import app.dak.di.ApplicationScope
 import app.dak.index.BackfillReason
 import app.dak.index.sync.IndexMaintenance
 import app.dak.index.repo.SenderMergeRepository
+import dagger.Lazy
 import app.dak.settings.SettingsStore
 import app.dak.telephony.ProviderWriter
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -96,7 +97,7 @@ class BackupManager @Inject constructor(
     private val stateStore: BackupStateStore,
     private val vault: BackupPassphraseVault,
     private val settings: SettingsStore,
-    private val senderGroups: SenderMergeRepository,
+    private val senderGroups: Lazy<SenderMergeRepository>,
     private val maintenance: IndexMaintenance,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
@@ -317,7 +318,7 @@ class BackupManager @Inject constructor(
      */
     private suspend fun settingsWithFolds(): String {
         val base = settings.export()
-        val folds = runCatching { senderGroups.exportRules() }.getOrNull() ?: return base
+        val folds = runCatching { senderGroups.get().exportRules() }.getOrNull() ?: return base
         val obj = runCatching { json.parseToJsonElement(base) as? JsonObject }.getOrNull() ?: return base
         return json.encodeToString(JsonObject.serializer(), JsonObject(obj + (FOLDS_KEY to JsonPrimitive(folds))))
     }
@@ -325,7 +326,7 @@ class BackupManager @Inject constructor(
     /** Restores the fold rules saved by [settingsWithFolds], if present. Best effort. */
     private suspend fun importFolds(settingsJson: String) {
         val folds = runCatching { (json.parseToJsonElement(settingsJson) as? JsonObject)?.get(FOLDS_KEY) as? JsonPrimitive }.getOrNull()
-        folds?.content?.let { runCatching { senderGroups.importRules(it) } }
+        folds?.content?.let { runCatching { senderGroups.get().importRules(it) } }
     }
 
     /** Blobs to try: the newest chain for a passphrase; for a recovery code, every snapshot (it opens one of them). */

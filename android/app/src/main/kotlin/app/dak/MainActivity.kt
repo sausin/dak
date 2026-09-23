@@ -92,8 +92,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        pendingShare.offer(IntentRoutes.sharedStreams(intent))
-        IntentRoutes.routeFor(intent)?.let { routeRequests.trySend(it) }
+        pendingShare.offer(IntentRoutes.sharedStreams(this, intent))
+        IntentRoutes.routeFor(this, intent)?.let { routeRequests.trySend(it) }
     }
 
     private companion object {

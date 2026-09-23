@@ -14,7 +14,6 @@ import app.dak.R
 import app.dak.index.enrich.ConversationIds
 import app.dak.index.enrich.SenderGrouping
 import app.dak.navigation.IntentRoutes
-import app.dak.navigation.Routes
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -162,7 +161,7 @@ class ConversationChannels @Inject constructor(
             .setShortLabel(title)
             .setLongLabel(title)
             .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
-            .setIntent(IntentRoutes.open(context, Routes.conversation(conversationId)))
+            .setIntent(IntentRoutes.openConversationShortcut(context, conversationId))
             .setLongLived(true)
             .setPerson(person)
             .setLocusId(LocusIdCompat(shortcutId))

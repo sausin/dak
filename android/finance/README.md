@@ -62,7 +62,8 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
 
 ## `ledger` — `Account`, `LedgerEntry`, `Ledger`, `BalanceState`, `BillingCycle`
 
-- **`Account`** — id derived from `institution + instrument + last4` (`Account.idFor(...)`), plus
+- **`Account`** — id derived from `institution + instrument + visible digits` (`Account.idOf(txn)` /
+  `Account.idFor(...)`), plus
   `type` (BANK_ACCOUNT / CREDIT_CARD / WALLET / UNKNOWN, derived from `InstrumentType`),
   `homeCurrency` (taken from a balance-bearing SMS when available, else a caller-supplied default —
   INR for Indian institutions), and an optional `statementDay` for cards.
@@ -82,6 +83,22 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   guessed. Never touches a bank account's balance.
 - **`BillingCycle(statementDay: Int)`** — `cycleRange(asOfMillis): LongRange`, UTC, clamped to the
   shortest month when `statementDay` exceeds it.
+
+### Account aliases — `AccountAliases`, `AccountMatcher`, `MaskedNumbers`
+
+- `ExtractedTransaction.maskedNumber` (core-model, optional) keeps the number as far as the SMS shows it
+  (`XX440065`); `last4` is its last four digits. `Account.idOf(txn)` uses every visible digit when there are more
+  than 4 (so `XX440065` and `XX120065` never collide), else last-4 (old ids unchanged). `Account.maskedNumber` /
+  `visibleDigits`, `Account.partsOf(id)`.
+- **`AccountMatcher.suggest(accounts: List<AccountObservation>, decidedPairs, coOccurringPairs, aliases): List<AliasSuggestion>`**
+  — probable same-account pairs within one institution and `AccountType` whose visible digits are compatible
+  (the shorter a suffix of the longer, >= 4 digits: `40065`/`440065`, `0065`/`440065`, or identical digits under two
+  instruments). Scored by suffix length, non-overlapping timelines (format switch) and recency. Never merges;
+  `AliasSuggestion(accountA, accountB, reason: AliasReason, score)`. `coOccurringPairs(accounts, bodies)` finds pairs
+  named together in one message (transfers) — distinct accounts. `MaskedNumbers.findAll(body)`.
+- **`AccountAliases(aliasToCanonical)`** — user-confirmed merges; `resolve(id)` (chains, cycle-safe),
+  `membersOf(id)`, `canonicalOf(a, b)` (more digits wins). `Ledger.apply(..., aliases = ...)` posts alias inputs to
+  the canonical account.
 
 ## `rates` — `RatesTable`, `RatesLoader`
 

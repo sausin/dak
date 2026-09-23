@@ -24,6 +24,8 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
 - `TemplateBundle.parse(json, verifier: BundleVerifier): TemplateBundle?` — parses and verifies an
   OTA `SignedTemplateBundle`; returns null on any signature failure (fail closed).
 - `TemplateBundle.parseUnsigned(payloadJson)` — for tests/tools only.
+- `bundle.brandKey(mergeKey): String?` — brand-level fold key: the first header the bundle lists for the same
+  brand (`HDFC` -> `HDFCBK`); used by `:core-index` to fold one brand's headers into one conversation.
 - `bundle.sender(mergeKey): SenderEntry?`, `bundle.rulesFor(mergeKey): List<TemplateRule>`
   (sorted by descending priority; rules with no `senderHeaders` apply to everyone).
 - `BundleVerifier` is a `fun interface`; `Ed25519BundleVerifier(rawPublicKeyBytes)` verifies with

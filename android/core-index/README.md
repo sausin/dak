@@ -61,7 +61,9 @@ All repository functions are `suspend` or return `Flow` and are main-safe.
   hasAttachment, enriched)` — `enriched = false` for provider threads the backfill has not reached yet.
 - `MessageItem(key, conversationId, threadId, address, body, dateMillis, box, read, subId, attachments, category,
   confidence, canonicalSender, labels, otp: OtpItem?, transaction: TransactionItem?, hasLink, starred, archived,
-  enriched)`
+  enriched, repeatCount = 1, repeatOf: MessageKey? = null, channel: String? = null)` — `repeatCount`: copies in its
+  repeat group (see "Repeated messages"); `channel`: `SenderId.mergeKey` of the address (per-bubble channel chips).
+- `ConversationSummary.snippetRepeatCount` (default 1): copies of the snippet's message ("×3" in the inbox).
 - `OtpItem(code, consumedBy, webOtpDomain, repeatedLater)` — `repeatedLater`: the same code arrived again within
   10 min in this conversation (collapse the older copy).
 - `TransactionItem(direction, amountMinor, currency, instrumentLast4, merchant, accountId)`
@@ -73,13 +75,17 @@ All repository functions are `suspend` or return `Flow` and are main-safe.
   `enum BackfillReason { INITIAL, REINDEX, RESTORE, REBUILD }`
 - `BackfillProgress(stage, done, total, schedule, reason, waiting)` + `remaining`, `fraction`.
 - Conversation ids: `t:<threadId>` (provider thread) or `m:<mergeKey>` (sender merge group); helpers in
-  `app.dak.index.enrich.ConversationIds`.
+  `app.dak.index.enrich.ConversationIds`. Ids can move when the user folds/unfolds senders; every repository
+  function taking a conversation id resolves old ids through the alias map, and
+  `ConversationRepository.resolveConversationId(id)` does it explicitly (use it for notification/search links).
 
 ### `repo.ConversationRepository`
 
 ```kotlin
 fun conversations(tab: InboxTab, subId: Int? = null, pageSize: Int = 30): Flow<PagingData<ConversationSummary>>
-fun messages(conversationId: String, pageSize: Int = 50): Flow<PagingData<MessageItem>>   // newest first
+fun messages(conversationId: String, pageSize: Int = 50, channel: String? = null): Flow<PagingData<MessageItem>>   // newest first; one bubble per repeat group; channel = filter a folded conversation
+suspend fun resolveConversationId(conversationId: String): String
+suspend fun repeatsOf(key: MessageKey): List<MessageItem>   // every copy of a repeat group, newest first
 fun message(key: MessageKey): Flow<MessageItem?>
 suspend fun conversationIdOf(key: MessageKey): String?
 fun prefs(conversationId: String): Flow<ConversationPrefs?>
@@ -178,15 +184,45 @@ suspend fun recompute(accountIds: Collection<String>);  suspend fun recomputeAll
 
 Accounts are recomputed (`Ledger.apply` + `Reconciler.reconcile`) whenever one of their messages is indexed.
 
-### `repo.SenderMergeRepository`
+Account aliases (a bank that switched `XX440065` -> `XX40065`): account ids use every visible digit
+(`Account.idOf`), `AccountMatcher` suggests probable same-account pairs, and the user decides:
+
+```kotlin
+fun aliasSuggestions(): Flow<List<AccountAliasSuggestion>>   // (a, b, reason, sampleA, sampleB), undecided pairs only
+suspend fun confirmSameAccount(a: String, b: String): String  // merges; the id showing more digits stays canonical
+suspend fun confirmDifferentAccounts(a: String, b: String)    // never asked again
+suspend fun mergeAccounts(aliasId, intoAccountId);  suspend fun unmergeAccount(aliasId): Boolean
+fun mergedInto(accountId): Flow<List<String>>;  fun mergeCandidates(accountId): Flow<List<AccountSummary>>
+fun canonicalId(accountId): Flow<String>   // account()/entries()/ledger() already resolve merged ids
+```
+
+Decisions live in `account_alias` (user data); ledgers post alias messages to the canonical account.
+
+### `repo.SenderMergeRepository` (sender groups / folding)
 
 ```kotlin
 fun groups(): Flow<List<SenderMergeGroup>>;  fun group(mergeKey): Flow<SenderMergeGroup?>
+fun foldGroups(): Flow<List<FoldGroup>>                  // folded conversations + channels (addresses, last seen, SIMs, count)
+fun channelsOf(conversationId): Flow<List<FoldChannel>>
+fun foldSuggestions(titleOf = ...): Flow<List<FoldProposal>>   // same brand / similar headers, local heuristics only
+fun foldTargets(limit = 200): Flow<List<FoldTarget>>
+suspend fun foldTogether(conversationIds: List<String>, name: String? = null): FoldReceipt
+suspend fun foldInto(conversationId, targetConversationId): FoldReceipt
+suspend fun unfoldChannel(channel: String): FoldReceipt;  suspend fun dissolve(conversationId): FoldReceipt
+suspend fun undo(receipt: FoldReceipt): String;  suspend fun dismissSuggestion(proposal)
+suspend fun exportRules(): String;  suspend fun importRules(json): Boolean   // carried in the backup settings JSON
 suspend fun rename(mergeKey: String, displayName: String);  suspend fun undoRename(mergeKey): Boolean
-suspend fun splitSender(address: String): String                    // new conversation id
+suspend fun splitSender(address: String): String                    // legacy per-address edits
 suspend fun mergeSender(address: String, intoMergeKey: String): String
 suspend fun undoSenderEdit(address: String): String?
 ```
+
+Folding is display-layer only. A **channel** is `SenderId.mergeKey(address)` (`VM-`/`JD-HDFCBK` -> `HDFCBK`). Channels
+fold by (1) legacy per-address alias, (2) a user rule in `sender_fold` (fold into a group, or a self-mapping =
+"unfolded"), (3) the template bundle brand table (`TemplateBundle.brandKey`: every header of "HDFC Bank" -> `HDFCBK`,
+so the brand's main conversation keeps `m:HDFCBK`), else alphanumeric -> `m:<channel>`, others -> `t:<threadId>`
+(`enrich.SenderGrouping.resolve` + `GroupingRules`). Manual groups get keys `+<channel>`. `repo.FoldEngine` holds the
+rules, re-groups rows after an edit and records `conversation_alias` (old id -> new id, prefs carried over).
 
 ### Stores (`repo.Stores.kt`)
 
@@ -211,6 +247,14 @@ suspend fun undoSenderEdit(address: String): String?
   `remove(keys)` — the single write path (used by backup restore if it wants to index directly).
 - `enrich.MessageEnricher` — the narrow seam over `:classify` (`ClassifierPipeline`) and `:finance`
   (`TransactionParser`); `DefaultMessageEnricher` is bound.
+
+### Repeated messages
+
+Incoming, non-personal messages of one conversation that repeat (identical body within 24 h, or the same OTP
+code within 10 min; `enrich.RepeatRules`) share `IndexedMessage.repeatGroup` (the oldest copy's key), set at ingest
+in both time directions. Template look-alikes with different data are never collapsed. Thread pages return only
+the newest copy with `repeatCount`; `repeatsOf(key)` lists every copy. (The old `OtpItem.repeatedLater` flag is
+still filled.)
 
 ## How it works
 
@@ -243,8 +287,11 @@ suspend fun undoSenderEdit(address: String): String?
   messages, template refresh when OTA fetching lands). `MaintenanceScheduler.runSoon()` runs a pass on demand.
 - **FTS**: external-content FTS4 over `searchText`/`searchSender`; rows are written with insert-ignore + update
   (never REPLACE) so Room's content-sync triggers keep it consistent.
-- **Schema**: version 1, exported to `core-index/schemas`. The DB holds user data, so later versions need
-  real migrations (only downgrades are destructive).
+- **Schema**: version 2, exported to `core-index/schemas`. The DB holds user data, so every version ships a real
+  migration in `db.IndexMigrations` (1 -> 2 adds `sender_fold`, `conversation_alias`, `account_alias`,
+  `indexed_message.repeatGroup` + index, `ledger_account.maskedNumber`); only downgrades are destructive.
+  `IndexMigrationSchemaTest` (Robolectric) checks the migrated schema equals Room's own. Enricher
+  `LOGIC_REVISION` 2 re-indexes everything once after the upgrade (brand folds, repeat groups, account ids).
 
 ## Tests
 

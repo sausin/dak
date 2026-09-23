@@ -209,9 +209,13 @@ class ConversationViewModel @Inject constructor(
         runCatching { otpLifecycle.cancel(key) }
     }
 
-    fun delete(key: MessageKey) {
+    fun delete(key: MessageKey) = deleteAll(listOf(key))
+
+    /** Moves [keys] to the recycle bin in one step (multi-select), so a single "Undo" restores them all. */
+    fun deleteAll(keys: Collection<MessageKey>) {
+        if (keys.isEmpty()) return
         viewModelScope.launch {
-            val receipt = bin.moveToBin(listOf(key), DeletedBy.Manual)
+            val receipt = bin.moveToBin(keys, DeletedBy.Manual)
             eventChannel.trySend(if (receipt.binIds.isEmpty()) ConversationEvent.DeleteFailed else ConversationEvent.Deleted(receipt))
         }
     }

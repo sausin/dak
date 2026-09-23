@@ -63,6 +63,17 @@
     <string name="ux_info_sms">SMS</string>
     <string name="ux_info_mms">MMS</string>
 
+    <!-- Conversation: message multi-select -->
+    <plurals name="ux_conv_delete_selected_title">
+        <item quantity="one">Delete %d message?</item>
+        <item quantity="other">Delete %d messages?</item>
+    </plurals>
+    <string name="ux_conv_delete_selected_body">Deleted messages go to the recycle bin, where you can restore them.</string>
+    <plurals name="ux_snack_messages_copied">
+        <item quantity="one">Message copied</item>
+        <item quantity="other">%d messages copied</item>
+    </plurals>
+
     <!-- Settings accessibility -->
     <string name="ux_expanded">Expanded</string>
     <string name="ux_collapsed">Collapsed</string>

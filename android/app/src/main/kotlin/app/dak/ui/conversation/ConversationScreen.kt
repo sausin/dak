@@ -1,5 +1,6 @@
 package app.dak.ui.conversation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,8 +43,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,6 +70,7 @@ import app.dak.R
 import app.dak.classify.ExtractedLink
 import app.dak.classify.scam.ScamLabels
 import app.dak.core.model.MessageBox
+import app.dak.core.model.MessageKey
 import app.dak.core.model.SimInfo
 import app.dak.index.MessageItem
 import app.dak.navigation.DakNavigator
@@ -82,6 +86,7 @@ import app.dak.ui.sendergroups.FoldIntoDialog
 import app.dak.ui.sendergroups.UnfoldChannelDialog
 import app.dak.ui.theme.DakTheme
 import app.dak.ui.ux.UxPrefsViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
@@ -89,7 +94,9 @@ private val FONT_SCALES = listOf(0.85f, 1f, 1.15f, 1.3f)
 
 /**
  * The thread: paged bubbles (newest at the bottom), thread menu, per-message actions and the composer. Opened
- * from search it scrolls to and highlights the matching message and offers "Back to results".
+ * from search it scrolls to and highlights the matching message and offers "Back to results". Long-press starts
+ * multi-select (tap toggles, back exits) with a contextual top bar: copy, forward, delete, and the per-message
+ * sheet while one message is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,8 +130,22 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     var foldIntoDialog by remember { mutableStateOf(false) }
     var unfoldDialog by remember { mutableStateOf(false) }
     var scrolledToHighlight by rememberSaveable { mutableStateOf(false) }
+    // Multi-select: keys (MessageKey.toString()) of the selected messages; saved so rotation keeps the selection.
+    var selection by rememberSaveable(stateSaver = SELECTION_SAVER) { mutableStateOf(emptySet<String>()) }
+    var confirmDeleteSelected by rememberSaveable { mutableStateOf(false) }
+    val selecting = selection.isNotEmpty()
+    // Ticks so a fresh OTP's copy affordances go away once it is older than OTP_COPY_WINDOW_MILLIS.
+    val now by produceState(System.currentTimeMillis()) {
+        while (true) {
+            delay(60_000)
+            value = System.currentTimeMillis()
+        }
+    }
 
     val strings = remember(context) { ConversationStrings.load(context) }
+
+    // Back (including the predictive back gesture) leaves selection mode before it leaves the thread.
+    BackHandler(enabled = selecting) { selection = emptySet() }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         val threads = messages.itemSnapshotList.items.mapTo(HashSet()) { it.threadId }
@@ -188,7 +209,9 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
 
     val bubbleActions = remember(viewModel, foldVm) {
         object : BubbleActions {
-            override fun onLongPress(item: MessageItem) { messageMenuFor = item }
+            override fun onLongPress(item: MessageItem) { selection = MessageSelection.toggled(selection, item.key.toString()) }
+            override fun onToggleSelect(item: MessageItem) { selection = MessageSelection.toggled(selection, item.key.toString()) }
+            override fun onShowActions(item: MessageItem) { messageMenuFor = item }
             override fun onLink(item: MessageItem, link: ExtractedLink) {
                 val unknown = LinkSafety.UNKNOWN_SENDER_LINK_LABEL in item.labels
                 val warning = LinkSafety.warningFor(link, unknown)
@@ -209,18 +232,47 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 runCatching { composerFocus.requestFocus() }
             }
             override fun onDoubleTap(item: MessageItem) {
-                val quick = QuickCopy.of(item) ?: return
+                val quick = QuickCopy.of(item, System.currentTimeMillis()) ?: return
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 copyQuick(item, quick)
             }
         }
     }
 
+    // The selected messages that are loaded, oldest first; copy and forward read them in thread order.
+    val selectedItems = if (selecting) MessageSelection.resolve(selection, messages.itemSnapshotList.items) else emptyList()
+    val selectedText = MessageSelection.copyText(selectedItems)
+
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
+            if (selecting) {
+                MessageSelectionTopBar(
+                    count = selection.size,
+                    actions = MessageSelectionActions(
+                        onClose = { selection = emptySet() },
+                        onCopy = if (selectedText.isEmpty()) null else ({
+                            copyToClipboard(context, selectedText, sensitive = selectedItems.any { it.otp != null })
+                            val copied = selectedItems.count { it.body.isNotBlank() }
+                            val message = context.resources.getQuantityString(R.plurals.ux_snack_messages_copied, copied, copied)
+                            selection = emptySet()
+                            scope.launch { snackbar.currentSnackbarData?.dismiss(); snackbar.showSnackbar(message) }
+                        }),
+                        onForward = if (selectedText.isEmpty()) null else ({
+                            selection = emptySet()
+                            navigator.navigate(Routes.compose(body = selectedText))
+                        }),
+                        onDelete = { confirmDeleteSelected = true },
+                        onSelectAll = {
+                            selection = MessageSelection.withAll(selection, messages.itemSnapshotList.items.map { it.key.toString() })
+                        },
+                        onMessageActions = selectedItems.singleOrNull()?.takeIf { selection.size == 1 }?.let { item ->
+                            { selection = emptySet(); messageMenuFor = item }
+                        },
+                    ),
+                )
+            } else TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = { navigator.back() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
@@ -281,7 +333,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
-            ChannelFilterRow(channels = foldChannels, selected = channelFilter, onSelect = foldVm::selectChannel)
+            // A different channel shows different messages: start the selection over.
+            ChannelFilterRow(channels = foldChannels, selected = channelFilter, onSelect = { selection = emptySet(); foldVm.selectChannel(it) })
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (messages.loadState.refresh is LoadState.Loading && messages.itemCount == 0) {
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -304,6 +357,9 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             channelLabel = if (foldChannels.size > 1 && !item.isOutgoing) item.address else null,
                             sims = if (item.repeatCount > 1) sims else emptyList(),
                             canReply = composerUi.enabled && !header.isBusiness,
+                            otpCopyable = isOtpCopyable(item, now),
+                            selectionMode = selecting,
+                            selected = item.key.toString() in selection,
                         )
                         Column {
                             ScamWarningBanner(item = item, onReport = { key -> navigator.navigate(Routes.fraudHelp(key)) })
@@ -323,8 +379,19 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
 
+    if (confirmDeleteSelected && selecting) {
+        DeleteSelectedDialog(
+            count = selection.size,
+            onConfirm = {
+                confirmDeleteSelected = false
+                viewModel.deleteAll(selection.mapNotNull(MessageKey::parse))
+                selection = emptySet()
+            },
+            onDismiss = { confirmDeleteSelected = false },
+        )
+    }
     messageMenuFor?.let { item ->
-        val quick = QuickCopy.of(item)
+        val quick = QuickCopy.of(item, System.currentTimeMillis())
         MessageActionsSheet(
             item = item,
             onDismiss = { messageMenuFor = null },
@@ -390,6 +457,9 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
 /** TRAI's short code for reporting unsolicited commercial communication. */
 private const val TRAI_SPAM_NUMBER = "1909"
 private const val HIGHLIGHT_SEARCH_LIMIT = 3_000
+
+/** Saves the selected message keys as a list (a plain Set is not guaranteed to be Bundle-saveable). */
+private val SELECTION_SAVER = listSaver<Set<String>, String>(save = { it.toList() }, restore = { it.toSet() })
 
 @Composable
 private fun ThreadMenu(

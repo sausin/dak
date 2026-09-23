@@ -30,6 +30,7 @@ import app.dak.core.model.Message
 import app.dak.di.ApplicationScope
 import app.dak.index.BackfillReason
 import app.dak.index.sync.IndexMaintenance
+import app.dak.index.repo.SenderMergeRepository
 import app.dak.settings.SettingsStore
 import app.dak.telephony.ProviderWriter
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -95,6 +96,7 @@ class BackupManager @Inject constructor(
     private val stateStore: BackupStateStore,
     private val vault: BackupPassphraseVault,
     private val settings: SettingsStore,
+    private val senderGroups: SenderMergeRepository,
     private val maintenance: IndexMaintenance,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
@@ -142,7 +144,7 @@ class BackupManager @Inject constructor(
             val full = persisted.previousManifest == null || persisted.snapshotsSinceFull >= MAX_INCREMENTALS
             val result = BackupEngine(target, BackupEncryption(passphrase)).backup(
                 messages = snap.records.asSequence(),
-                settingsJson = settings.export(),
+                settingsJson = settingsWithFolds(),
                 appVersion = BuildConfig.VERSION_NAME,
                 attachmentSource = { sha -> snap.attachmentUris[sha]?.let { snapshot.open(it) } },
                 previousManifest = if (full) null else persisted.previousManifest,
@@ -200,6 +202,7 @@ class BackupManager @Inject constructor(
         try {
             state.value = BackupOperation.Running(kind, 0, 0)
             val snap = snapshot.read(withAttachments = true) { done, total -> state.value = BackupOperation.Running(kind, done, total) }
+            val settingsJson = settingsWithFolds()
             withContext(Dispatchers.IO) {
                 val out = context.contentResolver.openOutputStream(uri, "w") ?: throw IOException("Cannot write to the chosen file")
                 out.use { stream ->
@@ -210,7 +213,7 @@ class BackupManager @Inject constructor(
                             }
                             w.writeMessages(snap.records.asSequence())
                             w.writeThreads(emptyList())
-                            w.writeSettings(settings.export())
+                            w.writeSettings(settingsJson)
                             w.finish(
                                 ManifestMeta(
                                     createdAt = System.currentTimeMillis(),
@@ -308,6 +311,23 @@ class BackupManager @Inject constructor(
         return BackupOperation.Finished(BackupOpKind.RESTORE, added, skipped, restoredUpToMillis = newest.takeIf { it > 0 })
     }
 
+    /**
+     * The settings JSON plus the user's sender fold rules and group names under [FOLDS_KEY] (they live in the
+     * index, which is otherwise rebuildable and not exported).
+     */
+    private suspend fun settingsWithFolds(): String {
+        val base = settings.export()
+        val folds = runCatching { senderGroups.exportRules() }.getOrNull() ?: return base
+        val obj = runCatching { json.parseToJsonElement(base) as? JsonObject }.getOrNull() ?: return base
+        return json.encodeToString(JsonObject.serializer(), JsonObject(obj + (FOLDS_KEY to JsonPrimitive(folds))))
+    }
+
+    /** Restores the fold rules saved by [settingsWithFolds], if present. Best effort. */
+    private suspend fun importFolds(settingsJson: String) {
+        val folds = runCatching { (json.parseToJsonElement(settingsJson) as? JsonObject)?.get(FOLDS_KEY) as? JsonPrimitive }.getOrNull()
+        folds?.content?.let { runCatching { senderGroups.importRules(it) } }
+    }
+
     /** Blobs to try: the newest chain for a passphrase; for a recovery code, every snapshot (it opens one of them). */
     private suspend fun candidateBlobs(target: BackupTarget, key: RestoreKey): List<String?> {
         val names = target.list()
@@ -334,7 +354,10 @@ class BackupManager @Inject constructor(
                 plain.use { stream ->
                     val reader = DakExportReader(stream)
                     reader.readMessages().forEach { _ -> }
-                    reader.settingsJson?.takeIf { it.isNotBlank() && it != "{}" }?.let { settings.import(it) }
+                    reader.settingsJson?.takeIf { it.isNotBlank() && it != "{}" }?.let {
+                        settings.import(it)
+                        importFolds(it)
+                    }
                 }
             }
         }
@@ -432,6 +455,9 @@ class BackupManager @Inject constructor(
 
     private companion object {
         const val MAX_INCREMENTALS = 14
+
+        /** Settings-JSON key carrying the sender fold rules (a JSON string, see `SenderMergeRepository.exportRules`). */
+        const val FOLDS_KEY = "dak.index.senderFolds"
         const val PROGRESS_EVERY = 100
         const val HEADER_BYTES = 4096
         const val LATEST = "latest.json"

@@ -166,6 +166,9 @@ startup provider. `allowBackup=false`. The mutable PendingIntents are all explic
   device fetched the URL, which acts as a read receipt or IP beacon on the carrier network. There is no rate limit
   on WAP push floods yet: many forged notifications create many rows and download jobs, bounded by WorkManager
   uniqueness per content location.
+- **Forged delivery/read reports:** a WAP push m-delivery-ind or m-read-orig-ind that names the Message-ID of a
+  sent MMS can change its delivered/read status. This only affects status metadata, and Message-IDs are hard to
+  guess, but it is not authenticated.
 - **Platform components** (the MmsService HTTP stack, the SMS PDU parser in telephony, media codecs used to show
   attachments) are outside Dak's control. Keeping attachments in `content://mms/part` and handing them to system
   viewers limits Dak's own exposure.

@@ -94,12 +94,20 @@ regardless of category.
 
 ## Links and lookalikes
 
-- `LinkExtractor.extract(body): List<ExtractedLink>` — finds `http(s)://` and bare `www.` URLs.
+- `LinkExtractor.extract(body): List<ExtractedLink>`: finds `http(s)://` and bare `www.` URLs only (never
+  `javascript:`, `intent:`, `content:`, `file:`, `tel:`…) in the first `MAX_SCAN_CHARS` (20k) characters. A link
+  stops at bidi and zero-width characters. `ExtractedLink(raw, host, asciiHost, hasUserInfo)` + `isIdn`: `host`
+  is the Unicode host with userinfo and port stripped, and `asciiHost` its punycode form (show that one in
+  warnings).
 - `LookalikeDomainChecker().check(link): LinkVerdict` — `OFFICIAL`, `SHORTENED`, `LOOKALIKE`,
   `SUSPICIOUS_TLD` or `UNKNOWN`, against a bundled list of official Indian bank/government/courier
   domains, a URL-shortener list, and a suspicious-TLD list. Lookalikes are flagged by brand name
   appearing in a subdomain label (`hdfc-bank-kyc.xyz`) or by edit distance (1-2) against an
-  official domain's label.
+  official domain's label. IDN hosts are folded to a Latin skeleton (Cyrillic/Greek confusables) to name the
+  brand they imitate, and are always `LOOKALIKE` unless official. Links with userinfo (`https://bank.com@evil.xyz`)
+  are `LOOKALIKE`.
+- `ClassifierPipeline.MAX_CLASSIFY_CHARS` (4000): only the head of a body is classified. This bounds the cost of
+  every regex run on attacker text. `SecurityTest` is the ReDoS harness for all body regexes.
 
 ## Testing
 

@@ -52,12 +52,15 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         if (sender.verified) return ScamVerdict.None
 
         val amounts = amountsIn(text) + listOfNotNull(hint?.amountMinor)
-        val hasMoney = amounts.isNotEmpty() || MONEY_WORDS.containsMatchIn(text)
+        val transferMention = TRANSFER_MENTION.containsMatchIn(text)
+        // "maine 15000 bhej diya": a bare number next to transfer wording is money too (follow-ups rarely write "Rs").
+        val bareAmounts = if (transferMention) bareAmountsIn(text) else emptySet()
+        val hasMoney = amounts.isNotEmpty() || bareAmounts.isNotEmpty() || MONEY_WORDS.containsMatchIn(text)
         val alert = alertKind(text, amounts.isNotEmpty(), hint)
         val returnRequest = hasMoney && RETURN_REQUEST.containsMatchIn(text)
         val pinToReceive = PIN_TO_RECEIVE.containsMatchIn(text)
         val collect = COLLECT.containsMatchIn(text) && RECEIVE_BAIT.containsMatchIn(text)
-        val followUpCandidate = hasMoney && (returnRequest || TRANSFER_MENTION.containsMatchIn(text))
+        val followUpCandidate = hasMoney && (returnRequest || transferMention)
 
         if (alert == null && !returnRequest && !pinToReceive && !collect && !followUpCandidate) return ScamVerdict.None
 
@@ -74,8 +77,10 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
                 }
                 SenderKind.DLT_HEADER -> when {
                     sender.traffic == TrafficType.PROMOTIONAL -> reasons += ScamReason.PROMOTIONAL_ROUTE
-                    sender.knownBrand != null && claimed != null -> reasons += ScamReason.BRAND_MISMATCH
-                    sender.knownBrand == null && claimed != null && BankNames.familyOfHeader(sender.mergeKey)?.id != claimed.id ->
+                    // A registered header of a known non-bank brand (Amazon refund "credited to your ICICI card") is
+                    // genuine: DLT headers are bound to their brand. Only unknown headers naming someone else count.
+                    sender.inTable -> Unit
+                    claimed != null && BankNames.familyOfHeader(sender.mergeKey)?.id != claimed.id ->
                         reasons += ScamReason.UNVERIFIED_SENDER
                     else -> Unit
                 }
@@ -103,7 +108,7 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
 
         // --- Content
         if (returnRequest) reasons += ScamReason.RETURN_REQUEST
-        if (alert == Alert.CREDIT && MOBILE.containsMatchIn(text)) reasons += ScamReason.MOBILE_NUMBER_IN_ALERT
+        if (alert != null && MOBILE.containsMatchIn(text)) reasons += ScamReason.MOBILE_NUMBER_IN_ALERT
         val hasLink = LinkExtractor.extract(text).isNotEmpty() || UPI_LINK.containsMatchIn(text)
         if (returnRequest && (hasLink || VPA.containsMatchIn(text))) {
             reasons += ScamReason.PAYMENT_HANDLE_WITH_RETURN
@@ -126,9 +131,10 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
                     continue
                 }
                 if (alertKind(recentText, recentAmounts.isNotEmpty(), null) != Alert.CREDIT) continue
-                val sameAmount = amounts.isEmpty() || recentAmounts.any { it in amounts }
+                val mentioned = amounts + bareAmounts
+                val sameAmount = mentioned.isEmpty() || recentAmounts.any { it in mentioned }
                 if (senderOf(recent.address).verified) {
-                    if (sameAmount && (returnRequest || amounts.isNotEmpty())) genuineCredit = true
+                    if (sameAmount) genuineCredit = true
                 } else if (sameAmount) {
                     unverifiedCredit = true
                 }
@@ -207,7 +213,7 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
 
         private val O = setOf(RegexOption.IGNORE_CASE)
 
-        private val AMOUNT_BEFORE = Regex("""(?:\brs\.?|\binr|₹|\brupees?)\s?(\d[\d,]{0,14}(?:\.\d{1,2})?)""", O)
+        private val AMOUNT_BEFORE = Regex("""(?:\brs\.?|\binr|₹|\brupees?|रु\.?|रू\.?)\s?(\d[\d,]{0,14}(?:\.\d{1,2})?)""", O)
         private val AMOUNT_AFTER = Regex("""(?<![\d.])(\d[\d,]{0,14}(?:\.\d{1,2})?)\s?(?:/-|rs\b|rupees?\b|रुपये|रु\.?|rupaye\b|rupay\b)""", O)
 
         private val MONEY_WORDS = Regex(
@@ -216,7 +222,7 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         )
 
         private val ACCOUNT_REF = Regex(
-            """a/c|\ba\.c\b|\bacc?t\b|\baccount|\bac\s?no|\bbank\b|\bupi\b|\bimps\b|\bneft\b|\brtgs\b|\bwallet\b|\bvpa\b|[x*]{2,}\d{2,6}|खाते|खाता|बैंक""",
+            """a/c|\ba\.c\b|\bacc?t\b|\baccount|\bac\s?no|\bbank\b|\bupi\b|\bimps\b|\bneft\b|\brtgs\b|\bwallet\b|\bvpa\b|(?<![x*])[x*]{2,}+\d{2,6}|खाते|खाता|बैंक""",
             O,
         )
 
@@ -274,7 +280,7 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
             O,
         )
 
-        private val MASK = Regex("""(?:[x*]{2,}|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""", O)
+        private val MASK = Regex("""(?:(?<![x*])[x*]{2,}+|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""", O)
 
         internal fun amountsIn(text: String): Set<Long> {
             val out = HashSet<Long>()
@@ -290,6 +296,12 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         }
 
         private val MAX_MINOR = BigDecimal("100000000000000")
+
+        /** Plain numbers of 3-7 digits (or Indian-grouped "15,000"), as rupees in minor units. */
+        private val BARE_AMOUNT = Regex("""(?<![\d.,])(\d{1,3}(?:,\d{2,3}){1,3}|\d{3,7})(?![\d,])""")
+
+        internal fun bareAmountsIn(text: String): Set<Long> =
+            BARE_AMOUNT.findAll(text).take(8).mapNotNull { it.groupValues[1].replace(",", "").toLongOrNull()?.times(100) }.toSet()
 
         internal fun maskIn(text: String): String? = MASK.find(text)?.groupValues?.get(1)
 

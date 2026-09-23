@@ -27,7 +27,7 @@ public enum class ScamReason(public val code: String, public val weight: Int) {
     PHONE_NUMBER_CLAIMS_BANK("phone-claims-bank", 25),
 
     /** A non-DLT alphanumeric sender that looks like a bank header ("HDFC-BANK", "SBIBANK"): likely spoofed. */
-    LOOKALIKE_SENDER("lookalike-sender", 45),
+    LOOKALIKE_SENDER("lookalike-sender", 60),
 
     /** A sender outside India's registered-header format (or an unknown header) claims to be a bank. */
     UNVERIFIED_SENDER("unverified-sender", 30),
@@ -50,7 +50,7 @@ public enum class ScamReason(public val code: String, public val weight: Int) {
     /** "Sent by mistake", "please return", "galti se", "wapas kar do", "वापस"... with money context. */
     RETURN_REQUEST("return-request", 40),
 
-    /** A credit alert that contains a mobile number (banks never ask you to call a mobile or pay back). */
+    /** A credit/debit alert that contains a mobile number (banks never ask you to call a mobile or pay back). */
     MOBILE_NUMBER_IN_ALERT("mobile-in-alert", 30),
 
     /** A UPI ID or payment link next to a request to return money. */

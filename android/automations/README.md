@@ -60,7 +60,8 @@ RuleEngine.evaluate(event: MessageEvent, rules: List<Rule>): List<PlannedAction>
 Pure and deterministic: enabled rules only, in list order; `Trigger.Schedule` never matches a message
 event (it is driven by a separate scheduler outside this module); regex conditions are guarded (bounded
 input length via `RuleEngine.MAX_REGEX_INPUT_LENGTH`, `PatternSyntaxException` caught → non-match, never
-thrown). Each matching rule contributes one `PlannedAction` per its `actions`, with
+thrown, and patterns failing `safety.RegexSafety` (nested/ambiguous repetition, backreferences, > 500 chars:
+exponential backtracking on attacker-chosen bodies) never run; the validator reports them as `InvalidRegex`). Each matching rule contributes one `PlannedAction` per its `actions`, with
 `requiresBiometricConfirmation` set when the action forwards/relays *and* `rule.conditions` can match an
 OTP (see `conditionsCanMatchOtp` — true for a positive `HasOtp`, `CategoryIs(OTP)`, or no positive category
 restriction at all; false when `excludesOtp`, i.e. the top-level conjuncts contain `otpExclusion()` =

@@ -111,6 +111,12 @@ messages.
   `@HiltAndroidApp` in :app. Workers are plain `CoroutineWorker`s (not `@HiltWorker`), so they run with the
   default WorkManager factory or `HiltWorkerFactory` alike.
 - Never log message bodies or full addresses from this module.
+- Hostile input (see `docs/security/threat-model.md`): a notification whose content location fails
+  `MmsSafety.isDownloadableContentLocation` (not http(s), loopback, userinfo, …) is dropped without being stored
+  or fetched, and the check runs again before every download attempt. A declared size above
+  `MmsLimits.MAX_PDU_BYTES` is never auto-downloaded, and downloaded files are size-checked before they are read.
+  Part `name` / `fn` and restored attachment names are stored through `MmsSafety.safeFileName`. Restores cap
+  recipients at `MmsLimits.MAX_ADDRESSES`.
 
 ## Tests
 

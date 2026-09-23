@@ -1,6 +1,7 @@
 package app.dak.index.repo
 
 import androidx.room.withTransaction
+import app.dak.classify.scam.ScamLabels
 import app.dak.core.model.MessageKey
 import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountAliases
@@ -166,7 +167,8 @@ class LedgerRepository @Inject constructor(
     private suspend fun recomputeCanonical(accountId: String, aliases: AccountAliases) {
         val members = aliases.membersOf(accountId).toList()
         val rows = if (members.size <= 1) messageDao.byAccount(accountId) else messageDao.byAccounts(members)
-        val inputs = rows.mapNotNull { row ->
+        // Likely fake credit alerts never create entries or move balances (docs/security/fake-credit-scams.md).
+        val inputs = rows.filterNot { ScamLabels.excludedFromLedger(it.labels) }.mapNotNull { row ->
             IndexRowMapper.transaction(row)?.let { LedgerInput(IndexRowMapper.key(row).toString(), row.dateMillis, it) }
         }
         val previous = ledgerDao.account(accountId)

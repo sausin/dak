@@ -16,7 +16,8 @@ import javax.inject.Singleton
 
 /**
  * App-facing API of fake-credit warnings stored in the index (labels from [ScamLabels]):
- * the conversations to mark in the inbox, the user's "Not a scam" override and the feature switch.
+ * the conversations to mark in the inbox and the user's "Not a scam" override. Labels are stored whatever the
+ * "Warn about fake credit alerts" setting says (it only hides the warnings), so likely fakes never reach the ledger.
  */
 @Singleton
 class ScamRepository @Inject constructor(
@@ -45,9 +46,6 @@ class ScamRepository @Inject constructor(
         val row = db.messageDao().get(key.kind.name, key.providerId) ?: return@withContext
         ingestor.ingest(listOf(IndexRowMapper.toMessage(row)), force = true)
     }
-
-    /** Mirrors the "Warn about fake credit alerts" setting for the index enricher (call when it changes). */
-    fun setEnabled(enabled: Boolean) = overrides.setEnabled(enabled)
 
     private companion object {
         const val FLAGGED_WINDOW_MILLIS = 30L * 24 * 60 * 60 * 1000

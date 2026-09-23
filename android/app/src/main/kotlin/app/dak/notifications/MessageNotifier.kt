@@ -17,6 +17,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.LocusIdCompat
 import androidx.core.graphics.drawable.IconCompat
 import app.dak.R
+import app.dak.classify.scam.ScamLevel
+import app.dak.classify.scam.ScamVerdict
 import app.dak.core.model.Category
 import app.dak.core.model.Classification
 import app.dak.core.model.Message
@@ -26,6 +28,7 @@ import app.dak.di.AndroidContactLookup
 import app.dak.index.enrich.ConversationIds
 import app.dak.navigation.IntentRoutes
 import app.dak.navigation.Routes
+import app.dak.safety.FakeCreditCheck
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.IncomingMessageHandler
@@ -66,6 +69,7 @@ class MessageNotifier @Inject constructor(
     private val channels: NotificationChannels,
     private val conversationChannels: ConversationChannels,
     private val summaries: NotificationSummaries,
+    private val fakeCredit: FakeCreditCheck,
 ) : IncomingMessageHandler {
 
     override val priority: Int = 0
@@ -99,7 +103,11 @@ class MessageNotifier @Inject constructor(
         val otp = classification.otp
         val category = classification.category
         val custom = conversationChannels.channelFor(message.address, message.threadId)
-        val built = if (category == Category.OTP && otp != null) {
+        // Likely fake credit alerts get a warning instead of a transaction/conversation notification (spam stays spam).
+        val scam = if (category != Category.OTP && category != Category.SPAM) fakeCredit.verdictFor(message) else ScamVerdict.None
+        val built = if (scam.level == ScamLevel.LIKELY_SCAM) {
+            buildScamWarning(message, sender, muted)
+        } else if (category == Category.OTP && otp != null) {
             buildOtp(message, otp, sender, custom?.first, otpConsumer, muted)
         } else if (category == Category.PERSONAL || category == Category.UNKNOWN || custom != null) {
             buildConversation(message, category, sender, custom, muted)
@@ -316,6 +324,37 @@ class MessageNotifier @Inject constructor(
         }
     } catch (e: UnsupportedOperationException) {
         false
+    }
+
+    // ------------------------------------------------------------------------------------------------ Fake credit
+
+    /**
+     * Warning for a likely fake credit alert (docs/security/fake-credit-scams.md): never styled or channelled as a
+     * transaction; Report opens the fraud-help screen for this message, Block adds the sender to the system list.
+     */
+    private fun buildScamWarning(message: Message, sender: String, muted: Boolean): Built {
+        val target = NotificationActions.Target(tag = "scam:${message.key}", id = ID_CONVERSATION)
+        val channel = channels.channelFor(NotificationChannels.OTHER, message.subId, sims.sims.value)
+        val text = context.getString(R.string.scam_notification_text)
+        val route = Routes.fraudHelp(message.key.toString())
+        val report = PendingIntent.getActivity(
+            context,
+            route.hashCode(),
+            IntentRoutes.open(context, route),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val builder = baseBuilder(channel, message, R.drawable.ic_stat_dak, Category.UNKNOWN)
+            .setContentTitle(context.getString(R.string.scam_notification_title, sender))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text + "\n\n" + displayBody(message)))
+            .setColor(ContextCompat.getColor(context, R.color.dak_notification_warning))
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setPriority(if (muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_DEFAULT)
+            .addAction(0, context.getString(R.string.scam_action_report), report)
+            .addAction(0, context.getString(R.string.scam_action_block), NotificationActions.block(context, target, message.address))
+        applyLockScreenPrivacy(builder, message, sender, isOtp = false)
+        if (muted) builder.setSilent(true)
+        return Built(target, builder.build(), channel)
     }
 
     // ------------------------------------------------------------------------------------------------ Other

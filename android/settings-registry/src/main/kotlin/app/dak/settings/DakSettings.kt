@@ -194,6 +194,14 @@ object DakSettings {
         default = 30, range = 0..90, step = 1,
         keywords = listOf("promo", "promotions", "archive"),
     )
+    val fakeCreditWarnings = boolSetting(
+        "categoriesSpam.fakeCreditWarnings", SettingsGroup.CATEGORIES_SPAM,
+        "Warn about fake credit alerts",
+        "Flag \"money credited\" messages that don't come from your bank, and \"sent by mistake, please return\" requests. " +
+            "Turning this off hides the warnings; likely fakes still never count toward your balances.",
+        default = true,
+        keywords = listOf("scam", "fraud", "fake", "credit", "sent by mistake", "return money", "upi"),
+    )
     val classifierConfidenceThreshold = intSetting(
         "categoriesSpam.classifierConfidenceThreshold", SettingsGroup.CATEGORIES_SPAM,
         "Classifier confidence threshold",
@@ -454,7 +462,7 @@ object DakSettings {
     val all: List<SettingDef<*>> = listOf(
         perCategoryAlerts, notificationChannels, otpDisplaySize, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
         quickActions, selfTest, soundPerSim, bubbles, lockScreenPrivacy,
-        tabSet, senderMerges, blockList, autoArchivePromosDays, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
+        tabSet, senderMerges, blockList, autoArchivePromosDays, fakeCreditWarnings, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
         accounts, homeCurrency, hideBalancesOnLock, ratesSource, reconciliationToleranceMinor,
         sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings, costWarnings,
         deliveryReports, sendRateSpreading, exactAlarmPermission,

@@ -116,7 +116,7 @@ class DefaultMessageEnricher(
         val labels: Set<String> = try {
             when {
                 scamContext.isDismissed(message.key) -> setOf(ScamLabels.DISMISSED)
-                !scamContext.enabled() || !detector.isCandidate(message.address, message.body) -> emptySet()
+                !detector.isCandidate(message.address, message.body) -> emptySet()
                 else -> {
                     val hint = base.transaction?.let {
                         TransactionHint(

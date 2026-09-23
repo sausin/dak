@@ -7,9 +7,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * User decisions about fake-credit warnings: the messages marked "Not a scam" (kept outside the index, so they
- * survive a re-index or rebuild) and the "Warn about fake credit alerts" switch mirrored from settings (the index
- * cannot read the app's settings store, so the app pushes the value here; see [setEnabled]).
+ * The messages the user marked "Not a scam" (kept outside the index, so the decision survives a re-index or
+ * rebuild).
  *
  * Only message keys (provider ids) are stored, never message content.
  */
@@ -33,12 +32,6 @@ class ScamOverrides @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    fun isEnabled(): Boolean = prefs.getBoolean(KEY_ENABLED, true)
-
-    fun setEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
-    }
-
     private fun loadDismissed(): Set<String> {
         dismissed?.let { return it }
         synchronized(this) {
@@ -52,7 +45,6 @@ class ScamOverrides @Inject constructor(@ApplicationContext context: Context) {
     private companion object {
         const val PREFS = "dak_scam_overrides"
         const val KEY_DISMISSED = "dismissed"
-        const val KEY_ENABLED = "enabled"
         const val MAX_DISMISSED = 5_000
     }
 }

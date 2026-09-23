@@ -21,8 +21,6 @@ class IndexScamContext @Inject constructor(
     @Volatile
     private var accountsCache: Pair<Long, Set<AccountHint>>? = null
 
-    override fun enabled(): Boolean = overrides.isEnabled()
-
     override fun isDismissed(key: MessageKey): Boolean = overrides.isDismissed(key)
 
     override suspend fun knownAccounts(): Set<AccountHint> {

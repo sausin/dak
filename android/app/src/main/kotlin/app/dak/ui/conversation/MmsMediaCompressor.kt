@@ -20,13 +20,22 @@ import kotlin.math.roundToInt
 /**
  * Prepares attachments for MMS on a background dispatcher: images are downscaled and re-encoded as JPEG until they
  * fit the carrier's MMS size limit for the sending SIM (from `SmsManager.getCarrierConfigValues`, default 300 KB),
- * leaving headroom for the text part and PDU headers. The original stays wherever it came from (gallery/camera),
+ * leaving headroom for the text part and PDU headers. Video and audio over the limit are transcoded down to it
+ * ([MmsMediaTranscoder]). The original stays wherever it came from (gallery/camera),
  * so the thread shows the full-quality copy while the network gets the compressed one.
  */
 @Singleton
 class MmsMediaCompressor @Inject constructor(@ApplicationContext private val context: Context) {
 
-    /** Bytes the whole MMS may use on [subId]. */
+    private val transcoder = MmsMediaTranscoder(context)
+
+    /**
+     * Bytes the whole MMS may use on [subId].
+     *
+     * TODO(carrier-config): this reads `SmsManager.getCarrierConfigValues()` directly. When the telephony work stream
+     * lands its CarrierConfigManager-backed MMS config, take the limit (and max image width/height) from there; the
+     * transcoder and image path already take the budget as a parameter, so only this function changes.
+     */
     fun messageLimitBytes(subId: Int): Int {
         val carrier = runCatching {
             @Suppress("DEPRECATION")
@@ -37,8 +46,9 @@ class MmsMediaCompressor @Inject constructor(@ApplicationContext private val con
     }
 
     /**
-     * Returns bytes for one attachment within [budgetBytes]: JPEG-compressed for images, verbatim for anything else
-     * (null when a non-image is larger than the budget or cannot be read).
+     * Returns bytes for one attachment within [budgetBytes]: JPEG-compressed for images; verbatim for anything else
+     * that fits; video and audio over the budget are transcoded ([MmsMediaTranscoder]: H.264 + AAC in MP4, or AAC in
+     * MP4). Null when nothing fits (for example a clip too long for this carrier's limit) or the file cannot be read.
      */
     suspend fun prepare(uri: Uri, mimeType: String, budgetBytes: Int): Prepared? = withContext(Dispatchers.IO) {
         if (mimeType.startsWith("image/") && mimeType != "image/gif") {
@@ -46,8 +56,12 @@ class MmsMediaCompressor @Inject constructor(@ApplicationContext private val con
             runCatching { compressImage(uri, budgetBytes) }.getOrNull()?.let { return@withContext Prepared("image/jpeg", it) }
         }
         val raw = runCatching { context.contentResolver.openInputStream(uri)?.use { readAtMost(it, budgetBytes) } }.getOrNull()
-            ?: return@withContext null
-        Prepared(mimeType, raw)
+        if (raw != null) return@withContext Prepared(mimeType, raw)
+        if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
+            // Blocking codec work on this IO thread; the transcoder never throws and gives up after its deadline.
+            transcoder.transcode(uri, mimeType, budgetBytes)?.let { return@withContext Prepared(it.mimeType, it.bytes) }
+        }
+        null
     }
 
     /**

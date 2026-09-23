@@ -92,7 +92,7 @@ class NewConversationViewModel @Inject constructor(
         savedState = savedState,
         recipients = recipientsState.map { list -> list.map { it.address } }
             .stateIn(viewModelScope, SharingStarted.Eagerly, recipientsState.value.map { it.address }),
-        subId = MutableStateFlow(sims.defaultSmsSubId()),
+        subId = MutableStateFlow(initialSubId()),
         threadId = { null },
         conversationId = { null },
         onSubIdChosen = { },
@@ -103,7 +103,9 @@ class NewConversationViewModel @Inject constructor(
     init {
         if (savedState.get<Boolean>(KEY_PREFILLED) != true) {
             savedState[KEY_PREFILLED] = true
-            savedState.get<String>(Routes.ARG_BODY)?.let { composer.setText(Uri.decode(it)) }
+            // Navigation already percent-decodes query arguments (NavDeepLink uses Uri.getQueryParameters). A second
+            // Uri.decode here would corrupt free text such as "50% off" (IntentRoutes / SmsUriParser decode once).
+            savedState.get<String>(Routes.ARG_BODY)?.let { composer.setText(it) }
         }
         val shared = pendingShare.consume()
         if (shared.isNotEmpty()) {
@@ -155,6 +157,15 @@ class NewConversationViewModel @Inject constructor(
         savedState.get<ArrayList<String>>(KEY_RECIPIENTS)?.let { saved -> return saved.map { Recipient(it, null) } }
         val to = savedState.get<String>(Routes.ARG_TO)?.let(Uri::decode).orEmpty()
         return to.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }.distinct().map { Recipient(it, null) }
+    }
+
+    /**
+     * The route's `sub` (e.g. a 1909 complaint pinned to the SIM that received the spam) when that SIM is still
+     * active, else the default SMS SIM.
+     */
+    private fun initialSubId(): Int {
+        val requested = savedState.get<String>(Routes.ARG_SUB)?.trim()?.toIntOrNull()
+        return requested?.takeIf { sub -> sims.sim(sub)?.isActive == true } ?: sims.defaultSmsSubId()
     }
 
     private fun openThreadFor(addresses: List<String>) {

@@ -101,7 +101,7 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_bd_mode_ask">Ask me first</string>
     <string name="fw_bd_mode_auto">Send automatically</string>
     <string name="fw_bd_mode_ask_summary">On the day you get a notification with Send, Edit and Skip.</string>
-    <string name="fw_bd_mode_auto_summary">The wish is sent at the chosen time without asking.</string>
+    <string name="fw_bd_mode_auto_summary">The wish is sent at the chosen time without asking. Needs app lock: without it, or past the daily limit on automatic messages, you get the Send notification instead.</string>
     <string name="fw_bd_send_time">Send time</string>
     <string name="fw_bd_anniversaries">Include anniversaries</string>
     <string name="fw_bd_edit_birthday_template">Birthday message</string>
@@ -208,6 +208,9 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_outcome_skipped">Skipped</string>
     <string name="fw_skip_not_confirmed">Not sent: waiting for your fingerprint or screen lock confirmation</string>
     <string name="fw_skip_no_app_lock">Not sent: app lock was off</string>
+    <string name="fw_queued_auto_reply">Auto-reply</string>
+    <string name="fw_queued_auto_forward">Auto-forward</string>
+    <string name="fw_queued_automation">Automation</string>
     <string name="fw_skip_contact_removed">Not sent: the recipient is no longer in your contacts</string>
     <string name="fw_skip_no_contacts_access">Not sent: Dak couldn\'t check your contacts</string>
     <string name="fw_skip_possible_scam">Not sent: the message looked like a scam</string>

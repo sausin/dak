@@ -22,18 +22,18 @@ scrubbing) is out of scope except where the client has to cooperate with it.
 | 2 | 3GPP TS 23.038 (alphabets, DCS) + `scripts/sms-pdu.py` | 4 | 2 | 1 | 5 | 12 |
 | 3 | OMA MMS-ENC 1.3 + WAP-230 WSP encoding | 13 | 1 | 0 | 0 | 14 |
 | 4 | OMA MMS-CTR (client transactions) | 10 | 2 | 4 | 0 | 16 |
-| 5 | OMA MMS-CONF, 3GPP TS 23.140 / 26.140 (media, SMIL) | 5 | 4 | 0 | 0 | 9 |
+| 5 | OMA MMS-CONF, 3GPP TS 23.140 / 26.140 (media, SMIL) | 6 | 3 | 0 | 0 | 9 |
 | 6 | WAP-251 Push / WSP push | 1 | 1 | 0 | 2 | 4 |
 | 7 | Carrier config (CarrierConfigManager / SmsManager MMS config) | 1 | 2 | 7 | 2 | 12 |
-| 8 | RFC 5724 `sms:`/`smsto:` (+ `mms:`/`mmsto:`), SENDTO/SEND intents | 5 | 2 | 0 | 0 | 7 |
+| 8 | RFC 5724 `sms:`/`smsto:` (+ `mms:`/`mmsto:`), SENDTO/SEND intents | 6 | 1 | 0 | 0 | 7 |
 | 9 | vCard 2.1/3.0/4.0 (RFC 6350), vCalendar | 2 | 3 | 0 | 1 | 6 |
 | 10 | Android default-SMS-app requirements | 13 | 4 | 0 | 0 | 17 |
 | 11 | Google Play SMS/Call Log policy, Data safety | 2 | 3 | 3 | 0 | 8 |
-| 12 | India TRAI TCCCPR 2018 and amendments | 3 | 2 | 2 | 1 | 8 |
+| 12 | India TRAI TCCCPR 2018 and amendments | 4 | 1 | 2 | 1 | 8 |
 | 13 | DPDP Act 2023 (India), GDPR (EU) | 0 | 3 | 3 | 2 | 8 |
 | 14 | Text safety: UAX #9, UTS #39, UTS #46 | 4 | 4 | 1 | 0 | 9 |
 | 15 | OWASP MASVS v2 (high level) | 6 | 2 | 0 | 0 | 8 |
-| | **Total** | **75** | **38** | **23** | **19** | **155** |
+| | **Total** | **78** | **35** | **23** | **19** | **155** |
 
 Findings to act on first (details are in the [backlog](#prioritised-remediation-backlog)):
 
@@ -47,7 +47,8 @@ Findings to act on first (details are in the [backlog](#prioritised-remediation-
 - **P1 MMS gaps:** the MMS-CTR acknowledgements are off by default (`m-notifyresp-ind`) or never sent (Deferred
   status, `m-acknowledge-ind`). Carrier MMS config is mostly ignored: group MMS enablement, the SMS→MMS threshold,
   recipient and subject limits.
-- **P1 URI bug:** the `sms:` body is decoded twice and cut at `&`.
+- **P1 URI bug (fixed):** the `sms:` body was decoded twice and cut at `&`. It is now parsed per RFC 5724 from
+  the encoded URI (`navigation/SmsUriParser.kt`). `RESPOND_VIA_MESSAGE` in `core-telephony` still has the old bug.
 
 ---
 
@@ -153,7 +154,7 @@ checked against the MMS-CONF v1.3 tables before relying on them.
 |---|---|---|---|---|
 | Stay within the carrier's message size limit (300 KB default and floor) | `MmsSendManager.kt:71-74,176-188`; `app/.../conversation/MmsMediaCompressor.kt:30-37` (`MMS_CONFIG_MAX_MESSAGE_SIZE`, default 300 KB) | Compliant | Move to `CarrierConfigManager` keys (see §7) | Carrier config 100 KB: 2 MB photo fits and send succeeds |
 | Image adaptation to a widely supported format and resolution (JPEG, EXIF orientation applied, metadata dropped) | `MmsMediaCompressor.kt:43-50` and the compress loop: JPEG, longest edge ≤1600 px (`:127`), quality ladder, 200 MP decode guard. Re-encoding drops EXIF, so GPS is not leaked | Compliant | Take the max width and height from carrier config (§7) | HEIC/WebP/PNG input → JPEG ≤ limit, correct orientation |
-| Video and audio adaptation (3GPP/MP4 H.263/H.264, AMR-NB/AAC per TS 26.140 / 26.234 codecs) | Non-images are sent unchanged, or rejected when over budget (`MmsMediaCompressor.kt:44-50`) | Partial | Transcode video with Media3 Transformer to H.264 Baseline + AAC in MP4 (or 3GP) at a bitrate derived from the size budget. Record audio as AMR-NB or AAC | 20 MB phone video → sent under the limit, plays on a stock Messages client |
+| Video and audio adaptation (3GPP/MP4 H.263/H.264, AMR-NB/AAC per TS 26.140 / 26.234 codecs) | Video and audio that fit are sent unchanged. Over the budget they are transcoded with platform codecs only, because Media3 is not a dependency: `app/.../conversation/MmsMediaCompressor.kt:53-67` calls `MmsMediaTranscoder.kt:49`. Video goes MediaExtractor → MediaCodec decoder → SurfaceTexture/GLES scale → H.264 encoder (Baseline requested) → MediaMuxer MP4, with AAC-LC audio. Audio-only input becomes AAC-LC in MP4. `MmsTranscodePlan.kt` derives resolution (176–640 px), frame rate (15/24), bitrate and container overhead from the budget, retries at 0.7× when the encoder overshoots, and refuses clips that cannot fit at ≥32 kbit/s video (about 15–25 s at 300 KB). Any codec, GL or timeout failure (120 s) falls back to the old refusal, and the snackbar suggests trimming or sharing from the source app. The limit still comes from `MmsMediaCompressor.messageLimitBytes` (TODO hook for carrier config, §7) | Compliant | Verify on devices (not yet run on hardware). Later: AMR-NB for voice notes; audio part file name uses the source extension (`MessageSendController.fileNameFor`, telephony stream) | 20 MB, 10 s phone video → MP4 under the limit, plays on a stock Messages client; 2-minute video → "too large" snackbar, no crash |
 | SMIL root part referenced by `start`, one presentation per message | `mms-pdu/.../Smil.kt:33-52`, `MmsMessageBuilder.kt:50-62` | Compliant | None | Parse the generated SMIL with an XML parser; every `src` resolves to a part Content-Location |
 | SMIL layout: image and text on the **same** slide (the usual MMS-CONF image+text content), root-layout size | Each item gets its own `<par>`, with text last (`Smil.kt:39-49`). `<root-layout/>` has no width or height (`:35`) | Partial | Pair the first image or video with the text in one `<par>`. Emit `root-layout width/height` (for example 320×480). Keep one `<par>` per extra media item | Golden SMIL string; render on AOSP Messaging and iOS: caption shows under the photo |
 | Receive-side presentation: follow the SMIL order and timing where present | SMIL is ignored. Parts render in PDU order and text parts are concatenated (`core-telephony/.../mms/MmsProviderMapping.kt:170-191`) | Partial | Parse the SMIL `<par>` order to sort attachments and pair captions. Skip timing | Fixture where the SMIL order differs from the PDU order |
@@ -195,11 +196,11 @@ supported source is `CarrierConfigManager.getConfigForSubId(subId)` with the `KE
 | Requirement | Dak implementation (file:line) | Status | Remediation | Test |
 |---|---|---|---|---|
 | Handle `SENDTO` and `VIEW` for `sms`, `smsto`, `mms`, `mmsto` (also required for the SMS role) | `app/src/main/AndroidManifest.xml:74-91` | Compliant | None | `adb shell am start -a android.intent.action.SENDTO -d "smsto:+911234"` |
-| Recipient list: comma-separated (RFC 5724); `;` accepted for compatibility | `navigation/IntentRoutes.kt:126-137` | Compliant | None | `sms:+1,+2` → 2 recipients |
-| `body` hfield: percent-decoded exactly once; `&` and `%` inside the body kept | `IntentRoutes.kt:127-135` reads the already-decoded `schemeSpecificPart`, splits it on `&`, then calls `Uri.decode` **again**. `sms:?body=50%25%20off` becomes `50% off` and is decoded again (corrupts it), and `body=a%26b` becomes `a` | Partial | Parse `uri.encodedSchemeSpecificPart` (or `encodedQuery` for hierarchical forms): split on `?` and `&` first, then decode each value once. Match `body` case-insensitively and ignore other hfields | Unit: `sms:+1?body=a%26b%25c` → `a&b%c` |
-| `sms_body` / `EXTRA_TEXT` extras (de facto Android contract) take precedence over the URI body | `IntentRoutes.kt:72,120-123` | Compliant | None | Intent with both an extra and a URI body |
-| Unknown hfields ignored | `IntentRoutes.kt:131-133` | Compliant | None | `sms:+1?foo=1&body=x` → body `x` |
-| `SEND` / `SEND_MULTIPLE` share of text, media and vCard; confused-deputy protection on shared URIs | `AndroidManifest.xml:94-108`; `IntentRoutes.kt:74-77,87-116` (content:// from other authorities only, at most 10) | Compliant | None | Share `content://mms/part/1` → rejected |
+| Recipient list: comma-separated (RFC 5724); `;` accepted for compatibility | `navigation/SmsUriParser.kt:39-60`: the encoded list is split on `,`/`;`, then each recipient is percent-decoded once. `+` stays literal. Duplicates are dropped, with a cap of 50 | Compliant | None | Unit `SmsUriParserTest`; `sms:+1,+2` → 2 recipients |
+| `body` hfield: percent-decoded exactly once; `&` and `%` inside the body kept | `IntentRoutes.kt:120-137` passes `uri.encodedSchemeSpecificPart` (plus any unencoded `#…`) to the pure `SmsUriParser.parse` (`SmsUriParser.kt:39`). It splits on `?` and `&` first, then decodes each value once as UTF-8. `body` is matched case-insensitively and the first one wins. Invalid `%` escapes are kept literally. Bodies are capped at 10,000 chars without splitting a surrogate pair. The second decode in the composer was also removed (`NewConversationViewModel.kt:106`: Navigation already decodes query arguments) | Compliant | None | Unit `SmsUriParserTest`: `sms:+911234567890?body=a%26b` → `a&b`; `?body=50%25%20off` → `50% off` |
+| `sms_body` / `EXTRA_TEXT` extras (de facto Android contract) take precedence over the URI body | `SmsUriParser.resolve` (`SmsUriParser.kt:74-90`): `sms_body`, then `EXTRA_TEXT`, then the URI `body`. Recipients come from the URI, else the `address` extra | Compliant | None | Unit `SmsUriParserTest`; intent with both an extra and a URI body |
+| Unknown hfields ignored | `SmsUriParser.kt:50-57` | Compliant | None | `sms:+1?foo=1&body=x` → body `x` |
+| `SEND` / `SEND_MULTIPLE` share of text, media and vCard; confused-deputy protection on shared URIs | `AndroidManifest.xml:94-108`; `IntentRoutes.kt:73-75,84-114` (content:// from other authorities only, at most 10). A `SEND` carrying an `sms:`/`smsto:` data URI takes its recipients from it. `EXTRA_STREAM` on `SENDTO` (sent by some gallery and camera apps) is accepted under the same guard | Compliant | None | Share `content://mms/part/1` → rejected; `am start -a android.intent.action.SENDTO -d smsto:123 --eu android.intent.extra.STREAM content://…` attaches |
 | `RESPOND_VIA_MESSAGE` URI and body parsing | `sms/HeadlessSmsSendService.kt:30-35`; `sms/RespondViaMessage.kt:9-22` splits the **decoded** SSP on `&`, so a body containing `&` is cut. Telecom normally puts the text in `EXTRA_TEXT`, which is used first | Partial | Share the fixed parser from the row above | Unit on `RespondViaMessage.body` |
 
 ## 9. vCard (2.1 / 3.0 / 4.0, RFC 6350) and vCalendar
@@ -264,7 +265,7 @@ below should be checked against the gazetted text.
 | Recognise DLT headers `XY-HEADER[-P/S/T/G]` (XY is commonly described as access provider + service-area code) | `classify/.../SenderId.kt:63-81`. It **rejects all-digit entity headers** (`:73`). Promotional headers have historically been 6-digit numeric (for example `VM-612345`), so they fall through to SHORT_CODE / ALPHANUMERIC. The KDoc at `:32-35` calls the prefix a telemarketer id | Partial | Accept numeric entity headers when a prefix is present (optionally only with `-P` or length 6). Fix the prefix description. (`classify` is being edited by another stream, so coordinate) | Unit: `VM-612345`, `VM-612345-P` → DLT_HEADER, PROMOTIONAL |
 | Use the traffic-type suffix (P/S/T/G) in classification | `SenderId.kt:15-25,74-79` | Compliant | None | Existing tests |
 | 1909 UCC complaint SMS in the prescribed "`<message>,<sender>,<dd/mm/yy>`" shape, reviewed by the user before sending | `app/.../safety/FraudReport.kt:18,28-43` (template overridable per region, flattened text, 10-digit sender); `ConversationViewModel.kt:267-276` | Compliant | None | Unit: date in IST, `+91` stripped |
-| Send the complaint from the SIM that received the UCC (the complaint is tied to the complainant's number) | `ui/fraud/FraudHelpViewModel.kt:138-144` builds `Routes.compose(to, body)` **without a subscription**, so the default SMS SIM is used | Partial | Carry `message.subId` into the compose route and preselect that SIM, with a warning if the user changes it | Dual-SIM: report a message from SIM 2 → composer preselects SIM 2 |
+| Send the complaint from the SIM that received the UCC (the complaint is tied to the complainant's number) | `ui/fraud/FraudHelpViewModel.kt:143-156` picks the SIM with `ComplaintSim.choose` (`ui/fraud/ComplaintSim.kt`): the message's SIM if it is still active, else the default SMS SIM, else the only active SIM. It passes the SIM as the new `sub` argument of the compose route (`navigation/Routes.kt` `COMPOSE`), and the composer preselects that SIM if it is active (`NewConversationViewModel.kt:166`). The Report card says which SIM will send (`FraudHelpScreen.kt:297,353`). The conversation "Report spam" actions pass the message's SIM too | Compliant | Optional: warn if the user switches SIM in the composer | Unit `ComplaintSimTest`; dual-SIM: report a message from SIM 2 → card says "Sends from SIM 2", composer preselects SIM 2 |
 | Complaint window (days since receipt; 3 days under the 2018 regulations, reportedly extended to 7 in 2025, verify) | Not checked | **Missing** | Show "Reports older than N days may be rejected" using a region-profile constant | Unit on the date check |
 | DND / preference registration (1909 keyword SMS, TRAI DND app) | Not offered | **Missing** | Optional P2: a "Manage DND" entry that opens a prefilled 1909 SMS (keywords to verify with TRAI) or the TRAI DND app | – |
 | 140-/160-series numbers for calls | Dak is not a dialer | N/A (dialer/Telecom) | Optional: treat 1600xxxxxx numbers quoted in bank SMS as legitimate call-backs in scam scoring | – |
@@ -351,15 +352,17 @@ categories to where Dak addresses them.
    - Use the carrier SMS→MMS threshold instead of the hard-coded 10 segments.
    - Location: `app/.../conversation/MessageSendController.kt:60-61,152`. Move to `CarrierConfigManager`
      (`MmsSendManager.kt:177`).
-8. **`sms:` / `smsto:` body parsing:** decode once from the encoded SSP and keep `&` and `%`.
-   `navigation/IntentRoutes.kt:126-138`. Share the parser with `sms/RespondViaMessage.kt:19-22`.
+8. ~~**`sms:` / `smsto:` body parsing**~~ Done in the app (`navigation/SmsUriParser.kt`). Still open:
+   `core-telephony/.../sms/RespondViaMessage.kt:19-22` (telephony stream) needs the same fix, by moving the
+   parser to a shared module or copying it.
 9. **Losing the SMS role:** add an `ACTION_DEFAULT_SMS_PACKAGE_CHANGED` receiver, cancel queued sends, disable the
    composer and prompt. The only current signal is `ui/common/ReliabilityBanner.kt:68-70`.
-10. **Video and audio adaptation for MMS** (Media3 Transformer → H.264/AAC MP4 or 3GP; AMR/AAC audio).
-    `app/.../conversation/MmsMediaCompressor.kt:43-50`.
+10. ~~**Video and audio adaptation for MMS**~~ Done with platform MediaCodec (`MmsMediaTranscoder.kt`,
+    `MmsTranscodePlan.kt`). Still to do: device verification, and taking the limit from carrier config once §7
+    lands (TODO in `MmsMediaCompressor.messageLimitBytes`).
 11. **DLT numeric promotional headers** (`VM-612345[-P]`) and the prefix description. `classify/.../SenderId.kt:32-35,73`.
     Coordinate with the classify work stream.
-12. **1909 complaint from the receiving SIM.** `ui/fraud/FraudHelpViewModel.kt:138-144`.
+12. ~~**1909 complaint from the receiving SIM.**~~ Done (`ui/fraud/ComplaintSim.kt`, compose route `sub` argument).
 13. **Play submission blockers:**
     - Permissions Declaration Form, Data safety form and privacy-policy link (`docs/build-plan.md:302-304`).
     - A per-flow prominent disclosure before any content leaves the device (Jev, webhooks, relay, hosted backup).

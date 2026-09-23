@@ -318,7 +318,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 ?.takeIf { viewModel.reportsSpamToTrai(it.subId) }
                                 ?.let { latest ->
                                     val report: () -> Unit = {
-                                        navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(latest)))
+                                        navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(latest), subId = latest.subId))
                                     }
                                     report
                                 },
@@ -407,7 +407,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 onRetry = if (item.tickState == TickState.FAILED) ({ viewModel.retrySend(item.key) }) else null,
                 onDelete = { viewModel.delete(item.key) },
                 onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
-                onReportSpam = if (!item.isOutgoing && viewModel.reportsSpamToTrai(item.subId)) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
+                onReportSpam = if (!item.isOutgoing && viewModel.reportsSpamToTrai(item.subId)) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item), subId = item.subId)) }) else null,
                 onInfo = { infoFor = item },
             ),
         )

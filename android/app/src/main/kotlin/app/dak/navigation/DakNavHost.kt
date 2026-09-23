@@ -61,7 +61,7 @@ fun DakNavHost(navController: NavHostController, startDestination: String, modif
         ) { ConversationScreen(navigator) }
         composable(
             Routes.COMPOSE,
-            arguments = listOf(optionalString(Routes.ARG_TO), optionalString(Routes.ARG_BODY)),
+            arguments = listOf(optionalString(Routes.ARG_TO), optionalString(Routes.ARG_BODY), optionalString(Routes.ARG_SUB)),
         ) { NewConversationScreen(navigator) }
         composable(Routes.SEARCH, arguments = listOf(optionalString(Routes.ARG_Q))) { SearchScreen(navigator) }
         composable(Routes.SETTINGS, arguments = listOf(optionalString(Routes.ARG_FOCUS))) { SettingsScreen(navigator) }

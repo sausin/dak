@@ -2,6 +2,7 @@ package app.dak.ui.birthdays
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.dak.automation.OutboundAutomationGuard
 import app.dak.automations.birthdays.BirthdayDates
 import app.dak.automations.birthdays.OccasionKind
 import app.dak.automations.birthdays.WishTemplates
@@ -58,6 +59,7 @@ class BirthdaysViewModel @Inject constructor(
     private val store: BirthdayStore,
     private val reader: ContactOccasionReader,
     private val scheduler: BirthdayScheduler,
+    private val outboundGuard: OutboundAutomationGuard,
     sims: SimRepository,
 ) : ViewModel() {
 
@@ -91,7 +93,15 @@ class BirthdaysViewModel @Inject constructor(
     }
 
     fun setEnabled(enabled: Boolean) = updateSettings { it.copy(enabled = enabled) }
-    fun setMode(mode: WishMode) = updateSettings { it.copy(mode = mode.name) }
+    /**
+     * Sets "Ask me first" or "Send automatically"; false (nothing changed) when choosing automatic sending while no
+     * app lock is set up: automatic wishes are unattended sends, like auto-forwarding ([OutboundAutomationGuard]).
+     */
+    fun setMode(mode: WishMode): Boolean {
+        if (mode == WishMode.AUTO && !outboundGuard.securityReady()) return false
+        updateSettings { it.copy(mode = mode.name) }
+        return true
+    }
     fun setTime(hour: Int, minute: Int) = updateSettings { it.copy(hour = hour, minute = minute) }
     fun setSim(subId: Int?) = updateSettings { it.copy(subId = subId) }
     fun setIncludeAnniversaries(include: Boolean) = updateSettings { it.copy(includeAnniversaries = include) }

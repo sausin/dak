@@ -57,6 +57,23 @@ If the app crashes, `adb logcat -b crash` output (or a screenshot of the crash d
     (a longer rule asks for the fingerprint again). Forward a message, then open the row's History (clock icon): the
     message, recipient and "Sent" chip are listed; tapping opens the original message. Forwarding → ⋮ → Forwarding
     history also shows rules that were deleted.
+18e. Unattended sends after the lock is removed: with app lock on, create an auto-reply rule (a delay of a few
+    minutes) and get it triggered, so a reply is queued. Switch app lock off before the reply is due. The reply must
+    **not** go out. Automations → history shows it as "Not sent: app lock was off". Repeat with a forwarding rule
+    while more than 30 forwards are queued (held forwards).
+18f. Birthday wishes → "Send automatically": with app lock off, choosing it shows "Set up app lock first". With app
+    lock on, set a contact's wish for a few minutes from now, then switch app lock off. At the time, no SMS goes out
+    and the Send / Edit / Skip notification appears instead. Tapping Send sends it (from the chosen SIM).
+18g. Report spam on a dual-SIM phone: open Report fraud for a spam SMS received on SIM 2. The TRAI 1909 row says
+    "Sends from SIM 2…", and the composer opens with SIM 2 selected. Take SIM 2 out and repeat: it says the default
+    SIM will be used.
+18h. Links from other apps: `adb shell am start -a android.intent.action.SENDTO -d "smsto:+911234567890?body=a%26b%2550"`
+    opens the composer with body `a&b%50`. `-d "sms:123,456?body=hi%20there"` gives two recipients. Share a photo to
+    Dak with SENDTO + `EXTRA_STREAM` and check that it is attached.
+18i. Video over MMS: attach a 10 s phone video (tens of MB) and send it as MMS. It sends within about a minute, the
+    receiving phone (stock Messages / iPhone) plays it with sound, and the file is under the carrier limit. A
+    2-minute video shows "Too large for MMS on this SIM…" without a crash. Attach a long voice recording (audio file)
+    and check that it is shrunk or refused cleanly.
 19. Battery: after a normal day, Settings → Battery → Dak should be negligible.
 
 ## Known limitations going in

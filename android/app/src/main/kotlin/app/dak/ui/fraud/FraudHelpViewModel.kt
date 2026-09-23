@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKey
+import app.dak.core.model.NO_SUB_ID
 import app.dak.navigation.Routes
 import app.dak.safety.FraudReport
 import app.dak.safety.helplines.Helpline
@@ -63,6 +64,8 @@ data class FraudHelpUi(
     /** True when a `message` argument was given but the message no longer exists. */
     val messageMissing: Boolean = false,
     val senderBlocked: Boolean = false,
+    /** SIM the 1909 complaint goes out from (the receiving SIM, else the default SMS SIM); null if undecided. */
+    val complaintSim: ComplaintSim.Choice? = null,
 ) {
     /** The "call now if you lost money" helpline (1930). */
     val urgent: Helpline? get() = helplines.firstOrNull { it.category == HelplineCategory.CYBERCRIME && it.action == HelplineAction.CALL }
@@ -99,7 +102,9 @@ class FraudHelpViewModel @Inject constructor(
 
     private val base = MutableStateFlow(FraudHelpUi())
 
-    val ui: StateFlow<FraudHelpUi> = combine(base, userHelplines.all) { state, mine -> state.copy(userHelplines = mine) }
+    val ui: StateFlow<FraudHelpUi> = combine(base, userHelplines.all, sims.sims) { state, mine, _ ->
+        state.copy(userHelplines = mine, complaintSim = state.message?.let { complaintSimFor(it.subId) })
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FraudHelpUi())
 
     private val eventChannel = Channel<FraudHelpEvent>(Channel.BUFFERED)
@@ -141,8 +146,14 @@ class FraudHelpViewModel @Inject constructor(
         val message = state.message ?: return null
         val number = state.traiSms?.target ?: TRAI_FALLBACK_NUMBER
         val body = FraudReport.traiComplaintBody(message.body, message.sender, message.dateMillis, state.traiSms?.smsFormat)
-        return Routes.compose(to = number, body = body)
+        // Decided now, not from the screen state, so a SIM removed since the screen opened is not used.
+        val sim = complaintSimFor(message.subId)
+        return Routes.compose(to = number, body = body, subId = sim.subId)
     }
+
+    private fun complaintSimFor(messageSubId: Int): ComplaintSim.Choice =
+        runCatching { ComplaintSim.choose(messageSubId, sims.sims.value, sims.defaultSmsSubId()) }
+            .getOrDefault(ComplaintSim.Choice(NO_SUB_ID, null, isReceivingSim = false))
 
     /** Plain-text details of the reported message, for pasting into a reporting form (Chakshu / cybercrime.gov.in in India). */
     fun details(labels: FraudReport.DetailLabels, simLabel: (Int) -> String?): String? {

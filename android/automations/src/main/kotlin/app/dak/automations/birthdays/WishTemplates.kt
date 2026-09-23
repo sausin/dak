@@ -61,14 +61,35 @@ public enum class OccasionKind { BIRTHDAY, ANNIVERSARY }
 /**
  * Tags a scheduled send as a birthday/anniversary wish, stored in the scheduled send's `ruleId` column so the
  * executor can dedupe (never twice in a year per contact) and honour "Ask me first":
- * `birthday:<ask|auto>:<contactId>:<kind>:<year>`.
+ * `birthday:<ask|auto|sent>:<contactId>:<kind>:<year>`.
+ *
+ * - `ask`: "Ask me first": the executor posts a prompt instead of sending.
+ * - `auto`: sent unattended, so it needs an app lock and counts against the unattended-send cap.
+ * - `sent` ([confirmed]): the user tapped Send on the prompt, so it is an attended send.
  */
-public data class WishTag(val ask: Boolean, val contactId: Long, val kind: OccasionKind, val year: Int) {
+public data class WishTag(
+    val ask: Boolean,
+    val contactId: Long,
+    val kind: OccasionKind,
+    val year: Int,
+    /** True when the user confirmed this wish (the prompt's Send); never together with [ask]. */
+    val confirmed: Boolean = false,
+) {
+
+    /** True for a wish that goes out with nobody confirming it (automatic mode). */
+    val unattended: Boolean get() = !ask && !confirmed
 
     /** Dedupe key: one wish per contact, occasion kind and year (for birthdays, effectively contactId+year). */
     val dedupeKey: String get() = "$contactId:${kind.name}:$year"
 
-    public fun encode(): String = "$PREFIX${if (ask) "ask" else "auto"}:$contactId:${kind.name}:$year"
+    public fun encode(): String {
+        val mode = when {
+            ask -> "ask"
+            confirmed -> "sent"
+            else -> "auto"
+        }
+        return "$PREFIX$mode:$contactId:${kind.name}:$year"
+    }
 
     public companion object {
         private const val PREFIX = "birthday:"
@@ -78,11 +99,12 @@ public data class WishTag(val ask: Boolean, val contactId: Long, val kind: Occas
             if (ruleId == null || !ruleId.startsWith(PREFIX)) return null
             val parts = ruleId.removePrefix(PREFIX).split(':')
             if (parts.size != 4) return null
-            val ask = when (parts[0]) { "ask" -> true; "auto" -> false; else -> return null }
+            val ask = when (parts[0]) { "ask" -> true; "auto", "sent" -> false; else -> return null }
+            val confirmed = parts[0] == "sent"
             val contactId = parts[1].toLongOrNull() ?: return null
             val kind = OccasionKind.entries.firstOrNull { it.name == parts[2] } ?: return null
             val year = parts[3].toIntOrNull() ?: return null
-            return WishTag(ask, contactId, kind, year)
+            return WishTag(ask, contactId, kind, year, confirmed)
         }
     }
 }

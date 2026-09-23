@@ -16,11 +16,13 @@ object Routes {
     fun conversation(conversationId: String, highlight: String? = null): String =
         "conversation/${enc(conversationId)}" + query(ARG_HIGHLIGHT to highlight)
 
-    const val COMPOSE = "compose?to={to}&body={body}"
+    const val COMPOSE = "compose?to={to}&body={body}&sub={sub}"
     const val ARG_TO = "to"
     const val ARG_BODY = "body"
-    fun compose(to: String? = null, body: String? = null): String =
-        "compose" + query(ARG_TO to to, ARG_BODY to body)
+    /** Preferred SIM subscription id (decimal); the composer uses it only if that SIM is still active. */
+    const val ARG_SUB = "sub"
+    fun compose(to: String? = null, body: String? = null, subId: Int? = null): String =
+        "compose" + query(ARG_TO to to, ARG_BODY to body, ARG_SUB to subId?.takeIf { it >= 0 }?.toString())
 
     const val SEARCH = "search?q={q}"
     const val ARG_Q = "q"

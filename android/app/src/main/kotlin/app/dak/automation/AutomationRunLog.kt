@@ -29,8 +29,49 @@ class AutomationRunLog @Inject constructor(private val store: AutomationRunStore
             .onFailure { Log.w(TAG, "could not write the run log", it) }
     }
 
+    /**
+     * Logs a queued unattended send (auto-reply, held auto-forward) that the scheduled-send executor dropped at send
+     * time. Such a send carries only its origin tag, not the rule, so the row is filed under the tag with [label] as
+     * its name.
+     */
+    suspend fun recordQueued(origin: ScheduledSendOrigin, tag: String, label: String, address: String?, body: String, outcome: RunOutcome, reason: String?) {
+        runCatching { store.add(rowForQueued(origin, tag, label, address, body, outcome, reason, System.currentTimeMillis())) }
+            .onFailure { Log.w(TAG, "could not write the run log", it) }
+    }
+
     companion object {
         private const val TAG = "DakRunLog"
+
+        /** The row for a queued send dropped at send time (see [recordQueued]). */
+        fun rowForQueued(
+            origin: ScheduledSendOrigin,
+            tag: String,
+            label: String,
+            address: String?,
+            body: String,
+            outcome: RunOutcome,
+            reason: String?,
+            nowMillis: Long,
+        ): AutomationRunRow = AutomationRunRow(
+            ruleId = tag,
+            ruleName = label,
+            atMillis = nowMillis,
+            messageKey = null,
+            conversationId = null,
+            sourceLabel = null,
+            actionKind = when (origin) {
+                ScheduledSendOrigin.AUTO_FORWARD -> ActionSpec.ForwardSms::class.simpleName ?: "ForwardSms"
+                ScheduledSendOrigin.AUTO_REPLY -> ActionSpec.ScheduleReply::class.simpleName ?: "ScheduleReply"
+                else -> origin.name
+            },
+            destinationLabel = null,
+            destination = address?.trim()?.takeIf { it.isNotEmpty() },
+            outcome = outcome.name,
+            reason = reason,
+            // A held forward carries someone else's message (possibly an OTP) and its code is not known here to mask:
+            // no preview. An auto-reply is the user's own text.
+            textPreview = if (origin == ScheduledSendOrigin.AUTO_FORWARD) null else RunHistory.preview(body),
+        )
 
         /** The row for one run (pure apart from the default zone used to render `{time}`). */
         fun rowFor(

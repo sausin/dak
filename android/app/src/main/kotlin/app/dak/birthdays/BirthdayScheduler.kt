@@ -76,7 +76,7 @@ class BirthdayScheduler @Inject constructor(
             val wanted = settings.enabled && current.enabled && !contactGone && date != null &&
                 !current.number.isNullOrBlank() &&
                 (current.occasionKind != OccasionKind.ANNIVERSARY || settings.includeAnniversaries)
-            if (!wanted || date == null) {
+            if (!wanted) {
                 current = cancelPending(current)
                 if (current != config) store.replaceConfig(current)
                 continue
@@ -117,7 +117,7 @@ class BirthdayScheduler @Inject constructor(
                 firstName = current.firstName,
                 age = if (current.occasionKind == OccasionKind.BIRTHDAY) date.ageIn(next.year) else null,
             )
-            val number = current.number!!
+            val number = current.number
             val existing = current.scheduledSendId?.let { sends.get(it) }
             val upToDate = existing != null && existing.status == ScheduledSendStatus.PENDING &&
                 existing.sendAtMillis == atMillis && existing.ruleId == tag && existing.body == body &&

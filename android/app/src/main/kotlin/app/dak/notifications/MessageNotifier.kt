@@ -178,9 +178,9 @@ class MessageNotifier @Inject constructor(
         val repeat = previous != null && RepeatCollapse.isRepeat(
             previous.notification.extras.getString(EXTRA_REPEAT_KEY), previous.notification.extras.getLong(EXTRA_REPEAT_AT), template, now,
         )
-        val count = if (repeat) previous!!.notification.extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
-        val sameCode = repeat && previous!!.notification.extras.getString(EXTRA_OTP_CODE) == otp.code
-        val target = NotificationActions.Target(tag = if (repeat) previous!!.tag else "otp:${message.key}", id = ID_OTP)
+        val count = if (repeat) previous.notification.extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
+        val sameCode = repeat && previous.notification.extras.getString(EXTRA_OTP_CODE) == otp.code
+        val target = NotificationActions.Target(tag = if (repeat) previous.tag else "otp:${message.key}", id = ID_OTP)
         val handling = settings.get(DakSettings.consumedOtpHandling)
         val inCall = callState.isInCall()
         val large = settings.get(DakSettings.otpDisplaySize) == "large"
@@ -286,7 +286,7 @@ class MessageNotifier @Inject constructor(
             extras.getString(EXTRA_REPEAT_SENDER) == message.address &&
             RepeatCollapse.isRepeat(extras.getString(EXTRA_REPEAT_KEY), extras.getLong(EXTRA_REPEAT_AT), key, now) &&
             removeLastMessage(style)
-        val count = if (repeat) extras!!.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
+        val count = if (repeat) extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
         val shown = RepeatCollapse.withCount(body, count)
         style.addMessage(shown, message.dateMillis, from)
 

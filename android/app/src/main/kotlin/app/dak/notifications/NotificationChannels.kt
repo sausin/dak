@@ -324,15 +324,17 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
                 enableVibration(false)
                 setShowBadge(false)
             } else {
-                setSound(Settings.System.DEFAULT_NOTIFICATION_URI, audioAttributes(spec.perSim))
+                setSound(Settings.System.DEFAULT_NOTIFICATION_URI, audioAttributes())
                 enableVibration(true)
                 setShowBadge(true)
             }
         }
 
-    private fun audioAttributes(message: Boolean): AudioAttributes = AudioAttributes.Builder()
+    // USAGE_NOTIFICATION_COMMUNICATION_INSTANT is deprecated (the platform treats it as USAGE_NOTIFICATION); Do Not
+    // Disturb's "messages" exemption follows the notification category, not the audio usage.
+    private fun audioAttributes(): AudioAttributes = AudioAttributes.Builder()
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-        .setUsage(if (message) AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT else AudioAttributes.USAGE_NOTIFICATION)
+        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
         .build()
 
     private fun activeSlots(sims: List<SimInfo>): Set<Int> =

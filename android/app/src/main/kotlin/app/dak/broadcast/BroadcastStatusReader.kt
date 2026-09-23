@@ -132,8 +132,8 @@ class BroadcastStatusReader @Inject constructor(
         if (r.status == RecipientStatus.CANCELLED) return RecipientView(index, r, CopyState.CANCELLED, null, null, null)
         val send = r.scheduledSendId?.let { runCatching { sends.get(it) }.getOrNull() }
         return when (send?.status) {
-            ScheduledSendStatus.FAILED -> RecipientView(index, r, CopyState.FAILED, TickState.FAILED, null, send?.failureReason)
-            ScheduledSendStatus.CANCELLED -> RecipientView(index, r, CopyState.CANCELLED, null, null, send?.failureReason)
+            ScheduledSendStatus.FAILED -> RecipientView(index, r, CopyState.FAILED, TickState.FAILED, null, send.failureReason)
+            ScheduledSendStatus.CANCELLED -> RecipientView(index, r, CopyState.CANCELLED, null, null, send.failureReason)
             ScheduledSendStatus.SENT -> RecipientView(index, r, CopyState.SENDING, TickState.SENDING, null, null)
             ScheduledSendStatus.PENDING, null ->
                 if (r.status == RecipientStatus.FAILED) {

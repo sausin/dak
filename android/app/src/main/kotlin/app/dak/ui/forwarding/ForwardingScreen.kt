@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.ForwardToInbox
+import androidx.compose.material.icons.automirrored.outlined.ForwardToInbox
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.DropdownMenu
@@ -45,7 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.automation.ForwardingHold
@@ -214,7 +214,7 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             if (rows != null && list.isEmpty()) {
                 item {
                     EmptyState(
-                        icon = Icons.Outlined.ForwardToInbox,
+                        icon = Icons.AutoMirrored.Outlined.ForwardToInbox,
                         title = stringResource(R.string.fw_empty_title),
                         body = stringResource(R.string.fw_empty_body),
                     )

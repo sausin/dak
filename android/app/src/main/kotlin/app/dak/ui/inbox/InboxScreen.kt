@@ -27,7 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -57,7 +57,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -203,7 +203,7 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             ReliabilityBanner(navigator)
-            ScrollableTabRow(selectedTabIndex = TABS.indexOf(tab).coerceAtLeast(0), edgePadding = 8.dp) {
+            PrimaryScrollableTabRow(selectedTabIndex = TABS.indexOf(tab).coerceAtLeast(0), edgePadding = 8.dp) {
                 TABS.forEach { t ->
                     Tab(selected = t == tab, onClick = { viewModel.selectTab(t) }, text = { Text(tabLabel(t)) })
                 }

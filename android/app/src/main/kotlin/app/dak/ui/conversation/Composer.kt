@@ -36,7 +36,7 @@ import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContactPage
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.DropdownMenu
@@ -436,7 +436,7 @@ private fun AttachmentTray(onAttachment: (ComposerAttachment) -> Unit, onText: (
         TrayButton(Icons.Outlined.Image, stringResource(R.string.scr_tray_gallery)) {
             gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
         }
-        TrayButton(Icons.Outlined.InsertDriveFile, stringResource(R.string.scr_tray_file)) { files.launch(arrayOf("*/*")) }
+        TrayButton(Icons.AutoMirrored.Outlined.InsertDriveFile, stringResource(R.string.scr_tray_file)) { files.launch(arrayOf("*/*")) }
         TrayButton(Icons.Outlined.ContactPage, stringResource(R.string.scr_tray_contact)) { contact.launch(null) }
         TrayButton(Icons.Outlined.LocationOn, stringResource(R.string.scr_tray_location)) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {

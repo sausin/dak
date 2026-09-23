@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.dak.core.model.SimInfo
 import app.dak.index.BinItem
 import app.dak.index.bin.RecycleBin
+import app.dak.security.AppLockManager
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.SimRepository
@@ -36,12 +37,14 @@ class BinViewModel @Inject constructor(
     private val bin: RecycleBin,
     settings: SettingsStore,
     sims: SimRepository,
+    appLock: AppLockManager,
 ) : ViewModel() {
 
     val lockEnabled: Boolean = settings.get(DakSettings.binBiometricLock)
 
     // In memory only: the lock returns after process death, never restored from saved state.
-    private val unlockedState = MutableStateFlow(!lockEnabled)
+    // Already authenticated in this session (app unlock or another sensitive-screen check): no second prompt.
+    private val unlockedState = MutableStateFlow(!lockEnabled || appLock.isSensitiveUnlocked())
     val unlocked: StateFlow<Boolean> = unlockedState
 
     val items: StateFlow<List<BinItem>?> = bin.observe()

@@ -13,6 +13,11 @@ public data class SenderEntry(
     val categoryHint: Category = Category.UNKNOWN,
     /** 0 (worst) .. 100 (best). Absent/unknown senders default to neutral (50) at call sites. */
     val reputation: Int = 50,
+    /**
+     * ISO 3166-1 alpha-2 countries this sender belongs to (e.g. `["IN"]` for Indian DLT headers). Empty (the
+     * default, and what older bundles carry) means global. See [SenderRegion.matches].
+     */
+    val regions: List<String> = emptyList(),
 )
 
 /** A single deterministic classification rule. */
@@ -28,6 +33,11 @@ public data class TemplateRule(
     val priority: Int = 0,
     /** Extra labels to attach to the [app.dak.core.model.Classification] when this rule fires. */
     val labels: Set<String> = emptySet(),
+    /**
+     * ISO 3166-1 alpha-2 countries this rule is written for (e.g. `["IN"]` for UPI/IMPS wording). Empty (the
+     * default, and what older bundles carry) means the rule is generic and applies everywhere.
+     */
+    val regions: List<String> = emptyList(),
 )
 
 /** The payload of a template bundle: everything except the signature. */
@@ -63,6 +73,14 @@ public class TemplateBundle private constructor(
     public fun sender(mergeKey: String): SenderEntry? = sendersByHeader[mergeKey.uppercase()]
 
     /**
+     * [sender], but only if the entry belongs to [region] (an entry tagged `["IN"]` is ignored for a UK SIM, so a
+     * British sender that happens to share an Indian header name is not given that brand). Unknown regions and
+     * untagged entries always match.
+     */
+    public fun sender(mergeKey: String, region: SenderRegion): SenderEntry? =
+        sender(mergeKey)?.takeIf { region.matches(it.regions) }
+
+    /**
      * The brand-level fold key of a sender: the first header the bundle lists for the same brand (e.g. `HDFCBK`
      * for `HDFC`, `HDFCBK` or any other header of "HDFC Bank"), or null when the sender is unknown. Senders with
      * the same brand share one key, so a UI can fold them into one conversation; the key is a real header, so the
@@ -75,6 +93,16 @@ public class TemplateBundle private constructor(
 
     public fun rulesFor(mergeKey: String?): List<TemplateRule> =
         rules.filter { it.senderHeaders.isEmpty() || (mergeKey != null && mergeKey.uppercase() in it.senderHeaders) }
+
+    /**
+     * [rulesFor] limited to rules for [region]: generic (untagged) rules always apply; region-tagged rules apply only
+     * in their regions (all of them when the region is unknown). Still highest priority first, and at equal priority
+     * a rule written for this region is tried before a generic one.
+     */
+    public fun rulesFor(mergeKey: String?, region: SenderRegion): List<TemplateRule> =
+        rulesFor(mergeKey)
+            .filter { region.matches(it.regions) }
+            .sortedWith(compareByDescending<TemplateRule> { it.priority }.thenBy { if (it.regions.isEmpty()) 1 else 0 })
 
     public companion object {
         private val json = Json { ignoreUnknownKeys = true; isLenient = true }

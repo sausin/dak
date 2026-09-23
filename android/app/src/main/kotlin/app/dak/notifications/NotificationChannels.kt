@@ -30,6 +30,9 @@ import javax.inject.Singleton
  * once per [SCHEMA] bump. All work is a few binder calls, done in `Application.onCreate` or on first use.
  */
 @Singleton
+/** `NotificationManager.VISIBILITY_NO_OVERRIDE` is hidden from the public SDK; this is its platform value. */
+private const val VISIBILITY_NO_OVERRIDE = -1000
+
 class NotificationChannels @Inject constructor(@ApplicationContext private val context: Context) {
 
     companion object {
@@ -232,7 +235,7 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
     internal fun isCustomised(channel: NotificationChannel, spec: ChannelSpec): Boolean {
         if (channel.importance != spec.importance) return true
         if (channel.canBypassDnd()) return true
-        if (channel.lockscreenVisibility != NotificationManager.VISIBILITY_NO_OVERRIDE) return true
+        if (channel.lockscreenVisibility != VISIBILITY_NO_OVERRIDE) return true
         if (channel.shouldVibrate() == spec.silent) return true
         val sound = channel.sound
         return if (spec.silent) sound != null else sound != Settings.System.DEFAULT_NOTIFICATION_URI

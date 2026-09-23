@@ -59,6 +59,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import app.dak.R
 import app.dak.classify.ExtractedLink
+import app.dak.classify.scam.ScamLabels
 import app.dak.core.model.MessageBox
 import app.dak.core.model.SimInfo
 import app.dak.index.MessageItem
@@ -262,24 +263,28 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             fontScale = prefs.fontScale,
                             outgoingColors = prefs.bubbleStyle?.let { DakTheme.colors.avatars.getOrNull(Math.floorMod(it, DakTheme.colors.avatars.size)) },
                             forwardedTo = forwarded[item.key.toString()],
-                            labels = (item.labels - LinkSafety.UNKNOWN_SENDER_LINK_LABEL) + userLabels[item.key.toString()].orEmpty(),
+                            labels = (item.labels - LinkSafety.UNKNOWN_SENDER_LINK_LABEL).filterNotTo(HashSet<String>(), ScamLabels::isScamLabel) +
+                                userLabels[item.key.toString()].orEmpty(),
                             channelLabel = if (foldChannels.size > 1 && !item.isOutgoing) item.address else null,
                             sims = if (item.repeatCount > 1) sims else emptyList(),
                         )
-                        Box {
-                            MessageBubble(item = item, decor = decor, actions = bubbleActions)
-                            MessageMenu(
-                                item = item,
-                                expanded = messageMenuFor?.key == item.key,
-                                onDismiss = { messageMenuFor = null },
-                                onCopy = { copyToClipboard(context, item.body, sensitive = item.otp != null) },
-                                onStar = { viewModel.setMessageStarred(item.key, !item.starred) },
-                                onForward = { navigator.navigate(Routes.compose(body = item.body)) },
-                                onDelete = { viewModel.delete(item.key) },
-                                onRetry = if (item.box == MessageBox.FAILED) ({ viewModel.retrySend(item.key) }) else null,
-                                onReportSpam = if (!item.isOutgoing) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
-                                onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
-                            )
+                        Column {
+                            ScamWarningBanner(item = item, onReport = { key -> navigator.navigate(Routes.fraudHelp(key)) })
+                            Box {
+                                MessageBubble(item = item, decor = decor, actions = bubbleActions)
+                                MessageMenu(
+                                    item = item,
+                                    expanded = messageMenuFor?.key == item.key,
+                                    onDismiss = { messageMenuFor = null },
+                                    onCopy = { copyToClipboard(context, item.body, sensitive = item.otp != null) },
+                                    onStar = { viewModel.setMessageStarred(item.key, !item.starred) },
+                                    onForward = { navigator.navigate(Routes.compose(body = item.body)) },
+                                    onDelete = { viewModel.delete(item.key) },
+                                    onRetry = if (item.box == MessageBox.FAILED) ({ viewModel.retrySend(item.key) }) else null,
+                                    onReportSpam = if (!item.isOutgoing) ({ navigator.navigate(Routes.compose(to = TRAI_SPAM_NUMBER, body = viewModel.spamReportBody(item))) }) else null,
+                                    onReportFraud = if (!item.isOutgoing) ({ navigator.navigate(Routes.fraudHelp(item.key.toString())) }) else null,
+                                )
+                            }
                         }
                     }
                 }

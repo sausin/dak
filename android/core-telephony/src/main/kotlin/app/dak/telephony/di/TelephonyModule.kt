@@ -20,6 +20,8 @@ import app.dak.telephony.number.TelephonyNumberNormalizer
 import app.dak.telephony.provider.TelephonyProviderChanges
 import app.dak.telephony.provider.TelephonyProviderReader
 import app.dak.telephony.provider.TelephonyProviderWriter
+import app.dak.telephony.region.RegionProvider
+import app.dak.telephony.region.TelephonyRegionProvider
 import app.dak.telephony.send.SendRateLimiter
 import app.dak.telephony.send.TelephonyMessageSender
 import app.dak.telephony.sim.TelephonySimRepository
@@ -71,6 +73,9 @@ abstract class TelephonyBindingsModule {
 
     @Binds
     abstract fun bindNumberNormalizer(impl: TelephonyNumberNormalizer): NumberNormalizer
+
+    @Binds
+    abstract fun bindRegionProvider(impl: TelephonyRegionProvider): RegionProvider
 
     /** Declared so an app with no handlers still gets a valid (empty) set. Contribute with `@IntoSet`. */
     @Multibinds

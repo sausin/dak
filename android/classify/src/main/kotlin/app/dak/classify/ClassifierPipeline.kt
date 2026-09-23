@@ -14,6 +14,9 @@ import app.dak.core.model.ClassifierSource
  *    guess.
  *
  * @param contactLookup returns true if [address] is a saved contact.
+ * @param regionFor the sender conventions for a message received on SIM `subId` (normally that SIM's home
+ *   country, see [SenderRegion]). DLT-specific handling (traffic-type labels, header trust) and region-tagged
+ *   template entries follow it; the default, [SenderRegion.UNKNOWN], applies generic rules only.
  */
 public class ClassifierPipeline(
     private val templates: TemplateBundle,
@@ -21,29 +24,35 @@ public class ClassifierPipeline(
     private val cloud: CloudClassifier = NoCloudClassifier,
     private val contactLookup: (String) -> Boolean = { false },
     private val threshold: Float = 0.55f,
+    private val regionFor: (subId: Int) -> SenderRegion = { SenderRegion.UNKNOWN },
 ) {
 
-    /** Classifies one message. [subId] is accepted for future SIM-scoped rules; unused today. */
-    public suspend fun classify(address: String, body: String, @Suppress("UNUSED_PARAMETER") subId: Int): Classification =
-        classifyBounded(address, if (body.length > MAX_CLASSIFY_CHARS) body.substring(0, MAX_CLASSIFY_CHARS) else body)
+    /** Classifies one message received on SIM [subId] (whose region picks the sender conventions). */
+    public suspend fun classify(address: String, body: String, subId: Int): Classification =
+        classifyBounded(
+            address,
+            if (body.length > MAX_CLASSIFY_CHARS) body.substring(0, MAX_CLASSIFY_CHARS) else body,
+            runCatching { regionFor(subId) }.getOrDefault(SenderRegion.UNKNOWN),
+        )
 
-    private suspend fun classifyBounded(address: String, body: String): Classification {
+    private suspend fun classifyBounded(address: String, body: String, region: SenderRegion): Classification {
         // Only the head of a message is classified: templates, the model and OTP extraction all key off the first
         // few hundred characters, and bounding the input bounds the worst case of every regex run on it (MMS text
         // parts can be megabytes of sender-chosen text).
-        val dltHeader = SenderId.parseDltHeader(address)
+        // DLT headers only exist on Indian networks; elsewhere a header-shaped name is just an alphanumeric sender.
+        val dltHeader = if (region.dltSenderIds) SenderId.parseDltHeader(address) else null
         val mergeKey = SenderId.mergeKey(address)
-        val senderEntry = templates.sender(mergeKey)
+        val senderEntry = templates.sender(mergeKey, region)
         val canonicalSender = senderEntry?.brand
 
         var labels = mutableSetOf<String>()
-        if (isUnknownSenderWithLink(address, body)) labels += "unknown-sender-link"
+        if (isUnknownSenderWithLink(address, body, region)) labels += "unknown-sender-link"
 
-        val templateResult = matchTemplates(mergeKey, body, dltHeader)
+        val templateResult = matchTemplates(mergeKey, body, dltHeader, senderEntry, region)
         var candidate: Classification = if (templateResult != null && templateResult.confidence >= threshold) {
             templateResult
         } else {
-            modelStage(address, body, senderEntry)
+            modelStage(address, body, senderEntry, region)
         }
 
         if (candidate.confidence < threshold) {
@@ -66,8 +75,14 @@ public class ClassifierPipeline(
         )
     }
 
-    private fun matchTemplates(mergeKey: String, body: String, dltHeader: DltHeader?): Classification? {
-        val rules = templates.rulesFor(mergeKey)
+    private fun matchTemplates(
+        mergeKey: String,
+        body: String,
+        dltHeader: DltHeader?,
+        senderEntry: SenderEntry?,
+        region: SenderRegion,
+    ): Classification? {
+        val rules = templates.rulesFor(mergeKey, region)
         for (rule in rules) {
             val regex = ruleRegex(rule) ?: continue
             if (regex.containsMatchIn(body)) {
@@ -81,7 +96,7 @@ public class ClassifierPipeline(
         }
         // No regex rule fired, but a known sender with a strong category hint (e.g. a promo-only
         // telecom header) still counts as a deterministic, if weaker, signal.
-        val hint = templates.sender(mergeKey)?.categoryHint
+        val hint = senderEntry?.categoryHint
         if (hint != null && hint != Category.UNKNOWN) {
             return Classification(
                 category = hint,
@@ -113,9 +128,9 @@ public class ClassifierPipeline(
         null -> emptySet()
     }
 
-    private fun modelStage(address: String, body: String, senderEntry: SenderEntry?): Classification {
+    private fun modelStage(address: String, body: String, senderEntry: SenderEntry?, region: SenderRegion): Classification {
         val scores = model.predict(body).toMutableMap()
-        if (isPersonalLikely(address, body)) {
+        if (isPersonalLikely(address, region)) {
             val boosted = (scores[Category.PERSONAL] ?: 0f) * 1.6f + 0.1f
             scores[Category.PERSONAL] = boosted
             val sum = scores.values.sum().coerceAtLeast(1e-6f)
@@ -143,14 +158,19 @@ public class ClassifierPipeline(
         )
     }
 
-    private fun isPersonalLikely(address: String, body: String): Boolean {
+    private fun isPersonalLikely(address: String, region: SenderRegion): Boolean {
         if (contactLookup(address)) return true
-        return SenderId.isIndianMobile(address)
+        return region.isLocalMobile(address)
     }
 
-    private fun isUnknownSenderWithLink(address: String, body: String): Boolean {
+    /**
+     * A phone-number sender (or, where banks never use them, a short code) that is not a contact and sends a link.
+     * In the US, UK and most markets outside India banks and services send from short codes, so those are not flagged.
+     */
+    private fun isUnknownSenderWithLink(address: String, body: String, region: SenderRegion): Boolean {
         val kind = SenderId.classify(address)
-        val numericUnknown = (kind == SenderKind.PHONE_NUMBER || kind == SenderKind.SHORT_CODE) && !contactLookup(address)
+        val numeric = kind == SenderKind.PHONE_NUMBER || (kind == SenderKind.SHORT_CODE && region.shortCodesSuspicious)
+        val numericUnknown = numeric && !contactLookup(address)
         return numericUnknown && LinkExtractor.extract(body).isNotEmpty()
     }
 }

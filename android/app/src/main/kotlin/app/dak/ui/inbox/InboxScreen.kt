@@ -109,6 +109,7 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val sims by viewModel.sims.collectAsStateWithLifecycle()
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     val pinnedSearches by viewModel.pinnedSearches.collectAsStateWithLifecycle()
+    val scamFlagged by hiltViewModel<ScamFlagsViewModel>().flagged.collectAsStateWithLifecycle()
     val conversations = viewModel.conversationsPaged.collectAsLazyPagingItems()
     val snackbar = remember { SnackbarHostState() }
     var overflow by remember { mutableStateOf(false) }
@@ -245,6 +246,7 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 selected = c.conversationId in selection,
                                 selectionMode = selection.isNotEmpty(),
                                 onToggleSelect = { selection = toggled(selection, c) },
+                                scamFlagged = c.conversationId in scamFlagged,
                             )
                         }
                     }
@@ -372,6 +374,7 @@ private fun ConversationRow(
     selected: Boolean = false,
     selectionMode: Boolean = false,
     onToggleSelect: (() -> Unit)? = null,
+    scamFlagged: Boolean = false,
 ) {
     var menu by remember { mutableStateOf(false) }
     val unread = conversation.unreadCount > 0
@@ -411,6 +414,7 @@ private fun ConversationRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 2.dp)) {
+                    if (scamFlagged) ScamWarningChip()
                     if (conversation.snippetRepeatCount > 1) {
                         Text(
                             stringResource(R.string.fold_inbox_repeat, conversation.snippetRepeatCount),

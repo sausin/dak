@@ -27,7 +27,7 @@ class IndexScamContext @Inject constructor(
         val now = System.currentTimeMillis()
         accountsCache?.let { (at, value) -> if (now - at < ACCOUNTS_TTL_MILLIS) return value }
         val accounts = runCatching { db.ledgerDao().observeAccounts().first() }.getOrDefault(emptyList())
-        val hints = accounts.mapNotNullTo(HashSet()) { row ->
+        val hints = accounts.mapNotNullTo(HashSet<AccountHint>()) { row ->
             val digits = (row.maskedNumber ?: row.last4)?.filter { it.isDigit() }
             if (digits.isNullOrEmpty() || row.institution.isBlank()) null else AccountHint(row.institution, digits)
         }

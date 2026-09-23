@@ -186,10 +186,12 @@ fun cardOutstanding(accountId: String, asOfMillis: Long): Flow<Money?>
 fun messageKeyOf(entry: LedgerEntry): MessageKey?
 suspend fun setStatementDay(accountId: String, statementDay: Int?)
 fun accountGroups(nowMillis: Long = now): Flow<List<AccountGroup<AccountGroupItem>>>
-    // Passbook sections (Bank accounts, Credit cards, Debit cards, Wallets, UPI, Prepaid & forex, Loans, Other) with
-    // per-currency header totals; AccountGroupItem(summary, spentThisMonth, outstanding, linked: AccountSummary?)
+    // Passbook sections (Bank accounts, Credit cards, Debit cards, Wallets, UPI, Prepaid & forex, Loans, Investments,
+    // Other) with per-currency header totals; AccountGroupItem(summary, spentThisMonth, outstanding, linked:
+    // AccountSummary?). spentThisMonth leaves out own-account / investment transfers (ledger_entry.transfer).
 suspend fun setAccountType(accountId: String, instrument: InstrumentType?)   // manual type; null = detected
-// AccountSummary.typeOverridden; Account.linkedAccountId; LedgerEntry.viaAccountId
+// AccountSummary.typeOverridden / unitsHeld; Account.linkedAccountId; LedgerEntry.viaAccountId / transfer /
+// investmentAction / units / unitPrice
 suspend fun recompute(accountIds: Collection<String>);  suspend fun recomputeAll()
 ```
 
@@ -327,7 +329,7 @@ still filled.)
   `withTransaction` (list `@Insert(IGNORE)` + list `@Update`; FTS rows follow via the content triggers in the same
   transaction). It `yield()`s between chunks. Room's default journal mode (`AUTOMATIC` = WAL except on low-RAM
   devices) applies: `IndexDatabaseFactory`'s deferred helper forwards `setWriteAheadLoggingEnabled` to SQLCipher.
-- **Schema**: version 5, exported to `core-index/schemas`. The DB holds user data, so every version ships a real
+- **Schema**: version 6, exported to `core-index/schemas`. The DB holds user data, so every version ships a real
   migration in `db.IndexMigrations` (1 -> 2 adds `sender_fold`, `conversation_alias`, `account_alias`,
   `indexed_message.repeatGroup` + index, `ledger_account.maskedNumber`); only downgrades are destructive.
   `IndexMigrationSchemaTest` (Robolectric) checks the migrated schema equals Room's own. Enricher
@@ -342,6 +344,12 @@ still filled.)
   the bank accounts they name (current and previous link).
   4 -> 5 (`MIGRATION_4_5`, additive): user-data table `automation_run` (`AutomationRunRow`) with indices on
   `(ruleId, atMillis)` and `atMillis`. Starts empty; no re-index (`LOGIC_REVISION` unchanged).
+  5 -> 6 (`MIGRATION_5_6`, additive): investments in the Passbook. Derived `ledger_entry` gains `transfer INTEGER NOT
+  NULL DEFAULT 0` (own-account / investment money, never counted by `observeDebitsSince`), `investmentAction`,
+  `units`, `unitPrice` (TEXT); `ledger_account` gains `unitsHeld` (TEXT). Old rows read "not a transfer" until the
+  ledger is recomputed by the re-index that ships with the parser change (the coordinator bumps `LOGIC_REVISION`).
+  A valuation message (`InvestmentAction.VALUATION`, amount 0) keeps its `transactionJson` and `accountId` for the
+  ledger but no `amountMinor` / `currency` / `direction` / `merchant` on its row (no amount chip, search or automation).
 
 ## Tests
 

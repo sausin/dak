@@ -49,6 +49,21 @@ class ParserRedosTest {
         "Dr. Cr. ".repeat(8_000),
         "XX" + "1".repeat(50_000),
         "ending " + "1".repeat(50_000),
+        // Investments: folios, units / NAV figures, trade lines, scheme names, security alerts.
+        "folio ".repeat(8_000),
+        "Folio No. " + "X".repeat(50_000) + "1",
+        "units allotted NAV ".repeat(3_000),
+        "1.".repeat(25_000) + " units",
+        "NAV as on 1-1-1 ".repeat(3_000),
+        "shares Bought 1 A @ ".repeat(4_000),
+        "Bought 1 " + "A ".repeat(25_000) + "@ 1",
+        "A ".repeat(25_000) + "Fund",
+        "Fund - A ".repeat(6_000),
+        "pledge demat ".repeat(4_000),
+        "Client ID " + "x".repeat(50_000),
+        "BO ID " + "1".repeat(50_000),
+        "current value of your holdings Rs 1 ".repeat(2_000),
+        "shares " + "a".repeat(50_000) + " debited demat",
     )
 
     @Test

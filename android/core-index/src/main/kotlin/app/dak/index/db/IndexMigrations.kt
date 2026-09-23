@@ -110,5 +110,27 @@ object IndexMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    /** SQL of [MIGRATION_5_6], exposed for tests. */
+    val SQL_5_6: List<String> = listOf(
+        // LedgerEntryRow: own-account / investment transfers (never spending) and investment details.
+        "ALTER TABLE `${Tables.LEDGER_ENTRY}` ADD COLUMN `transfer` INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE `${Tables.LEDGER_ENTRY}` ADD COLUMN `investmentAction` TEXT",
+        "ALTER TABLE `${Tables.LEDGER_ENTRY}` ADD COLUMN `units` TEXT",
+        "ALTER TABLE `${Tables.LEDGER_ENTRY}` ADD COLUMN `unitPrice` TEXT",
+        // AccountRow.unitsHeld (investment accounts).
+        "ALTER TABLE `${Tables.ACCOUNT}` ADD COLUMN `unitsHeld` TEXT",
+    )
+
+    /**
+     * 5 -> 6: investments in the Passbook (mutual-fund folios, demat accounts). Additive only: existing ledger entries
+     * read "not a transfer" with no investment details, and existing accounts no units, until the next ledger
+     * recompute (the re-index that ships with the parser change) fills them in.
+     */
+    val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (sql in SQL_5_6) db.execSQL(sql)
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

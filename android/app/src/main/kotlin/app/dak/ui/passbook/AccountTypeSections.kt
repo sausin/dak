@@ -34,7 +34,7 @@ import app.dak.index.repo.AccountSummary
 internal fun TypeRow(summary: AccountSummary, onChange: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.inst_type_label), style = MaterialTheme.typography.labelLarge)
-        TypeChip(summary.account.type)
+        TypeChip(summary.account.type, instrument = summary.account.instrument)
         Text(
             stringResource(if (summary.typeOverridden) R.string.inst_type_set_by_you else R.string.inst_type_detected),
             style = MaterialTheme.typography.labelSmall,
@@ -48,8 +48,9 @@ internal fun TypeRow(summary: AccountSummary, onChange: () -> Unit) {
 /**
  * The top of an account screen, adapted to its type: a bank account, wallet or prepaid card shows its stated
  * balance; a loan its stated outstanding and the account EMIs are paid from; a debit card the bank account it debits
- * (with that account's balance) or says none is known; UPI explains that balances live on the named account. Every
- * balance is exactly as an SMS stated it ("unknown since …" otherwise, see [BalanceLine]).
+ * (with that account's balance) or says none is known; UPI explains that balances live on the named account; an
+ * investment its current value as the fund / broker last stated it and the units held. Every balance is exactly as an
+ * SMS stated it ("unknown since …" otherwise, see [BalanceLine]).
  */
 @Composable
 internal fun AccountHeader(summary: AccountSummary, linked: AccountSummary?, onOpenLinked: (String) -> Unit) {
@@ -94,6 +95,19 @@ internal fun AccountHeader(summary: AccountSummary, linked: AccountSummary?, onO
         }
         AccountType.UPI -> Labelled(R.string.inst_balance_upi) {
             Text(stringResource(R.string.inst_upi_note), style = MaterialTheme.typography.bodyMedium, color = muted)
+        }
+        AccountType.INVESTMENT -> {
+            Labelled(R.string.inst_balance_investment) {
+                if (summary.balance is BalanceState.NoInfo) {
+                    Text(stringResource(R.string.inst_investment_no_value), style = MaterialTheme.typography.bodyMedium, color = muted)
+                } else {
+                    BalanceLine(summary.balance, prominent = true)
+                }
+            }
+            summary.unitsHeld?.let { units ->
+                Text(stringResource(R.string.inst_units_held, unitsText(units)), style = MaterialTheme.typography.bodyMedium)
+            }
+            Text(stringResource(R.string.inst_investment_note), style = MaterialTheme.typography.labelSmall, color = muted)
         }
     }
 }

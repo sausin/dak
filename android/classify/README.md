@@ -35,8 +35,13 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
   (AWB/tracking/consignment/shipment/out for delivery/delivered/reattempt), orders, invoices/bills/due dates,
   bookings/tickets/PNR/appointments, service updates (request registered, card dispatched, KYC updated, new
   login) and account notices (plan/validity expiry, data usage, recharge done); plain promotions. Order/delivery/
-  invoice updates stay transactions whatever "rate us" / feedback link follows. Bump the bundle `version` when rules
-  change so stored messages are re-classified.
+  invoice updates stay transactions whatever "rate us" / feedback link follows. Investments (bundle 4, see
+  `InvestmentLabels`): demat security alerts (shares / securities debited, pledge, e-DIS) are transactions labelled
+  `investment-alert` (routed to Alerts), fund / broker updates (folio, NAV, IDCW, units allotted / redeemed, CAS,
+  contract note, qty @ price, BO / DP ID) transactions labelled `investment-update` (routed to General), NFO / "invest
+  now" / "returns up to" offers promotions; a debit / credit on a masked "A/c XX1234" (`txn-account-movement`) is an
+  unlabelled transaction first, so a bank's SIP debit stays a loud alert (`InvestmentClassificationTest`). Bump the
+  bundle `version` when rules change so stored messages are re-classified.
 - `TemplateRule.senderScope` (`ANY` default, `BUSINESS`, `PRIVATE_NUMBER`): `BUSINESS` rules (money, order,
   delivery, bill, booking, service wording that people also write to each other) are skipped for saved contacts and,
   in India, for private numbers; `PRIVATE_NUMBER` rules apply only to unknown private numbers in India (where

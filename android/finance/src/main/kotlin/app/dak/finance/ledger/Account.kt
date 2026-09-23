@@ -21,8 +21,17 @@ enum class AccountType {
 
     /** Loan / EMI accounts: payments made, and the outstanding amount when an SMS states it. */
     LOAN,
+
+    /**
+     * Investments: mutual-fund folios and demat accounts. Purchases are credits ("invested"), redemptions / sales
+     * debits, and the balance is the current value an SMS last stated. Never spending (see [LedgerEntry.transfer]).
+     */
+    INVESTMENT,
     UNKNOWN,
     ;
+
+    /** Mutual-fund folios and demat accounts. */
+    val isInvestment: Boolean get() = this == INVESTMENT
 
     /** Types whose accounts can be the same real account under two SMS formats (a UPI debit names the bank account). */
     val aliasFamily: AccountType get() = if (this == UPI) BANK_ACCOUNT else this
@@ -37,6 +46,7 @@ enum class AccountType {
             InstrumentType.UPI -> UPI
             InstrumentType.PREPAID_CARD -> PREPAID_CARD
             InstrumentType.LOAN -> LOAN
+            InstrumentType.MUTUAL_FUND, InstrumentType.DEMAT -> INVESTMENT
             InstrumentType.UNKNOWN -> UNKNOWN
         }
     }

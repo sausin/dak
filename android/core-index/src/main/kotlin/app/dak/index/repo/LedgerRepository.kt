@@ -3,6 +3,7 @@ package app.dak.index.repo
 import androidx.room.withTransaction
 import app.dak.classify.scam.ScamLabels
 import app.dak.core.model.InstrumentType
+import app.dak.core.model.InvestmentAction
 import app.dak.core.model.MessageKey
 import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountAliases
@@ -73,6 +74,8 @@ data class AccountSummary(
     val lastActivityMillis: Long,
     /** True when the user set this account's type by hand ([LedgerRepository.setAccountType]). */
     val typeOverridden: Boolean = false,
+    /** For an investment account: units / shares held as the latest SMS stating them said (a plain decimal string). */
+    val unitsHeld: String? = null,
 )
 
 /**
@@ -108,9 +111,10 @@ class LedgerRepository @Inject constructor(
 
     /**
      * The Passbook's sections: Bank accounts, Credit cards, Debit cards, Wallets, UPI, Prepaid & forex cards, Loans,
-     * Other (empty ones left out), each with header totals per currency (see `AccountGroups`). Each item carries its
-     * spend this month (UTC, as of [nowMillis]), a credit card's cycle outstanding when its statement day is known,
-     * and a debit card's / loan's linked bank account when an SMS named one.
+     * Investments, Other (empty ones left out), each with header totals per currency (see `AccountGroups`). Each item
+     * carries its spend this month (UTC, as of [nowMillis]; own-account and investment transfers excluded), a credit
+     * card's cycle outstanding when its statement day is known, and a debit card's / loan's linked bank account when an
+     * SMS named one.
      */
     fun accountGroups(nowMillis: Long = System.currentTimeMillis()): Flow<List<AccountGroup<AccountGroupItem>>> =
         combine(accounts(), ledgerDao.observeDebitsSince(AccountGroups.monthStartUtc(nowMillis))) { summaries, debits -> summaries to debits }
@@ -436,7 +440,7 @@ class LedgerRepository @Inject constructor(
         )
 
         fun toSummary(row: AccountRow, typeOverridden: Boolean = false): AccountSummary =
-            AccountSummary(toAccount(row), balanceOf(row), row.entryCount, row.lastActivityMillis, typeOverridden)
+            AccountSummary(toAccount(row), balanceOf(row), row.entryCount, row.lastActivityMillis, typeOverridden, row.unitsHeld)
 
         fun balanceOf(row: AccountRow): BalanceState {
             val known = if (row.balanceMinor != null && row.balanceCurrency != null && row.balanceAsOfMillis != null) {
@@ -479,6 +483,7 @@ class LedgerRepository @Inject constructor(
                 updatedAt = nowMillis,
                 maskedNumber = ledger.account.maskedNumber,
                 linkedAccountId = ledger.account.linkedAccountId,
+                unitsHeld = ledger.unitsHeld,
             )
         }
 
@@ -500,6 +505,10 @@ class LedgerRepository @Inject constructor(
             merchant = e.merchant,
             reference = e.reference,
             viaAccountId = e.viaAccountId,
+            transfer = e.transfer,
+            investmentAction = e.investmentAction?.name,
+            units = e.units,
+            unitPrice = e.unitPrice,
         )
 
         fun toEntry(row: LedgerEntryRow): LedgerEntry = LedgerEntry(
@@ -524,6 +533,10 @@ class LedgerRepository @Inject constructor(
             merchant = row.merchant,
             reference = row.reference,
             viaAccountId = row.viaAccountId,
+            transfer = row.transfer,
+            investmentAction = row.investmentAction?.let { name -> InvestmentAction.entries.firstOrNull { it.name == name } },
+            units = row.units,
+            unitPrice = row.unitPrice,
         )
 
         private fun decimalOrNull(s: String): BigDecimal? = runCatching { BigDecimal(s) }.getOrNull()

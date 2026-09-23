@@ -1,8 +1,10 @@
 package app.dak.notifications
 
+import app.dak.classify.InvestmentLabels
 import app.dak.core.model.Category
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -36,6 +38,37 @@ class ChannelRoutingTest {
         assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.TRANSACTION, likelyScam = true))
         assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.PERSONAL, likelyScam = true))
         assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.UNKNOWN, likelyScam = true))
+    }
+
+    @Test
+    fun `investment security alerts are loud and routine investment updates quiet`() {
+        val alert = setOf(InvestmentLabels.ALERT, "dlt-service")
+        val update = setOf(InvestmentLabels.UPDATE)
+        assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.TRANSACTION, labels = alert))
+        assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.UNKNOWN, labels = alert))
+        assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.PROMOTION, labels = alert))
+        assertEquals(NotificationChannels.OTHER, ChannelRouting.baseChannel(Category.TRANSACTION, labels = update))
+        // A bank's own SIP debit carries no investment label: an ordinary transaction alert.
+        assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.TRANSACTION, labels = setOf("dlt-transactional")))
+        // OTPs and spam keep their channels; a fake credit stays a fraud warning.
+        assertEquals(NotificationChannels.OTP, ChannelRouting.baseChannel(Category.OTP, labels = alert))
+        assertEquals(NotificationChannels.SPAM, ChannelRouting.baseChannel(Category.SPAM, labels = alert))
+        assertEquals(NotificationChannels.PROMOTIONS, ChannelRouting.baseChannel(Category.PROMOTION, labels = update))
+        assertEquals(NotificationChannels.ALERTS, ChannelRouting.baseChannel(Category.TRANSACTION, likelyScam = true, labels = update))
+        assertTrue(ChannelRouting.isInvestmentAlert(Category.UNKNOWN, alert))
+        assertFalse(ChannelRouting.isInvestmentAlert(Category.SPAM, alert))
+        assertFalse(ChannelRouting.isInvestmentAlert(Category.TRANSACTION, update))
+    }
+
+    @Test
+    fun `every label-routed channel is in the catalog`() {
+        val ids = ChannelCatalog.messages.map { it.id }.toSet()
+        for (category in Category.entries) {
+            for (labels in listOf(setOf(InvestmentLabels.ALERT), setOf(InvestmentLabels.UPDATE))) {
+                val channel = ChannelRouting.baseChannel(category, labels = labels)
+                assertTrue(channel in ids, "$category $labels -> $channel")
+            }
+        }
     }
 
     @Test

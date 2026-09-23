@@ -25,6 +25,43 @@ enum class InstrumentType {
     PREPAID_CARD,
     /** A loan or EMI account. */
     LOAN,
+
+    /** A mutual-fund folio ("Folio No. XXXX1234"): SIP / lumpsum purchases, redemptions, switches, IDCW / dividends. */
+    MUTUAL_FUND,
+
+    /** A demat / trading account holding securities ("BO ID ...", "DP ID ... Client ID ...", "Demat a/c XXXX1234"). */
+    DEMAT,
+}
+
+/**
+ * What an investment-account message ([InstrumentType.MUTUAL_FUND] / [InstrumentType.DEMAT]) records. Stored by name
+ * (inside the transaction JSON and in the ledger), so values are only ever appended.
+ */
+@Serializable
+enum class InvestmentAction {
+    /** Units bought (SIP instalment, lumpsum, additional purchase): money moved from the bank into the folio. */
+    PURCHASE,
+
+    /** Units redeemed: money moved from the folio back to the bank. */
+    REDEMPTION,
+
+    /** Units switched from one scheme to another within the folio: no money entered or left it. */
+    SWITCH,
+
+    /** A dividend / IDCW paid out: income. */
+    DIVIDEND,
+
+    /** Securities bought (contract note / trade confirmation). */
+    BUY,
+
+    /** Securities sold (contract note / trade confirmation). */
+    SELL,
+
+    /**
+     * A statement of the holding's current value (valuation, CAS, holdings statement): no money moved; the amount is
+     * zero and the value is the balance.
+     */
+    VALUATION,
 }
 
 /**
@@ -59,4 +96,19 @@ data class ExtractedTransaction(
      * [maskedNumber]. Never inferred across messages; null when the SMS names only one number.
      */
     val linkedMaskedNumber: String? = null,
+    /** For an investment account ([InstrumentType.MUTUAL_FUND] / [InstrumentType.DEMAT]): what the message records. */
+    val investmentAction: InvestmentAction? = null,
+    /** Units (fund) or shares (trade) moved by this transaction, as a plain decimal string ("45.678"), if stated. */
+    val units: String? = null,
+    /** NAV per unit (fund) or price per share (trade), a plain decimal string in [currency], if stated. */
+    val unitPrice: String? = null,
+    /** Total units / shares held after this transaction ("Balance units 1,234.567"), if stated. */
+    val unitsHeld: String? = null,
+    /** The security's ISIN (`[A-Z]{2}[A-Z0-9]{9}\d`), if stated. */
+    val isin: String? = null,
+    /**
+     * Money moved between the user's own accounts or into / out of the user's own investments (a bank's SIP debit, a
+     * fund's allotment, a redemption payout): shown on both sides, never counted as spending or income.
+     */
+    val ownTransfer: Boolean = false,
 )

@@ -1,5 +1,6 @@
 package app.dak.index.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -34,6 +35,8 @@ data class AccountRow(
     val maskedNumber: String? = null,
     /** For a debit card or loan: the bank account an SMS named alongside it (`Account.linkedAccountId`). */
     val linkedAccountId: String? = null,
+    /** For an investment account: units / shares held, as the latest SMS stating them said (`AccountLedger.unitsHeld`). */
+    val unitsHeld: String? = null,
 )
 
 /**
@@ -93,4 +96,16 @@ data class LedgerEntryRow(
     val reference: String?,
     /** The debit card / loan this entry was posted through (`LedgerEntry.viaAccountId`), for a linked bank account. */
     val viaAccountId: String? = null,
+    /**
+     * An own-account / investment transfer (`LedgerEntry.transfer`: a SIP debit, a fund's allotment, a redemption):
+     * moves the balance but is never counted as spending ([app.dak.index.db.dao.LedgerDao.observeDebitsSince]).
+     */
+    @ColumnInfo(defaultValue = "0")
+    val transfer: Boolean = false,
+    /** `InvestmentAction` name of an investment account's entry (PURCHASE, REDEMPTION, SWITCH, DIVIDEND, ...). */
+    val investmentAction: String? = null,
+    /** Units / shares moved, a plain decimal string. */
+    val units: String? = null,
+    /** NAV / price per unit, a plain decimal string in [originalCurrency]. */
+    val unitPrice: String? = null,
 )

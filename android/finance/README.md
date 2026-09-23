@@ -101,7 +101,8 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
       the sender header.
 - **Instruments** (`InstrumentDetector`, internal): `InstrumentType` = `BANK_ACCOUNT`, `CREDIT_CARD`,
   `DEBIT_CARD`, `PREPAID_CARD` (prepaid/forex/travel/multi-currency/gift cards, Wise/Revolut), `WALLET` (wallet,
-  Amazon Pay balance, Airtel Money, MobiKwik...), `UPI` (VPA/UPI only, no account named), `LOAN`, `UNKNOWN`. Decided
+  Amazon Pay balance, Airtel Money, MobiKwik...), `UPI` (VPA/UPI only, no account named), `LOAN`, `UNKNOWN`, and the
+  investment accounts `MUTUAL_FUND` / `DEMAT` (read by `InvestmentParser` before any of this; see "Investments"). Decided
   from the words right before each masked number ("Debit Card XX1234", "DC XX..", "CC XX..", "Forex Card XX..",
   "Loan A/c XX..", "A/c XX..") first, then body wording (credit-card issuers like SBI Card/Amex/Sapphire, "EMI ... loan",
   wallets, UPI/VPA handles, "account"). A UPI SMS that names "A/c XX1234" is `BANK_ACCOUNT`. A bare "Card XX1234" is a
@@ -120,18 +121,79 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   instrument, own number, linked account, balance, merchant, and account digits that must never become the user's).
   Add a case there whenever a real-device message is misread; fix it with a general rule, not a template.
 
+## Investments — `InvestmentParser` (internal), `InvestmentAction`
+
+`TransactionParser.parse` first asks `InvestmentParser` whether the message is a mutual-fund folio's or a demat
+account's own message; if so its answer (a transaction, or null) is final, otherwise the bank-side rules above run.
+Generic by rule, like everything here: vocabulary and structure only (folio, units, NAV, SIP, IDCW / dividend,
+allotted, redemption, switch, ISIN `[A-Z]{2}[A-Z0-9]{9}\d`, demat, BO ID, DP ID, client ID / code, contract note,
+trade confirmation, bought / sold qty @ price, pledge, e-DIS, CAS / consolidated account statement, current value /
+valuation). No fund house, registrar, broker or depository is named anywhere; the institution is the DLT sender
+header (`InstitutionTable` resolves unknown headers to the header itself, as for new banks).
+
+- **Which side a message is on.** The investment side when it names a folio ("Folio No. XXXX1234", "Folio
+  12345678/90": the "/90" check suffix is dropped) or a demat id ("BO ID 1234567800012345", "DP ID IN300123 Client ID
+  12345678", "Client Code AB1234", "Demat a/c XXXX1234"), or carries fund / trade detail (units with NAV / allotment /
+  redemption / switch / IDCW, a trade line with a securities word, a contract note, a CAS). A bank's own debit or
+  credit that only mentions a SIP / folio next to the user's bank account ("Rs 5,000 debited from A/c XX1234 towards
+  SIP, Folio 12345678") stays the bank's. A fund naming the account it paid ("credited to your bank a/c XX4321") is
+  still the fund's and that account is never recorded, so the bank account is never debited twice.
+- **Ids.** `InstrumentType.MUTUAL_FUND` / `DEMAT` (both `AccountType.INVESTMENT`), `maskedNumber` = `XXXX` + the last
+  four digits however much the SMS shows, so one folio keeps one account id across styles and the full folio / BO id is
+  never stored (demat: BO ID > client id > demat a/c; a BO ID ends in the client id, so both give the same id).
+- **What is recorded** (`ExtractedTransaction.investmentAction`, `units`, `unitPrice`, `unitsHeld`, `isin`):
+  `PURCHASE` (SIP / lumpsum / allotment / IDCW reinvestment) and `SWITCH` and `BUY` (contract note, IPO allotment) are
+  credits to the investment account ("invested"); `REDEMPTION` and `SELL` debits; `DIVIDEND` / IDCW a credit (income).
+  The amount is the money figure nearest the action word that is not a NAV / price ("NAV Rs 45.6789", "@ Rs 2,445.12
+  per unit"), a fee (stamp duty, charges, brokerage, STT, exit load, TDS) or a value; a trade prefers the net amount
+  ("net amount payable", "trade value", "total") and falls back to qty x price. A contract note with both buys and
+  sells records the net obligation (payable = buy, receivable = sell) without units.
+- **Current value.** "Current value / market value / valuation / holdings value / value of your investments" is the
+  account's balance (`balanceMinor`), like a bank's Avl Bal; a pure valuation / holdings / CAS message becomes a
+  `VALUATION` entry of amount 0 with that balance (the index keeps no amount / direction for it on the message row,
+  so it shows no amount chip and matches no amount search or automation). Units held ("Balance units", "Units held",
+  "Total units") become `AccountLedger.unitsHeld`.
+- **Not transactions** (null): security alerts (shares / securities / qty debited or transferred from a demat, pledge /
+  re-pledge / unpledge / margin pledge / lien, e-DIS) unless they are a trade; NFO and "invest now / returns up to /
+  start your SIP" offers; future, pending, registered or due instalments ("will be allotted", "SIP registered",
+  "reminder", "due on") unless a completed step is also stated ("processed ... will be credited"); failed / rejected
+  instalments; NAV-only notes; CAS or KYC notices with no value; OTPs (checked first, as for banks).
+- **Own transfers** (`ExtractedTransaction.ownTransfer`, `LedgerEntry.transfer`). A SIP is one movement of the user's
+  own money seen from both sides: the bank's debit (`TransactionParser` marks a debit that names a SIP, mutual fund, MF,
+  systematic investment, folio or demat / trading / broking account, and a credit of redemption proceeds or from a
+  trading account, but not a dividend or interest) and the fund's allotment (every investment entry except a dividend).
+  Both are posted (the bank's balance moves, the folio shows the purchase with units and NAV), and neither is spending
+  or income: `AccountGroups.spentSince`, `Passbook.monthlyTotals` (transfers are totalled separately in
+  `transfersOutHome` / `transfersInHome`; valuations and switches in neither), `Passbook.spendByMerchant` and the
+  index's `LedgerDao.observeDebitsSince` (Passbook "this month" totals) all leave transfers out. An account the user
+  marks as a fund / demat by hand has all its non-dividend entries treated as transfers.
+- **Passbook.** `AccountType.INVESTMENT` is one section after Loans; its header totals `TotalKind.CURRENT_VALUE` (the
+  stated current values per currency, unknown ones counted, never guessed).
+- **Classification and routing** (`:classify` template bundle 4): rule `invest-security-alert` (TRANSACTION, label
+  `investment-alert`) → notified on the loud Alerts channel; `invest-update` (TRANSACTION, label
+  `investment-update`) → the quieter General channel, since the bank's own debit / credit already alerted the money;
+  `invest-nfo-promo` → PROMOTION. OTP rules outrank all three (an OTP for a redemption or e-DIS stays an OTP), and
+  `txn-account-movement` (a debit / credit on the user's own masked "A/c XX1234", no label) outranks the update rule,
+  so a bank's SIP debit that mentions a folio is still a loud transaction alert.
+- **Corpus** (`src/test/.../parser/corpus/InvestmentCorpus.kt`): SIP confirmations, allotments, redemptions,
+  switches, IDCW, valuations, CAS, contract notes, trades, dividends, the bank side of the same money, demat security
+  alerts, pledges, e-DIS, NFO promotions, OTPs and notices, each with its expected outcome; plus a check that no bank
+  corpus message and no look-alike ("bought 2 items at Rs 499", "250 units" of electricity, "reward points redeemed")
+  becomes an investment.
+
 ## `ledger` — `Account`, `LedgerEntry`, `Ledger`, `BalanceState`, `BillingCycle`
 
 - **`Account`** — id derived from `institution + instrument + visible digits` (`Account.idOf(txn)` /
   `Account.idFor(...)`), plus
   `type` (`AccountType.of(instrument)`: BANK_ACCOUNT / CREDIT_CARD / DEBIT_CARD / WALLET / UPI / PREPAID_CARD / LOAN /
-  UNKNOWN, declaration order = Passbook group order; `aliasFamily` treats UPI as BANK_ACCOUNT for alias matching),
+  INVESTMENT (mutual fund and demat) / UNKNOWN, declaration order = Passbook group order; `aliasFamily` treats UPI as BANK_ACCOUNT for alias matching),
   `linkedAccountId` (debit card / loan -> the bank account an SMS named; `Account.linkedIdOf(txn)`),
   `homeCurrency` (taken from a balance-bearing SMS when available, else a caller-supplied default —
   INR for Indian institutions, the SIM region's currency otherwise), and an optional `statementDay` for cards.
 - **`LedgerEntry`** — one posted transaction: `messageKey`, `dateMillis`, `original` (`Money`, as
   written), `indicativeHome` (`Money?`), `rate`/`rateDateMillis`, `settled: Boolean`,
-  `effectiveMarkupPercent`, `balanceAfter`, `merchant`, `reference`.
+  `effectiveMarkupPercent`, `balanceAfter`, `merchant`, `reference`, `transfer` (own-account / investment money:
+  never spending), `investmentAction`, `units`, `unitPrice`, `unitsHeld`.
 - **`Ledger.apply(inputs: List<LedgerInput>, rates: RatesTable? = null, defaultHomeCurrency = Ledger::institutionHomeCurrency, statementDayFor = { null }): List<AccountLedger>`**
   Home currency: a balance-bearing SMS's currency, else `defaultHomeCurrency(institution)` (the default gives INR
   only for institutions `InstitutionTable.countryOf` knows as Indian; `:core-index` adds the SIM region's currency),
@@ -177,8 +239,9 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
 - **`GroupTotals(kind: TotalKind, amounts: List<Money>, missingCount, spentThisMonth)`** — per currency, never
   converted. `TotalKind.BALANCE` (bank, wallet, prepaid, loan: sum of `BalanceState.Known` only; Unknown/NoInfo counted
   in `missingCount`), `OUTSTANDING` (credit cards: cycle outstanding when a statement day is set), `SPENT_THIS_MONTH`
-  (debit cards, UPI, other).
-- `AccountGroups.spentSince(entries, sinceMillis)`, `monthStartUtc(nowMillis)`, `sum(amounts)`.
+  (debit cards, UPI, other), `CURRENT_VALUE` (investments: stated current values, counted like balances).
+- `AccountGroups.spentSince(entries, sinceMillis)` (debits that are not transfers), `monthStartUtc(nowMillis)`,
+  `sum(amounts)`.
 
 ## `rates` — `RatesTable`, `RatesLoader`
 
@@ -209,7 +272,9 @@ Nothing is ever silently converted or invented — see `BalanceState` and `Recon
   month (UTC), each with debits/credits broken out **by original currency** (a month can mix INR
   and, say, AED) plus a best-effort home-currency total (`debitsHome`, `creditsHome`) using each
   entry's settled/indicative value; a foreign amount with no resolvable home value is skipped, not
-  guessed.
+  guessed. Debits and credits are spending and income only: own-account / investment transfers are in
+  `transfersOutHome` / `transfersInHome` (an investment account's "redeemed" / "invested"), and valuations and
+  switches in neither.
 - **`Passbook.spendByMerchant(ledger, unknownMerchantLabel = "Unknown"): Map<String, Money>`** —
   total debit spend (home currency) per merchant, descending by amount; entries with no merchant
   are bucketed under `unknownMerchantLabel`. Credits are excluded — this is a ledger, not a budget.

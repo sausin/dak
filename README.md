@@ -131,6 +131,14 @@ Country-specific data for other markets comes later; the region seam is already 
   balances as `"unknown since <date>"` rather than inventing a number after a foreign spend, and
   reconciles the indicative FX estimate against the bank's own settlement message days later. A
   debit-card or loan spend also reduces the linked bank account when the SMS names it explicitly.
+- **Investments in the Passbook** — mutual-fund folios and demat accounts, read from fund, registrar,
+  broker and depository SMS by structure alone (folio, units, NAV, SIP, IDCW, BO / DP / client ID,
+  contract note, qty @ price; never a fund-house or broker name): SIP and lumpsum purchases,
+  redemptions, switches, dividends and trades with units and NAV, and the current value from
+  valuation / holdings / CAS messages. A SIP is one own-account transfer seen from both sides (the
+  bank's debit and the fund's allotment), so it never counts as spending. Demat security alerts
+  (shares debited, pledge, e-DIS) never touch the ledger but always notify on Alerts; routine fund
+  updates notify quietly on General.
 - Masked-account alias confirmation, so a passbook account is only linked to a bank once the
   masked digits actually match something the user confirmed.
 - **Broadcast lists with guardrails**: one message to up to 50 people, sent as individual SMS

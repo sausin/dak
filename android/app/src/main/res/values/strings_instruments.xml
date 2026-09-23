@@ -8,6 +8,7 @@
     <string name="inst_group_upi">UPI</string>
     <string name="inst_group_prepaid">Prepaid &amp; forex cards</string>
     <string name="inst_group_loans">Loans</string>
+    <string name="inst_group_investments">Investments</string>
     <string name="inst_group_other">Other</string>
     <string name="inst_group_header">%1$s · %2$d</string>
     <string name="inst_group_expand">Show %1$s</string>
@@ -21,6 +22,8 @@
     <string name="inst_total_no_balance">No balance stated yet</string>
     <string name="inst_total_no_outstanding">Set statement days to see outstanding</string>
     <string name="inst_total_missing">%1$d not known</string>
+    <string name="inst_total_value">Current value %1$s</string>
+    <string name="inst_total_no_value">No current value stated yet</string>
 
     <!-- Account title kinds ("HDFC Bank debit card ••1234") -->
     <string name="inst_kind_account">account</string>
@@ -30,6 +33,9 @@
     <string name="inst_kind_upi">UPI</string>
     <string name="inst_kind_prepaid">prepaid card</string>
     <string name="inst_kind_loan">loan</string>
+    <string name="inst_kind_investment">investment</string>
+    <string name="inst_kind_mutual_fund">mutual fund folio</string>
+    <string name="inst_kind_demat">demat account</string>
     <string name="inst_kind_other">account</string>
 
     <!-- Type chips -->
@@ -40,6 +46,8 @@
     <string name="inst_chip_upi">UPI</string>
     <string name="inst_chip_prepaid">Prepaid</string>
     <string name="inst_chip_loan">Loan</string>
+    <string name="inst_chip_mutual_fund">Mutual fund</string>
+    <string name="inst_chip_demat">Demat</string>
     <string name="inst_chip_other">Other</string>
 
     <!-- Account rows -->
@@ -48,6 +56,8 @@
     <string name="inst_row_linked_to">Linked to %1$s</string>
     <string name="inst_row_card_no_balance">Card spends only; no balance of its own</string>
     <string name="inst_row_via">via %1$s</string>
+    <string name="inst_row_no_value">No current value stated yet</string>
+    <string name="inst_units_held">%1$s units held</string>
 
     <!-- Account screen per type -->
     <string name="inst_balance_account">Balance</string>
@@ -62,6 +72,28 @@
     <string name="inst_debit_unlinked">No message has named the account this card debits yet, so its spends are shown here without a balance.</string>
     <string name="inst_debit_stated_balance">Available balance stated with a card spend (the bank account\'s, not the card\'s)</string>
     <string name="inst_open_linked">Open account</string>
+    <string name="inst_balance_investment">Current value (as stated)</string>
+    <string name="inst_investment_no_value">No message has stated this investment\'s current value yet. Valuation, holdings and CAS messages update it.</string>
+    <string name="inst_investment_note">Purchases here are your own money moved from the bank, so they never count as spending.</string>
+
+    <!-- Investment entries and months -->
+    <string name="inst_action_purchase">Purchase / SIP</string>
+    <string name="inst_action_redemption">Redemption</string>
+    <string name="inst_action_switch">Switch</string>
+    <string name="inst_action_dividend">Dividend / IDCW</string>
+    <string name="inst_action_buy">Bought</string>
+    <string name="inst_action_sell">Sold</string>
+    <string name="inst_action_valuation">Valuation</string>
+    <string name="inst_entry_units_at">%1$s units @ %2$s</string>
+    <string name="inst_entry_units">%1$s units</string>
+    <string name="inst_entry_price">NAV / price %1$s</string>
+    <string name="inst_entry_value">Current value</string>
+    <string name="inst_entry_value_after">Value %1$s</string>
+    <string name="inst_entry_own_transfer">To your investments · not spending</string>
+    <string name="inst_month_invested">Invested</string>
+    <string name="inst_month_redeemed">Redeemed / sold</string>
+    <string name="inst_month_dividends">Dividends</string>
+    <string name="inst_month_transfers">Moved to your investments %1$s · back %2$s (not spending)</string>
 
     <!-- Manual type -->
     <string name="inst_type_label">Type</string>
@@ -77,5 +109,7 @@
     <string name="inst_type_option_upi">UPI payments</string>
     <string name="inst_type_option_prepaid">A prepaid, forex or gift card</string>
     <string name="inst_type_option_loan">A loan or EMI account</string>
+    <string name="inst_type_option_mutual_fund">A mutual fund folio</string>
+    <string name="inst_type_option_demat">A demat / trading account</string>
     <string name="inst_type_option_other">Something else</string>
 </resources>

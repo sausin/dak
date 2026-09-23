@@ -28,12 +28,12 @@ scrubbing) is out of scope except where the client has to cooperate with it.
 | 8 | RFC 5724 `sms:`/`smsto:` (+ `mms:`/`mmsto:`), SENDTO/SEND intents | 5 | 2 | 0 | 0 | 7 |
 | 9 | vCard 2.1/3.0/4.0 (RFC 6350), vCalendar | 2 | 3 | 0 | 1 | 6 |
 | 10 | Android default-SMS-app requirements | 13 | 4 | 0 | 0 | 17 |
-| 11 | Google Play SMS/Call Log policy, Data safety | 2 | 3 | 3 | 0 | 8 |
+| 11 | Google Play SMS/Call Log policy, Data safety | 4 | 4 | 0 | 0 | 8 |
 | 12 | India TRAI TCCCPR 2018 and amendments | 3 | 2 | 2 | 1 | 8 |
-| 13 | DPDP Act 2023 (India), GDPR (EU) | 0 | 3 | 3 | 2 | 8 |
+| 13 | DPDP Act 2023 (India), GDPR (EU) | 1 | 5 | 0 | 2 | 8 |
 | 14 | Text safety: UAX #9, UTS #39, UTS #46 | 4 | 4 | 1 | 0 | 9 |
 | 15 | OWASP MASVS v2 (high level) | 6 | 2 | 0 | 0 | 8 |
-| | **Total** | **75** | **38** | **23** | **19** | **155** |
+| | **Total** | **78** | **41** | **17** | **19** | **155** |
 
 Findings to act on first (details are in the [backlog](#prioritised-remediation-backlog)):
 
@@ -243,11 +243,11 @@ already notes this at `docs/build-plan.md:299`).
 | Requirement | Dak implementation (file:line) | Status | Remediation | Test |
 |---|---|---|---|---|
 | SMS permissions only for the default SMS handler as core functionality, requested only after the role | See §10 row "Request SMS runtime permissions only after holding the role" | Compliant | None | Pre-launch report: no SMS permission prompt without the role |
-| Permissions Declaration Form (Play Console) | Process item, unchecked (`docs/build-plan.md:302`) | **Missing** | File it with "Default SMS handler" as the core use, with a video of the role flow | – |
-| Prominent in-app disclosure and affirmative consent before any message content leaves the device (Jev cloud classification, webhooks/relay, forwarding, hosted backup) | Jev is opt-in (`settings-registry/.../DakSettings.kt:238-243`). High-risk OTP forwarding needs a biometric confirmation (`app/.../automation/OtpForwardConfirmations.kt:16-30`). No single disclosure screen covering each data flow was found. `docs/build-plan.md:303` is unchecked | Partial | Before each flow is first enabled, show a full-screen disclosure (what data, to whom, why) with Accept/Decline, separate from the privacy policy. Log consent with a timestamp | UI test: enabling Jev without Accept keeps it off |
-| Data safety form | Process item (`docs/build-plan.md:304`). Free tier: nothing collected. Premium and webhooks: user-directed transfer, which still needs a declaration | **Missing** | Prepare per-flavour answers. Webhook and relay destinations are user-chosen, but premium relay traffic crosses Dak's servers (ciphertext), so declare it as encrypted in transit | – |
-| Privacy policy linked in-app and on the listing | No privacy-policy string or link in `app/src/main/res/values/` | **Missing** | Add a Settings → About link to a hosted policy | – |
-| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (a Play-restricted permission) | Declared at `app/src/main/AndroidManifest.xml:13`. The default SMS app is already woken for SMS_DELIVER and WAP push | Partial | Either remove it and use the Settings deep link (`ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`), or prepare a justification (scheduled sends, MMS downloads). Play accepts only listed use cases | – |
+| Permissions Declaration Form (Play Console) | Answers, evidence and video script prepared in `docs/play-submission.md` §2; filing is a Play Console step | Partial | File it with "Default SMS handler" as the core use, with the video of the role flow | – |
+| Prominent in-app disclosure and affirmative consent before any message content leaves the device (Jev cloud classification, webhooks/relay, forwarding, hosted backup) | One `DataFlow` per server path (Jev, webhooks, web relay, AI search) with a versioned full-screen disclosure (`ui/privacy/DisclosureDialog.kt`, text in `premium-api/.../consent/Disclosures.kt`); Allow/Not now, 18+ tick; consent records with time, version and text hash (`ConsentLedger`); withdrawal in Settings → Privacy. Enforced at the seams: `ConsentGatedPremiumGateway` / `ConsentGatedQueryUnderstanding` (premium `TierModule`), `ConsentGatedCloudClassifier`; the Jev switch asks first (`SettingsViewModel`). User-directed paths (SMS forward, WhatsApp one-tap, 1909, SAF backups/exports) are documented in `docs/play-submission.md` §4 | Compliant | Wrap any real `CloudClassifier` binding in `ConsentGatedCloudClassifier`; rule editors for webhook/relay actions should show the disclosure at creation (today the gate blocks the send and the run is logged as failed) | `ConsentLedgerTest`, `ConsentGatesTest` (premium-api), `PrivacyPolicyTest` (app) |
+| Data safety form | Per-flavour answers derived from the code in `docs/play-submission.md` §5 (free: nothing collected; premium: per data type, with items to verify against the final server code) | Partial | Re-derive the premium table from the real gateway, relay and billing code before that submission | – |
+| Privacy policy linked in-app and on the listing | `docs/privacy-policy.md`, bundled as `app/src/main/assets/privacy-policy.md` and rendered offline: Settings → Privacy → Privacy policy (2 taps), onboarding welcome link, searchable settings rows. Hosted URL constant `HOSTED_PRIVACY_POLICY_URL` is a placeholder | Partial | Publish the policy, set the real URL and contact before submission | `PrivacyPolicyTest` (asset equals doc, required sections, hosted link) |
+| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (a Play-restricted permission) | Removed (`tools:node="remove"` in the app manifest). Onboarding and the self-test open `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS` with instructions, app details as fallback (`ui/onboarding/SystemHelpers.kt`, `ui/selftest/ReliabilityFixer.kt`). Decision recorded in `docs/play-submission.md` §3 | Compliant | Revisit only if device tests show late SMS the settings path cannot fix | Merged-manifest check: permission absent |
 | Package visibility: `<queries>` for all launcher apps and https browsers | `app/src/main/AndroidManifest.xml:23-33` (SMS Retriever hash and WebOTP detection) | Partial | Document the justification. Consider narrowing to specific packages or intents when possible. This is not the restricted `QUERY_ALL_PACKAGES`, but it is broad | – |
 | No sale, advertising or analytics use of SMS data | No ads, analytics or crash SDKs in the Gradle dependencies (`app/build.gradle.kts`); log policy at `core-telephony/.../internal/AndroidSupport.kt:15` | Compliant | Keep a CI check for new SDKs (`check-offline-baseline.sh` exists) | – |
 
@@ -279,13 +279,13 @@ obligations in over a phased timeline. Check the current commencement dates.
 | Requirement | Dak implementation (file:line) | Status | Remediation | Test |
 |---|---|---|---|---|
 | Free tier: all processing on-device | Index encrypted locally (`core-index/.../crypto/IndexDatabaseFactory.kt:51`); `NoOpPremiumGateway` (`premium-api/.../PremiumGateway.kt:24-28`) | N/A (no off-device processing) | Keep the offline baseline check | `scripts/check-offline-baseline.sh` |
-| Notice (itemised purpose, rights, grievance contact) and free, specific, informed, unambiguous consent before server processing; withdrawal as easy as giving | Jev opt-in toggle only (`DakSettings.kt:238-243`); relay "ciphertext only" by design (`PremiumGateway.kt:3-5`) | Partial | Consent screen per purpose (shared with the §11 disclosure). Withdrawal from the same setting, with server-side deletion. Keep consent records | UI + backend test: withdrawing stops calls and triggers deletion |
-| Security safeguards and breach intimation (to the Data Protection Board and affected users under DPDP; within 72 h to the authority under GDPR Art. 33) | Masking before cloud (`classify/.../CloudClassifier.kt:9-10`); E2E ciphertext relay; no incident-response doc | Partial | Write an incident-response runbook with the notification templates and timelines | Tabletop exercise |
-| Data principal / data subject rights: access, correction, erasure, grievance redressal (DPDP), access, erasure and portability (GDPR Art. 15-20) | Not present (premium not launched) | **Missing** | Account screen for export and delete. Publish grievance officer / DPO contact details | – |
-| Retention and erasure once the purpose is served | Not defined for server data | **Missing** | Retention schedule (for example Jev payloads deleted immediately after scoring; relay blobs TTL ≤ 7 days) | Backend TTL test |
-| Children's data: verifiable parental consent for users under 18 (DPDP); age thresholds under GDPR Art. 8 | No age gate for premium | **Missing** | Age confirmation for premium or cloud features. Do not use Jev for under-18s | – |
+| Notice (itemised purpose, rights, grievance contact) and free, specific, informed, unambiguous consent before server processing; withdrawal as easy as giving | Per-purpose disclosure and consent (§11 row), consent records (flow, time, version, text hash) in `ConsentLedger`; a text change invalidates older consent; withdrawal in Settings → Privacy takes effect on the next call; consent never restored from backups. Mapping in `docs/privacy-compliance.md` §2 | Compliant | Server side (when premium ships): consent receipts, deletion on withdrawal; publish the grievance officer | `ConsentLedgerTest`, `ConsentGatesTest` |
+| Security safeguards and breach intimation (to the Data Protection Board and affected users under DPDP; within 72 h to the authority under GDPR Art. 33) | Masking before cloud (`classify/.../CloudClassifier.kt:9-10`); E2E relay by design; breach runbook outline in `docs/privacy-compliance.md` §6. Finding: `ActionRegistry` hands plaintext bytes to `relayCiphertext` (§5 of that doc) | Partial | Write the notification templates; encrypt before `relayCiphertext`; run a tabletop exercise before premium | Tabletop exercise |
+| Data principal / data subject rights: access, correction, erasure, grievance redressal (DPDP), access, erasure and portability (GDPR Art. 15-20) | Settings → Privacy: "Export my Dak data" (`PersonalDataExporter`, open `dak-personal-data` ZIP) and "Delete my Dak data" (`DakDataEraser`: auth gate, Keystore keys, `clearApplicationUserData`); shared SMS store deliberately kept and explained. Contact is a placeholder | Partial | Publish grievance officer / DPO contact; server-side access and deletion once premium holds data | `PersonalDataExportTest` (backup) |
+| Retention and erasure once the purpose is served | Retention table per data type with where it is enforced (`docs/privacy-compliance.md` §4); server targets set (Jev not stored, relay TTL ≤ 7 days, no query retention) and stated in the disclosures | Partial | Implement and test the backend TTLs | Backend TTL test |
+| Children's data: verifiable parental consent for users under 18 (DPDP); age thresholds under GDPR Art. 8 | Every server-flow disclosure requires "I am 18 or older" before Allow (`DisclosureDialog.kt`); policy states adult-only server features | Partial | Self-declaration only: add stronger checks if accounts ship or the Board's rules require them | – |
 | Cross-border transfer (DPDP allows transfer except to notified countries; GDPR Chapter V) | No servers chosen yet | N/A (pending) | Choose the region. For EU users use SCCs or an adequacy decision | – |
-| GDPR specifics: lawful basis (consent, Art. 6(1)(a)), processor contracts (Art. 28), DPIA for message content (Art. 35), pseudonymised text is still personal data | Masked text + sender header still identifies relationships (for example a bank header) | Partial | DPIA for Jev and relay. Treat masked payloads as personal data | – |
+| GDPR specifics: lawful basis (consent, Art. 6(1)(a)), processor contracts (Art. 28), DPIA for message content (Art. 35), pseudonymised text is still personal data | Consent is the basis for every server flow; DPIA outline in `docs/privacy-compliance.md` §7. Masked text + sender header (a person's number for non-DLT senders) is still personal data | Partial | Complete the DPIA and processor contracts before Jev or the relay launch; consider skipping Jev for non-DLT senders | – |
 
 ## 14. Text safety: UAX #9, UTS #39, UTS #46
 
@@ -360,15 +360,16 @@ categories to where Dak addresses them.
 11. **DLT numeric promotional headers** (`VM-612345[-P]`) and the prefix description. `classify/.../SenderId.kt:32-35,73`.
     Coordinate with the classify work stream.
 12. **1909 complaint from the receiving SIM.** `ui/fraud/FraudHelpViewModel.kt:138-144`.
-13. **Play submission blockers:**
-    - Permissions Declaration Form, Data safety form and privacy-policy link (`docs/build-plan.md:302-304`).
-    - A per-flow prominent disclosure before any content leaves the device (Jev, webhooks, relay, hosted backup).
-    - Justify or remove `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (`app/src/main/AndroidManifest.xml:13`).
-14. **DPDP/GDPR before premium or cloud launch:**
-    - Consent records and withdrawal.
-    - Rights (export and delete) and grievance / DPO contact.
-    - Retention schedule, breach runbook and DPIA.
-    - Age gate.
+13. **Play submission blockers:** mostly done, see `docs/play-submission.md`.
+    - Done: in-app privacy policy (offline), per-flow prominent disclosure and consent, battery permission removed,
+      declaration and Data safety answers prepared.
+    - Open: publish the policy and set `HOSTED_PRIVACY_POLICY_URL` and the contact; file the forms; check the
+      target API deadline (`targetSdk = 35`).
+14. **DPDP/GDPR before premium or cloud launch:** groundwork done, see `docs/privacy-compliance.md`.
+    - Done: consent records and withdrawal; local export and delete; retention schedule; breach runbook and DPIA
+      outlines; 18+ confirmation.
+    - Open: grievance / DPO contact; server-side consent receipts, access, deletion and TTLs; encrypt before
+      `relayCiphertext`; complete the DPIA.
 
 ### P2: nice-to-have and hardening
 

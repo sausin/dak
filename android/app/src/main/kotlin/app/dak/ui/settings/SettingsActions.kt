@@ -9,6 +9,7 @@ import android.provider.Settings
 import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
 import app.dak.settings.DakSettings
+import app.dak.ui.privacy.PrivacyActivity
 
 /**
  * What an Action row does when tapped: navigate to a screen, open a system settings page, or run a command.
@@ -22,6 +23,7 @@ internal object SettingsActions {
             navigator.navigate(route)
             return true
         }
+        privacyStartFor(key)?.let { page -> return openPrivacy(context, page) }
         return when (key) {
             DakSettings.exactAlarmPermission.key -> openExactAlarmSettings(context)
             DakSettings.rebuildIndex.key -> commands.rebuildIndex()
@@ -54,6 +56,19 @@ internal object SettingsActions {
         DakSettings.broadcastLists.key -> Routes.BROADCASTS
         else -> null
     }
+
+    /** Privacy rows open the Privacy screen (its own activity), at the matching page. */
+    private fun privacyStartFor(key: String): PrivacyActivity.Start? = when (key) {
+        DakSettings.privacyCenter.key -> PrivacyActivity.Start.HUB
+        DakSettings.privacyPolicy.key -> PrivacyActivity.Start.POLICY
+        DakSettings.dataSharingChoices.key -> PrivacyActivity.Start.SHARING
+        DakSettings.exportMyData.key -> PrivacyActivity.Start.EXPORT
+        DakSettings.deleteMyData.key -> PrivacyActivity.Start.DELETE
+        else -> null
+    }
+
+    fun openPrivacy(context: Context, page: PrivacyActivity.Start = PrivacyActivity.Start.HUB): Boolean =
+        start(context, PrivacyActivity.intent(context, page))
 
     fun openAppNotificationSettings(context: Context): Boolean = start(
         context,

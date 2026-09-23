@@ -237,7 +237,8 @@ object DakSettings {
     )
     val jevOptIn = boolSetting(
         "categoriesSpam.jevOptIn", SettingsGroup.CATEGORIES_SPAM,
-        "Jev cloud classification", "Send an unclear message's sender and template to the cloud for a second opinion. Uses a small amount of data.",
+        "Jev cloud classification",
+        "Send an unclear message's sender and a masked copy to the cloud for a second opinion. Asks for your consent first. Uses a small amount of data.",
         default = false,
         keywords = listOf("jev", "cloud", "edge case"),
         advanced = true,
@@ -418,6 +419,34 @@ object DakSettings {
         keywords = listOf("recycle bin", "privacy", "backup"),
     )
 
+    // Privacy centre (Settings → Privacy). Also reachable in one tap from the Settings root; these rows make it
+    // searchable ("privacy policy", "delete my data", "consent", "gdpr"...). All open the same screen.
+    val privacyCenter = actionSetting(
+        "privacy.center", SettingsGroup.BACKUP_DATA,
+        "Privacy", "Privacy policy, what can leave your phone and your choices, export or delete your Dak data.",
+        keywords = listOf("privacy", "data", "consent", "permissions", "gdpr", "dpdp", "data protection", "rights"),
+    )
+    val privacyPolicy = actionSetting(
+        "privacy.policy", SettingsGroup.BACKUP_DATA,
+        "Privacy policy", "What Dak does with your data, in plain language. Works offline.",
+        keywords = listOf("privacy policy", "policy", "terms", "data use"),
+    )
+    val dataSharingChoices = actionSetting(
+        "privacy.dataSharing", SettingsGroup.BACKUP_DATA,
+        "Data that leaves your phone", "Everything that could send data off the phone is off until you allow it. See or withdraw your choices.",
+        keywords = listOf("consent", "withdraw", "cloud", "jev", "webhook", "relay", "sharing", "opt out"),
+    )
+    val exportMyData = actionSetting(
+        "privacy.exportMyData", SettingsGroup.BACKUP_DATA,
+        "Export my Dak data", "Save your settings, rules, run history, accounts and ledger to a file you choose.",
+        keywords = listOf("export my data", "download my data", "data portability", "access request", "gdpr", "dpdp"),
+    )
+    val deleteMyData = actionSetting(
+        "privacy.deleteMyData", SettingsGroup.BACKUP_DATA,
+        "Delete my Dak data", "Erase everything Dak stores on this phone. Your SMS stay in the phone's message store.",
+        keywords = listOf("delete my data", "delete", "erase", "forget me", "right to erasure", "wipe", "reset app"),
+    )
+
     // Privacy and security (app lock). Rows live in this group to keep seven groups; the lock method row opens the
     // App lock screen (setup and verification happen there, never through a plain value editor).
     val appLock = choiceSetting(
@@ -560,6 +589,7 @@ object DakSettings {
         enterToSend, deliveryReports, sendRateSpreading, exactAlarmPermission, broadcastLists,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup,
+        privacyCenter, privacyPolicy, dataSharingChoices, exportMyData, deleteMyData,
         appLock, autoLockAfter, lockOnScreenOff, hideInRecents, protectSensitiveScreens, indexSchedule, rebuildIndex,
         rulesList, scheduledSends, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,
         translationLanguages, autoTranslateRules, downloadedPacks, freeTasterPack, packStorageLocation,

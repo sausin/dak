@@ -1,6 +1,7 @@
 package app.dak.backup.engine
 
 import app.dak.backup.crypto.BackupCrypto
+import app.dak.backup.format.AutomationRunRecord
 import app.dak.backup.format.ArchiveLimitException
 import app.dak.backup.format.ArchiveLimits
 import app.dak.backup.format.DakExportReader
@@ -29,6 +30,15 @@ sealed class RestoreKey {
     data class Passphrase(val value: CharArray) : RestoreKey()
     data class RecoveryCode(val value: String) : RestoreKey()
 }
+
+/**
+ * The non-message parts of one snapshot: the opaque settings JSON and the automation run history. Both are full copies
+ * in every snapshot (never incremental), so only the newest snapshot of a chain is read for them.
+ */
+data class SnapshotExtras(
+    val settingsJson: String?,
+    val automationRuns: List<AutomationRunRecord>,
+)
 
 /** Configuration for encrypting the backups this engine writes. */
 data class BackupEncryption(val passphrase: CharArray, val iterations: Int = BackupCrypto.DEFAULT_ITERATIONS)
@@ -65,6 +75,7 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
         messages: Sequence<MessageRecord>,
         threads: List<ThreadPrefs> = emptyList(),
         settingsJson: String = "{}",
+        automationRuns: Sequence<AutomationRunRecord> = emptySequence(),
         appVersion: String,
         attachmentSource: suspend (sha256: String) -> InputStream? = { null },
         previousManifest: Manifest? = null,
@@ -108,6 +119,9 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
                 writer.writeMessages(toWriteList.asSequence())
                 writer.writeThreads(threads)
                 writer.writeSettings(settingsJson)
+                // Written into every snapshot, full or incremental (the history is small and only appended to).
+                val runs = automationRuns.iterator()
+                if (runs.hasNext()) writer.writeAutomationRuns(runs.asSequence())
                 val meta = ManifestMeta(
                     createdAt = now,
                     appVersion = appVersion,
@@ -185,6 +199,29 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
             val bodyHash = Hashing.sha256Hex(record.body)
             if (!existingKeys(record.kind, record.address, record.dateMillis, bodyHash)) {
                 emit(record)
+            }
+        }
+    }
+
+    /**
+     * Reads the settings and automation run history of the newest snapshot (or [fromBlobName]). Rows are bounded by
+     * the reader; deciding which to insert is [app.dak.backup.format.AutomationRunRestore.plan].
+     */
+    suspend fun readExtras(key: RestoreKey? = null, fromBlobName: String? = null): SnapshotExtras {
+        val blob = fromBlobName ?: readLatestPointer()?.blobName ?: throw IllegalStateException("No backups found on this target")
+        if (fromBlobName != null) {
+            if (fromBlobName.any { it == '/' || it == '\\' || it < ' ' } || fromBlobName.startsWith(".")) {
+                throw IllegalStateException("Invalid snapshot name")
+            }
+        } else {
+            requireSafeBlobName(blob)
+        }
+        return withContext(Dispatchers.IO) {
+            val raw = target.openRead(blob) ?: throw IllegalStateException("Missing snapshot $blob")
+            decryptingStream(raw, key).use { stream ->
+                val reader = DakExportReader(stream)
+                reader.readMessages().forEach { } // drain: settings and runs come after the messages
+                SnapshotExtras(reader.settingsJson, reader.automationRuns)
             }
         }
     }

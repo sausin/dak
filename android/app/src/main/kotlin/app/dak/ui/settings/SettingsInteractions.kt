@@ -16,11 +16,14 @@ import app.dak.premium.Feature
 import app.dak.settings.ControlType
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingTier
+import app.dak.ui.privacy.DisclosureDialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 /**
  * Shared tap handling for Settings rows (root search results and section screens): editors for value rows,
- * the upgrade sheet for locked rows, and [SettingsActions] for action rows. Renders its own dialogs/sheet and
+ * the upgrade sheet for locked rows, [SettingsActions] for action rows, and the prominent disclosure for rows that
+ * would send data off the phone (see [SettingsViewModel.pendingDisclosure]). Renders its own dialogs/sheet and
  * hands [content] the click handler.
  */
 @Composable
@@ -57,6 +60,16 @@ fun SettingsInteractionHost(
     }
 
     content(onRowClick)
+
+    // Prominent disclosure before a row that sends data off the phone can be turned on (Play User Data policy).
+    val pendingDisclosure by viewModel.pendingDisclosure.collectAsStateWithLifecycle()
+    pendingDisclosure?.let { flow ->
+        DisclosureDialog(
+            flow = flow,
+            onAllow = { viewModel.acceptDisclosure(flow) },
+            onDecline = { viewModel.declineDisclosure(flow) },
+        )
+    }
 
     editing?.let { row ->
         SettingEditorDialog(

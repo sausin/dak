@@ -5,7 +5,6 @@ import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
 import app.dak.BuildConfig
-import app.dak.backup.crypto.BackupCrypto
 import app.dak.backup.crypto.BackupCryptoException
 import app.dak.backup.crypto.MalformedHeaderException
 import app.dak.backup.crypto.RecoveryCodeMismatchException
@@ -15,7 +14,9 @@ import app.dak.backup.engine.BackupEncryption
 import app.dak.backup.engine.BackupEngine
 import app.dak.backup.engine.BackupTarget
 import app.dak.backup.engine.RestoreKey
-import app.dak.backup.format.DakExportReader
+import app.dak.backup.format.ArchiveLimits
+import app.dak.backup.format.AutomationRunRecord
+import app.dak.backup.format.AutomationRunRestore
 import app.dak.backup.format.DakExportWriter
 import app.dak.backup.format.Hashing
 import app.dak.backup.format.ManifestKind
@@ -30,8 +31,13 @@ import app.dak.core.model.Message
 import app.dak.di.ApplicationScope
 import app.dak.index.BackfillReason
 import app.dak.index.sync.IndexMaintenance
+import app.dak.index.db.entity.AutomationRunRow
+import app.dak.index.repo.AutomationRunStore
 import app.dak.index.repo.SenderMergeRepository
+import app.dak.premium.consent.ConsentLedger
+import app.dak.premium.consent.DataFlow
 import dagger.Lazy
+import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.ProviderWriter
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -99,6 +106,8 @@ class BackupManager @Inject constructor(
     private val settings: SettingsStore,
     private val senderGroups: Lazy<SenderMergeRepository>,
     private val maintenance: IndexMaintenance,
+    private val automationRuns: Lazy<AutomationRunStore>,
+    private val consents: ConsentLedger,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
     private val mutex = Mutex()
@@ -146,6 +155,7 @@ class BackupManager @Inject constructor(
             val result = BackupEngine(target, BackupEncryption(passphrase)).backup(
                 messages = snap.records.asSequence(),
                 settingsJson = settingsWithFolds(),
+                automationRuns = automationRunRecords().asSequence(),
                 appVersion = BuildConfig.VERSION_NAME,
                 attachmentSource = { sha -> snap.attachmentUris[sha]?.let { snapshot.open(it) } },
                 previousManifest = if (full) null else persisted.previousManifest,
@@ -204,6 +214,7 @@ class BackupManager @Inject constructor(
             state.value = BackupOperation.Running(kind, 0, 0)
             val snap = snapshot.read(withAttachments = true) { done, total -> state.value = BackupOperation.Running(kind, done, total) }
             val settingsJson = settingsWithFolds()
+            val runs = if (format == ExportFormat.DAK) automationRunRecords() else emptyList()
             withContext(Dispatchers.IO) {
                 val out = context.contentResolver.openOutputStream(uri, "w") ?: throw IOException("Cannot write to the chosen file")
                 out.use { stream ->
@@ -215,6 +226,7 @@ class BackupManager @Inject constructor(
                             w.writeMessages(snap.records.asSequence())
                             w.writeThreads(emptyList())
                             w.writeSettings(settingsJson)
+                            if (runs.isNotEmpty()) w.writeAutomationRuns(runs.asSequence())
                             w.finish(
                                 ManifestMeta(
                                     createdAt = System.currentTimeMillis(),
@@ -343,30 +355,69 @@ class BackupManager @Inject constructor(
         }
     }
 
-    /** Imports the settings saved with the snapshot being restored (or the newest one). Best effort. */
+    /**
+     * Imports the settings and automation run history saved with the snapshot being restored (or the newest one).
+     * Best effort: a failure here never fails the message restore.
+     *
+     * Run history is inserted into the run log only ([AutomationRunRestore.plan] skips rows already present and
+     * bounds the rest). Rules are not in backups, so a restore never creates or re-enables a rule, and inserting log
+     * rows never sends anything. A restored settings file cannot switch on a consent-gated feature either: consent is
+     * per phone and never restored.
+     */
     private suspend fun restoreSettings(target: BackupTarget, blob: String?, key: RestoreKey) {
-        runCatching {
-            withContext(Dispatchers.IO) {
-                val name = blob ?: target.openRead(LATEST)?.use { stream ->
-                    (json.parseToJsonElement(stream.readBytes().toString(Charsets.UTF_8)) as? JsonObject)
-                        ?.get("blobName")?.let { (it as? JsonPrimitive)?.content }
-                } ?: return@withContext
-                val raw = target.openRead(name) ?: return@withContext
-                val plain = when (key) {
-                    is RestoreKey.Passphrase -> BackupCrypto.decryptingInputStream(raw, key.value)
-                    is RestoreKey.RecoveryCode -> BackupCrypto.decryptingInputStreamWithRecoveryCode(raw, key.value)
-                }
-                plain.use { stream ->
-                    val reader = DakExportReader(stream)
-                    reader.readMessages().forEach { _ -> }
-                    reader.settingsJson?.takeIf { it.isNotBlank() && it != "{}" }?.let {
-                        settings.import(it)
-                        importFolds(it)
-                    }
-                }
+        val extras = runCatching { BackupEngine(target).readExtras(key, blob) }.getOrNull() ?: return
+        extras.settingsJson?.takeIf { it.isNotBlank() && it != "{}" }?.let {
+            runCatching {
+                settings.import(it)
+                importFolds(it)
             }
         }
+        if (!consents.isGranted(DataFlow.CLOUD_CLASSIFICATION)) runCatching { settings.set(DakSettings.jevOptIn, false) }
+        runCatching { restoreAutomationRuns(extras.automationRuns) }
     }
+
+    private suspend fun restoreAutomationRuns(incoming: List<AutomationRunRecord>) {
+        if (incoming.isEmpty()) return
+        val store = automationRuns.get()
+        val existing = store.all(limit = Int.MAX_VALUE).first().mapTo(HashSet()) { it.toRecord().dedupeKey() }
+        for (record in AutomationRunRestore.plan(incoming, existing, System.currentTimeMillis())) {
+            store.add(record.toRow())
+        }
+    }
+
+    /** The run history for a backup, newest first, at most [ArchiveLimits.MAX_AUTOMATION_RUNS] rows. */
+    private suspend fun automationRunRecords(): List<AutomationRunRecord> =
+        runCatching { automationRuns.get().all(limit = ArchiveLimits.MAX_AUTOMATION_RUNS).first().map { it.toRecord() } }.getOrDefault(emptyList())
+
+    private fun AutomationRunRow.toRecord() = AutomationRunRecord(
+        ruleId = ruleId,
+        ruleName = ruleName,
+        atMillis = atMillis,
+        messageKey = messageKey,
+        conversationId = conversationId,
+        sourceLabel = sourceLabel,
+        actionKind = actionKind,
+        destinationLabel = destinationLabel,
+        destination = destination,
+        outcome = outcome,
+        reason = reason,
+        textPreview = textPreview,
+    )
+
+    private fun AutomationRunRecord.toRow() = AutomationRunRow(
+        ruleId = ruleId,
+        ruleName = ruleName,
+        atMillis = atMillis,
+        messageKey = messageKey,
+        conversationId = conversationId,
+        sourceLabel = sourceLabel,
+        actionKind = actionKind,
+        destinationLabel = destinationLabel,
+        destination = destination,
+        outcome = outcome,
+        reason = reason,
+        textPreview = textPreview,
+    )
 
     private suspend fun insert(message: Message) = runCatching {
         val addresses = message.address.split(' ', ',', ';').map { it.trim() }.filter { it.isNotEmpty() }.toSet()

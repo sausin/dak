@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings → Privacy: privacy policy, prominent disclosures and consent, export and delete of Dak's own data. -->
+<resources>
+    <string name="privacy_title">Privacy</string>
+    <string name="privacy_settings_entry_summary">Privacy policy, what can leave your phone, export or delete your Dak data</string>
+    <string name="privacy_summary_title">Your messages stay on this phone</string>
+    <string name="privacy_summary_body">Dak sorts, searches and stores your messages on this phone. Nothing is sent to Dak unless you turn on a feature below, and each one asks you first.</string>
+
+    <string name="privacy_policy_title">Privacy policy</string>
+    <string name="privacy_policy_summary">What Dak does with your data, in plain language</string>
+    <string name="privacy_policy_online">Open the latest version online</string>
+    <string name="privacy_policy_unavailable">The privacy policy could not be loaded. It is also available online.</string>
+
+    <string name="privacy_sharing_title">Data that leaves your phone</string>
+    <string name="privacy_sharing_summary">Off until you allow it. See or withdraw your choices.</string>
+    <string name="privacy_sharing_intro">Each of these would send some data off your phone. They are off unless you allowed them, and turning one off stops it at once.</string>
+    <string name="privacy_flow_on">Allowed</string>
+    <string name="privacy_flow_off">Off</string>
+    <string name="privacy_flow_unavailable">Not available in this version</string>
+    <string name="privacy_flow_changed">Last changed %1$s</string>
+    <string name="privacy_flow_details">What is sent</string>
+    <string name="privacy_withdraw_title">Turn this off?</string>
+    <string name="privacy_withdraw_body">%1$s will stop immediately and nothing more will be sent. You can allow it again later.</string>
+    <string name="privacy_withdraw_confirm">Turn off</string>
+    <string name="privacy_records_title">Your consent history</string>
+    <string name="privacy_records_empty">You have not allowed or declined anything yet.</string>
+    <string name="privacy_record_granted">Allowed</string>
+    <string name="privacy_record_declined">Declined or withdrawn</string>
+    <string name="privacy_record_meta">%1$s · explanation version %2$d · from %3$s</string>
+
+    <string name="privacy_export_title">Export my Dak data</string>
+    <string name="privacy_export_summary">Settings, rules, run history, activity log, accounts, ledger, labels and consent records, as a file you choose</string>
+    <string name="privacy_export_warning">The export is not encrypted: anyone who gets the file can read it. Your SMS messages are not included; to save them, use Backup, data and privacy → Export.</string>
+    <string name="privacy_export_start">Choose where to save</string>
+    <string name="privacy_export_running">Exporting…</string>
+    <string name="privacy_export_done">Saved %1$d sections (%2$d entries).</string>
+    <string name="privacy_export_failed">The export failed. Nothing was saved.</string>
+    <string name="privacy_export_auth">Export your Dak data</string>
+
+    <string name="privacy_delete_title">Delete my Dak data</string>
+    <string name="privacy_delete_summary">Erase everything Dak stores on this phone</string>
+    <string name="privacy_delete_erased_title">What is erased</string>
+    <string name="privacy_delete_erased_body">Dak\'s index (categories, labels, OTPs, accounts and ledger), rules and their run history, the activity log, scheduled messages, the recycle bin, settings, app lock, backup passphrase and schedule, consent records and Dak\'s encryption keys. Dak then closes and starts fresh next time.</string>
+    <string name="privacy_delete_kept_title">What is not erased</string>
+    <string name="privacy_delete_kept_body">Your SMS and MMS messages stay in the phone\'s message store, which other apps share. To remove them, delete the conversations in Dak first, or use your phone\'s settings. Backups and exports you saved to a folder or cloud storage stay there until you delete them. Dak stays your default SMS app until you choose another.</string>
+    <string name="privacy_delete_backup_hint">Tip: export your data or make a backup first if you might want it back.</string>
+    <string name="privacy_delete_confirm_check">I understand this cannot be undone</string>
+    <string name="privacy_delete_button">Delete my Dak data</string>
+    <string name="privacy_delete_auth">Confirm it\'s you to delete Dak\'s data</string>
+    <string name="privacy_delete_failed">Dak could not erase all of its data. Use Settings → Apps → Dak → Storage → Clear storage instead.</string>
+
+    <string name="privacy_disclosure_kicker">Before you turn this on</string>
+    <string name="privacy_disclosure_what">What is sent</string>
+    <string name="privacy_disclosure_not">What is not sent</string>
+    <string name="privacy_disclosure_to">Who receives it</string>
+    <string name="privacy_disclosure_why">Why</string>
+    <string name="privacy_disclosure_when">When</string>
+    <string name="privacy_disclosure_retention">How long it is kept</string>
+    <string name="privacy_disclosure_off">How to turn it off</string>
+    <string name="privacy_disclosure_read_policy">Read the privacy policy</string>
+    <string name="privacy_disclosure_adult">I am 18 or older</string>
+    <string name="privacy_disclosure_version">Explanation version %1$d. Your choice is saved on this phone with the date and this version.</string>
+    <string name="privacy_disclosure_allow">Allow</string>
+    <string name="privacy_disclosure_decline">Not now</string>
+
+    <string name="onboarding_privacy_policy">Read the privacy policy</string>
+
+    <string name="battery_settings_hint">Opens your phone\'s battery optimisation list. Find Dak, choose \"Don\'t optimise\" (or \"Unrestricted\"), then come back.</string>
+</resources>

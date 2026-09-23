@@ -10,6 +10,7 @@ import app.dak.automations.safety.ForwardLoopGuard
 import app.dak.automations.safety.RegexSafety
 import app.dak.core.model.TransactionDirection
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.regex.Pattern
 import java.util.regex.PatternSyntaxException
@@ -29,12 +30,16 @@ public object RuleEngine {
      * Rules are evaluated in list order; each enabled rule whose [Rule.trigger] matches [event] and whose
      * [Rule.conditions] hold contributes one [PlannedAction] per [Rule.actions] entry, in order.
      * [Trigger.Schedule] rules never match a message event (they are driven by a separate scheduler) and
-     * so never contribute here. Forwards that would loop (see [ForwardLoopGuard]) are dropped.
+     * so never contribute here. Forwards that would loop (see [ForwardLoopGuard]) are dropped. A rule containing a
+     * condition this build does not understand ([Condition.Unknown], from a newer build) is skipped entirely.
      */
     public fun evaluate(event: MessageEvent, rules: List<Rule>): List<PlannedAction> {
         val planned = mutableListOf<PlannedAction>()
         for (rule in rules) {
             if (!rule.enabled) continue
+            // A rule this build only partly understands never fires: an Unknown condition evaluates to false, which
+            // under a Not would widen the rule (e.g. forward everything), so fail closed for the whole rule.
+            if (hasUnknownCondition(rule)) continue
             if (!triggerMatches(rule.trigger, event)) continue
             if (!evaluateCondition(rule.conditions, event)) continue
             val requiresBiometric = conditionsCanMatchOtp(rule.conditions)
@@ -45,6 +50,18 @@ public object RuleEngine {
             }
         }
         return planned
+    }
+
+    private fun hasUnknownCondition(rule: Rule): Boolean =
+        containsUnknown(rule.conditions) ||
+            ((rule.trigger as? Trigger.MessageReceived)?.predicates?.let(::containsUnknown) ?: false)
+
+    private fun containsUnknown(condition: Condition): Boolean = when (condition) {
+        is Condition.Unknown -> true
+        is Condition.All -> condition.children.any(::containsUnknown)
+        is Condition.Any -> condition.children.any(::containsUnknown)
+        is Condition.Not -> containsUnknown(condition.child)
+        else -> false
     }
 
     private fun triggerMatches(trigger: Trigger, event: MessageEvent): Boolean = when (trigger) {
@@ -68,7 +85,7 @@ public object RuleEngine {
         is Condition.BodyMatches -> matchesRegex(event.body, condition.pattern)
         is Condition.AmountAtLeast -> amountSatisfies(event, condition.amountMinor, condition.currency) { a, b -> a >= b }
         is Condition.AmountAtMost -> amountSatisfies(event, condition.amountMinor, condition.currency) { a, b -> a <= b }
-        is Condition.TimeWindow -> withinTimeWindow(event.dateMillis, condition.fromMinuteOfDay, condition.toMinuteOfDay)
+        is Condition.TimeWindow -> withinTimeWindow(event.dateMillis, condition.fromMinuteOfDay, condition.toMinuteOfDay, condition.zoneId)
         is Condition.DirectionIs -> event.transaction?.direction == condition.direction
         is Condition.HasOtp -> event.otp != null
         is Condition.ActiveBetween -> event.dateMillis >= condition.startMillis &&
@@ -96,8 +113,9 @@ public object RuleEngine {
         return compare(tx.amountMinor, thresholdMinor)
     }
 
-    private fun withinTimeWindow(dateMillis: Long, fromMinute: Int, toMinute: Int): Boolean {
-        val minuteOfDay = Instant.ofEpochMilli(dateMillis).atZone(ZoneOffset.UTC).run { hour * 60 + minute }
+    private fun withinTimeWindow(dateMillis: Long, fromMinute: Int, toMinute: Int, zoneId: String?): Boolean {
+        val zone: ZoneId = zoneId?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneOffset.UTC
+        val minuteOfDay = Instant.ofEpochMilli(dateMillis).atZone(zone).run { hour * 60 + minute }
         return if (fromMinute <= toMinute) {
             minuteOfDay in fromMinute..toMinute
         } else {

@@ -67,7 +67,7 @@ class ConsentLedgerTest {
     fun `a changed disclosure text invalidates an older consent`() {
         val storage = InMemoryConsentStorage()
         ConsentLedger(storage, clock).grant(DataFlow.CLOUD_CLASSIFICATION, "settings")
-        val v2 = Disclosures.cloudClassification.copy(version = 2, retention = "Kept for 30 days.")
+        val v2 = Disclosures.cloudClassification.copy(version = Disclosures.cloudClassification.version + 1, retention = "Kept for 30 days.")
         val ledger = ConsentLedger(storage, clock, disclosures = { if (it == DataFlow.CLOUD_CLASSIFICATION) v2 else Disclosures.forFlow(it) })
         assertFalse(ledger.isGranted(DataFlow.CLOUD_CLASSIFICATION))
         ledger.grant(DataFlow.CLOUD_CLASSIFICATION, "settings")

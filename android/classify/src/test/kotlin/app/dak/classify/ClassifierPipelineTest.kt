@@ -92,8 +92,14 @@ class ClassifierPipelineTest {
 
     @Test
     fun `below-threshold result with no cloud classifier is UNKNOWN`() {
-        val c = classify("XY-UNKNOWNCO", "asdkj qwioeu zxcv random text with nothing recognisable")
-        assertTrue(c.category == Category.UNKNOWN || c.confidence >= 0.0f)
+        // A model that is never sure: without a cloud stage the pipeline must say UNKNOWN rather than guess.
+        val unsure = ClassifierPipeline(
+            templates = TemplateBundle.loadDefault(),
+            model = { Category.entries.associateWith { 1f / Category.entries.size } },
+        )
+        val c = runBlocking { unsure.classify("XY-UNKNOWNCO", "asdkj qwioeu zxcv random text with nothing recognisable", 1) }
+        assertEquals(Category.UNKNOWN, c.category)
+        assertTrue(c.confidence < 0.55f, c.toString())
     }
 
     @Test
@@ -116,7 +122,7 @@ class ClassifierPipelineTest {
     }
 
     @Test
-    fun `overall accuracy across the sample corpus is above 90 percent`() {
+    fun `every message of the sample corpus is classified correctly`() {
         val samples = listOf(
             Triple("VM-HDFCBK", "Rs 4500.00 debited from A/c XX1234 on 12-03-24 at AMAZON. Avl bal Rs 12,340.00", Category.TRANSACTION),
             Triple("AX-ICICIT", "Rs.850 spent on your ICICI Bank Credit Card XX9012 at SWIGGY on 05-Aug. Avl limit Rs 50,000", Category.TRANSACTION),
@@ -134,12 +140,11 @@ class ClassifierPipelineTest {
             model = NaiveBayesModel.loadDefault(),
             contactLookup = { it == "9988776655" },
         )
-        var correct = 0
-        for ((address, body, expected) in samples) {
+        // Every sample, not "90% of ten": one silent misclassification here is a regression.
+        val wrong = samples.mapNotNull { (address, body, expected) ->
             val result = runBlocking { contactPipeline.classify(address, body, 1) }
-            if (result.category == expected) correct++
+            if (result.category != expected) "$address \"$body\": expected $expected got ${result.category}" else null
         }
-        val accuracy = correct.toDouble() / samples.size
-        assertTrue(accuracy >= 0.9, "accuracy $accuracy below 90%")
+        assertTrue(wrong.isEmpty(), wrong.joinToString("\n"))
     }
 }

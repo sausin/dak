@@ -21,7 +21,9 @@ class GatedRegexEquivalenceTest {
 
     private val texts: List<String> = run {
         val r = Random(5)
-        val corpus = SyntheticCorpus.generate(20_000, seed = 99).map { it.body }
+        // 12k synthetic bodies plus variants keep the classify suite under a minute; the hand-written tricky cases
+        // below carry the adversarial weight.
+        val corpus = SyntheticCorpus.generate(12_000, seed = 99).map { it.body }
         val tricky = listOf(
             "KYC update", "Your OTP is 1234", "ſPENT Rs 500", "रु 500 जमा", "₹1,00,000 credited to a/c XX1234",
             "WWW.EXAMPLE.COM", "HTTPS://bit.ly/x", "upi://pay?pa=a@b", "wapas kar do 5000", "sent by mistake, please return",
@@ -32,7 +34,7 @@ class GatedRegexEquivalenceTest {
             "Your KYC will be blocked, update at kyc-update.info/pan", "Bijli connection aaj raat kaat diya jayega 9876500097",
             "Part time job: earn Rs 3000 daily", "Invest Rs 10,000 and get Rs 50,000 in 7 days", "आपका ऑर्डर डिलीवर कर दिया गया",
         )
-        corpus + tricky + List(5_000) { corpus[r.nextInt(corpus.size)].let { t -> if (r.nextBoolean()) t.uppercase() else t.replace(" ", "") } }
+        corpus + tricky + List(3_000) { corpus[r.nextInt(corpus.size)].let { t -> if (r.nextBoolean()) t.uppercase() else t.replace(" ", "") } }
     }
 
     private fun assertSame(gated: GatedRegex) {

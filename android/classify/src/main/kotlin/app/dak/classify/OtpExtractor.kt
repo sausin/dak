@@ -123,17 +123,31 @@ public object OtpExtractor {
             if (i < body.length) append(body, i, body.length)
         }
 
-        firstValidCode(codeAfterKeyword, masked)?.let { return it }
+        // "Use 5521 as your one time password. Valid for 1800 seconds.": a number after the keyword but in the next
+        // sentence is only the code when nothing names one more directly.
+        val afterKeyword = firstValidMatch(codeAfterKeyword, masked)
+        val afterCode = afterKeyword?.groupValues?.get(1)
+        if (afterKeyword != null && !crossesSentence(masked, afterKeyword)) return afterCode
         firstValidCode(codeBeforeKeyword, masked)?.let { return it }
         firstValidCode(codeAfterKeywordIs, masked)?.let { return it }
         firstValidCode(codeAsKeyword, masked)?.let { return it }
         firstValidCode(genericCode, masked)?.let { return it }
-        return null
+        return afterCode
     }
 
-    private fun firstValidCode(regex: GatedRegex, masked: String): String? {
+    /** A full stop, `!` or `?` followed by a blank between the keyword and the code of [match]. */
+    private val sentenceEnd = Regex("""[.!?]\s""")
+
+    private fun crossesSentence(text: String, match: MatchResult): Boolean {
+        val codeStart = match.groups[1]?.range?.first ?: return false
+        return sentenceEnd.containsMatchIn(text.subSequence(match.range.first, codeStart))
+    }
+
+    private fun firstValidCode(regex: GatedRegex, masked: String): String? = firstValidMatch(regex, masked)?.groupValues?.get(1)
+
+    private fun firstValidMatch(regex: GatedRegex, masked: String): MatchResult? {
         for (match in regex.findAll(masked)) {
-            normalizeCode(match.groupValues[1])?.let { return it }
+            if (normalizeCode(match.groupValues[1]) != null) return match
         }
         return null
     }

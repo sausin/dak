@@ -102,7 +102,8 @@ object MoneyParser {
             val currency = resolveCurrency(currencyToken, symbolMap) ?: continue
             val number = withSpacedDecimal(numberRaw, match.groups[3]?.value)
             val money = try {
-                applyMultiplier(parseAmount(number, currency), match.groups[4]?.value)
+                // Multiply before rounding to the minor unit: "₹1.2345 crore" is ₹1,23,45,000, not ₹1,23,00,000.
+                Money.ofMajor(applyMultiplier(parseMajor(number, currency), match.groups[4]?.value), currency)
             } catch (e: ArithmeticException) {
                 null
             } catch (e: NumberFormatException) {
@@ -124,13 +125,13 @@ object MoneyParser {
         return numberRaw + "." + digits
     }
 
-    private fun applyMultiplier(money: Money, word: String?): Money {
-        if (word == null) return money
+    private fun applyMultiplier(major: BigDecimal, word: String?): BigDecimal {
+        if (word == null) return major
         val factor = when (word.lowercase().first()) {
             'l' -> LAKH
             else -> CRORE
         }
-        return Money.ofMajor(money.toBigDecimal().multiply(factor), money.currency)
+        return major.multiply(factor)
     }
 
     private val LAKH = BigDecimal(100_000)
@@ -171,10 +172,12 @@ object MoneyParser {
      *   "$1,234" for a 2-decimal currency); otherwise it is treated as decimal.
      * - only one kind present, more than once: thousands separator (grouping), e.g. "12,34,567".
      */
-    fun parseAmount(raw: String, currency: String): Money {
+    fun parseAmount(raw: String, currency: String): Money = Money.ofMajor(parseMajor(raw, currency), currency)
+
+    /** [raw] in major units of [currency], separators resolved as [parseAmount] does, before any rounding. */
+    private fun parseMajor(raw: String, currency: String): BigDecimal {
         val exponent = CurrencyTable.minorUnitExponent(currency.uppercase())
-        val cleaned = normalizeSeparators(raw, exponent)
-        return Money.ofMajor(BigDecimal(cleaned), currency)
+        return BigDecimal(normalizeSeparators(raw, exponent))
     }
 
     private fun normalizeSeparators(rawInput: String, exponent: Int): String {

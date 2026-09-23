@@ -45,7 +45,18 @@ class LedgerTest {
             LedgerInput("m3", 3000L, txn(TransactionDirection.DEBIT, 10000, "INR", institution = "ICICI Bank", last4 = "1234")),
         )
         val ledgers = Ledger.apply(inputs)
-        assertEquals(3, ledgers.size)
+        assertEquals(
+            mapOf(
+                "HDFC_BANK:BANK_ACCOUNT:1234" to listOf("m1"),
+                "HDFC_BANK:BANK_ACCOUNT:5678" to listOf("m2"),
+                "ICICI_BANK:BANK_ACCOUNT:1234" to listOf("m3"),
+            ),
+            ledgers.associate { it.account.id to it.entries.map { e -> e.messageKey } },
+        )
+        val icici = ledgers.single { it.account.id.startsWith("ICICI") }.account
+        assertEquals("ICICI Bank", icici.institution)
+        assertEquals("1234", icici.last4)
+        assertEquals("INR", icici.homeCurrency)
     }
 
     @Test
@@ -65,6 +76,39 @@ class LedgerTest {
         assertTrue(!entry.settled)
         assertEquals("INR", entry.indicativeHome?.currencyUpper)
         assertTrue(entry.indicativeHome!!.amountMinor > 0)
+        assertTrue(entry.isForeign)
+        assertEquals(1000L, entry.rateDateMillis)
+
+        // With a known table the indicative value is exact: AED 120.50 at (83 / 3.6725) INR per AED = Rs 2,723.35.
+        val table = app.dak.finance.rates.RatesTable("USD", "2026-09-21", mapOf("INR" to "83", "AED" to "3.6725"))
+        val exact = Ledger.apply(inputs, rates = table).single().entries.single()
+        assertEquals(Money(272335, "INR"), exact.indicativeHome)
+        assertEquals(Money(272335, "INR"), exact.homeValue)
+    }
+
+    @Test
+    fun `foreign currency entry without a rate has no indicative value and makes the balance unknown`() {
+        val inputs = listOf(
+            LedgerInput("m1", 1000L, txn(TransactionDirection.DEBIT, 50000, "INR", balanceMinor = 1000000, balanceCurrency = "INR")),
+            LedgerInput("m2", 2000L, txn(TransactionDirection.DEBIT, 999, "XYZ")),
+        )
+        val ledger = Ledger.apply(inputs, rates = rates).single()
+        val foreign = ledger.entries.single { it.messageKey == "m2" }
+        assertNull(foreign.indicativeHome)
+        assertNull(foreign.rate)
+        assertNull(foreign.rateDateMillis)
+        assertEquals(Money(999, "XYZ"), foreign.homeValue)
+        assertIs<BalanceState.Unknown>(ledger.balanceState)
+    }
+
+    @Test
+    fun `a newer balance after the foreign spend makes the balance known again`() {
+        val inputs = listOf(
+            LedgerInput("m1", 1000L, txn(TransactionDirection.DEBIT, 12050, "AED")),
+            LedgerInput("m2", 2000L, txn(TransactionDirection.DEBIT, 50000, "INR", balanceMinor = 700000, balanceCurrency = "INR")),
+        )
+        val state = assertIs<BalanceState.Known>(Ledger.apply(inputs, rates = rates).single().balanceState)
+        assertEquals(Money(700000, "INR"), state.balance)
     }
 
     @Test

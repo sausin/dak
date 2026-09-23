@@ -37,9 +37,10 @@ class FtsMatchTest {
     @Test
     fun `leading negation is reordered behind a positive anchor`() {
         val expr = TextExpr.And(TextExpr.Not(TextExpr.Term("spam")), TextExpr.Term("order"))
-        val result = FtsMatch.build(expr)!!
-        assertEquals(true, result.startsWith("order"))
-        assertEquals(true, result.contains("-spam"))
+        assertEquals("order -spam", FtsMatch.build(expr))
+        // Only the first positive atom moves; the rest keep their order.
+        val longer = TextExpr.And(TextExpr.And(TextExpr.Not(TextExpr.Term("spam")), TextExpr.Term("order")), TextExpr.Term("food"))
+        assertEquals("order -spam food", FtsMatch.build(longer))
     }
 
     @Test
@@ -72,5 +73,21 @@ class FtsMatchTest {
     fun `prefix matching appends star to last positive term`() {
         val expr = TextExpr.And(TextExpr.Term("swig"), TextExpr.Term("ord"))
         assertEquals("swig ord*", FtsMatch.build(expr, prefixLastTerm = true))
+    }
+
+    @Test
+    fun `prefix star skips amount tokens and negated terms`() {
+        val expr = TextExpr.And(TextExpr.Term("salary"), TextExpr.Or(TextExpr.Term("5000"), TextExpr.Phrase("amt500000")))
+        // The canonical token is never prefixed ("amt500000*" would also match ten times the amount).
+        assertEquals("salary 5000* OR \"amt500000\"", FtsMatch.build(expr, prefixLastTerm = true))
+        val negatedLast = TextExpr.And(TextExpr.Term("order"), TextExpr.Not(TextExpr.Term("spam")))
+        assertEquals("order* -spam", FtsMatch.build(negatedLast, prefixLastTerm = true))
+    }
+
+    @Test
+    fun `terms that sanitize to nothing are dropped, and nothing left means no expression`() {
+        assertEquals("order", FtsMatch.build(TextExpr.And(TextExpr.Term("order"), TextExpr.Term("()*"))))
+        assertNull(FtsMatch.build(TextExpr.Term("\"*:\"")))
+        assertNull(FtsMatch.build(TextExpr.Phrase("\"\"")))
     }
 }

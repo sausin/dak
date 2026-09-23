@@ -77,7 +77,12 @@ object Reconciler {
                 indicativeHome = best.original,
                 settled = true,
                 effectiveMarkupPercent = markup,
-                rate = best.original.toBigDecimal().divide(estimate.original.toBigDecimal(), MathContext(12)),
+                // A zero-amount estimate (a card verification) has no rate to learn; keep the one it had.
+                rate = if (estimate.original.amountMinor == 0L) {
+                    estimate.rate
+                } else {
+                    best.original.toBigDecimal().divide(estimate.original.toBigDecimal(), MathContext(12))
+                },
                 rateDateMillis = best.dateMillis,
             )
         }

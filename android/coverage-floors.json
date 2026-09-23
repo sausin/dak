@@ -1,24 +1,24 @@
 {
   "_comment": [
     "Minimum LINE coverage (%) per module and for the merged total, enforced by scripts/coverage-summary.py in CI.",
-    "JVM floors = floor(measured) - 1, measured with scripts/jvm-test.sh on af9c1e2 (2026-09-23).",
-    "Android modules (core-telephony, core-index, app) and the total (which includes them) start at 0: they cannot",
-    "be measured without the Android SDK; raise them to floor(measured) - 1 after the first CI run.",
+    "Floors = floor(measured) - 1, from CI run #53 on 72624c7 (2026-09-23), after the test-review pass.",
+    "The Android modules are low because most of their code is Android-bound (ViewModels, receivers, provider and",
+    "notification glue) with no unit tests yet; raise their floors as pure logic is extracted and tested.",
     "Only ever raise a floor, or lower it with a reason in the commit message. See docs/testing.md."
   ],
-  "total": 0,
+  "total": 46,
   "modules": {
-    "automations": 93,
-    "backup": 92,
+    "automations": 96,
+    "backup": 95,
     "classify": 96,
-    "core-model": 28,
+    "core-model": 99,
     "finance": 96,
-    "mms-pdu": 94,
-    "premium-api": 85,
+    "mms-pdu": 95,
+    "premium-api": 99,
     "search": 96,
     "settings-registry": 98,
-    "core-telephony": 0,
-    "core-index": 0,
-    "app": 0
+    "core-telephony": 25,
+    "core-index": 24,
+    "app": 9
   }
 }

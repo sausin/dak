@@ -97,7 +97,7 @@ public class ClassifierPipeline(
         var candidate: Classification = if (templateResult != null && templateResult.confidence >= threshold) {
             templateResult
         } else {
-            modelStage(address, body, senderEntry, region, entry)
+            modelStage(address, body, senderEntry, region, dltHeader, entry)
         }
 
         if (candidate.confidence < threshold) {
@@ -169,6 +169,9 @@ public class ClassifierPipeline(
 
         /** A sensible `cacheSize` when the template-hash cache is enabled (entries of at most 640 chars each). */
         public const val SUGGESTED_CACHE_SIZE: Int = 2_048
+
+        /** Model-score factor for categories a DLT route should not carry (promotions on `-T`, spam on `-S`/`-T`). */
+        private const val DLT_ROUTE_DAMPING: Float = 0.4f
     }
 
     private fun trafficTypeLabel(dltHeader: DltHeader?): Set<String> = when (dltHeader?.trafficType) {
@@ -184,6 +187,7 @@ public class ClassifierPipeline(
         body: String,
         senderEntry: SenderEntry?,
         region: SenderRegion,
+        dltHeader: DltHeader?,
         cached: TemplateCache.Entry?,
     ): Classification {
         val raw = cached?.modelScores ?: model.predict(body).also { cached?.modelScores = it }
@@ -191,8 +195,15 @@ public class ClassifierPipeline(
         if (isPersonalLikely(address, region)) {
             val boosted = (scores[Category.PERSONAL] ?: 0f) * 1.6f + 0.1f
             scores[Category.PERSONAL] = boosted
-            val sum = scores.values.sum().coerceAtLeast(1e-6f)
-            scores.keys.toList().forEach { scores[it] = scores.getValue(it) / sum }
+            normalize(scores)
+        }
+        // DLT routes are registered per template: `-T` carries no marketing at all and `-S` is a registered
+        // service template (service-explicit promos use it too, so only spam is damped there). The model's
+        // small vocabulary otherwise reads "rate our service" / "click for feedback" as promo or spam.
+        when (dltHeader?.trafficType) {
+            TrafficType.TRANSACTIONAL -> damp(scores, Category.PROMOTION, Category.SPAM)
+            TrafficType.SERVICE_IMPLICIT -> damp(scores, Category.SPAM)
+            else -> Unit
         }
         val best = scores.maxByOrNull { it.value }
         val category = best?.key ?: Category.UNKNOWN
@@ -203,6 +214,16 @@ public class ClassifierPipeline(
             source = ClassifierSource.MODEL,
             canonicalSender = senderEntry?.brand,
         )
+    }
+
+    private fun damp(scores: MutableMap<Category, Float>, vararg categories: Category) {
+        for (c in categories) scores[c]?.let { scores[c] = it * DLT_ROUTE_DAMPING }
+        normalize(scores)
+    }
+
+    private fun normalize(scores: MutableMap<Category, Float>) {
+        val sum = scores.values.sum().coerceAtLeast(1e-6f)
+        scores.keys.toList().forEach { scores[it] = scores.getValue(it) / sum }
     }
 
     private suspend fun cloudStage(dltHeader: DltHeader?, mergeKey: String, body: String): Classification? {

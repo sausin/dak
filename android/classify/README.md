@@ -25,7 +25,10 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
 
 - `TemplateBundle.loadDefault()` — loads the bundled, unsigned-trusted default template resource
   (`default-templates.json`), covering the major Indian banks, wallets/UPI, delivery, telecom,
-  travel and OTP/spam/promo regex rules.
+  travel and OTP/spam/promo regex rules. Courier, order-status and invoice/bill wording is a transaction whatever
+  "rate us" / feedback link follows it; parcel "on hold, pay a fee / update your address" wording is spam (and
+  outranks the courier rules); carrier call alerts ("98XXXXX210 is now available to take calls", missed-call
+  alerts) are personal. Bump the bundle `version` when rules change so stored messages are re-classified.
 - `TemplateBundle.parse(json, verifier: BundleVerifier): TemplateBundle?` — parses and verifies an
   OTA `SignedTemplateBundle`; returns null on any signature failure (fail closed).
 - `TemplateBundle.parseUnsigned(payloadJson)` — for tests/tools only.
@@ -98,8 +101,9 @@ val result: app.dak.core.model.Classification = pipeline.classify(address, body,
 
 Stage 1 (deterministic templates) short-circuits stages 2/3 once its confidence clears
 `threshold`; otherwise stage 2 (`MessageModel`) runs, with a bias towards `PERSONAL` for saved
-contacts or local mobile numbers (`SenderRegion.isLocalMobile`). `dlt-*` traffic labels are only added for an Indian
-SIM, and region-tagged template entries follow `regionFor(subId)`. If the result is still below `threshold`, stage 3
+contacts or local mobile numbers (`SenderRegion.isLocalMobile`). On an Indian DLT header the model's promotion and
+spam scores are damped for `-T` routes (no marketing allowed), and its spam score for `-S` routes (registered service
+templates). `dlt-*` traffic labels are only added for an Indian SIM, and region-tagged template entries follow `regionFor(subId)`. If the result is still below `threshold`, stage 3
 asks the opt-in `CloudClassifier` for a masked-text verdict; below threshold even after that, the
 category is `Category.UNKNOWN` rather than a guess. `canonicalSender` is filled from the template
 bundle's brand table; `otp` is filled via `OtpExtractor` whenever the final category is `OTP`.

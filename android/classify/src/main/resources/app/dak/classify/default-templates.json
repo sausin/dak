@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "issuedAt": 1758000000000,
   "senders": [
     {"header": "HDFCBK", "brand": "HDFC Bank", "categoryHint": "TRANSACTION", "reputation": 95, "regions": ["IN"]},
@@ -43,6 +43,7 @@
     {"header": "DELIVR", "brand": "Delhivery", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
     {"header": "BLUEDT", "brand": "BlueDart", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
     {"header": "BDART", "brand": "BlueDart", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
+    {"header": "BLUDRT", "brand": "BlueDart", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
 
     {"header": "JIO", "brand": "Jio", "categoryHint": "PROMOTION", "reputation": 70, "regions": ["IN"]},
     {"header": "JIOPAY", "brand": "Jio", "categoryHint": "TRANSACTION", "reputation": 80, "regions": ["IN"]},
@@ -67,12 +68,18 @@
     {"id": "txn-avl-bal", "category": "TRANSACTION", "pattern": "\\bavl(bl)?\\.?\\s*bal\\b", "priority": 60},
     {"id": "txn-card-spend", "category": "TRANSACTION", "pattern": "\\b(card|a/c|account)\\s*(no\\.?)?\\s*(ending|xx+|\\*+)\\s*\\d{2,4}\\b.*\\b(debited|credited|spent)\\b", "priority": 65},
 
-    {"id": "delivery-out", "category": "TRANSACTION", "pattern": "\\b(out for delivery|has been shipped|order has been delivered|dispatched|tracking id)\\b", "priority": 55, "labels": ["delivery"]},
+    {"id": "delivery-out", "category": "TRANSACTION", "pattern": "\\b(out for delivery|has been shipped|order has been delivered|dispatched|tracking (id|no|number)|awb|(was|has been|have been|is|got|successfully) delivered|delivered your|will deliver your|your (shipment|consignment)|track (your )?(order|shipment|package|parcel|consignment))\\b", "priority": 55, "labels": ["delivery"]},
+    {"id": "delivery-courier", "category": "TRANSACTION", "pattern": "\\b(blue ?dart|delhivery|xpress ?bees|ecom ?express|shadowfax|ekart|dtdc|india ?post|speed ?post|shiprocket|smartr|gati|trackon|fedex|dhl)\\b[^\\n]{0,100}?\\b(deliver\\w*|shipment|parcel|package|consignment|awb|track\\w*|dispatch\\w*|picked up|in transit|arriving)\\b|\\b(deliver\\w*|shipment|parcel|package|consignment|awb|track\\w*|dispatch\\w*|picked up|in transit)\\b[^\\n]{0,100}?\\b(blue ?dart|delhivery|xpress ?bees|ecom ?express|shadowfax|ekart|dtdc|india ?post|speed ?post|shiprocket|smartr|gati|trackon|fedex|dhl)\\b", "priority": 55, "labels": ["delivery"]},
+    {"id": "order-status", "category": "TRANSACTION", "pattern": "\\border\\b[^.!?\\n]{0,60}?\\b(has been|have been|has|have|was|is|got|successfully)\\s+(placed|confirmed|shipped|dispatched|delivered|packed|cancel+ed|returned|picked up|out for delivery)\\b|\\border\\s*(id|no\\.?|number|#|:)\\s*[:#.-]?\\s*[a-z]{0,4}[-_]?\\d{3,}", "priority": 55, "labels": ["order"]},
+    {"id": "invoice-bill", "category": "TRANSACTION", "pattern": "\\b(tax )?invoice\\b|\\be-?bill\\b|\\b(your|the) bill (of|for|no|number|amount|dated|is|has been)\\b|\\bbill (no|number|amount|generated|dated)\\b|\\breceipt (no|number|for|of)\\b", "priority": 55, "labels": ["invoice"]},
+
+    {"id": "personal-reachable", "category": "PERSONAL", "pattern": "[\\dx*]{3}\\d{2}\\s*(is|are) now (reachable|available|switched on|back on (the )?network|in (the )?coverage area)\\b|\\bnow available to (take|receive) calls\\b|\\bmissed call alert\\b|\\byou (have|had) (\\d+ )?missed calls? from\\b", "priority": 84, "labels": ["call-alert"]},
 
     {"id": "spam-kyc", "category": "SPAM", "pattern": "\\b(kyc|pan card|aadhaar)\\b.{0,30}\\b(update|verify|expire|suspend|block)|\\b(update|verify|expire|suspend|block)\\w*\\b.{0,30}\\b(kyc|pan card|aadhaar)\\b", "priority": 95, "labels": ["fraud-risk"]},
     {"id": "spam-lottery", "category": "SPAM", "pattern": "\\b(congratulations|winner|lottery|lucky draw|prize)\\b", "priority": 90},
     {"id": "spam-loan", "category": "SPAM", "pattern": "\\b(instant loan|pre-?approved loan|loan approved|low interest)\\b", "priority": 85},
-    {"id": "spam-click-link", "category": "SPAM", "pattern": "\\b(click here|click now|verify now)\\b.*\\bhttps?://", "priority": 85},
+    {"id": "spam-click-link", "category": "SPAM", "pattern": "\\b(click here|click now|verify now)\\b(?! to (rate|give feedback|share (your )?feedback|track))[^\\n]*\\bhttps?://", "priority": 85},
+    {"id": "spam-parcel-fee", "category": "SPAM", "pattern": "\\b(parcel|package|shipment|consignment|courier)\\b[^\\n]{0,80}?\\b(on hold|held|undeliver\\w*|could ?n[o']?t be delivered|unable to deliver|delivery (attempt )?failed|incomplete address|returned to (the )?(sender|warehouse))\\b[^\\n]{0,100}?\\b(pay\\w*|fee|charges?|customs|duty|(update|confirm|verify) (your )?(delivery |shipping )?(address|details))\\b|\\b(parcel|package|shipment|consignment|courier)\\b[^\\n]{0,100}?\\b(update|confirm|verify|re-?enter) (your )?(delivery |shipping |home )?(address|details)\\b|\\b(customs|clearance|redelivery|re-delivery|warehouse|storage|release|handling)\\s+(fee|charges?|payment)\\b", "priority": 90, "labels": ["fraud-risk"]},
 
     {"id": "promo-offer", "category": "PROMOTION", "pattern": "\\b(offer|discount|sale|cashback|coupon|% off|flat \\d+% off)\\b", "priority": 40},
     {"id": "promo-recharge", "category": "PROMOTION", "pattern": "\\b(recharge now|plan expires|data pack|talktime)\\b", "priority": 40}

@@ -7,6 +7,8 @@ plugins {
 }
 
 val ciVersionCode = (System.getenv("DAK_VERSION_CODE") ?: "1").toInt()
+// Tagged CI builds pass the tag's version (v1.2.3 -> 1.2.3); local and untagged builds keep the default.
+val ciVersionName = System.getenv("DAK_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.1.0"
 
 android {
     namespace = "app.dak"
@@ -17,7 +19,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = ciVersionCode
-        versionName = "0.1.0"
+        versionName = ciVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

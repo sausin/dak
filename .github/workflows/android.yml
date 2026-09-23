@@ -40,6 +40,21 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      - name: Resolve version
+        # Tags (v1.2.3) set the app's versionName and the APK file names; other builds are labelled with the CI
+        # run number, so downloaded APKs are always distinguishable.
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = tag ] && [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            version="${REF_NAME#v}"
+            echo "DAK_VERSION_NAME=$version" >> "$GITHUB_ENV"
+            echo "DAK_APK_LABEL=$version" >> "$GITHUB_ENV"
+          else
+            echo "DAK_APK_LABEL=build$DAK_VERSION_CODE" >> "$GITHUB_ENV"
+          fi
+
       - name: Offline baseline guard (no runtime AI/network deps in free tier)
         run: scripts/check-offline-baseline.sh
 
@@ -66,6 +81,16 @@ jobs:
           DAK_KEY_ALIAS: ${{ secrets.DAK_KEY_ALIAS }}
           DAK_KEY_PASSWORD: ${{ secrets.DAK_KEY_PASSWORD }}
         run: ./gradlew --stacktrace assembleFreeRelease assemblePremiumRelease
+
+      - name: Put the version in APK file names
+        # app-free-debug.apk -> dak-1.2.3-free-debug.apk (AGP 9 has no output-file-name hook, so rename here).
+        run: |
+          for apk in app/build/outputs/apk/*/*/app-*.apk; do
+            [ -e "$apk" ] || continue
+            name="$(basename "$apk")"
+            mv "$apk" "$(dirname "$apk")/dak-${DAK_APK_LABEL}-${name#app-}"
+          done
+          ls app/build/outputs/apk/*/*/
 
       - name: Upload debug APKs
         uses: actions/upload-artifact@v7

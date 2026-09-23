@@ -346,6 +346,13 @@ object DakSettings {
         "Exact alarm permission", "Needed for scheduled sends to fire at the exact time you set.",
         advanced = true, visible = { it.apiLevel >= 31 },
     )
+    val broadcastLists = actionSetting(
+        "simsSending.broadcastLists", SettingsGroup.SIMS_SENDING,
+        "Broadcast lists",
+        "Send one message to up to 50 people you know, as separate SMS; replies come back 1:1. Personal use only: " +
+            "spam breaks Dak's terms and telecom rules.",
+        keywords = listOf("broadcast", "bulk", "send to many", "mass message", "group message", "list", "trai"),
+    )
 
     // ---------------------------------------------------------------- Backup and data
     val backupDestination = actionSetting(
@@ -543,7 +550,7 @@ object DakSettings {
         tabSet, swipeRight, swipeLeft, inboxOtpCopy, senderMerges, blockList, autoArchivePromosDays, fakeCreditWarnings, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
         accounts, homeCurrency, hideBalancesOnLock, ratesSource, reconciliationToleranceMinor,
         sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings, costWarnings,
-        enterToSend, deliveryReports, sendRateSpreading, exactAlarmPermission,
+        enterToSend, deliveryReports, sendRateSpreading, exactAlarmPermission, broadcastLists,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup,
         appLock, autoLockAfter, lockOnScreenOff, hideInRecents, protectSensitiveScreens, indexSchedule, rebuildIndex,

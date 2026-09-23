@@ -77,7 +77,7 @@ class PipelineEquivalenceTest {
         // Same body from a saved contact and from an unknown number: the contact boost is per message.
         val body = "are you coming home for dinner at 9"
         val contact = "+919876543213".also { assertTrue(EnrichmentPath.fakeContacts(it)) }
-        val stranger = "+919876543211".also { assertFalse(EnrichmentPath.fakeContacts(it)) }
+        val stranger = "+14155550121".also { assertFalse(EnrichmentPath.fakeContacts(it)) }
         val c1 = fast.classify(contact, body, 1)
         val c2 = fast.classify(stranger, body, 1)
         val plain = pipeline(cacheSize = 0, prefilter = false)

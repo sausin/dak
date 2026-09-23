@@ -10,6 +10,8 @@ package app.dak.classify.text
  */
 public class GatedRegex(pattern: String, options: Set<RegexOption> = emptySet()) {
 
+    public constructor(pattern: String, option: RegexOption) : this(pattern, setOf(option))
+
     /** The wrapped regex. */
     public val regex: Regex = Regex(pattern, options)
 

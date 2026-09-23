@@ -1,5 +1,7 @@
 package app.dak.classify.scam
 
+import app.dak.classify.text.KeywordPrefilter
+
 /**
  * Bank / wallet name families used to tell which institution a message claims to be from, and whether a sender
  * header or a template-bundle brand belongs to the same one. Covers the institutions scammers impersonate most in
@@ -53,7 +55,16 @@ internal object BankNames {
     fun byId(id: String): Family? = byId[id]
 
     /** The first family named in [text] (a message body, a bundle brand or a ledger institution), or null. */
-    fun familyIn(text: String): Family? = families.firstOrNull { it.regex.containsMatchIn(text) }
+    fun familyIn(text: String): Family? {
+        val hits = prefilter.scan(text)
+        for (i in families.indices) {
+            if (prefilter.mayMatch(i, hits) && families[i].regex.containsMatchIn(text)) return families[i]
+        }
+        return null
+    }
+
+    /** One keyword pass instead of trying every family's regex at every position (same result, see KeywordPrefilter). */
+    private val prefilter = KeywordPrefilter(families.map { it.regex.pattern })
 
     /** The family whose header token appears in the (uppercased) sender [header], or null. */
     fun familyOfHeader(header: String): Family? {

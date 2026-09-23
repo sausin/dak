@@ -1,5 +1,6 @@
 package app.dak.classify
 
+import app.dak.classify.text.GatedRegex
 import java.net.IDN
 
 /**
@@ -33,7 +34,7 @@ public object LinkExtractor {
      * RLO-reversed tail ("https://evil.example/‮moc.knabcfdh") cannot hide inside what looks like the link.
      * Linear-time: a single character class, no nested quantifiers.
      */
-    private val urlRegex = Regex("""(?i)\b((?:https?://|www\.)[^\s­؜᠎​-‏‪-‮⁠-⁤⁦-⁯﻿]+)""")
+    internal val urlRegex = GatedRegex("""(?i)\b((?:https?://|www\.)[^\s­؜᠎​-‏‪-‮⁠-⁤⁦-⁯﻿]+)""")
 
     public fun extract(body: String): List<ExtractedLink> {
         val text = if (body.length > MAX_SCAN_CHARS) body.substring(0, MAX_SCAN_CHARS) else body

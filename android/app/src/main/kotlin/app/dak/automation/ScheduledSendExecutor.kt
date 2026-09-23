@@ -1,6 +1,7 @@
 package app.dak.automation
 
 import app.dak.birthdays.BirthdaySendGate
+import app.dak.broadcast.BroadcastSendGate
 import app.dak.index.enrich.ConversationIds
 import app.dak.index.repo.ScheduledSendStatus
 import app.dak.index.repo.ScheduledSendStore
@@ -20,7 +21,8 @@ import javax.inject.Singleton
  * Sends every scheduled send that is due, once. Serialised by a mutex and idempotent (a row is only sent while
  * still PENDING), so the alarm receiver and the WorkManager fallback can both call [runDue] safely. Sends that
  * would exceed the 30-per-30-minutes limit are pushed to the next free slot instead of failing. Birthday wishes pass
- * through [BirthdaySendGate] (dedupe, "Ask me first", next-year rescheduling).
+ * through [BirthdaySendGate] (dedupe, "Ask me first", next-year rescheduling); broadcast copies through
+ * [BroadcastSendGate] (dropped when their broadcast was cancelled; outcome recorded on the broadcast).
  */
 @Singleton
 class ScheduledSendExecutor @Inject constructor(
@@ -32,6 +34,7 @@ class ScheduledSendExecutor @Inject constructor(
     private val scheduler: ScheduledSendScheduler,
     private val birthdayGate: BirthdaySendGate,
     private val costGuard: SendCostGuard,
+    private val broadcastGate: BroadcastSendGate,
 ) {
     private val mutex = Mutex()
 
@@ -45,6 +48,7 @@ class ScheduledSendExecutor @Inject constructor(
                 store.markStatus(current.id, ScheduledSendStatus.FAILED, "no recipient")
                 continue
             }
+            if (!broadcastGate.beforeSend(current)) continue
             if (!birthdayGate.beforeSend(current, nowMillis)) continue
             val slot = throttle.reserve(nowMillis)
             if (slot > nowMillis + SLOT_GRACE_MILLIS) {
@@ -57,6 +61,7 @@ class ScheduledSendExecutor @Inject constructor(
             // from the composer were confirmed there.
             if (current.ruleId != null && !costGuard.allowUnattended(addresses, current.subId)) {
                 store.markStatus(current.id, ScheduledSendStatus.FAILED, PREMIUM_REFUSED)
+                broadcastGate.afterFailed(current)
                 continue
             }
             val result = runCatching {
@@ -75,8 +80,12 @@ class ScheduledSendExecutor @Inject constructor(
                     store.markStatus(current.id, ScheduledSendStatus.SENT)
                     sent++
                     runCatching { birthdayGate.afterSent(current, nowMillis) }
+                    runCatching { broadcastGate.afterSent(current, result.keys) }
                 }
-                is SendResult.Failed -> store.markStatus(current.id, ScheduledSendStatus.FAILED, result.reason)
+                is SendResult.Failed -> {
+                    store.markStatus(current.id, ScheduledSendStatus.FAILED, result.reason)
+                    broadcastGate.afterFailed(current)
+                }
             }
         }
         sent

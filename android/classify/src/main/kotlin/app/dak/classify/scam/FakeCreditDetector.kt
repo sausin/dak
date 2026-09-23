@@ -6,6 +6,7 @@ import app.dak.classify.SenderId
 import app.dak.classify.SenderKind
 import app.dak.classify.TemplateBundle
 import app.dak.classify.TrafficType
+import app.dak.classify.text.GatedRegex
 import java.math.BigDecimal
 
 /**
@@ -51,13 +52,14 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         dateMillis: Long = System.currentTimeMillis(),
         region: String? = INDIA,
     ): ScamVerdict {
-        val text = normalize(body)
+        val analysis = analyse(body)
+        val text = analysis.text
         if (text.isBlank()) return ScamVerdict.None
         val india = isIndia(region)
         val sender = senderOf(address, india)
         if (sender.verified) return ScamVerdict.None
 
-        val amounts = amountsIn(text) + listOfNotNull(hint?.amountMinor)
+        val amounts = analysis.amounts + listOfNotNull(hint?.amountMinor)
         val transferMention = TRANSFER_MENTION.containsMatchIn(text)
         // "maine 15000 bhej diya": a bare number next to transfer wording is money too (follow-ups rarely write "Rs").
         val bareAmounts = if (transferMention) bareAmountsIn(text) else emptySet()
@@ -179,9 +181,10 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
      * / PIN / collect wording at all), so callers can skip loading contacts, accounts and history.
      */
     public fun isCandidate(address: String, body: String, region: String? = INDIA): Boolean {
-        val text = normalize(body)
+        val analysis = analyse(body)
+        val text = analysis.text
         if (text.isBlank() || senderOf(address, isIndia(region)).verified) return false
-        return amountsIn(text).isNotEmpty() || MONEY_WORDS.containsMatchIn(text) || PIN_TO_RECEIVE.containsMatchIn(text) ||
+        return analysis.amounts.isNotEmpty() || MONEY_WORDS.containsMatchIn(text) || PIN_TO_RECEIVE.containsMatchIn(text) ||
             COLLECT.containsMatchIn(text) || TRANSFER_MENTION.containsMatchIn(text)
     }
 
@@ -190,9 +193,10 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
      * returning money without being an alert itself), so callers can skip loading history for everything else.
      */
     public fun needsRecentMessages(address: String, body: String, region: String? = INDIA): Boolean {
-        val text = normalize(body)
+        val analysis = analyse(body)
+        val text = analysis.text
         if (text.isBlank() || senderOf(address, isIndia(region)).verified) return false
-        val amounts = amountsIn(text)
+        val amounts = analysis.amounts
         val transferMention = TRANSFER_MENTION.containsMatchIn(text)
         val hasMoney = amounts.isNotEmpty() || MONEY_WORDS.containsMatchIn(text) || (transferMention && bareAmountsIn(text).isNotEmpty())
         if (!hasMoney) return false
@@ -251,6 +255,22 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         }
     }
 
+    /**
+     * The normalized text and its amounts, shared by [isCandidate], [needsRecentMessages] and [evaluate]: callers ask
+     * all three about the same body in a row, so the last body analysed on this thread is remembered (by identity;
+     * pure functions of the body, so reuse is exact).
+     */
+    private class Analysis(val body: String, val text: String) {
+        val amounts: Set<Long> by lazy(LazyThreadSafetyMode.NONE) { amountsIn(text) }
+    }
+
+    private val lastAnalysis = ThreadLocal<Analysis?>()
+
+    private fun analyse(body: String): Analysis {
+        lastAnalysis.get()?.let { if (it.body === body) return it }
+        return Analysis(body, normalize(body)).also { lastAnalysis.set(it) }
+    }
+
     private fun normalize(body: String): String =
         DigitNormalizer.normalizeDigits(if (body.length > MAX_SCAN_CHARS) body.substring(0, MAX_SCAN_CHARS) else body)
 
@@ -266,32 +286,32 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
 
         private val O = setOf(RegexOption.IGNORE_CASE)
 
-        private val AMOUNT_BEFORE = Regex("""(?:\brs\.?|\binr|₹|\brupees?|रु\.?|रू\.?|\$|€|£|₦|₱|\b(?:usd|eur|gbp|aed|sar|qar|kwd|omr|bhd|sgd|myr|aud|cad|ngn|kes|zar|php|idr|pkr|bdt|lkr|npr))\s?(\d[\d,]{0,14}(?:\.\d{1,2})?)""", O)
-        private val AMOUNT_AFTER = Regex("""(?<![\d.])(\d[\d,]{0,14}(?:\.\d{1,2})?)\s?(?:/-|rs\b|rupees?\b|रुपये|रु\.?|rupaye\b|rupay\b)""", O)
+        private val AMOUNT_BEFORE = GatedRegex("""(?:\brs\.?|\binr|₹|\brupees?|रु\.?|रू\.?|\$|€|£|₦|₱|\b(?:usd|eur|gbp|aed|sar|qar|kwd|omr|bhd|sgd|myr|aud|cad|ngn|kes|zar|php|idr|pkr|bdt|lkr|npr))\s?(\d[\d,]{0,14}(?:\.\d{1,2})?)""", O)
+        private val AMOUNT_AFTER = GatedRegex("""(?<![\d.])(\d[\d,]{0,14}(?:\.\d{1,2})?)\s?(?:/-|rs\b|rupees?\b|रुपये|रु\.?|rupaye\b|rupay\b)""", O)
 
-        private val MONEY_WORDS = Regex(
+        private val MONEY_WORDS = GatedRegex(
             """\b(?:money|amount|payment|paise|paisa|paisay|rupees?|rupaye|upi|gpay|phone\s?pe|paytm|transfer\w*)\b|₹|रुपये|पैसे|पैसा""",
             O,
         )
 
-        private val ACCOUNT_REF = Regex(
+        private val ACCOUNT_REF = GatedRegex(
             """a/c|\ba\.c\b|\bacc?t\b|\baccount|\bac\s?no|\bbank\b|\bupi\b|\bimps\b|\bneft\b|\brtgs\b|\bwallet\b|\bvpa\b|(?<![x*])[x*]{2,}+\d{2,6}|खाते|खाता|बैंक""",
             O,
         )
 
-        private val CREDIT_WORDS = Regex(
+        private val CREDIT_WORDS = GatedRegex(
             """credited|\bcredit(?:ed)?\s+(?:of|with|by|for|to)\b|\bcr\b|\bcr\.|\breceived\b|\bdeposited\b|has\s+been\s+added|added\s+to\s+your|""" +
                 """जमा|प्राप्त|क्रेडिट|\bjama\s+ho|\bcredit\s+ho|\baa\s+gaye\b|\baaye\s+hain\b|\bsalary\b""",
             O,
         )
 
-        private val DEBIT_WORDS = Regex(
+        private val DEBIT_WORDS = GatedRegex(
             """debited|\bdebit(?:ed)?\s+(?:of|with|by|for|from)\b|\bdr\b|\bdr\.|\bwithdrawn\b|\bdeducted\b|\bspent\b|डेबिट|कट\s+गए|\bkat\s+gaye\b""",
             O,
         )
 
         /** "Sent by mistake / please return" in English, Hinglish and Hindi (only counted with money context). */
-        private val RETURN_REQUEST = Regex(
+        private val RETURN_REQUEST = GatedRegex(
             """\bby\s+mistake\b|\bmistakenly\b|\bwrongly\s+(?:credited|sent|transferred|deposited)\b|\bwrong\s+(?:number|account|a/c|upi)\b|""" +
                 """\baccidentally\b|\b(?:please|pls|plz|kindly)\s+(?:return|refund|send\s+(?:it\s+|the\s+\w+\s+)?back|pay\s+(?:it\s+)?back)\b|""" +
                 """\brefund\s+(?:it\s+)?back\b|\bsend\s+(?:it\s+|the\s+money\s+|the\s+amount\s+|my\s+money\s+)?back\b|""" +
@@ -302,14 +322,14 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         )
 
         /** Indian mobile number (not a toll-free 1800 line, not glued to an account mask). */
-        private val MOBILE = Regex("""(?<![\w\d])(?:\+?91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}(?!\d)""")
+        private val MOBILE = GatedRegex("""(?<![\w\d])(?:\+?91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}(?!\d)""")
 
         /** UPI ID (handle without a dot after the @, unlike an e-mail address). */
-        private val VPA = Regex("""\b[a-z0-9._-]{2,64}@[a-z]{2,32}(?![\w.])""", O)
-        private val UPI_LINK = Regex("""upi://""", O)
+        private val VPA = GatedRegex("""\b[a-z0-9._-]{2,64}@[a-z]{2,32}(?![\w.])""", O)
+        private val UPI_LINK = GatedRegex("""upi://""", O)
 
         /** "Enter UPI PIN to receive / accept": a UPI PIN is never needed to receive money. */
-        private val PIN_TO_RECEIVE = Regex(
+        private val PIN_TO_RECEIVE = GatedRegex(
             """\b(?:enter|use|type|provide|share|put)\s+(?:your\s+)?(?:upi\s+)?m?pin\b[^.!?\n]{0,60}\b(?:receive|accept|claim|get|credit|collect)|""" +
                 """\b(?:receive|accept|claim|get|credit)\w*\b[^.!?\n]{0,60}\b(?:enter|use|type|provide)\s+(?:your\s+)?(?:upi\s+)?m?pin\b|""" +
                 """\b(?:lene|paane|pane|receive\s+karne)\s+ke\s+liye[^.!?\n]{0,40}\bpin\b|पाने\s+के\s+लिए[^।.!?\n]{0,40}पिन""",
@@ -317,7 +337,7 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         )
 
         /** Collect / approve phrasing ("approve the request", "tap to accept"). */
-        private val COLLECT = Regex(
+        private val COLLECT = GatedRegex(
             """\b(?:collect|payment|money)\s+request\b|\brequested\s+(?:money|rs|inr|₹|payment)|""" +
                 """\b(?:approve|accept)\s+(?:the\s+)?(?:payment\s+|collect\s+|money\s+)?request\b|""" +
                 """\b(?:click|tap|press)\b[^.!?\n]{0,40}\b(?:accept|receive|claim|get)\b""",
@@ -325,15 +345,15 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         )
 
         /** Words that make a collect request look like incoming money. */
-        private val RECEIVE_BAIT = Regex("""receiv|credit|cashback|refund|\bwon\b|reward|prize|\bjeet|जीत|प्राप्त""", O)
+        private val RECEIVE_BAIT = GatedRegex("""receiv|credit|cashback|refund|\bwon\b|reward|prize|\bjeet|जीत|प्राप्त""", O)
 
         /** A personal message talking about a transfer ("I sent 5000", "bheja", "transfer kiya"). */
-        private val TRANSFER_MENTION = Regex(
+        private val TRANSFER_MENTION = GatedRegex(
             """\b(?:sent|transferred|transfer\s+(?:kiya|kar\s+diya|ho\s+gaya)|bheja|bhej\s+diya|dal\s+diya|daal\s+diya|credited)\b|भेजा|भेज\s+दिया""",
             O,
         )
 
-        private val MASK = Regex("""(?:(?<![x*])[x*]{2,}+|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""", O)
+        private val MASK = GatedRegex("""(?:(?<![x*])[x*]{2,}+|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""", O)
 
         internal fun amountsIn(text: String): Set<Long> {
             val out = HashSet<Long>()
@@ -350,8 +370,15 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
 
         private val MAX_MINOR = BigDecimal("100000000000000")
 
+        /** Every body pattern, for the prefilter equivalence test (`GatedRegexEquivalenceTest`). */
+        internal val allPatterns: List<GatedRegex>
+            get() = listOf(
+                AMOUNT_BEFORE, AMOUNT_AFTER, MONEY_WORDS, ACCOUNT_REF, CREDIT_WORDS, DEBIT_WORDS, RETURN_REQUEST, MOBILE, VPA,
+                UPI_LINK, PIN_TO_RECEIVE, COLLECT, RECEIVE_BAIT, TRANSFER_MENTION, MASK, BARE_AMOUNT,
+            )
+
         /** Plain numbers of 3-7 digits (or Indian-grouped "15,000"), as rupees in minor units. */
-        private val BARE_AMOUNT = Regex("""(?<![\d.,])(\d{1,3}(?:,\d{2,3}){1,3}|\d{3,7})(?![\d,])""")
+        private val BARE_AMOUNT = GatedRegex("""(?<![\d.,])(\d{1,3}(?:,\d{2,3}){1,3}|\d{3,7})(?![\d,])""")
 
         internal fun bareAmountsIn(text: String): Set<Long> =
             BARE_AMOUNT.findAll(text).take(8).mapNotNull { it.groupValues[1].replace(",", "").toLongOrNull()?.times(100) }.toSet()

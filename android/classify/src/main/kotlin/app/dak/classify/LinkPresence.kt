@@ -1,5 +1,7 @@
 package app.dak.classify
 
+import app.dak.classify.text.GatedRegex
+
 /**
  * Detects whether a message body contains a link (backs the index's `has:link` filter; pure, thread-safe).
  *
@@ -8,7 +10,7 @@ package app.dak.classify
  * "a.a.a.a…" ended in a StackOverflowError (an Error, not an Exception) inside the indexer.
  */
 public object LinkPresence {
-    private val schemeOrWww = Regex("""(?i)\bhttps?://\S|\bwww\.\S""")
+    internal val schemeOrWww = GatedRegex("""(?i)\bhttps?://\S|\bwww\.\S""")
 
     /** Top-level labels that make a bare `name.tld` count as a link (`gov.in` / `co.in` end in `in`). */
     private val TLDS = setOf("com", "in", "org", "net", "io", "app", "ly", "me", "gl", "info", "biz", "co")

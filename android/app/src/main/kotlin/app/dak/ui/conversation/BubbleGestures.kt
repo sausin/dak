@@ -17,16 +17,25 @@ internal class BubbleGestures(
 
 /**
  * Swipe-to-reply and double-tap-to-copy are invisible to TalkBack and switch access, so each gets a named custom
- * accessibility action ("Reply", "Copy code" / "Copy amount") alongside the gesture.
+ * accessibility action ("Reply", "Copy code" / "Copy amount") alongside the gesture. Long-press selects the message
+ * (multi-select), so the per-message sheet is offered as a "Message actions" custom action too. [otpCopyable] is
+ * the bubble's OTP freshness ([isOtpCopyable]).
  */
 @Composable
-internal fun rememberBubbleGestures(item: MessageItem, actions: BubbleActions, canReply: Boolean): BubbleGestures {
+internal fun rememberBubbleGestures(
+    item: MessageItem,
+    actions: BubbleActions,
+    canReply: Boolean,
+    otpCopyable: Boolean,
+    selected: Boolean,
+): BubbleGestures {
     val reply = stringResource(R.string.ux_action_reply)
     val copyCode = stringResource(R.string.action_copy_code)
     val copyAmount = stringResource(R.string.ux_action_copy_amount)
     val more = stringResource(R.string.ux_action_message_actions)
-    return remember(item, actions, canReply, reply, copyCode, copyAmount, more) {
-        val quick = QuickCopy.of(item)
+    val select = stringResource(if (selected) R.string.ux_action_deselect else R.string.ux_action_select)
+    return remember(item, actions, canReply, otpCopyable, reply, copyCode, copyAmount, more, select) {
+        val quick = QuickCopy.of(item, otpCopyable = otpCopyable)
         val list = buildList<CustomAccessibilityAction> {
             if (canReply) add(CustomAccessibilityAction(reply) { actions.onReply(item); true })
             when (quick) {
@@ -34,7 +43,8 @@ internal fun rememberBubbleGestures(item: MessageItem, actions: BubbleActions, c
                 is QuickCopy.Amount -> add(CustomAccessibilityAction(copyAmount) { actions.onDoubleTap(item); true })
                 null -> Unit
             }
+            add(CustomAccessibilityAction(more) { actions.onShowActions(item); true })
         }
-        BubbleGestures(list, more, if (quick != null) ({ actions.onDoubleTap(item) }) else null)
+        BubbleGestures(list, select, if (quick != null) ({ actions.onDoubleTap(item) }) else null)
     }
 }

@@ -101,7 +101,8 @@ Country-specific data for other markets comes later; the region seam is already 
   search/overflow, configurable swipe actions (archive/delete/read/pin, with haptics, Undo and a
   TalkBack alternative for every gesture), long-press multi-select with a bottom action bar, and an
   inline **"Copy code" chip** on fresh OTP rows — the code without opening the thread.
-  In conversation: long-press action sheet, double-tap a bubble to copy its code or amount,
+  In conversation: long-press multi-select (copy, forward, delete with confirmation, and the per-message
+  action sheet for a single selection), double-tap a bubble to copy its code or amount (codes under a day old),
   swipe-to-reply with any OTP in the quote masked, and a jump-to-latest FAB. Full review and what
   shipped vs. deferred: [`docs/ux-review.md`](docs/ux-review.md).
 - **Delivery ticks** on outgoing messages (clock → single ✓ sent → double ✓✓ delivered, or a

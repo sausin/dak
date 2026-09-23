@@ -6,7 +6,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,19 +34,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,10 +88,16 @@ data class BubbleDecor(
     val sims: List<SimInfo> = emptyList(),
     /** Swipe-to-reply is offered (false when the thread cannot be replied to, e.g. an alphanumeric sender ID). */
     val canReply: Boolean = true,
+    /** The OTP is fresh enough to offer one-tap copy ([isOtpCopyable]); older codes are only highlighted. */
+    val otpCopyable: Boolean = false,
+    /** The thread is in multi-select: taps toggle [selected]; swipe-to-reply and double-tap are off. */
+    val selectionMode: Boolean = false,
+    val selected: Boolean = false,
 )
 
 /** Callbacks from a bubble. */
 interface BubbleActions {
+    /** Long-press: starts multi-select with this message (or toggles it when already selecting). */
     fun onLongPress(item: MessageItem)
     fun onLink(item: MessageItem, link: ExtractedLink)
     fun onCopyOtp(item: MessageItem, code: String)
@@ -105,6 +117,12 @@ interface BubbleActions {
 
     /** Double-tap: copy the message's [QuickCopy] (OTP code, else amount). Only wired when there is one. */
     fun onDoubleTap(item: MessageItem) {}
+
+    /** A tap while [BubbleDecor.selectionMode] is on: add or remove this message from the selection. */
+    fun onToggleSelect(item: MessageItem) {}
+
+    /** The per-message actions sheet (offered as the "Message actions" accessibility action). */
+    fun onShowActions(item: MessageItem) {}
 }
 
 private val OUTGOING_BOXES = setOf(MessageBox.SENT, MessageBox.OUTBOX, MessageBox.QUEUED, MessageBox.FAILED, MessageBox.DRAFT)
@@ -114,8 +132,9 @@ val MessageItem.isOutgoing: Boolean get() = box in OUTGOING_BOXES
 
 /**
  * One message bubble: themed via tokens (incoming/outgoing/failed), SIM chip, group sender name, OTP highlight
- * with tap-to-copy and a quick "delete now", inline images (Coil, content URIs), MMS download state with tap to
- * retry, delivery status, link-safety-checked links, labels and "forwarded to" note.
+ * with tap-to-copy (fresh codes only) and a quick "delete now", inline images (Coil, content URIs), MMS download
+ * state with tap to retry, delivery status, link-safety-checked links, labels and "forwarded to" note. In selection
+ * mode the whole row is one tap target that toggles the message, so links, chips and images inside do not fire.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -131,7 +150,11 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
         outgoing -> { container = colors.bubbleOutgoing; content = colors.onBubbleOutgoing }
         else -> { container = colors.bubbleIncoming; content = colors.onBubbleIncoming }
     }
-    val rowBackground = if (decor.highlighted) colors.focusHighlight else Color.Transparent
+    val rowBackground = when {
+        decor.selected -> MaterialTheme.colorScheme.secondaryContainer
+        decor.highlighted -> colors.focusHighlight
+        else -> Color.Transparent
+    }
     val bodyStyle = MaterialTheme.typography.bodyLarge.let { base ->
         if (decor.fontScale == 1f) base else base.copy(fontSize = base.fontSize * decor.fontScale, lineHeight = base.lineHeight * decor.fontScale)
     }
@@ -142,64 +165,94 @@ fun MessageBubble(item: MessageItem, decor: BubbleDecor, actions: BubbleActions,
         highlightBackground = colors.focusHighlight,
         link = linkColor,
     )
-    val annotated = remember(item.body, item.otp?.code, textColors) {
+    val otpCopyable = decor.otpCopyable
+    val annotated = remember(item.body, item.otp?.code, textColors, otpCopyable) {
         annotateMessage(
             body = item.body,
             colors = textColors,
             otpCode = item.otp?.code,
-            onOtp = { code -> actions.onCopyOtp(item, code) },
+            onOtp = if (otpCopyable) ({ code -> actions.onCopyOtp(item, code) }) else null,
             onLink = { link -> actions.onLink(item, link) },
         )
     }
 
-    Column(
-        modifier = modifier.fillMaxWidth().background(rowBackground).padding(horizontal = 12.dp, vertical = 3.dp),
-        horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
-    ) {
-        if (decor.senderName != null && !outgoing) {
-            Text(
-                BidiText.displaySafe(decor.senderName),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 12.dp, bottom = 2.dp),
-            )
-        }
-        val canReply = decor.canReply && item.body.isNotEmpty()
-        val gestures = rememberBubbleGestures(item, actions, canReply)
-        SwipeToReply(enabled = canReply, onReply = { actions.onReply(item) }) {
-            Surface(
-                shape = RoundedCornerShape(
-                    topStart = 18.dp,
-                    topEnd = 18.dp,
-                    bottomStart = if (outgoing) 18.dp else 4.dp,
-                    bottomEnd = if (outgoing) 4.dp else 18.dp,
-                ),
-                color = container,
-                contentColor = content,
-                modifier = Modifier
-                    .widthIn(max = 320.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .semantics { customActions = gestures.accessibilityActions }
-                    .combinedClickable(
-                        onClick = { if (failed || item.tickState == TickState.FAILED) actions.onRetrySend(item) },
-                        onLongClick = { actions.onLongPress(item) },
-                        onLongClickLabel = gestures.longPressLabel,
-                        onDoubleClick = gestures.onDoubleTap,
+    val selectionMode = decor.selectionMode
+    val selectedText = stringResource(R.string.ux_selected)
+    val toggleLabel = stringResource(if (decor.selected) R.string.ux_action_deselect else R.string.ux_action_select)
+
+    Box(modifier.fillMaxWidth().background(rowBackground)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp),
+            horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
+        ) {
+            if (decor.senderName != null && !outgoing) {
+                Text(
+                    BidiText.displaySafe(decor.senderName),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 12.dp, bottom = 2.dp),
+                )
+            }
+            val canReply = decor.canReply && item.body.isNotEmpty()
+            val gestures = rememberBubbleGestures(item, actions, canReply, otpCopyable, decor.selected)
+            SwipeToReply(enabled = canReply && !selectionMode, onReply = { actions.onReply(item) }) {
+                Surface(
+                    shape = RoundedCornerShape(
+                        topStart = 18.dp,
+                        topEnd = 18.dp,
+                        bottomStart = if (outgoing) 18.dp else 4.dp,
+                        bottomEnd = if (outgoing) 4.dp else 18.dp,
                     ),
-            ) {
-                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (item.attachments.isNotEmpty()) AttachmentList(item.attachments)
-                    if (item.kind() == MessageKind.MMS && !outgoing) MmsDownloadRow(item, actions)
-                    if (item.body.isNotEmpty()) {
-                        EntityMessageText(item, annotated, bodyStyle, content, actions::onNavigate) { link -> actions.onLink(item, link) }
+                    color = container,
+                    contentColor = content,
+                    modifier = Modifier
+                        .widthIn(max = 320.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .semantics {
+                            if (selectionMode) {
+                                // TalkBack and switch access toggle through the bubble itself (the overlay is touch-only).
+                                selected = decor.selected
+                                if (decor.selected) stateDescription = selectedText
+                            } else {
+                                customActions = gestures.accessibilityActions
+                            }
+                        }
+                        .combinedClickable(
+                            onClick = {
+                                if (selectionMode) actions.onToggleSelect(item)
+                                else if (failed || item.tickState == TickState.FAILED) actions.onRetrySend(item)
+                            },
+                            onClickLabel = if (selectionMode) toggleLabel else null,
+                            onLongClick = { actions.onLongPress(item) },
+                            onLongClickLabel = gestures.longPressLabel,
+                            onDoubleClick = if (selectionMode) null else gestures.onDoubleTap,
+                        ),
+                ) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (item.attachments.isNotEmpty()) AttachmentList(item.attachments)
+                        if (item.kind() == MessageKind.MMS && !outgoing) MmsDownloadRow(item, actions)
+                        if (item.body.isNotEmpty()) {
+                            EntityMessageText(item, annotated, bodyStyle, content, actions::onNavigate) { link -> actions.onLink(item, link) }
+                        }
                     }
                 }
             }
+            item.otp?.let { otp -> OtpRow(item, otp.code, otp.consumedBy, otpCopyable, actions) }
+            MetaRow(item, decor, outgoing)
+            if (item.repeatCount > 1) RepeatRow(item, decor, actions)
         }
-        item.otp?.let { otp -> OtpRow(item, otp.code, otp.consumedBy, actions) }
-        MetaRow(item, decor, outgoing)
-        if (item.repeatCount > 1) RepeatRow(item, decor, actions)
+        if (selectionMode) SelectionTapOverlay(onToggle = { actions.onToggleSelect(item) }, modifier = Modifier.matchParentSize())
     }
+}
+
+/**
+ * Covers a bubble row while selecting, so a tap or long-press anywhere on it (text, link, OTP chip, image) toggles
+ * the message instead. Pointer input only, no semantics: accessibility services toggle through the bubble's click.
+ */
+@Composable
+private fun SelectionTapOverlay(onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    val currentOnToggle by rememberUpdatedState(onToggle)
+    Box(modifier.pointerInput(Unit) { detectTapGestures(onTap = { currentOnToggle() }, onLongPress = { currentOnToggle() }) })
 }
 
 /** "×3 · last 10:42" under a collapsed repeated message; tap lists each copy (time, SIM). */
@@ -308,23 +361,27 @@ private fun MmsDownloadRow(item: MessageItem, actions: BubbleActions) {
     }
 }
 
+/** The code's copy chip (fresh OTPs only, see [isOtpCopyable]), "delete now" for received codes and "used by". */
 @Composable
-private fun OtpRow(item: MessageItem, code: String, consumedBy: String?, actions: BubbleActions) {
+private fun OtpRow(item: MessageItem, code: String, consumedBy: String?, copyable: Boolean, actions: BubbleActions) {
+    if (!copyable && item.isOutgoing && consumedBy == null) return // nothing left to show
     val colors = DakTheme.colors
     Row(
         modifier = Modifier.padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = colors.otpHighlight,
-            contentColor = colors.onOtpHighlight,
-            modifier = Modifier.clickable { actions.onCopyOtp(item, code) },
-        ) {
-            Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(code, style = DakTheme.typography.otpCode.copy(fontSize = DakTheme.typography.otpCode.fontSize * 0.7f))
-                Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.action_copy_code), modifier = Modifier.size(18.dp))
+        if (copyable) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = colors.otpHighlight,
+                contentColor = colors.onOtpHighlight,
+                modifier = Modifier.clickable { actions.onCopyOtp(item, code) },
+            ) {
+                Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(code, style = DakTheme.typography.otpCode.copy(fontSize = DakTheme.typography.otpCode.fontSize * 0.7f))
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.action_copy_code), modifier = Modifier.size(18.dp))
+                }
             }
         }
         if (!item.isOutgoing) {

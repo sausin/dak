@@ -30,7 +30,9 @@ If the app crashes, `adb logcat -b crash` output (or a screenshot of the crash d
     red warning and never touches the passbook.
 13. App lock (if enabled): lock → background the app → unlock with fingerprint / device PIN.
 14. Tap numbers inside messages: phone numbers offer call/save; OTPs/amounts/references just copy.
-15. Swipes in the inbox (archive right, delete left) with Undo; long-press multi-select.
+15. Swipes in the inbox (archive right, delete left) with Undo; long-press multi-select. In a thread: long-press
+    selects, taps toggle, rotate keeps the selection, back exits; copy joins texts oldest first; delete confirms
+    then offers Undo. An OTP older than a day shows no copy chip.
 
 ## P2 — nice to check
 16. Dark mode / AMOLED switch live; Hindi/other-language messages render correctly.

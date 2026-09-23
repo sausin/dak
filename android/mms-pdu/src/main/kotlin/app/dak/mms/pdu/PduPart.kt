@@ -36,6 +36,17 @@ data class PduPart(
      */
     fun text(): String? = if (contentType.isText) MmsCharset.decode(data, charset) else null
 
+    /**
+     * [text] limited to [maxChars] characters, decoding at most the bytes that can produce them (no charset uses
+     * more than 4 octets per character), so a multi-megabyte hostile text part never becomes a multi-megabyte String.
+     */
+    fun text(maxChars: Int): String? {
+        if (!contentType.isText) return null
+        val maxBytes = maxChars.toLong() * 4
+        val bytes = if (data.size > maxBytes) data.copyOf(maxBytes.toInt()) else data
+        return MmsSafety.truncate(MmsCharset.decode(bytes, charset), maxChars)
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is PduPart) return false

@@ -11,8 +11,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Runs every contributed [IncomingMessageHandler] for a newly received message, lowest priority first. Each
- * handler is isolated: an exception or a slow handler (over [HANDLER_TIMEOUT_MILLIS]) is logged and skipped, so
- * one broken consumer can never stop the notification or the index from seeing the message.
+ * handler is isolated: an exception, a StackOverflowError or a slow handler (over [HANDLER_TIMEOUT_MILLIS]) is
+ * logged and skipped, so one broken consumer can never stop the notification or the index from seeing the message,
+ * and a crafted message can never crash the process from inside a handler.
  */
 @Singleton
 class IncomingDispatcher @Inject constructor(
@@ -30,6 +31,10 @@ class IncomingDispatcher @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "handler ${handler.javaClass.simpleName} failed", e)
+            } catch (e: StackOverflowError) {
+                // An Error, not an Exception: a recursive parser or regex fed a crafted body would otherwise kill the
+                // process on every arrival (and again whenever the message is re-processed).
+                Log.e(TAG, "handler ${handler.javaClass.simpleName} overflowed the stack")
             }
         }
     }

@@ -6,6 +6,7 @@ import androidx.work.Configuration
 import app.dak.automation.OutboundAutomationGuard
 import app.dak.di.IndexControl
 import app.dak.notifications.NotificationChannels
+import app.dak.telephony.sms.SmsJournalReplayWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -35,5 +36,7 @@ class DakApplication : Application(), Configuration.Provider {
         indexControl.startInitialSync()
         // Off the main thread: follows the app lock and runs the one-time upgrade check.
         outboundGuard.start()
+        // Incoming SMS journaled but not yet in the inbox (the process died mid-write): replay them.
+        SmsJournalReplayWorker.scheduleIfPending(this)
     }
 }

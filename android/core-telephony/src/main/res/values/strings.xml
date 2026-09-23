@@ -2,4 +2,10 @@
 <resources>
     <string name="dak_telephony_channel_transfers">Message transfers</string>
     <string name="dak_telephony_mms_downloading">Downloading multimedia message</string>
+    <string name="dak_telephony_channel_problems">Message problems</string>
+    <string name="dak_telephony_sms_unsaved_title">A message could not be saved</string>
+    <plurals name="dak_telephony_sms_unsaved_text">
+        <item quantity="one">%d incoming message could not be stored after several tries.</item>
+        <item quantity="other">%d incoming messages could not be stored after several tries.</item>
+    </plurals>
 </resources>

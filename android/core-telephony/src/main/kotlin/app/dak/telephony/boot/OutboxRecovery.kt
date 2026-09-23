@@ -22,6 +22,7 @@ import app.dak.telephony.provider.ProviderUris
 import app.dak.telephony.provider.SmsColumns
 import app.dak.telephony.send.SendFailureStore
 import app.dak.telephony.send.SendScheduler
+import app.dak.telephony.sms.SmsJournalReplayWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -95,7 +96,7 @@ class OutboxRecoveryWorker(context: Context, params: WorkerParameters) : Corouti
     }
 }
 
-/** BOOT_COMPLETED / MY_PACKAGE_REPLACED: schedules [OutboxRecoveryWorker]. */
+/** BOOT_COMPLETED / MY_PACKAGE_REPLACED: schedules [OutboxRecoveryWorker] and any pending incoming-SMS replay. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -106,6 +107,8 @@ class BootReceiver : BroadcastReceiver() {
                 } catch (e: Exception) {
                     Log.w(TAG, "could not schedule recovery: ${e.javaClass.simpleName}")
                 }
+                // Incoming SMS whose inbox write did not complete before the reboot / update.
+                SmsJournalReplayWorker.scheduleIfPending(context)
             }
         }
     }

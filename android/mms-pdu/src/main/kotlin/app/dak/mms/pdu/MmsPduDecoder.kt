@@ -50,7 +50,12 @@ object MmsPduDecoder {
         private var addresses = 0
 
         fun add(field: Int, value: Any) {
-            if (field == Field.TO || field == Field.CC || field == Field.BCC) {
+            val isAddress = field == Field.TO || field == Field.CC || field == Field.BCC
+            if (value is String && value.length > maxChars(field, isAddress)) {
+                // Oversized addresses and identifiers are hostile: treat them as absent (subjects are truncated later).
+                return
+            }
+            if (isAddress) {
                 // Hostile PDUs can repeat To thousands of times; each would become a thread member and addr row.
                 if (addresses >= MmsLimits.MAX_ADDRESSES) return
                 addresses++
@@ -58,12 +63,18 @@ object MmsPduDecoder {
             values.getOrPut(field) { ArrayList(1) }.add(value)
         }
 
+        private fun maxChars(field: Int, isAddress: Boolean): Int = when {
+            isAddress -> MmsLimits.MAX_ADDRESS_CHARS
+            field in DISPLAY_TEXT_FIELDS -> Int.MAX_VALUE
+            else -> MmsLimits.MAX_TOKEN_CHARS
+        }
+
         fun first(field: Int): Any? = values[field]?.firstOrNull()
         fun octet(field: Int): Int? = first(field) as? Int
         fun text(field: Int): String? = first(field) as? String
 
         /** Human-readable header text (subject, status texts), truncated to [MmsLimits.MAX_HEADER_TEXT_CHARS]. */
-        fun displayText(field: Int): String? = text(field)?.take(MmsLimits.MAX_HEADER_TEXT_CHARS)
+        fun displayText(field: Int): String? = text(field)?.let { MmsSafety.truncate(it, MmsLimits.MAX_HEADER_TEXT_CHARS) }
         fun number(field: Int): Long? = first(field) as? Long
         fun time(field: Int): MmsTime? = first(field) as? MmsTime
         fun texts(field: Int): List<String> = values[field]?.filterIsInstance<String>().orEmpty()
@@ -76,8 +87,13 @@ object MmsPduDecoder {
         fun from(): FromValue? = first(Field.FROM) as? FromValue
     }
 
-    /** From header: [address] is null for the Insert-address-token. */
-    private class FromValue(val address: String?)
+    /** From header: [address] is null for the Insert-address-token (and for an oversized, hostile address). */
+    private class FromValue(address: String?) {
+        val address: String? = address?.takeIf { it.length <= MmsLimits.MAX_ADDRESS_CHARS }
+    }
+
+    /** Free-text headers that are truncated (see [Headers.displayText]) rather than dropped when oversized. */
+    private val DISPLAY_TEXT_FIELDS = setOf(Field.SUBJECT, Field.RETRIEVE_TEXT, Field.RESPONSE_TEXT, Field.STORE_STATUS_TEXT)
 
     private fun readHeaders(r: WspReader): Headers {
         val headers = Headers()

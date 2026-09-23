@@ -46,6 +46,37 @@ class IncomingSmsPolicyTest {
     }
 
     @Test
+    fun precedenceTable() {
+        // format, pid, classZero, mwiDiscard -> handling. Type 0 beats everything (never shown, never stored), a
+        // discard-MWI beats class 0 (no user content), class 0 beats replace (never stored unasked).
+        val table = listOf(
+            Row("3gpp", 0x40, classZero = true, mwi = true, IncomingHandling.DROP_TYPE_ZERO),
+            Row(null, 0x40, classZero = false, mwi = true, IncomingHandling.DROP_TYPE_ZERO),
+            Row("3gpp", 0x00, classZero = true, mwi = true, IncomingHandling.DROP_MWI),
+            Row("3gpp", 0x41, classZero = false, mwi = true, IncomingHandling.DROP_MWI),
+            Row("3gpp2", 0x40, classZero = false, mwi = true, IncomingHandling.DROP_MWI),
+            Row("3gpp", 0x47, classZero = true, mwi = false, IncomingHandling.FLASH),
+            Row(null, 0x47, classZero = false, mwi = false, IncomingHandling.REPLACE),
+            Row("3gpp2", 0x47, classZero = false, mwi = false, IncomingHandling.STORE),
+            Row("3gpp", 0x3F, classZero = false, mwi = false, IncomingHandling.STORE),
+            Row("3gpp", -1, classZero = false, mwi = false, IncomingHandling.STORE),
+            Row("3gpp", 0x140, classZero = false, mwi = false, IncomingHandling.STORE),
+        )
+        for (r in table) {
+            assertEquals(r.expected, IncomingSmsPolicy.handling(r.format, r.pid, r.classZero, r.mwi), r.toString())
+        }
+    }
+
+    private data class Row(val format: String?, val pid: Int, val classZero: Boolean, val mwi: Boolean, val expected: IncomingHandling)
+
+    @Test
+    fun unknownFormatsGetTheGsmRules() {
+        // Only the exact 3GPP2 format switches PID rules off; anything else (old platforms send none) is GSM.
+        assertEquals(IncomingHandling.DROP_TYPE_ZERO, handling(pid = 0x40, format = "3GPP"))
+        assertEquals(IncomingHandling.REPLACE, handling(pid = 0x42, format = ""))
+    }
+
+    @Test
     fun pidRulesDoNotApplyToCdma() {
         assertEquals(IncomingHandling.STORE, handling(pid = 0x40, format = "3gpp2"))
         assertEquals(IncomingHandling.STORE, handling(pid = 0x41, format = "3gpp2"))
@@ -125,6 +156,71 @@ class MultipartOutcomeTest {
     }
 
     @Test
+    fun duplicateReportsOfOnePartDoNotSettleTheAttempt() {
+        // Some OEMs fire a part's intent twice: that must not count as another part having gone out.
+        var p = PartProgress(partCount = 3, attempt = 1).withSent(0).withSent(0).withSent(0)
+        assertEquals(SendAttemptOutcome.IN_FLIGHT, p.outcome)
+        assertFalse(p.isFullySent)
+        p = p.withFailedPart(1, 4).withFailedPart(1, 4)
+        assertEquals(SendAttemptOutcome.IN_FLIGHT, p.outcome)
+        assertEquals(setOf(1), p.failedParts)
+    }
+
+    @Test
+    fun anEarlierFailureStillMakesALastPartOnlySettlementPartial() {
+        // Part 0 failed, then (last-part-only OEM) part 2 reports sent: parts 1-2 may have arrived, so this is never
+        // an automatic whole-message resend.
+        val p = PartProgress(partCount = 3, attempt = 1).withFailedPart(0, 4).withSent(2)
+        assertTrue(p.isSettled)
+        assertEquals(SendAttemptOutcome.PARTIAL, p.outcome)
+        assertFalse(p.isFullySent)
+    }
+
+    @Test
+    fun aFailureWithoutAPartNumberBlocksFullySent() {
+        val p = PartProgress(partCount = 2).withFailure()
+        assertTrue(p.failed)
+        assertTrue(p.failedParts.isEmpty())
+        assertEquals(SendAttemptOutcome.IN_FLIGHT, p.outcome, "no part reported yet")
+        assertEquals(SendAttemptOutcome.PARTIAL, p.withSent(0).withSent(1).outcome)
+    }
+
+    @Test
+    fun deliveryIsTrackedSeparatelyFromSending() {
+        val p = PartProgress(partCount = 2).withSent(0).withSent(1)
+        assertTrue(p.isFullySent)
+        assertFalse(p.isFullyDelivered)
+        assertFalse(p.withDelivered(0).isFullyDelivered)
+        assertTrue(p.withDelivered(0).withDelivered(1).isFullyDelivered)
+        assertEquals(SendAttemptOutcome.SENT, p.withDelivered(1).outcome)
+    }
+
+    @Test
+    fun decodeRejectsMalformedProgressInsteadOfGuessing() {
+        assertNull(PartProgress.decode(""))
+        assertNull(PartProgress.decode("x;;;0;0"), "part count must be a number")
+        assertNull(PartProgress.decode("2;0;;0"), "4 fields")
+        assertNull(PartProgress.decode("2;0;;0;0;;0;1"), "8 fields")
+        // Unreadable numbers inside a field are dropped, not thrown.
+        val lenient = PartProgress.decode("3;0,x,2;;1;zz;1;y;q;1")!!
+        assertEquals(setOf(0, 2), lenient.sentParts)
+        assertEquals(0L, lenient.startedAtMillis)
+        assertEquals(0, lenient.failureCode)
+        assertEquals(0, lenient.attempt)
+        assertTrue(lenient.resolved)
+    }
+
+    @Test
+    fun encodedFormIsStable() {
+        // Stored in SharedPreferences across app updates: the field order must not change.
+        val p = PartProgress(
+            partCount = 3, sentParts = setOf(2, 0), deliveredParts = setOf(1), failed = true, startedAtMillis = 9L,
+            failedParts = setOf(1), failureCode = 4, attempt = 2, resolved = false,
+        )
+        assertEquals("3;0,2;1;1;9;1;4;2;0", p.encode())
+    }
+
+    @Test
     fun partialDescriptionIsAccurate() {
         val text = SmsResultCodes.describePartial(2, 3)
         assertTrue(text.contains("2 of 3"), text)
@@ -163,6 +259,34 @@ class RespondViaMessageUriTest {
         assertEquals("100%", RespondViaMessage.body("+1?body=100%"))
         assertEquals("%zz", RespondViaMessage.body("+1?body=%zz"))
         assertEquals("%4", RespondViaMessage.body("+1?body=%4"))
+    }
+
+    @Test
+    fun encodedSeparatorsDoNotSplitRecipientsOrFields() {
+        // The list is split before decoding: an encoded comma / semicolon stays inside one recipient.
+        assertEquals(listOf("a,b"), RespondViaMessage.recipients("a%2Cb"))
+        assertEquals(listOf("a;b", "c"), RespondViaMessage.recipients("a%3Bb,c"))
+        // An encoded '?' in the number is not the start of the query.
+        assertEquals(listOf("12?34"), RespondViaMessage.recipients("12%3F34?body=x"))
+        // An encoded '&' / '=' inside the body is not a field or value separator.
+        assertEquals("a=b&body=evil", RespondViaMessage.body("+1?body=a%3Db%26body%3Devil"))
+    }
+
+    @Test
+    fun firstBodyWinsAndLaterQuestionMarksAreText() {
+        assertEquals("one", RespondViaMessage.body("+1?body=one&body=two"))
+        assertEquals("what?", RespondViaMessage.body("+1?body=what?"))
+        assertEquals("a=b", RespondViaMessage.body("+1?body=a=b"))
+        // The field name itself may be percent-encoded.
+        assertEquals("x", RespondViaMessage.body("+1?%62ody=x"))
+        assertNull(RespondViaMessage.body("+1?bodyx=y"))
+    }
+
+    @Test
+    fun invalidUtf8BecomesReplacementCharactersNotAnException() {
+        assertEquals("a\uFFFDb", RespondViaMessage.body("+1?body=a%FFb"))
+        assertEquals("\uFFFD", RespondViaMessage.percentDecode("%C3"))
+        assertEquals("", RespondViaMessage.percentDecode(""))
     }
 
     @Test

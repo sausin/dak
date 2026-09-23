@@ -96,4 +96,55 @@ class MmsTranscodePlanTest {
         assertNull(MmsTranscodePlan.audio(kb300, sec(600.0), 2))
         assertNull(MmsTranscodePlan.audio(kb300, sec(10.0), 6))
     }
+
+    @Test
+    fun `every plan over a grid of inputs fits the budget with its container and never upscales`() {
+        val budgets = listOf(30 * 1024, 100 * 1024, kb300, 600 * 1024, mb1, 3 * 1024 * 1024)
+        val durations = listOf(0.5, 1.0, 5.0, 30.0, 90.0, 300.0, 600.0)
+        val sizes = listOf(1920 to 1080, 1080 to 1920, 640 to 480, 320 to 240, 176 to 144, 100 to 50, 4000 to 16)
+        var planned = 0
+        for (budget in budgets) for (seconds in durations) for ((w, h) in sizes) for (channels in 0..3) for (attempt in 0 until MmsTranscodePlan.MAX_ATTEMPTS) {
+            val p = MmsTranscodePlan.video(budget, sec(seconds), w, h, channels, attempt) ?: continue
+            planned++
+            val samples = seconds * (24 + if (channels in 1..2) MmsTranscodePlan.AUDIO_FRAMES_PER_SEC else 0)
+            val projected = estimatedBytes(p, seconds) + MmsTranscodePlan.CONTAINER_BASE_BYTES + samples * MmsTranscodePlan.BYTES_PER_SAMPLE
+            val case = "budget=$budget s=$seconds ${w}x$h ch=$channels attempt=$attempt -> $p"
+            assertTrue(projected <= budget * MmsTranscodePlan.SAFETY + 1, case)
+            assertTrue(p.videoBitrate >= MmsTranscodePlan.MIN_VIDEO_BPS, case)
+            assertEquals(if (channels in 1..2) true else false, p.audioBitrate > 0, case)
+            assertTrue(p.width % 16 == 0 && p.height % 16 == 0 && p.width >= 16 && p.height >= 16, case)
+            assertTrue(maxOf(p.width, p.height) <= 640, case)
+            assertTrue(p.width <= maxOf(16, w) && p.height <= maxOf(16, h), "never upscaled: $case")
+            assertTrue(p.frameRate in setOf(15, 24), case)
+        }
+        assertTrue(planned > 100, "the grid must exercise real plans, got $planned")
+    }
+
+    @Test
+    fun `each retry asks for strictly less`() {
+        val plans = (0 until MmsTranscodePlan.MAX_ATTEMPTS).map { MmsTranscodePlan.video(mb1, sec(20.0), 1280, 720, 2, it) }
+        val bitrates = plans.map { assertNotNull(it).videoBitrate + it.audioBitrate }
+        assertEquals(bitrates.sortedDescending(), bitrates)
+        assertEquals(bitrates.size, bitrates.distinct().size)
+        assertNull(MmsTranscodePlan.video(mb1, sec(20.0), 1280, 720, 2, MmsTranscodePlan.MAX_ATTEMPTS), "no attempt past the last")
+        assertNull(MmsTranscodePlan.audio(mb1, sec(20.0), 2, MmsTranscodePlan.MAX_ATTEMPTS))
+    }
+
+    @Test
+    fun `nonsense inputs are refused rather than planned`() {
+        assertNull(MmsTranscodePlan.video(0, sec(5.0), 640, 480, 2))
+        assertNull(MmsTranscodePlan.video(-1, sec(5.0), 640, 480, 2))
+        assertNull(MmsTranscodePlan.video(mb1, 0, 640, 480, 2))
+        assertNull(MmsTranscodePlan.video(mb1, MmsTranscodePlan.MAX_DURATION_US + 1, 640, 480, 2))
+        assertNull(MmsTranscodePlan.video(mb1, sec(5.0), 0, 480, 2))
+        assertNull(MmsTranscodePlan.video(mb1, sec(5.0), 640, -1, 2))
+        assertNull(MmsTranscodePlan.audio(mb1, sec(5.0), 0))
+        assertNull(MmsTranscodePlan.audio(mb1, -5, 1))
+    }
+
+    @Test
+    fun `frame dropping keeps a little slack so a steady source is not decimated twice`() {
+        assertEquals(1_000L + 60_000L, MmsTranscodePlan.nextFrameUs(1_000, 15))
+        assertEquals(37_500L, MmsTranscodePlan.nextFrameUs(0, 24))
+    }
 }

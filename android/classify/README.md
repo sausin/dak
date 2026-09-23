@@ -163,6 +163,27 @@ SIM's region; `null` region → only `+`-prefixed numbers; numbers right after a
 skipped). `value` is canonical: E.164 phone, ASCII OTP, lower-case UPI/email, mask digits. First 4000 chars only;
 patterns (`EntityPatterns`) are covered by the ReDoS harness in `SecurityTest`.
 
+## Performance (`app.dak.classify.text`, see docs/performance.md)
+
+- `AhoCorasick(patterns)` — one-pass multi-literal search (`matches(text): BitSet`, `containsAny(text)`), folding
+  case the way a Unicode case-insensitive regex does (`AhoCorasick.fold`).
+- `RequiredLiterals.of(pattern): Set<String>?` — conservative "one of these literals is in every match" set for a
+  Java regex, or null (unsupported construct / no safe literal: always run the regex).
+- `GatedRegex(pattern, options)` — drop-in for `Regex` (`containsMatchIn`, `find`, `findAll`, `mayMatch`) that only
+  runs the regex when a required literal occurs. Used by `FakeCreditDetector`, `OtpExtractor`, `LinkExtractor`,
+  `LinkPresence`.
+- `KeywordPrefilter(patterns)` — one scan for a whole list of patterns (`scan(text)`, `mayMatch(i, hits)`). Used for
+  the template rules (`ClassifierPipeline(prefilter = true)`, the default) and `BankNames`.
+- `ClassifierPipeline(..., cacheSize = 0, prefilter = true)`: `cacheSize > 0` enables the exact template-hash result
+  cache (`TemplateCache`; `SUGGESTED_CACHE_SIZE` = 2048). Off by default: see docs/performance.md for why.
+- `NaiveBayesModel.knows(token)`; predictions use precomputed log tables (bit-identical to the plain loop).
+- `LinkPresence.containsLink(body)` — the index's `has:link` test (moved here from `:core-index` so the JVM
+  benchmark covers it; `app.dak.index.enrich.LinkDetector` delegates to it).
+- Every speed-up is proven result-identical by `PipelineEquivalenceTest` and `text/*Test` over the 50k-message
+  synthetic corpus (`bench/SyntheticCorpus`). The throughput benchmark is opt-in:
+  `scripts/jvm-test.sh :classify:test -Pdak.bench=true --tests '*EnrichmentBenchmarkTest*'`
+  (`-Pdak.bench.jfr=<file>` also records a JFR CPU profile). Plain `test` excludes it.
+
 ## Testing
 
 `DAK_JVM_HARNESS_DIR=<unique dir> GRADLE=/opt/gradle-8.14.3/bin/gradle scripts/jvm-test.sh :classify:test`

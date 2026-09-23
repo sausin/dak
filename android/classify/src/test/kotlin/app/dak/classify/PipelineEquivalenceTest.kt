@@ -3,6 +3,8 @@ package app.dak.classify
 import app.dak.classify.bench.EnrichmentPath
 import app.dak.classify.bench.SyntheticCorpus
 import app.dak.core.model.Category
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import kotlin.math.exp
 import kotlin.math.ln
@@ -64,6 +66,20 @@ class PipelineEquivalenceTest {
             assertTrue(hits > 0, "cache should engage: hits=$hits misses=$misses")
             println("region $region: cache hits=$hits misses=$misses over ${inputs.size} classifications")
         }
+    }
+
+    /** The indexer enriches a batch on several threads: the whole path must give the same rows as one thread. */
+    @Test
+    fun parallelEnrichmentMatchesSequential() = runBlocking {
+        val messages = corpus.take(20_000)
+        val sequential = EnrichmentPath.create().let { path -> messages.map { path.enrich(it) } }
+        val shared = EnrichmentPath.create()
+        val parallel = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            messages.chunked(500).flatMap { batch ->
+                batch.chunked(167).map { slice -> async { slice.map { shared.enrich(it) } } }.awaitAll().flatten()
+            }
+        }
+        assertEquals(sequential, parallel)
     }
 
     @Test

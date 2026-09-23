@@ -257,7 +257,9 @@ rules, re-groups rows after an edit and records `conversation_alias` (old id -> 
 - `IndexIngestor.ingest(messages, allowCloud = false, refreshSignaturesOnMiss = false, force = false)` /
   `remove(keys)` — the single write path (used by backup restore if it wants to index directly).
 - `enrich.MessageEnricher` — the narrow seam over `:classify` (`ClassifierPipeline`) and `:finance`
-  (`TransactionParser`); `DefaultMessageEnricher` is bound.
+  (`TransactionParser`); `DefaultMessageEnricher` is bound. `enrich` must be safe to call concurrently (the default
+  one is lock-free), because the ingestor classifies a batch on several threads.
+- `db.FtsMaintenance.optimize(db)` — merges the FTS4 segments into one (run once when a stage-2 pass finishes).
 
 ### Repeated messages
 
@@ -312,7 +314,15 @@ still filled.)
   Features use order 100+, keep tasks short and idempotent, and only *re-arm* precise alarms here (birthday
   messages, template refresh when OTA fetching lands). `MaintenanceScheduler.runSoon()` runs a pass on demand.
 - **FTS**: external-content FTS4 over `searchText`/`searchSender`; rows are written with insert-ignore + update
-  (never REPLACE) so Room's content-sync triggers keep it consistent.
+  (never REPLACE) so Room's content-sync triggers keep it consistent. `automerge` stays at FTS4's default (off: no
+  extra merge work per insert); when a stage-2 pass (backfill, re-index, rebuild) finishes, `FtsMaintenance`
+  runs `INSERT INTO message_fts(message_fts) VALUES('optimize')` once, so searches visit one segment.
+- **Write throughput** (docs/performance.md): `IndexIngestor` works in chunks of 500 (the stage-2 batch size).
+  Messages that need enriching are classified on `Dispatchers.Default.limitedParallelism(min(3, cores - 1))` in a
+  few slices; the ingestor coroutine alone writes, and each chunk's rows, fold moves and repeat groups go into ONE
+  `withTransaction` (list `@Insert(IGNORE)` + list `@Update`; FTS rows follow via the content triggers in the same
+  transaction). It `yield()`s between chunks. Room's default journal mode (`AUTOMATIC` = WAL except on low-RAM
+  devices) applies: `IndexDatabaseFactory`'s deferred helper forwards `setWriteAheadLoggingEnabled` to SQLCipher.
 - **Schema**: version 4, exported to `core-index/schemas`. The DB holds user data, so every version ships a real
   migration in `db.IndexMigrations` (1 -> 2 adds `sender_fold`, `conversation_alias`, `account_alias`,
   `indexed_message.repeatGroup` + index, `ledger_account.maskedNumber`); only downgrades are destructive.

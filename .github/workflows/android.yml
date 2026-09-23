@@ -46,8 +46,8 @@ jobs:
       - name: Unit tests (JVM + Android modules)
         run: ./gradlew --continue test
 
-      - name: Build debug APKs (free + premium)
-        run: ./gradlew --stacktrace assembleFreeDebug assemblePremiumDebug
+      - name: Build debug APKs (free + premium) and an unsigned release build check
+        run: ./gradlew --stacktrace assembleFreeDebug assemblePremiumDebug assembleFreeRelease
 
       - name: Decode release keystore
         id: keystore

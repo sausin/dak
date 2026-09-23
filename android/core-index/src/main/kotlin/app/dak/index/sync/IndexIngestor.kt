@@ -6,11 +6,11 @@ import app.dak.core.model.MessageKey
 import app.dak.index.db.DakIndexDatabase
 import app.dak.index.db.entity.IndexedMessage
 import app.dak.index.db.entity.MessageFlag
+import app.dak.index.enrich.Enrichment
 import app.dak.index.enrich.MessageEnricher
 import app.dak.index.enrich.RepeatRules
 import app.dak.index.repo.FoldEngine
 import app.dak.index.repo.LedgerRepository
-import app.dak.index.enrich.Enrichment
 import app.dak.index.signature.AppSignatureRegistry
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers

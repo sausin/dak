@@ -34,6 +34,7 @@ tasks.test {
         systemProperty("dak.bench.out", layout.buildDirectory.file("reports/dak-bench.txt").get().asFile.path)
         maxHeapSize = "1g"
         testLogging.showStandardStreams = true
+        outputs.upToDateWhen { false } // a benchmark always runs
         // `-Pdak.bench.jfr=<file.jfr>` also records a CPU profile (inspect with `jfr print --events jdk.ExecutionSample`).
         providers.gradleProperty("dak.bench.jfr").orNull?.let { jvmArgs("-XX:FlightRecorderOptions:stackdepth=2048", "-XX:StartFlightRecording=filename=$it,settings=profile") }
     } else {

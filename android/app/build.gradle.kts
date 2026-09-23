@@ -105,6 +105,8 @@ dependencies {
     implementation(libs.androidx.paging.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.biometric)
+    // Applies baseline-prof.txt (AOT-compiled hot paths) on sideloaded installs too, not only Play installs.
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.libphonenumber)

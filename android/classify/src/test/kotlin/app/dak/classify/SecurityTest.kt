@@ -80,6 +80,14 @@ class SecurityTest {
     }
 
     @Test
+    fun `otp extractor survives unbounded hostile bodies`() {
+        // Callers outside the pipeline may pass a whole body; this must not overflow the stack or stall.
+        for (body in pathological + "upi ".repeat(250_000)) {
+            assertFast("OtpExtractor (unbounded) on ${body.take(12)}…", 3_000) { OtpExtractor.extract(body) }
+        }
+    }
+
+    @Test
     fun `masker handles non-ascii digits instead of throwing`() {
         val masked = Masker.mask("आपका OTP १२३४५६ है, ٣٤٥")
         assertFalse(masked.any { it.isDigit() })

@@ -27,6 +27,7 @@ class AndroidSmsForwarder @Inject constructor(
     private val throttle: SendThrottle,
     private val scheduler: ScheduledSendScheduler,
     private val costGuard: SendCostGuard,
+    private val limits: UnattendedSendLimits,
 ) : SmsForwarder {
 
     override suspend fun forward(to: String, subId: Int?, text: String): Boolean {
@@ -35,10 +36,12 @@ class AndroidSmsForwarder @Inject constructor(
         val address = if (settings.get(DakSettings.numberNormalization)) normalizer.normalize(to, sub) else to
         // Unattended: never forward to a premium-rate number the user has not approved (see SendCostGuard).
         if (!costGuard.allowUnattended(address, sub)) return false
+        if (!limits.tryConsume("forward")) return false
         val now = System.currentTimeMillis()
         val slot = throttle.reserve(now)
         if (slot > now + GRACE_MILLIS) {
-            scheduler.schedule(listOf(address), text, sub, slot)
+            // Tagged as rule-driven so the executor re-checks the premium-rate guard when it finally sends.
+            scheduler.schedule(listOf(address), text, sub, slot, ruleId = ScheduledSendScheduler.AUTO_FORWARD_TAG)
             return true
         }
         val result = runCatching { sender.sendSms(OutgoingSms(listOf(address), text, sub)) }.getOrNull()

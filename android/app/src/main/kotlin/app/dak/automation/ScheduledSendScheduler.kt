@@ -34,13 +34,17 @@ class ScheduledSendScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val store: ScheduledSendStore,
     private val sims: SimRepository,
+    private val limits: UnattendedSendLimits,
 ) : ReplyScheduler {
 
     private val flags by lazy { context.getSharedPreferences(FLAGS_PREFS, Context.MODE_PRIVATE) }
 
     override suspend fun scheduleReply(to: String, subId: Int?, text: String, atMillis: Long): Boolean {
         if (to.isBlank()) return false
-        schedule(addresses = listOf(to), body = text, subId = subId, atMillis = atMillis)
+        // Unattended: one reply per sender per cooldown (no ping-pong between two auto-repliers) within the daily cap,
+        // and tagged as rule-driven so the executor applies the premium-rate guard.
+        if (!limits.allowReply(to) || !limits.tryConsume("auto-reply")) return false
+        schedule(addresses = listOf(to), body = text, subId = subId, atMillis = atMillis, ruleId = AUTO_REPLY_TAG)
         return true
     }
 
@@ -148,10 +152,13 @@ class ScheduledSendScheduler @Inject constructor(
         )
     }
 
-    private companion object {
-        const val TAG = "DakScheduledSend"
-        const val FLAGS_PREFS = "dak_scheduled_send_flags"
-        const val KEY_MIGHT_HAVE_PENDING = "might_have_pending"
-        fun workName(id: Long) = "scheduled-send-$id"
+    companion object {
+        /** [ScheduledSend.ruleId] of automation auto-replies and throttled forwards (never a birthday/broadcast tag). */
+        const val AUTO_REPLY_TAG = "auto-reply"
+        const val AUTO_FORWARD_TAG = "auto-forward"
+        private const val TAG = "DakScheduledSend"
+        private const val FLAGS_PREFS = "dak_scheduled_send_flags"
+        private const val KEY_MIGHT_HAVE_PENDING = "might_have_pending"
+        private fun workName(id: Long) = "scheduled-send-$id"
     }
 }

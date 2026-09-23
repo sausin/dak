@@ -212,4 +212,6 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_skip_no_contacts_access">Not sent: Dak couldn\'t check your contacts</string>
     <string name="fw_skip_possible_scam">Not sent: the message looked like a scam</string>
     <string name="fw_skip_premium">Not sent: needs a premium feature</string>
+    <string name="fw_limit_title">Automatic sending paused for today</string>
+    <string name="fw_limit_text">Your automations sent %1$d messages today, the daily limit, so further forwards and auto-replies were skipped. Check your automations if this was unexpected.</string>
 </resources>

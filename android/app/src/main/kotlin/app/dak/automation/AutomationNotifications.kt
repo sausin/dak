@@ -12,6 +12,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.dak.R
 import app.dak.notifications.NotificationChannels
+import app.dak.notifications.NotificationText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -30,11 +31,14 @@ class AutomationNotifications @Inject constructor(@ApplicationContext private va
     /** Posts a plain notification; false when notifications are not allowed. */
     fun post(title: String, text: String, contentIntent: PendingIntent? = null): Boolean {
         if (!canNotify()) return false
+        // Rule templates can carry the whole message body: bound it and strip bidi controls like message notifications.
+        val safeTitle = NotificationText.body(title).take(MAX_TITLE_CHARS)
+        val safeText = NotificationText.body(text)
         val notification = NotificationCompat.Builder(context, NotificationChannels.AUTOMATION)
             .setSmallIcon(R.drawable.ic_stat_dak)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentTitle(safeTitle)
+            .setContentText(safeText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(safeText))
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .apply { if (contentIntent != null) setContentIntent(contentIntent) }
@@ -81,6 +85,7 @@ class AutomationNotifications @Inject constructor(@ApplicationContext private va
     private companion object {
         const val TAG = "automation"
         const val BASE_ID = 40_000
+        const val MAX_TITLE_CHARS = 200
 
         /** Schemes the "open" action may launch (see [postOpen]). */
         val OPENABLE_SCHEMES = setOf("http", "https", "tel", "geo", "mailto", "sms", "smsto", "whatsapp")

@@ -285,10 +285,13 @@ private fun ShortcutRow(icon: @Composable () -> Unit, title: String, summary: St
 @Composable
 private fun describe(entry: RuleEntry): String {
     val rule = entry.rule ?: return ""
-    ForwardingSpec.fromRule(rule)?.let { spec ->
+    val spec = ForwardingSpec.fromRule(rule)
+    val context = LocalContext.current
+    val ended = stringResource(R.string.fw_status_ended)
+    if (spec != null) {
         val now = System.currentTimeMillis()
-        val line = ForwardingStatusNotifier.summaryLine(LocalContext.current, spec, now)
-        return if (spec.status(now) == ForwardingStatus.ENDED) stringResource(R.string.fw_status_ended) + " · " + line else line
+        val line = ForwardingStatusNotifier.summaryLine(context, spec, now)
+        return if (spec.status(now) == ForwardingStatus.ENDED) "$ended · $line" else line
     }
     val actions = rule.actions.joinToString { it::class.simpleName.orEmpty() }
     return stringResource(R.string.scr_auto_rule_summary, actions)

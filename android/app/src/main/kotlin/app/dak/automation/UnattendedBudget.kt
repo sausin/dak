@@ -7,12 +7,17 @@ internal data class UnattendedBudget(val day: Long, val count: Int, val notified
 
     data class Decision(val allowed: Boolean, val notify: Boolean, val budget: UnattendedBudget)
 
-    /** One send on [today]: allowed while under [limit]; the first refusal of a day asks for a notification. */
+    /**
+     * One send on [today]: allowed while under [limit]; the first refusal of a day asks for a notification. Only a
+     * later day starts a new budget: if the clock or time zone moves back, sends keep counting against the stored
+     * day, so winding the clock back cannot buy a second allowance.
+     */
     fun consume(today: Long, limit: Int): Decision {
-        val used = if (day == today) count else 0
-        if (used < limit) return Decision(allowed = true, notify = false, budget = copy(day = today, count = used + 1))
-        val notify = notifiedDay != today
-        return Decision(allowed = false, notify = notify, budget = copy(day = today, count = used, notifiedDay = today))
+        val budgetDay = maxOf(day, today)
+        val used = if (today <= day) count else 0
+        if (used < limit) return Decision(allowed = true, notify = false, budget = copy(day = budgetDay, count = used + 1))
+        val notify = notifiedDay != budgetDay
+        return Decision(allowed = false, notify = notify, budget = copy(day = budgetDay, count = used, notifiedDay = budgetDay))
     }
 }
 

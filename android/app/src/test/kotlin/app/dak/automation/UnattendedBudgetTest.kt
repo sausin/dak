@@ -44,11 +44,18 @@ class UnattendedBudgetTest {
     }
 
     @Test
-    fun aStoredCountFromAnotherDayIsNeverCarriedOver() {
-        // Including an earlier day (the clock or time zone moved back): the stored count belongs to another day.
+    fun movingTheClockBackDoesNotBuyASecondAllowance() {
+        // The clock or time zone moved back a day: the spent budget of the stored (later) day still applies.
         val d = UnattendedBudget(day = 10, count = 150, notifiedDay = 10).consume(today = 9, limit = 150)
-        assertTrue(d.allowed)
-        assertEquals(UnattendedBudget(day = 9, count = 1, notifiedDay = 10), d.budget)
+        assertFalse(d.allowed)
+        assertFalse(d.notify)
+        assertEquals(UnattendedBudget(day = 10, count = 150, notifiedDay = 10), d.budget)
+        // Partly used: the earlier day continues the stored count rather than starting at zero.
+        val partly = UnattendedBudget(day = 10, count = 5, notifiedDay = Long.MIN_VALUE).consume(today = 9, limit = 150)
+        assertTrue(partly.allowed)
+        assertEquals(UnattendedBudget(day = 10, count = 6, notifiedDay = Long.MIN_VALUE), partly.budget)
+        // A genuinely later day still resets.
+        assertTrue(UnattendedBudget(day = 10, count = 150, notifiedDay = 10).consume(today = 11, limit = 150).allowed)
     }
 
     @Test

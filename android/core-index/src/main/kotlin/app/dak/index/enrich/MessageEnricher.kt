@@ -213,8 +213,10 @@ class DefaultMessageEnricher(
          *    transfers excluded from spending; ledger schema 5 -> 6 refilled by this re-index.
          * 11: a saved contact's "transaction" (e.g. a forwarded bank SMS) is no longer parsed into the passbook, and
          *    formatted phone numbers ("+91 98765 43210") count as people for the cloud stage.
+         * 12: lakh/crore amounts keep paise precision (multiplier before rounding), OTPs never cross a sentence end
+         *    when another pattern finds a code, and passbook month keys are locale-independent.
          */
-        const val LOGIC_REVISION = 11
+        const val LOGIC_REVISION = 12
 
         fun versionOf(templates: TemplateBundle): Int = templates.version * 100 + LOGIC_REVISION
 

@@ -38,7 +38,7 @@ object TransactionParser {
     )
 
     private val debitPattern = Regex(
-        """debited|spent|withdrawn|sent (?:rs|inr|₹|\$|usd|aed|eur)|paid (?:to|rs|inr|₹)|purchase|txn of|used for|used at|auto[- ]?debit|deducted|charged""",
+        """debited|spent|withdrawn|sent (?:rs|inr|₹|\$|usd|aed|eur)|paid (?:to|rs|inr|₹)|purchase|txn of|used for|used at|auto[- ]?debit|deducted|charged|a charge of|you paid|(?:was|has been) authori[sz]ed""",
         RegexOption.IGNORE_CASE,
     )
 
@@ -48,29 +48,14 @@ object TransactionParser {
     )
 
     private val balanceContextPattern = Regex(
-        """av[ai]{0,2}l\.?\s*bal|available balance|(?:clr|clear)\s*bal|balance is|bal is""",
+        """av[ai]{0,2}l\.?\s*bal|available balance|(?:clr|clear)\s*bal|balance is|bal is|remaining balance|\bbalance\s*[:\-]""",
         RegexOption.IGNORE_CASE,
     )
 
-    private val upiPattern = Regex("""\bupi\b""", RegexOption.IGNORE_CASE)
-    private val creditCardPattern = Regex("""credit card""", RegexOption.IGNORE_CASE)
-    private val debitCardPattern = Regex("""debit card""", RegexOption.IGNORE_CASE)
-    private val cardPattern = Regex("""\bcard\b""", RegexOption.IGNORE_CASE)
-    private val accountPattern = Regex("""\ba\s?/\s?c\b|\baccount\b|\bacct\b""", RegexOption.IGNORE_CASE)
-    private val walletPattern = Regex("""\bwallet\b""", RegexOption.IGNORE_CASE)
-
-    /**
-     * Account/card number patterns. Group 1 is the number as far as it is shown (mask + every visible digit, e.g.
-     * `XX440065`); banks reveal 4-6 digits and change that over time, so all visible digits are kept, not just 4.
-     */
-    private val accountNumberPatterns = listOf(
-        Regex("""card\s*(?:no\.?)?\s*([x*]{2,}\s*\d{4,})""", RegexOption.IGNORE_CASE),
-        Regex("""card\s+ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE),
-        Regex("""a\s?/\s?c\s*(?:no\.?)?\s*([x*]{2,}\s*\d{4,})""", RegexOption.IGNORE_CASE),
-        Regex("""a\s?/\s?c\s+ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE),
-        Regex("""account\s*(?:no\.?)?\s*([x*]{2,}\s*\d{4,})""", RegexOption.IGNORE_CASE),
-        Regex("""ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE),
-        Regex("""([x*]{4,}\d{4,})\b"""),
+    /** A loan's amount still owed ("Outstanding principal: Rs 4,20,000"), used as the balance of a loan SMS. */
+    private val loanOutstandingPattern = Regex(
+        """outstanding(?:\s+(?:principal|amount|balance|loan))?(?:\s+(?:is|of))?\s*[:\-]?""",
+        RegexOption.IGNORE_CASE,
     )
 
     private val merchantPatterns = listOf(
@@ -111,11 +96,17 @@ object TransactionParser {
         val occurrences = MoneyParser.findAll(body)
         if (occurrences.isEmpty()) return null
 
-        val balanceOccurrence = pickBalanceOccurrence(body, occurrences)
+        val detected = InstrumentDetector.detect(sender, body)
+        val instrument = detected.instrument
+        val balanceOccurrence = pickBalanceOccurrence(body, occurrences, balanceContextPattern)
+            ?: if (instrument == InstrumentType.LOAN && detected.linkedMaskedNumber == null) {
+                pickBalanceOccurrence(body, occurrences, loanOutstandingPattern)
+            } else {
+                null
+            }
         val txnOccurrence = occurrences.firstOrNull { it != balanceOccurrence } ?: occurrences.first()
 
-        val instrument = detectInstrument(body)
-        val maskedNumber = detectMaskedNumber(body)
+        val maskedNumber = detected.maskedNumber
         val last4 = maskedNumber?.filter { it.isDigit() }?.takeLast(4)
         val merchant = detectMerchant(body)
         val reference = detectReference(body)
@@ -133,6 +124,7 @@ object TransactionParser {
             balanceCurrency = balanceOccurrence?.money?.currencyUpper,
             institution = institution,
             maskedNumber = maskedNumber,
+            linkedMaskedNumber = detected.linkedMaskedNumber,
         )
     }
 
@@ -150,33 +142,13 @@ object TransactionParser {
         )
     }
 
-    private fun pickBalanceOccurrence(body: String, occurrences: List<MoneyOccurrence>): MoneyOccurrence? {
+    private fun pickBalanceOccurrence(body: String, occurrences: List<MoneyOccurrence>, context: Regex): MoneyOccurrence? {
         if (occurrences.size < 2) return null
-        val balanceKeywordMatch = balanceContextPattern.find(body) ?: return null
+        val balanceKeywordMatch = context.find(body) ?: return null
         // The balance amount is the occurrence closest to (and after, typically) the balance keyword.
         return occurrences.minByOrNull { occurrence ->
             kotlin.math.abs(occurrence.range.first - balanceKeywordMatch.range.first)
         }
-    }
-
-    private fun detectInstrument(body: String): InstrumentType = when {
-        upiPattern.containsMatchIn(body) -> InstrumentType.UPI
-        creditCardPattern.containsMatchIn(body) -> InstrumentType.CREDIT_CARD
-        debitCardPattern.containsMatchIn(body) -> InstrumentType.BANK_ACCOUNT
-        cardPattern.containsMatchIn(body) -> InstrumentType.CREDIT_CARD
-        accountPattern.containsMatchIn(body) -> InstrumentType.BANK_ACCOUNT
-        walletPattern.containsMatchIn(body) -> InstrumentType.WALLET
-        else -> InstrumentType.UNKNOWN
-    }
-
-    /** The first account/card number in [body], normalised (`*` -> `X`, upper-case, no spaces), e.g. `XX440065`. */
-    private fun detectMaskedNumber(body: String): String? {
-        for (pattern in accountNumberPatterns) {
-            pattern.find(body)?.let { match ->
-                return match.groupValues[1].filterNot { it.isWhitespace() }.uppercase().replace('*', 'X')
-            }
-        }
-        return null
     }
 
     private fun detectMerchant(body: String): String? {

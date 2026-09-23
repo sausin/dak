@@ -3,8 +3,44 @@ package app.dak.finance.ledger
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.InstrumentType
 
-/** Broad shape of an [Account], used to decide how balance/outstanding is modelled. */
-enum class AccountType { BANK_ACCOUNT, CREDIT_CARD, WALLET, UNKNOWN }
+/**
+ * Broad shape of an [Account], used to decide how balance/outstanding is modelled and which Passbook group it is
+ * shown in. Declaration order is the Passbook's group order.
+ */
+enum class AccountType {
+    BANK_ACCOUNT,
+    CREDIT_CARD,
+
+    /** Spends reduce a bank account; see [Account.linkedAccountId]. A debit card has no balance of its own. */
+    DEBIT_CARD,
+    WALLET,
+    UPI,
+
+    /** Prepaid, forex/travel/multi-currency and gift cards: a balance of their own, possibly per currency. */
+    PREPAID_CARD,
+
+    /** Loan / EMI accounts: payments made, and the outstanding amount when an SMS states it. */
+    LOAN,
+    UNKNOWN,
+    ;
+
+    /** Types whose accounts can be the same real account under two SMS formats (a UPI debit names the bank account). */
+    val aliasFamily: AccountType get() = if (this == UPI) BANK_ACCOUNT else this
+
+    companion object {
+        /** The [AccountType] of an [InstrumentType]. */
+        fun of(instrument: InstrumentType): AccountType = when (instrument) {
+            InstrumentType.BANK_ACCOUNT -> BANK_ACCOUNT
+            InstrumentType.CREDIT_CARD -> CREDIT_CARD
+            InstrumentType.DEBIT_CARD -> DEBIT_CARD
+            InstrumentType.WALLET -> WALLET
+            InstrumentType.UPI -> UPI
+            InstrumentType.PREPAID_CARD -> PREPAID_CARD
+            InstrumentType.LOAN -> LOAN
+            InstrumentType.UNKNOWN -> UNKNOWN
+        }
+    }
+}
 
 /**
  * A financial account inferred from SMS traffic: an institution plus an instrument plus (usually)
@@ -22,17 +58,16 @@ data class Account(
     val statementDay: Int? = null,
     /** The number as the bank last showed it (e.g. `XX440065`), when the SMS showed a mask; see [ExtractedTransaction.maskedNumber]. */
     val maskedNumber: String? = null,
+    /**
+     * For a debit card or loan: the bank account (canonical [Account.id]) its money moves from, when an SMS of this
+     * account named both numbers ("debited from A/c XX1234 using Debit Card XX5678"). Never guessed otherwise.
+     */
+    val linkedAccountId: String? = null,
 ) {
     /** Every digit the bank shows of this account's number (e.g. `440065`), falling back to [last4]. */
     val visibleDigits: String? get() = maskedNumber?.filter { it.isDigit() }?.takeIf { it.isNotEmpty() } ?: last4
 
-    val type: AccountType
-        get() = when (instrument) {
-            InstrumentType.CREDIT_CARD -> AccountType.CREDIT_CARD
-            InstrumentType.BANK_ACCOUNT, InstrumentType.UPI -> AccountType.BANK_ACCOUNT
-            InstrumentType.WALLET -> AccountType.WALLET
-            InstrumentType.UNKNOWN -> AccountType.UNKNOWN
-        }
+    val type: AccountType get() = AccountType.of(instrument)
 
     companion object {
         /**
@@ -59,6 +94,18 @@ data class Account(
         fun digitsOf(transaction: ExtractedTransaction): String? {
             val visible = transaction.maskedNumber?.filter { it.isDigit() }.orEmpty()
             return if (visible.length > 4) visible else transaction.last4
+        }
+
+        /**
+         * The id of the bank account a debit-card or loan [transaction] names alongside its own number
+         * ([ExtractedTransaction.linkedMaskedNumber]), or null when it names none.
+         */
+        fun linkedIdOf(transaction: ExtractedTransaction): String? {
+            if (transaction.instrument != InstrumentType.DEBIT_CARD && transaction.instrument != InstrumentType.LOAN) return null
+            val linked = transaction.linkedMaskedNumber ?: return null
+            val digits = linked.filter { it.isDigit() }
+            if (digits.length < 4) return null
+            return idFor(transaction.institution, InstrumentType.BANK_ACCOUNT, if (digits.length > 4) digits else digits.takeLast(4))
         }
 
         /** Parts of an id made by [idFor]: (institution key, instrument name, digits), or null if malformed. */

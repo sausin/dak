@@ -232,9 +232,10 @@ object DakSettings {
     )
     val homeCurrency = textSetting(
         "finance.homeCurrency", SettingsGroup.FINANCE,
-        "Home currency", "Default currency for accounts without their own currency in their SMS.",
-        default = "INR",
-        keywords = listOf("currency", "inr"),
+        "Home currency",
+        "Default currency (ISO code, e.g. INR, USD) for accounts whose SMS don't state one. Blank: from your SIM's country.",
+        default = "",
+        keywords = listOf("currency", "inr", "usd", "region"),
     )
     val hideBalancesOnLock = boolSetting(
         "finance.hideBalancesOnLock", SettingsGroup.FINANCE,

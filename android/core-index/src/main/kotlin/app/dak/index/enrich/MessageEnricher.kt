@@ -19,6 +19,7 @@ import app.dak.core.model.MessageBox
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.parser.TransactionParser
 import app.dak.index.scam.ScamContextSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -142,6 +143,8 @@ class DefaultMessageEnricher(
                     ScamLabels.toLabels(verdict)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: RuntimeException) {
             emptySet() // never let a warning heuristic break indexing
         }

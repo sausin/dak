@@ -96,6 +96,29 @@ object CurrencyTable {
         "₺" to "TRY",
     )
 
+    /** Currencies written with a bare `$` at home (a bare `$` in an SMS from that country means that currency). */
+    private val dollarSignCurrencies = setOf(
+        "USD", "CAD", "AUD", "NZD", "SGD", "HKD", "TWD", "MXN", "ARS", "CLP", "COP", "BSD", "BBD", "BZD", "BMD",
+        "BND", "FJD", "GYD", "JMD", "KYD", "LRD", "NAD", "SBD", "SRD", "TTD", "XCD",
+    )
+
+    /** Currencies written with the `₨` glyph at home. */
+    private val rupeeGlyphCurrencies = setOf("PKR", "NPR", "LKR", "MUR", "SCR")
+
+    /**
+     * [defaultSymbolToCurrency] adjusted to the reader's region: with [homeCurrency] `CAD`, a bare `$` means CAD
+     * (likewise AUD, SGD, NZD, HKD...), and `₨` means NPR or LKR in Nepal or Sri Lanka. Everything unambiguous
+     * (`₹`, `€`, `£`, `C$`, ISO codes) is unchanged, and with no home currency (unknown region) the defaults apply.
+     */
+    fun symbolMapFor(homeCurrency: String?): Map<String, String> {
+        val home = homeCurrency?.trim()?.uppercase()?.takeIf { it.length == 3 } ?: return defaultSymbolToCurrency
+        return when (home) {
+            in dollarSignCurrencies -> defaultSymbolToCurrency + ("$" to home)
+            in rupeeGlyphCurrencies -> defaultSymbolToCurrency + ("₨" to home)
+            else -> defaultSymbolToCurrency
+        }
+    }
+
     /** Currency codes this table recognises as a bare ISO alphabetic code. */
     val knownIsoCodes: Set<String> = setOf(
         "INR", "USD", "EUR", "GBP", "JPY", "AED", "AUD", "CAD", "CHF", "CNY", "SGD", "THB",

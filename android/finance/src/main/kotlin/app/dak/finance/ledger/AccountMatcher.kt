@@ -66,7 +66,7 @@ object AccountMatcher {
     ): List<AliasSuggestion> {
         val candidates = accounts.filter { !aliases.isAlias(it.accountId) && !it.visibleDigits.isNullOrEmpty() }
         val out = ArrayList<AliasSuggestion>()
-        val byGroup = candidates.groupBy { it.institution.trim().uppercase() to it.type }
+        val byGroup = candidates.groupBy { it.institution.trim().uppercase() to it.type.aliasFamily }
         for ((_, group) in byGroup) {
             for (i in group.indices) {
                 for (j in i + 1 until group.size) {
@@ -82,7 +82,7 @@ object AccountMatcher {
     /** The suggestion for one pair, or null when the two cannot be the same account. */
     fun compare(x: AccountObservation, y: AccountObservation): AliasSuggestion? {
         if (x.accountId == y.accountId) return null
-        if (x.institution.trim().uppercase() != y.institution.trim().uppercase() || x.type != y.type) return null
+        if (x.institution.trim().uppercase() != y.institution.trim().uppercase() || x.type.aliasFamily != y.type.aliasFamily) return null
         val dx = x.visibleDigits ?: return null
         val dy = y.visibleDigits ?: return null
         val (shorter, longer) = if (dx.length <= dy.length) dx to dy else dy to dx

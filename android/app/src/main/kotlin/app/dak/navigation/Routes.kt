@@ -59,6 +59,8 @@ object Routes {
     const val SENDER_GROUPS = "sendergroups"
     /** Per-channel notification management. */
     const val NOTIFICATION_CHANNELS = "notificationchannels"
+    /** App lock and privacy: unlock method, app PIN, auto-lock, Recents, sensitive screens. */
+    const val APP_LOCK = "applock"
 
     private fun enc(value: String): String = Uri.encode(value)
 

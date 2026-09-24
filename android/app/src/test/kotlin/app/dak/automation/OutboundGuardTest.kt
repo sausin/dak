@@ -125,6 +125,7 @@ class OutboundGuardTest {
             SkipReason.NO_CONTACTS_ACCESS,
             SkipReason.POSSIBLE_SCAM,
             SkipReason.PREMIUM_LOCKED,
+            SkipReason.INCOGNITO_CHAT,
         ).forEach { assertTrue(AutomationHistoryViewModel.reasonText(it) != null, it) }
         assertEquals(R.string.fw_skip_no_app_lock, AutomationHistoryViewModel.reasonText(SkipReason.NO_APP_LOCK))
         assertNull(AutomationHistoryViewModel.reasonText("forward failed"))

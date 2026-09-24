@@ -42,6 +42,7 @@ import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.ConversationRepository
 import app.dak.navigation.IntentRoutes
 import app.dak.navigation.Routes
+import app.dak.notifications.NotifierIndexLookups
 import app.dak.premium.Entitlements
 import app.dak.premium.PremiumGateway
 import app.dak.safety.FakeCreditCheck
@@ -72,6 +73,8 @@ import javax.inject.Singleton
  * told. Every outbound action that runs or is skipped is written to the run log ([AutomationRunLog]) for the history
  * screens.
  *
+ * Messages of an incognito chat are never forwarded or relayed ([IncognitoAutomationPolicy]).
+ *
  * Time-boxed rules whose window has ended are disabled here, lazily, before evaluation ([DailyHousekeeping.expire]);
  * each incoming message also gives [DailyHousekeeping.runIfDue] its once-a-day chance. Forwards go through
  * [AndroidSmsForwarder] (rate-limited), are audit-logged by the registry, and a successful forward by a
@@ -101,6 +104,7 @@ class AutomationRunner @Inject constructor(
     private val forwardingStatus: ForwardingStatusNotifier,
     private val outboundGuard: OutboundAutomationGuard,
     private val runLog: AutomationRunLog,
+    private val lookups: NotifierIndexLookups,
     @ApplicationContext private val context: Context,
     @ApplicationScope private val scope: CoroutineScope,
 ) : IncomingMessageHandler {
@@ -122,6 +126,7 @@ class AutomationRunner @Inject constructor(
         val item = withTimeoutOrNull(INDEX_WAIT_MILLIS) { conversations.message(message.key).filterNotNull().first() }
         val event = eventOf(message, item)
         val scam = scamLevelOf(message, item)
+        val incognito = lookups.isIncognito(message.address, message.threadId)
         val byId = enabled.associateBy(Rule::id)
         val paused = mutableSetOf<String>()
         // Checked once per message, right before the first outbound action (re-reads the phone's screen lock).
@@ -145,6 +150,11 @@ class AutomationRunner @Inject constructor(
                     }
                     continue
                 }
+            }
+            if (IncognitoAutomationPolicy.blocks(action, incognito)) {
+                audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "skipped: incognito chat")
+                runLog.record(rule, action, event, RunOutcome.SKIPPED, SkipReason.INCOGNITO_CHAT)
+                continue
             }
             if (blockedByScamFlag(scam, action)) {
                 audit.log("rule:${rule.name}", "automation.skipped", event.messageKey, "skipped: possible fake credit")

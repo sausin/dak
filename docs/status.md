@@ -95,7 +95,7 @@ header-shaped names such as `BT-MOBILE`).
 | --- | --- |
 | Tap the thread header: participant details, call / copy, view contact, save an unsaved number (new or existing contact) | Built (`ui/conversation/ContactDetailsSheet`) |
 | Send later from the composer: "Schedule" in the tray or long-press Send (in an hour, tomorrow, any date and time); pending ones show above the composer with cancel | Built |
-| Incognito chats per conversation (from when they are turned on): sent messages deleted once radio-confirmed, received ones after a 10 s reading window in the thread or on leaving it; notification and inbox previews never show the text; no recycle bin; dissolve animation. Only this phone's copy vanishes | Built (`app/incognito`, `OutgoingSentListener` in `core-telephony`, index v7 `incognitoSince`) |
+| Incognito chats per conversation (from when they are turned on): sent messages deleted once radio-confirmed, received ones after a 10 s reading window in the thread or on leaving it; notification and inbox previews never show the text; no recycle bin; dissolve animation. Only this phone's copy vanishes; never forwarded or relayed by automations | Built (`app/incognito`, `OutgoingSentListener` in `core-telephony`, index v7 `incognitoSince`) |
 | Birthdays & occasions: anniversaries and other contact dates ("Other" / custom label, one per contact) on one screen, one chip row; "Add a date" opens the contact in Contacts | Built |
 | Remove an account from the Passbook (display only; ledger and scam detection keep it), "Hidden accounts" to restore | Built (index v7 `account_hidden`) |
 
@@ -116,6 +116,4 @@ header-shaped names such as `BT-MOBILE`).
   settings snapshot is preloaded on IO, the classifier JSON is parsed once per process and the app-hash table is
   persisted (built once). The notifier reads consumed-OTP
   attribution from that persisted table and posts muted conversations silently.
-- Incognito: automations (forwarding rules) still see incoming messages of an incognito chat; decide whether an
-  incognito chat should be exempt from forwarding.
 - Navigation args are `Uri.decode`d twice in some ViewModels (a literal `%xx` gets mangled).

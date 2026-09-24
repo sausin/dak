@@ -50,8 +50,20 @@ class IncognitoVanisher @Inject constructor(
     var visibleConversation: String? = null
 
     override suspend fun onSent(key: MessageKey) {
-        val incognito = conversations.incognitoScopeOf(key) ?: return
-        vanish(listOf(key), animate = incognito.conversationId == visibleConversation)
+        // The index may not have caught up with a message sent a moment ago: look again a few times (off the sent
+        // broadcast's budget) before leaving it to the next sweep. A message that is not in an incognito chat just
+        // never matches.
+        scope.launch {
+            repeat(SENT_LOOKUPS) { attempt ->
+                if (attempt > 0) delay(SENT_LOOKUP_DELAY_MILLIS)
+                val incognito = runCatching { conversations.incognitoScopeOf(key) }.getOrNull()
+                if (incognito != null) {
+                    vanish(listOf(key), animate = incognito.conversationId == visibleConversation)
+                    return@launch
+                }
+                if (runCatching { conversations.conversationIdOf(key) }.getOrNull() != null) return@launch // indexed, not incognito
+            }
+        }
     }
 
     /** Deletes [keys] for good; with [animate] they are shown dissolving for [ANIMATION_MILLIS] first. */
@@ -93,6 +105,8 @@ class IncognitoVanisher @Inject constructor(
         /** How long a received message stays readable in the open thread before it dissolves. */
         const val READ_WINDOW_MILLIS = 10_000L
 
+        private const val SENT_LOOKUPS = 4
+        private const val SENT_LOOKUP_DELAY_MILLIS = 1_500L
         private const val REASON = "incognito"
         private const val TAG = "DakIncognito"
     }

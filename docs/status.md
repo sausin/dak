@@ -1,9 +1,8 @@
 # Implementation status (Android)
 
 What exists in `android/` against [the build plan](build-plan.md). "Built" means implemented and
-compiling in CI; pure-Kotlin modules are also unit-tested. Nothing has been run on a device yet —
-the Phase 0 exit criteria (Pixel + Xiaomi, 2 SIMs, OTP autofill, self-test with battery optimisation
-on) still need a real device pass.
+compiling in CI; pure-Kotlin modules are also unit-tested. The maintainers have tested the app extensively on devices
+and emulators; the step-by-step checklist is [device-test-plan.md](device-test-plan.md). There is no Play Store listing yet.
 
 ## Baseline principle: no runtime AI dependency
 
@@ -107,7 +106,8 @@ header-shaped names such as `BT-MOBILE`).
   code unlocks the whole incremental chain.
 - Appearance settings live in the app (8th settings section) rather than the registry's 7 groups.
 - User labels from automations are stored app-side (no index API yet).
-- Release builds have R8 disabled until keep rules are verified on a device.
+- Release builds run R8 (keep-rule audit and CI mapping check in [release.md](release.md)); install a signed release
+  APK and run the device-test-plan P0 items before publishing.
 - Play `.aab` publishing and release signing (CI already signs when keystore secrets are set).
 
 ## Runtime risks to check first on a device

@@ -1,5 +1,7 @@
 package app.dak.classify
 
+import app.dak.classify.unicode.Confusables
+
 /** Why a link was flagged. */
 public enum class LinkRisk {
     /** Host matches (or is a subdomain of) a bundled official domain: safe. */
@@ -43,14 +45,17 @@ public class LookalikeDomainChecker(
             return LinkVerdict(link, LinkRisk.LOOKALIKE, matchedBrand = brand)
         }
 
-        // Internationalised hosts: fold confusable letters (Cyrillic "а", Greek "ο", …) to Latin and re-check, so
-        // "hdfcbаnk.com" names the brand it imitates. Any other IDN host is still flagged: SMS phishing uses them
-        // almost exclusively as homographs, and a warning costs a legitimate IDN link only one extra tap.
+        // Internationalised hosts: take the host the browser resolves (UTS #46: fullwidth letters mapped, `xn--` labels
+        // decoded), reduce it to its UTS #39 skeleton (Cyrillic "а", Greek "ο", mathematical and fullwidth letters,
+        // Bengali "০", … become the Latin they imitate; diacritics dropped) and compare with the official domains'
+        // skeletons, so "hdfcbаnk.com" names the brand it imitates. Any other IDN host is still flagged: SMS phishing
+        // uses them almost exclusively as homographs, and a warning costs a legitimate IDN link one extra tap. The
+        // dialog then shows the punycode host (or the Unicode one, when HostDisplay finds it safe for the reader).
         if (link.isIdn) {
-            val skeleton = Confusables.skeleton(host)
-            val brand = domainToBrand[skeleton]
-                ?: domainToBrand.entries.firstOrNull { skeleton.endsWith(".${it.key}") }?.value
-                ?: lookalikeBrand(skeleton)
+            val skeleton = Confusables.looseSkeleton(link.unicodeHost ?: host)
+            val brand = skeletonToBrand[skeleton]
+                ?: skeletonToBrand.entries.firstOrNull { skeleton.endsWith(".${it.key}") }?.value
+                ?: lookalikeBrand(skeleton, skeletons = true)
             return LinkVerdict(link, LinkRisk.LOOKALIKE, matchedBrand = brand)
         }
 
@@ -67,6 +72,24 @@ public class LookalikeDomainChecker(
         return LinkVerdict(link, LinkRisk.UNKNOWN)
     }
 
+    /** Official domains by skeleton ([Confusables.looseSkeleton]), for IDN hosts. Built on the first IDN link. */
+    private val skeletonToBrand: Map<String, String> by lazy {
+        domainToBrand.entries.associate { (domain, brand) -> Confusables.looseSkeleton(domain) to brand }
+    }
+
+    /** Official registrable labels (`hdfcbank` of `hdfcbank.com`) with their brand. */
+    private val officialLabels: List<Pair<String, String>> = domainToBrand.map { (domain, brand) ->
+        domain.split('.').let { if (it.size >= 2) it[it.size - 2] else domain } to brand
+    }
+
+    /** [brandNames] and [officialLabels] in skeleton form, for [lookalikeBrand] on a skeleton. */
+    private val skeletonBrandNames: List<Pair<String, String>> by lazy {
+        brandNames.map { (lower, name) -> Confusables.looseSkeleton(lower) to name }
+    }
+    private val skeletonOfficialLabels: List<Pair<String, String>> by lazy {
+        officialLabels.map { (label, brand) -> Confusables.looseSkeleton(label) to brand }
+    }
+
     private fun isOfficial(host: String): Boolean =
         domainToBrand.containsKey(host) || domainToBrand.keys.any { host.endsWith(".$it") }
 
@@ -75,9 +98,9 @@ public class LookalikeDomainChecker(
      * subdomain/label segment (e.g. `hdfc-bank-kyc.xyz`), or if the host's registrable label is
      * within edit distance 2 of an official domain's label (a homoglyph/typo-squat).
      */
-    private fun lookalikeBrand(host: String): String? {
+    private fun lookalikeBrand(host: String, skeletons: Boolean = false): String? {
         val labels = host.split('.', '-')
-        for ((brandLower, brandName) in brandNames) {
+        for ((brandLower, brandName) in if (skeletons) skeletonBrandNames else brandNames) {
             val brandWords = brandLower.split(Regex("[\\s.]+")).filter { it.length >= 3 }
             if (brandWords.isNotEmpty() && brandWords.all { w -> labels.any { it.contains(w) } }) {
                 // Brand words present, but host is not itself the official domain: lookalike.
@@ -87,11 +110,8 @@ public class LookalikeDomainChecker(
         val registrable = host.split('.').let { parts ->
             if (parts.size >= 2) parts[parts.size - 2] else host
         }
-        for (officialDomain in domainToBrand.keys) {
-            val officialLabel = officialDomain.split('.').let { if (it.size >= 2) it[it.size - 2] else officialDomain }
-            if (officialLabel.length >= 4 && levenshtein(registrable, officialLabel) in 1..2) {
-                return domainToBrand.getValue(officialDomain)
-            }
+        for ((officialLabel, brand) in if (skeletons) skeletonOfficialLabels else officialLabels) {
+            if (officialLabel.length >= 4 && levenshtein(registrable, officialLabel) in 1..2) return brand
         }
         return null
     }
@@ -152,23 +172,5 @@ public class LookalikeDomainChecker(
         public fun defaultSuspiciousTlds(): Set<String> = setOf(
             "xyz", "tk", "top", "click", "info", "loan", "work", "gq", "cf", "ml", "buzz",
         )
-    }
-}
-
-/** Minimal confusable-letter folding (Unicode TR39 style) for the scripts SMS homograph phishing actually uses. */
-internal object Confusables {
-    private val MAP: Map<Char, Char> = buildMap {
-        // Cyrillic
-        "аa бb вb гr дd еe ёe һh іi јj кk лn мm нh оo пn рp сc тt уy хx ѕs ԁd ԛq ԝw ӏl ɡg".split(' ').forEach { put(it[0], it[1]) }
-        // Greek
-        "αa βb γy δd εe ηn ιi κk μu νv οo ρp τt υu χx ωw ϲc".split(' ').forEach { put(it[0], it[1]) }
-        // Latin look-alikes and Armenian
-        "ıi ȷj ɑa ɩi ʟl ոn սu օo ցg ԁd".split(' ').forEach { put(it[0], it[1]) }
-    }
-
-    /** Lower-cases, NFKC-normalises (fullwidth → ASCII) and folds confusable letters to their Latin skeleton. */
-    fun skeleton(host: String): String {
-        val normalized = java.text.Normalizer.normalize(host.lowercase(), java.text.Normalizer.Form.NFKC)
-        return buildString(normalized.length) { for (c in normalized) append(MAP[c] ?: c) }
     }
 }

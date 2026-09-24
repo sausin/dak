@@ -97,4 +97,19 @@
     <string name="lock_verify_device_title">Confirm your screen lock</string>
     <string name="lock_verify_fingerprint_title">Confirm your fingerprint</string>
     <string name="lock_now">Lock now</string>
+
+    <!-- Turning app lock off while automations that send messages are on -->
+    <string name="lock_outbound_off_title">Turn off app lock?</string>
+    <string name="lock_outbound_pin_title">Remove app PIN?</string>
+    <plurals name="lock_outbound_off_body">
+        <item quantity="one">This automation sends messages from your phone and will be turned off:</item>
+        <item quantity="other">These %1$d automations send messages from your phone and will be turned off:</item>
+    </plurals>
+    <plurals name="lock_outbound_more">
+        <item quantity="one">and %1$d more</item>
+        <item quantity="other">and %1$d more</item>
+    </plurals>
+    <string name="lock_outbound_off_why">Forwarding and auto-sending need app lock, so that nobody else using your phone can change them to send your bank messages and codes to themselves. You can turn them on again after setting up app lock.</string>
+    <string name="lock_outbound_off_confirm">Turn off lock and automations</string>
+    <string name="lock_outbound_pin_confirm">Remove PIN and automations</string>
 </resources>

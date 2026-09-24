@@ -23,7 +23,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -161,6 +161,7 @@ internal fun reasonText(reason: ScamReason): Int = when (reason) {
     ScamReason.DEBIT_ALERT_FROM_PHONE_NUMBER -> R.string.scam_reason_phone_debit_alert
     ScamReason.PHONE_NUMBER_CLAIMS_BANK -> R.string.scam_reason_phone_claims_bank
     ScamReason.LOOKALIKE_SENDER -> R.string.scam_reason_lookalike_sender
+    ScamReason.MIXED_SCRIPT_SENDER -> R.string.scam_reason_mixed_script_sender
     ScamReason.UNVERIFIED_SENDER -> R.string.scam_reason_unverified_sender
     ScamReason.UNPREFIXED_BANK_HEADER -> R.string.scam_reason_unprefixed_header
     ScamReason.PROMOTIONAL_ROUTE -> R.string.scam_reason_promotional_route

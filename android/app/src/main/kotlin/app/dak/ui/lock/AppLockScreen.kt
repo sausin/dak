@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -42,14 +43,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automations.safety.OutboundAutomations
 import app.dak.navigation.DakNavigator
 import app.dak.security.AutoLockTimeout
 import app.dak.security.EffectiveLock
@@ -62,6 +65,10 @@ import kotlinx.coroutines.launch
  * Settings → Backup, data and privacy → App lock. Turning the lock on verifies the chosen method first (the system
  * prompt for the phone's screen lock, or choosing and confirming an app PIN); turning protection down (lock off,
  * switching method, changing or removing the PIN, sensitive screens off) asks the current method first.
+ *
+ * Auto-forwarding and other automations that send messages off the phone need the app lock. Switching the lock off, or
+ * removing the app PIN when nothing else would lock Dak, first lists the ones that are on and says they will be turned
+ * off ([OutboundOffDialog]); they are turned off before the lock is.
  */
 @Composable
 fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewModel: AppLockViewModel = hiltViewModel()) {
@@ -73,6 +80,8 @@ fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewMo
     val device = rememberDeviceAuthenticator()
     var pinSetupThen by remember { mutableStateOf<(() -> Unit)?>(null) }
     var choosing by remember { mutableStateOf<ChoiceKind?>(null) }
+    // "Turn off app lock?" with the automations that will be switched off; [OutboundOff.onConfirm] continues.
+    var outboundOff by remember { mutableStateOf<OutboundOff?>(null) }
 
     val confirmTitle = stringResource(R.string.lock_confirm_change_title)
     val verifyTitle = stringResource(R.string.lock_verify_device_title)
@@ -116,7 +125,35 @@ fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewMo
                 }
             }
         }
+        if (target == LockMethodChoice.OFF) {
+            scope.launch {
+                val names = viewModel.enabledOutboundNames()
+                if (names.isEmpty()) {
+                    confirmed { proceed() }
+                } else {
+                    // Tell the user first; only after they agree (and confirm who they are) turn the automations off,
+                    // then the lock.
+                    outboundOff = OutboundOff(names, removingPin = false) {
+                        confirmed { viewModel.turnOffOutboundThen { proceed() } }
+                    }
+                }
+            }
+            return
+        }
         if (current == LockMethodChoice.OFF) proceed() else confirmed { proceed() }
+    }
+
+    fun removePin() {
+        scope.launch {
+            val names = if (viewModel.removingPinLeavesNoLock()) viewModel.enabledOutboundNames() else emptyList()
+            if (names.isEmpty()) {
+                confirmed { viewModel.removePin() }
+            } else {
+                outboundOff = OutboundOff(names, removingPin = true) {
+                    confirmed { viewModel.turnOffOutboundThen { viewModel.removePin() } }
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -205,7 +242,7 @@ fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewMo
                     ActionRow(
                         title = stringResource(R.string.lock_remove_pin),
                         summary = stringResource(R.string.lock_remove_pin_summary),
-                        onClick = { confirmed { viewModel.removePin() } },
+                        onClick = { removePin() },
                     )
                 }
                 if (state.config.method == LockMethodChoice.APP_PIN && state.hasPin) {
@@ -283,6 +320,17 @@ fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewMo
         )
     }
 
+    outboundOff?.let { notice ->
+        OutboundOffDialog(
+            notice = notice,
+            onConfirm = {
+                outboundOff = null
+                notice.onConfirm()
+            },
+            onDismiss = { outboundOff = null },
+        )
+    }
+
     when (choosing) {
         ChoiceKind.AUTO_LOCK -> ChoiceDialog(
             title = stringResource(R.string.lock_auto_title),
@@ -303,6 +351,46 @@ fun AppLockScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewMo
 }
 
 private enum class ChoiceKind { AUTO_LOCK, RECENTS }
+
+/** A pending "turn off app lock?" notice: the automations it would switch off, and what to do if the user agrees. */
+private class OutboundOff(val names: List<String>, val removingPin: Boolean, val onConfirm: () -> Unit)
+
+/**
+ * "Turn off app lock?": lists (up to [OutboundAutomations.NOTICE_MAX_NAMES]) the automations that send messages off the
+ * phone and will be switched off, and why they need the lock.
+ */
+@Composable
+private fun OutboundOffDialog(notice: OutboundOff, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val (shown, more) = OutboundAutomations.namesForNotice(notice.names)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.WarningAmber, contentDescription = null) },
+        title = {
+            Text(stringResource(if (notice.removingPin) R.string.lock_outbound_pin_title else R.string.lock_outbound_off_title))
+        },
+        text = {
+            Column(
+                Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(pluralStringResource(R.plurals.lock_outbound_off_body, notice.names.size, notice.names.size))
+                Column {
+                    shown.forEach { name -> Text("• $name", style = MaterialTheme.typography.bodyMedium) }
+                    if (more > 0) {
+                        Text(pluralStringResource(R.plurals.lock_outbound_more, more, more), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                Text(stringResource(R.string.lock_outbound_off_why), style = MaterialTheme.typography.bodyMedium)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(if (notice.removingPin) R.string.lock_outbound_pin_confirm else R.string.lock_outbound_off_confirm))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
+    )
+}
 
 private const val PRIVACY_FULL = "full"
 

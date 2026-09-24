@@ -29,8 +29,17 @@ public enum class ScamReason(public val code: String, public val weight: Int) {
     /** A phone-number sender signs as / names a bank or wallet ("-SBI", "HDFC Bank"). */
     PHONE_NUMBER_CLAIMS_BANK("phone-claims-bank", 25),
 
-    /** A non-DLT alphanumeric sender that looks like a bank header ("HDFC-BANK", "SBIBANK"): likely spoofed. */
+    /**
+     * A non-DLT alphanumeric sender that looks like a bank header ("HDFC-BANK", "SBIBANK"), or one written with
+     * look-alike letters from another script ("НDFCBK" with a Cyrillic Н; UTS #39 skeleton): likely spoofed.
+     */
     LOOKALIKE_SENDER("lookalike-sender", 60),
+
+    /**
+     * The sender name mixes scripts inside one word (Latin with Cyrillic or Greek) or mixes digits from different
+     * number systems (UTS #39 §5): real headers never do, imitations do.
+     */
+    MIXED_SCRIPT_SENDER("mixed-script-sender", 40),
 
     /** A sender outside India's registered-header format (or an unknown header) claims to be a bank. */
     UNVERIFIED_SENDER("unverified-sender", 30),

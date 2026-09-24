@@ -51,10 +51,14 @@ interface LedgerDao {
     @Query("SELECT id FROM ledger_account WHERE linkedAccountId IN (:accountIds)")
     suspend fun accountsLinkedTo(accountIds: List<String>): List<String>
 
-    /** Debits dated on/after [sinceMillis], summed per account and original currency (for Passbook group totals). */
+    /**
+     * Spending dated on/after [sinceMillis], summed per account and original currency (for Passbook group totals):
+     * debits, except own-account / investment transfers (a SIP debit is money moved, not spent; see
+     * `app.dak.finance.passbook.AccountGroups.spentSince`).
+     */
     @Query(
         "SELECT accountId, originalCurrency AS currency, SUM(originalMinor) AS totalMinor FROM ledger_entry " +
-            "WHERE direction = 'DEBIT' AND dateMillis >= :sinceMillis GROUP BY accountId, originalCurrency",
+            "WHERE direction = 'DEBIT' AND transfer = 0 AND dateMillis >= :sinceMillis GROUP BY accountId, originalCurrency",
     )
     fun observeDebitsSince(sinceMillis: Long): Flow<List<AccountCurrencyTotalRow>>
 

@@ -16,9 +16,12 @@ import androidx.work.WorkManager
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
 import app.dak.mms.pdu.MessageType
+import app.dak.mms.pdu.MmsClientTransactions
 import app.dak.mms.pdu.MmsLimits
+import app.dak.mms.pdu.MmsPdu
 import app.dak.mms.pdu.MmsPduDecoder
 import app.dak.mms.pdu.MmsSafety
+import app.dak.mms.pdu.NotificationFloodGuard
 import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduDecodeResult
 import app.dak.mms.pdu.RetrieveConf
@@ -27,10 +30,12 @@ import app.dak.telephony.IncomingDispatcher
 import app.dak.telephony.MmsDownloadState
 import app.dak.telephony.SimRepository
 import app.dak.telephony.TelephonySettings
+import app.dak.telephony.carrier.ReportPolicy
 import app.dak.telephony.internal.PendingIntentFlags
 import app.dak.telephony.internal.SmsManagers
 import app.dak.telephony.internal.TAG
 import app.dak.telephony.provider.TelephonyProviderReader
+import app.dak.telephony.role.SmsRoleMonitor
 import app.dak.telephony.send.RetryPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -56,6 +61,14 @@ enum class DownloadAttemptResult { SUCCESS, RETRY, FAILURE }
  * 3. [onDownloaded] ([MmsDownloadedReceiver]): parse m-retrieve-conf, store it (pdu + parts + addr), delete the
  *    notification row, notify handlers; on failure keep the notification row and record
  *    [MmsDownloadState.Failed] with the reason and attempt count.
+ * 4. MMS-CTR answers ([MmsClientTransactions], on by default, [TelephonySettings.sendMmsNotifyResponse]):
+ *    m-notifyresp-ind Retrieved after an immediate retrieval, Deferred when the fetch waits for a tap (auto-download
+ *    off, roaming, too large, notification flood), m-acknowledge-ind after a deferred message is fetched, and
+ *    Unrecognised for notifications we cannot read or whose major MMS version we do not implement. Each carries
+ *    X-Mms-Report-Allowed from [TelephonySettings.allowMmsDeliveryReportsToSenders].
+ *
+ * While Dak is not the default SMS app, attempts stop (rows stay Pending) and resume with the role
+ * ([app.dak.telephony.role.SmsRoleMonitor]).
  *
  * No network constraint is set on the work: MMS travels over the carrier's MMS APN, which Android brings up
  * even when mobile data is off or the default network is Wi-Fi, so a "connected" constraint would wrongly block
@@ -72,8 +85,10 @@ class MmsDownloadManager @Inject constructor(
     private val settings: TelephonySettings,
     private val sims: SimRepository,
     private val sendManager: MmsSendManager,
+    private val role: SmsRoleMonitor,
 ) {
     private val resultLock = Mutex()
+    private val floodGuard = NotificationFloodGuard()
 
     /** Handles a received m-notification-ind. */
     suspend fun onNotification(n: NotificationInd, subId: Int) {
@@ -84,20 +99,40 @@ class MmsDownloadManager @Inject constructor(
             return
         }
         val existing = persister.findNotification(n.contentLocation, n.transactionId)
+        // A flood of forged notifications (each a new content location) must not fill the inbox or trigger unbounded
+        // fetches: past the hourly budgets new ones wait for a tap, and past the hard cap they are not stored at all.
+        val flood = if (existing == null) floodGuard.decide(n.from, System.currentTimeMillis()) else NotificationFloodGuard.Decision.AUTO_DOWNLOAD
+        if (flood == NotificationFloodGuard.Decision.DROP) {
+            Log.w(TAG, "dropping MMS notification: too many notifications this hour")
+            return
+        }
+        // A major MMS version we do not implement (e.g. 2.0): answer Unrecognised and fetch nothing (MMS-ENC).
+        MmsClientTransactions.forUnsupportedVersion(n, reportAllowed())?.let { answer ->
+            Log.w(TAG, "MMS notification of unsupported version 0x%02X: answered Unrecognised".format(n.mmsVersion))
+            if (existing == null) sendClientPdu(answer, subId, n.contentLocation)
+            return
+        }
         val id = existing ?: persister.insertNotification(n, subId) ?: run {
             Log.e(TAG, "MMS notification could not be written to the provider")
             return
         }
         val roaming = sims.isRoaming(subId)
         val tooLarge = n.messageSize > MmsLimits.MAX_PDU_BYTES
-        if (!settings.autoDownloadMms || (roaming && !settings.autoDownloadMmsWhenRoaming) || tooLarge) {
+        val throttled = flood == NotificationFloodGuard.Decision.MANUAL
+        if (!settings.autoDownloadMms || (roaming && !settings.autoDownloadMmsWhenRoaming) || tooLarge || throttled) {
             if (existing == null) {
                 val reason = when {
                     tooLarge -> "Very large message: tap to download"
                     roaming -> "Roaming: tap to download"
+                    throttled -> "Many messages at once: tap to download"
                     else -> "Tap to download"
                 }
                 states.set(id, MmsDownloadState.Failed(reason, 0))
+                // Deferred retrieval: tell the MMSC to keep the message (m-notifyresp-ind Deferred); the later
+                // user-initiated fetch is then acknowledged with m-acknowledge-ind (see store()).
+                MmsClientTransactions.deferred(n, reportAllowed())?.let { answer ->
+                    if (sendClientPdu(answer, subId, n.contentLocation)) states.markDeferred(id)
+                }
                 notifyHandlers(id)
             }
             return
@@ -143,6 +178,13 @@ class MmsDownloadManager @Inject constructor(
 
     /** One download attempt; [previousAttempts] is WorkManager's `runAttemptCount`. */
     suspend fun runAttempt(id: Long, contentLocation: String, subId: Int, previousAttempts: Int): DownloadAttemptResult {
+        if (!role.isDefaultNow()) {
+            // Not the default SMS app any more (and the provider may be unreadable): leave the row Pending and stop;
+            // SmsRoleMonitor resumes pending downloads when the role is back.
+            Log.i(TAG, "not the default SMS app: MMS download held")
+            states.set(id, MmsDownloadState.Pending)
+            return DownloadAttemptResult.FAILURE
+        }
         val info = persister.notificationInfo(id)
         if (info == null || info.messageType != MessageType.NOTIFICATION_IND) {
             // Already downloaded (row replaced) or deleted by the user.
@@ -245,10 +287,34 @@ class MmsDownloadManager @Inject constructor(
         states.setDone(id, newId)
         val newKey = MessageKey(MessageKind.MMS, newId)
 
+        // MMS-CTR: Retrieved for an immediate retrieval, m-acknowledge-ind when the notification was answered Deferred.
         val transactionId = info.transactionId ?: retrieved.transactionId
-        if (settings.sendMmsNotifyResponse && transactionId != null) sendManager.sendNotifyResponse(transactionId, effectiveSub)
+        MmsClientTransactions.afterRetrieval(transactionId, wasDeferred = states.wasDeferred(id), reportAllowed = reportAllowed())
+            ?.let { sendClientPdu(it, effectiveSub, info.contentLocation) }
+        states.clearDeferred(id)
         reader.message(newKey)?.let { dispatcher.dispatch(it) }
         return DownloadOutcome.Success(newKey)
+    }
+
+    /**
+     * A WAP push [MmsPduDecoder] could not read. When it looks like a notification with a transaction id, answer
+     * m-notifyresp-ind (Unrecognised) so the MMSC stops re-sending it; nothing is stored or fetched. Forged pushes
+     * cost the same budget as notifications ([NotificationFloodGuard]): past it they are ignored.
+     */
+    suspend fun onUndecodable(bytes: ByteArray, subId: Int) {
+        val answer = MmsClientTransactions.forUndecodable(bytes, reportAllowed()) ?: return
+        if (floodGuard.decide(null, System.currentTimeMillis()) != NotificationFloodGuard.Decision.AUTO_DOWNLOAD) return
+        sendClientPdu(answer, subId, contentLocation = null)
+    }
+
+    /** X-Mms-Report-Allowed for our answers: the user's "Let senders see MMS delivery" (default Yes). */
+    private fun reportAllowed(): Boolean = ReportPolicy.reportAllowed(settings.allowMmsDeliveryReportsToSenders)
+
+    /** Sends an MMS-CTR answer unless the user turned them off; true when it was handed to the platform. */
+    private suspend fun sendClientPdu(pdu: MmsPdu, subId: Int, contentLocation: String?): Boolean {
+        if (!settings.sendMmsNotifyResponse) return false
+        sendManager.sendClientPdu(pdu, subId, contentLocation)
+        return true
     }
 
     private fun startDownload(id: Long, contentLocation: String, subId: Int, attempt: Int): Boolean = try {

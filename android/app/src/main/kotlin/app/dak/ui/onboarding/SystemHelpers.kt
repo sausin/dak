@@ -1,7 +1,6 @@
 package app.dak.ui.onboarding
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
@@ -69,12 +68,15 @@ object BatteryOptimization {
         return power.isIgnoringBatteryOptimizations(context.packageName)
     }
 
-    /** Direct "Allow Dak to run in background?" prompt. */
-    @SuppressLint("BatteryLife")
-    fun requestIntent(context: Context): Intent =
-        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + context.packageName))
-
-    /** Fallback: the system list of apps and their optimisation state. */
+    /**
+     * The system list of apps and their battery-optimisation state, where the user finds Dak and chooses
+     * "Don't optimise" / "Unrestricted" (the UI explains this first). No special permission needed.
+     *
+     * Dak deliberately does not use the direct `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` prompt: it needs the
+     * Play-restricted `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission, and a default SMS app is already woken by the
+     * system for every SMS_DELIVER / WAP_PUSH_DELIVER, so it does not qualify for that exemption. See
+     * `docs/play-submission.md` ("Battery optimisation").
+     */
     fun settingsIntent(): Intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
 
     /** "Background usage restricted" (Settings → Battery → Restricted), Android 9+. */

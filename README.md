@@ -4,10 +4,13 @@
 
 The Android default-SMS app for the OTPs, bank alerts and tickets that Microsoft SMS Organizer's
 1M+ users lost when it shut down in May 2026 with no maintained successor. Free tier: 100%
-on-device, fully offline, nothing to trust us with. Premium: the same app, plus server-backed
-extras that only ever see ciphertext.
+on-device, fully offline, nothing to trust us with. Premium: the same app, plus opt-in server-backed
+extras — relay and sync only ever see ciphertext; the few that must read text (cloud categorisation of a
+masked message, AI search of your typed query) ask for explicit consent first and can be withdrawn any time
+(see the [privacy policy](docs/privacy-policy.md)).
 
 [![CI](https://github.com/sausin/dak/actions/workflows/android.yml/badge.svg)](https://github.com/sausin/dak/actions/workflows/android.yml)
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/sausin/dak/badges/coverage.json)](docs/testing.md)
 ![offline-first](https://img.shields.io/badge/free%20tier-offline--first-brightgreen)
 ![minSdk](https://img.shields.io/badge/minSdk-26-blue)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF)
@@ -69,7 +72,8 @@ Country-specific data for other markets comes later; the region seam is already 
 - In-app self-test, a restriction banner for OEM battery killers (Xiaomi/Oppo/Vivo/Realme), and
   `ContentObserver` + periodic reconcile so new messages never require leaving and re-entering a
   thread.
-- Big, bold OTP notification with tap-to-copy and delete-now; **consumed-OTP detection** via the
+- Big, bold OTP notification, copied to the clipboard on arrival (flagged sensitive, "Copied" shown
+  beside the code; a Copy button if auto-copy is off) with Mark read and Delete; **consumed-OTP detection** via the
   same SMS Retriever app-signature hashes Google publishes, so an OTP already read by your banking
   app goes silent and auto-deletes instead of nagging you.
 - Sender merge groups fold `VM-HDFCBK` / `JD-HDFCBK` / `AX-HDFCBK` into one "HDFC Bank" thread —
@@ -101,7 +105,8 @@ Country-specific data for other markets comes later; the region seam is already 
   search/overflow, configurable swipe actions (archive/delete/read/pin, with haptics, Undo and a
   TalkBack alternative for every gesture), long-press multi-select with a bottom action bar, and an
   inline **"Copy code" chip** on fresh OTP rows — the code without opening the thread.
-  In conversation: long-press action sheet, double-tap a bubble to copy its code or amount,
+  In conversation: long-press multi-select (copy, forward, delete with confirmation, and the per-message
+  action sheet for a single selection), double-tap a bubble to copy its code or amount (codes under a day old),
   swipe-to-reply with any OTP in the quote masked, and a jump-to-latest FAB. Full review and what
   shipped vs. deferred: [`docs/ux-review.md`](docs/ux-review.md).
 - **Delivery ticks** on outgoing messages (clock → single ✓ sent → double ✓✓ delivered, or a
@@ -127,16 +132,40 @@ Country-specific data for other markets comes later; the region seam is already 
   balances as `"unknown since <date>"` rather than inventing a number after a foreign spend, and
   reconciles the indicative FX estimate against the bank's own settlement message days later. A
   debit-card or loan spend also reduces the linked bank account when the SMS names it explicitly.
+- **Investments in the Passbook** — mutual-fund folios and demat accounts, read from fund, registrar,
+  broker and depository SMS by structure alone (folio, units, NAV, SIP, IDCW, BO / DP / client ID,
+  contract note, qty @ price; never a fund-house or broker name): SIP and lumpsum purchases,
+  redemptions, switches, dividends and trades with units and NAV, and the current value from
+  valuation / holdings / CAS messages. A SIP is one own-account transfer seen from both sides (the
+  bank's debit and the fund's allotment), so it never counts as spending. Demat security alerts
+  (shares debited, pledge, e-DIS) never touch the ledger but always notify on Alerts; routine fund
+  updates notify quietly on General.
 - Masked-account alias confirmation, so a passbook account is only linked to a bank once the
   masked digits actually match something the user confirmed.
 - **Broadcast lists with guardrails**: one message to up to 50 people, sent as individual SMS
   (replies come back 1:1), hard caps of 50/broadcast and 100/day, a versioned acceptable-use
   agreement on first use, an on-device spam-risk check with an extra confirmation, and a TRAI/1909
   note — see [`docs/terms-acceptable-use.md`](docs/terms-acceptable-use.md).
-- Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA, Mar 1–Jul 31") with
-  biometric confirmation required to forward OTPs, a persistent visible warning while any
-  forwarding rule is active, and cost warnings before a send that would leave the user's plan/rate.
-  Notification channels can be split per SIM and per conversation.
+- **Scheduled messages with a heads-up**: shortly before a scheduled text, broadcast or automatic
+  birthday wish goes out (15 minutes by default; off / 5 / 15 / 60 in Settings → Automations, plus a
+  morning heads-up for a wish sent later that day), a notification offers **Send now**, **Delay**
+  (+1 hour, tomorrow same time, or pick a time) and **Cancel**. Several are grouped under one summary;
+  Send now goes through the same checks as the scheduled send (app lock, premium-rate guard, daily
+  cap). Texts to emergency numbers cannot be scheduled — send them straight away instead.
+- Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA until 5:30 pm") to
+  saved contacts only (re-checked before every forward; a deleted contact pauses the rule), one
+  hour by default; longer or open-ended periods, extensions, OTPs and risky-looking recipients
+  (recently added contact, no SMS history, unusual number) need a scam warning plus biometric
+  confirmation. A persistent visible warning shows while any forwarding rule is active, and cost
+  warnings appear before a send that would leave the user's plan/rate. Anything that sends messages
+  off the phone automatically (forwarding, auto-replies, webhooks, relays) needs app lock: without it
+  such rules cannot be turned on, and switching app lock off (or removing the phone's screen lock)
+  turns them off, with a clear notice first. Three hours after one is turned on, and daily while it
+  stays on, a "Was this you?" security alert (with a one-tap "Turn off") makes sure the owner notices
+  a rule someone else set up. Ended rules stay saved and can be used again for the same length of
+  time, and every rule has a history of exactly which messages it sent, where, and what was skipped.
+  Notification channels per kind (Messages, OTP codes, Alerts, Promotions, General, Spam) can be
+  split per SIM and per conversation.
 - Birthday/anniversary wishes from Contacts, opt-in, "ask first" or "send automatically", with
   English/Hindi templates.
 - Fake-credit scam detection flags a message before it ever reaches the passbook, with one-tap
@@ -306,7 +335,7 @@ in the JVM modules where logic can be checked without a device or emulator.
 
 ## Build
 
-Requires JDK 17 and the Android SDK (`compileSdk 37`, `targetSdk 35`, `minSdk 26`).
+Requires JDK 17 and the Android SDK (`compileSdk 37`, `targetSdk 36`, `minSdk 26`).
 
 ```sh
 cd android
@@ -325,6 +354,17 @@ flavours (uploaded as workflow artifacts, `dak-debug-apks-<run>`). Tags matching
 to a GitHub release. Signed release APKs build automatically when the repository secrets
 `DAK_KEYSTORE_BASE64`, `DAK_KEYSTORE_PASSWORD`, `DAK_KEY_ALIAS` and `DAK_KEY_PASSWORD` are set.
 Play Store `.aab` publishing is a later step.
+
+### Testing & coverage
+
+Unit tests run on the JVM (JUnit, Robolectric for the Android modules). CI measures line coverage with
+[Kover](https://github.com/Kotlin/kotlinx-kover), posts a per-module line/branch table to the job summary,
+uploads the HTML report, and fails if any module drops below its floor in
+[`android/coverage-floors.json`](android/coverage-floors.json). The badge above is the merged line coverage from
+the latest `main` build. Generated code (Hilt/Dagger, Room, `BuildConfig`/`R`, serializers) and `@Composable` UI
+functions are excluded, since Compose UI is not unit-tested; ViewModels and other UI-package logic still count.
+Locally: `./gradlew test koverHtmlReportCoverage`, or `scripts/jvm-test.sh koverXmlReportCoverage` without the
+Android SDK. Details: [`docs/testing.md`](docs/testing.md).
 
 ### Free vs. premium seam
 

@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import app.dak.index.db.dao.AppSignatureDao
 import app.dak.index.db.dao.AuditLogDao
 import app.dak.index.db.dao.AutomationRuleDao
+import app.dak.index.db.dao.AutomationRunDao
 import app.dak.index.db.dao.BackfillStateDao
 import app.dak.index.db.dao.BinDao
 import app.dak.index.db.dao.ConversationPrefsDao
@@ -24,6 +25,7 @@ import app.dak.index.db.entity.AccountTypeOverrideRow
 import app.dak.index.db.entity.AppSignatureRow
 import app.dak.index.db.entity.AuditLogRow
 import app.dak.index.db.entity.AutomationRuleRow
+import app.dak.index.db.entity.AutomationRunRow
 import app.dak.index.db.entity.BackfillStateRow
 import app.dak.index.db.entity.BinEntry
 import app.dak.index.db.entity.ConversationAlias
@@ -67,8 +69,9 @@ import app.dak.index.db.entity.SenderMergeGroup
         ConversationAlias::class,
         AccountAliasRow::class,
         AccountTypeOverrideRow::class,
+        AutomationRunRow::class,
     ],
-    version = 4,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(IndexConverters::class)
@@ -88,6 +91,7 @@ abstract class DakIndexDatabase : RoomDatabase() {
     abstract fun senderFoldDao(): SenderFoldDao
     abstract fun conversationAliasDao(): ConversationAliasDao
     abstract fun accountAliasDao(): AccountAliasDao
+    abstract fun automationRunDao(): AutomationRunDao
 
     companion object {
         const val NAME = "dak_index.db"

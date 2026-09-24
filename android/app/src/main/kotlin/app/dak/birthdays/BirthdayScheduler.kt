@@ -1,5 +1,6 @@
 package app.dak.birthdays
 
+import app.dak.automation.EmergencyScheduleRefusedException
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.birthdays.BirthdayDates
 import app.dak.automations.birthdays.OccasionKind
@@ -75,8 +76,23 @@ class BirthdayScheduler @Inject constructor(
             val wanted = settings.enabled && current.enabled && !contactGone && date != null &&
                 !current.number.isNullOrBlank() &&
                 (current.occasionKind != OccasionKind.ANNIVERSARY || settings.includeAnniversaries)
-            if (!wanted || date == null) {
+            if (!wanted) {
                 current = cancelPending(current)
+                if (current != config) store.replaceConfig(current)
+                continue
+            }
+            // A wish the user delayed from its heads-up (or moved in the scheduled list), or one the executor is
+            // holding back, stays where it is: see BirthdayMovedSend.
+            val pendingSend = current.scheduledSendId?.let { sends.get(it) }
+            if (pendingSend != null && BirthdayMovedSend.keep(
+                    pending = pendingSend.status == ScheduledSendStatus.PENDING,
+                    sendTag = WishTag.decode(pendingSend.ruleId),
+                    contactId = current.contactId,
+                    kind = current.occasionKind,
+                    configScheduledAtMillis = current.scheduledAtMillis,
+                    sendAtMillis = pendingSend.sendAtMillis,
+                )
+            ) {
                 if (current != config) store.replaceConfig(current)
                 continue
             }
@@ -101,15 +117,21 @@ class BirthdayScheduler @Inject constructor(
                 firstName = current.firstName,
                 age = if (current.occasionKind == OccasionKind.BIRTHDAY) date.ageIn(next.year) else null,
             )
-            val number = current.number!!
+            val number = current.number
             val existing = current.scheduledSendId?.let { sends.get(it) }
             val upToDate = existing != null && existing.status == ScheduledSendStatus.PENDING &&
                 existing.sendAtMillis == atMillis && existing.ruleId == tag && existing.body == body &&
                 existing.addresses == listOf(number) && (settings.subId == null || existing.subId == settings.subId)
             if (!upToDate) {
                 current = cancelPending(current)
-                val id = scheduler.schedule(listOf(number), body, settings.subId, atMillis, ruleId = tag)
-                current = current.copy(scheduledSendId = id, scheduledAtMillis = atMillis)
+                // A contact whose number is an emergency number never gets a scheduled wish (ScheduledEmergencyPolicy).
+                val id = try {
+                    scheduler.schedule(listOf(number), body, settings.subId, atMillis, ruleId = tag)
+                } catch (e: EmergencyScheduleRefusedException) {
+                    null
+                }
+                current = if (id != null) current.copy(scheduledSendId = id, scheduledAtMillis = atMillis) else current
+
             }
             if (current != config) store.replaceConfig(current)
         }

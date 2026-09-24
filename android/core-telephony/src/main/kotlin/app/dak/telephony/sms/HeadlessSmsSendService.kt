@@ -28,8 +28,8 @@ class HeadlessSmsSendService : Service() {
             return START_NOT_STICKY
         }
         val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
-            ?: RespondViaMessage.body(intent.data?.schemeSpecificPart)
-        val recipients = RespondViaMessage.recipients(intent.data?.schemeSpecificPart)
+            ?: RespondViaMessage.body(intent.data?.encodedSchemeSpecificPart)
+        val recipients = RespondViaMessage.recipients(intent.data?.encodedSchemeSpecificPart)
         if (text.isNullOrBlank() || recipients.isEmpty()) {
             stopSelf(startId)
             return START_NOT_STICKY

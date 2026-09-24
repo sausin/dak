@@ -70,4 +70,30 @@ class SettingsSearchTest {
         val binIndex = rankedKeys.indexOf(DakSettings.otpBinRetention.key)
         assertTrue(binIndex == 0, "changed row should rank first, got order: $rankedKeys")
     }
+
+    @Test
+    fun `privacy rows are free, action rows and findable by the words people use`() {
+        val privacyRows = listOf(
+            DakSettings.privacyCenter, DakSettings.privacyPolicy, DakSettings.dataSharingChoices,
+            DakSettings.exportMyData, DakSettings.deleteMyData,
+        )
+        privacyRows.forEach {
+            assertEquals(SettingTier.Free, it.tier, it.key)
+            assertEquals(ControlType.Action, it.control, it.key)
+            assertFalse(it.advanced, it.key)
+        }
+        assertTrue(SettingsSearch.search("privacy policy", context, FreeEntitlements).any { it.key == DakSettings.privacyPolicy.key })
+        assertTrue(SettingsSearch.search("delete my data", context, FreeEntitlements).any { it.key == DakSettings.deleteMyData.key })
+        assertTrue(SettingsSearch.search("consent", context, FreeEntitlements).any { it.key == DakSettings.dataSharingChoices.key })
+        assertTrue(SettingsSearch.search("gdpr", context, FreeEntitlements).any { it.key == DakSettings.exportMyData.key })
+    }
+
+    @Test
+    fun `privacy action rows are not exported as settings values`() {
+        val store = InMemorySettingsStore()
+        store.set(DakSettings.jevOptIn, true)
+        val exported = store.export()
+        assertFalse("privacy.center" in exported)
+        assertTrue("categoriesSpam.jevOptIn" in exported)
+    }
 }

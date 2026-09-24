@@ -4,6 +4,7 @@ import app.dak.core.model.DeliveryStatus
 import app.dak.core.model.MessageBox
 import app.dak.core.model.isOutgoing
 import app.dak.mms.pdu.MmsStatus
+import app.dak.mms.pdu.ReadStatus
 import app.dak.telephony.sms.DeliveryOutcome
 import app.dak.telephony.sms.DeliveryStatus as ReportStatus
 
@@ -67,6 +68,14 @@ internal object DeliveryStatusMapping {
             else -> MmsStatus.DEFERRED
         }
     }
+
+    /**
+     * True when an m-read-orig-ind with this X-Mms-Read-Status proves the message reached that recipient: "Read" and
+     * "Deleted without being read" both mean their phone had it. The sent message then shows as delivered (double
+     * tick) even when no delivery report was requested or the MMSC never sent one.
+     */
+    fun readReportImpliesDelivery(readStatus: Int): Boolean =
+        readStatus == ReadStatus.READ || readStatus == ReadStatus.DELETED_WITHOUT_BEING_READ
 
     private fun fromOutcome(outcome: DeliveryOutcome): DeliveryStatus = when (outcome) {
         DeliveryOutcome.DELIVERED -> DeliveryStatus.DELIVERED

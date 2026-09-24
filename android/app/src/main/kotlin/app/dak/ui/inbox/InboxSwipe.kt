@@ -58,6 +58,10 @@ internal fun SwipeableRow(
     val currentStartToEnd by rememberUpdatedState(startToEnd)
     val currentEndToStart by rememberUpdatedState(endToStart)
     val currentOnAction by rememberUpdatedState(onAction)
+    // confirmValueChange is deprecated without a drop-in replacement. It is used on purpose: the swipe runs its action
+    // and vetoes the dismissal so the row springs back (archive/delete then update the list). Moving to dynamic
+    // anchors is a UI rework to do with device testing, not in a warnings pass.
+    @Suppress("DEPRECATION")
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             val action = when (value) {

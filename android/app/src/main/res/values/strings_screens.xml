@@ -56,7 +56,7 @@
     <string name="scr_auto_add_examples">Add examples</string>
     <string name="scr_auto_advanced_rule">This rule uses advanced conditions. You can turn it on or off, or delete it.</string>
     <string name="scr_auto_any">Any</string>
-    <string name="scr_auto_confirm_subtitle">This rule can forward one-time passwords</string>
+    <string name="scr_auto_confirm_subtitle">This rule sends your messages to someone else, possibly including one-time passwords</string>
     <string name="scr_auto_confirm_title">Confirm it\'s you</string>
     <string name="scr_auto_default_sim">Default SIM</string>
     <string name="scr_auto_edit_rule">Edit rule</string>
@@ -303,7 +303,7 @@
     <string name="scr_search_sort_relevance">Most matches</string>
     <string name="scr_search_unpin_folder">Hide from inbox</string>
     <string name="scr_snack_archived">Conversation archived</string>
-    <string name="scr_snack_attachment_too_large">That attachment is too large to send as MMS on this SIM</string>
+    <string name="scr_snack_attachment_too_large">Too large for MMS on this SIM, even after shrinking. Trim a long video or share it from its own app.</string>
     <string name="scr_snack_block_failed">Could not block. Dak must be your default SMS app.</string>
     <string name="scr_snack_blocked">Blocked. Calls and messages from this sender are stopped.</string>
     <string name="scr_snack_delete_failed">Could not delete yet. Dak must be your default SMS app.</string>

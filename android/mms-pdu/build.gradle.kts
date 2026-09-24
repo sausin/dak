@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kover)
 }
 
 java {
@@ -18,4 +19,11 @@ dependencies {
     testImplementation(libs.kotlin.test)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// Coverage (docs/testing.md): the "coverage" variant is what the root merges and CI gates on. Pure-JVM module: its `test` task.
+kover {
+    currentProject {
+        createVariant("coverage") { add("jvm") }
+    }
 }

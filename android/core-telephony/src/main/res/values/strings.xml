@@ -2,4 +2,29 @@
 <resources>
     <string name="dak_telephony_channel_transfers">Message transfers</string>
     <string name="dak_telephony_mms_downloading">Downloading multimedia message</string>
+    <string name="dak_telephony_channel_problems">Message problems</string>
+    <string name="dak_telephony_sms_unsaved_title">A message could not be saved</string>
+    <plurals name="dak_telephony_sms_unsaved_text">
+        <item quantity="one">%d incoming message could not be stored after several tries.</item>
+        <item quantity="other">%d incoming messages could not be stored after several tries.</item>
+    </plurals>
+
+    <!-- Class 0 ("flash") SMS: shown at once, stored only if the user saves it. -->
+    <string name="dak_telephony_channel_flash">Flash messages</string>
+    <string name="dak_telephony_channel_flash_description">Messages the sender marked for immediate display. They are not saved unless you tap Save.</string>
+    <string name="dak_telephony_flash_title">Flash message from %1$s</string>
+    <string name="dak_telephony_flash_public">Flash message</string>
+    <string name="dak_telephony_flash_save">Save</string>
+    <string name="dak_telephony_flash_dismiss">Dismiss</string>
+    <string name="dak_telephony_flash_saved">Message saved</string>
+    <string name="dak_telephony_flash_not_saved">Could not save the message</string>
+
+    <!-- Composer while another app is the default SMS app. -->
+    <string name="dak_telephony_not_default_title">Dak is not your default SMS app</string>
+    <string name="dak_telephony_not_default_body">You can read messages, but sending is paused. Scheduled and queued messages wait and go out when Dak is the default again. Texts to emergency numbers are always sent.</string>
+    <string name="dak_telephony_make_default">Make Dak your default SMS app</string>
+    <string name="dak_telephony_group_mms_off">This carrier does not support group MMS: each recipient gets their own copy</string>
+    <string name="dak_telephony_mms_disabled">This carrier does not support MMS: attachments and e-mail recipients cannot be sent</string>
+    <string name="dak_telephony_too_many_recipients">This carrier allows at most %1$d recipients in one MMS</string>
+    <string name="dak_telephony_mms_text_too_long">The text is too long for an MMS on this carrier</string>
 </resources>

@@ -50,7 +50,9 @@ private fun intSetting(
     key = key, group = group, title = title, summary = summary,
     control = ControlType.Slider(range, step), default = default, keywords = keywords, tier = tier,
     advanced = advanced, visible = visible,
-    serialize = { it.toString() }, deserialize = { it.toIntOrNull() },
+    // Out-of-range values (a hand-edited or older export, a corrupt store) read as unset rather than bypassing the
+    // slider's bounds, e.g. a 0-minute consumed-OTP window or an unlimited cloud-classification cap.
+    serialize = { it.toString() }, deserialize = { raw -> raw.toIntOrNull()?.takeIf { it in range } },
 )
 
 private fun choiceSetting(
@@ -112,6 +114,13 @@ object DakSettings {
         default = "large",
         options = listOf(ChoiceOption("normal", "Normal"), ChoiceOption("large", "Large")),
         keywords = listOf("one time password", "code", "verification", "text size"),
+    )
+    val otpAutoCopy = boolSetting(
+        "notifications.otpAutoCopy", SettingsGroup.NOTIFICATIONS,
+        "Copy OTPs automatically",
+        "Put a new code on the clipboard as it arrives, hidden from clipboard previews. Off: a Copy button instead.",
+        default = true,
+        keywords = listOf("one time password", "otp", "code", "copy", "clipboard", "verification", "paste"),
     )
     val otpAutoDelete = choiceSetting(
         "notifications.otpAutoDelete", SettingsGroup.NOTIFICATIONS,
@@ -230,7 +239,8 @@ object DakSettings {
     )
     val jevOptIn = boolSetting(
         "categoriesSpam.jevOptIn", SettingsGroup.CATEGORIES_SPAM,
-        "Jev cloud classification", "Send an unclear message's sender and template to the cloud for a second opinion. Uses a small amount of data.",
+        "Jev cloud classification",
+        "Send an unclear message's sender and a masked copy to the cloud for a second opinion. Asks for your consent first. Uses a small amount of data.",
         default = false,
         keywords = listOf("jev", "cloud", "edge case"),
         advanced = true,
@@ -333,8 +343,25 @@ object DakSettings {
     )
     val deliveryReports = boolSetting(
         "simsSending.deliveryReports", SettingsGroup.SIMS_SENDING,
-        "Delivery reports", "Ask the carrier to confirm each SMS was delivered. Uses a small amount of battery.",
+        "Delivery reports",
+        "Ask the carrier to confirm each message was delivered (MMS only where the carrier supports it). " +
+            "Uses a small amount of battery.",
         default = false, advanced = true,
+    )
+    val mmsReadReceipts = boolSetting(
+        "simsSending.mmsReadReceipts", SettingsGroup.SIMS_SENDING,
+        "Read receipts for MMS",
+        "When someone asks, tell them you have read their MMS, and ask for the same on MMS you send. Never sent to " +
+            "businesses or short codes. Only works where the carrier supports MMS read reports.",
+        default = false, advanced = true,
+        keywords = listOf("read receipt", "read report", "seen", "mms", "privacy"),
+    )
+    val mmsDeliveryToSenders = boolSetting(
+        "simsSending.mmsDeliveryToSenders", SettingsGroup.SIMS_SENDING,
+        "Let senders see MMS delivery",
+        "Allow the carrier to tell someone that their MMS reached you. Turn off to keep that private.",
+        default = true, advanced = true,
+        keywords = listOf("delivery report", "report allowed", "mms", "privacy"),
     )
     val sendRateSpreading = boolSetting(
         "simsSending.sendRateSpreading", SettingsGroup.SIMS_SENDING,
@@ -411,6 +438,34 @@ object DakSettings {
         keywords = listOf("recycle bin", "privacy", "backup"),
     )
 
+    // Privacy centre (Settings → Privacy). Also reachable in one tap from the Settings root; these rows make it
+    // searchable ("privacy policy", "delete my data", "consent", "gdpr"...). All open the same screen.
+    val privacyCenter = actionSetting(
+        "privacy.center", SettingsGroup.BACKUP_DATA,
+        "Privacy", "Privacy policy, what can leave your phone and your choices, export or delete your Dak data.",
+        keywords = listOf("privacy", "data", "consent", "permissions", "gdpr", "dpdp", "data protection", "rights"),
+    )
+    val privacyPolicy = actionSetting(
+        "privacy.policy", SettingsGroup.BACKUP_DATA,
+        "Privacy policy", "What Dak does with your data, in plain language. Works offline.",
+        keywords = listOf("privacy policy", "policy", "terms", "data use"),
+    )
+    val dataSharingChoices = actionSetting(
+        "privacy.dataSharing", SettingsGroup.BACKUP_DATA,
+        "Data that leaves your phone", "Everything that could send data off the phone is off until you allow it. See or withdraw your choices.",
+        keywords = listOf("consent", "withdraw", "cloud", "jev", "webhook", "relay", "sharing", "opt out"),
+    )
+    val exportMyData = actionSetting(
+        "privacy.exportMyData", SettingsGroup.BACKUP_DATA,
+        "Export my Dak data", "Save your settings, rules, run history, accounts and ledger to a file you choose.",
+        keywords = listOf("export my data", "download my data", "data portability", "access request", "gdpr", "dpdp"),
+    )
+    val deleteMyData = actionSetting(
+        "privacy.deleteMyData", SettingsGroup.BACKUP_DATA,
+        "Delete my Dak data", "Erase everything Dak stores on this phone. Your SMS stay in the phone's message store.",
+        keywords = listOf("delete my data", "delete", "erase", "forget me", "right to erasure", "wipe", "reset app"),
+    )
+
     // Privacy and security (app lock). Rows live in this group to keep seven groups; the lock method row opens the
     // App lock screen (setup and verification happen there, never through a plain value editor).
     val appLock = choiceSetting(
@@ -485,6 +540,15 @@ object DakSettings {
         "automations.scheduledSends", SettingsGroup.AUTOMATIONS,
         "Scheduled sends", "Messages queued to send at a later time.",
     )
+    val scheduledHeadsUp = choiceSetting(
+        "automations.scheduledHeadsUp", SettingsGroup.AUTOMATIONS,
+        "Heads-up before scheduled messages",
+        "A notification shortly before a scheduled message or automatic birthday wish goes out, with Send now, Delay " +
+            "and Cancel. Automatic birthday wishes sent later in the day also get a morning heads-up.",
+        default = ScheduledHeadsUpLead.DEFAULT,
+        options = ScheduledHeadsUpLead.options,
+        keywords = listOf("scheduled", "reminder", "heads up", "before sending", "birthday", "send later", "notification"),
+    )
     val forwarding = actionSetting(
         "automations.forwarding", SettingsGroup.AUTOMATIONS,
         "Auto-forwarding", "Forward chosen senders to someone for a period, e.g. bank alerts to your CA. Free: sent from your own SIM.",
@@ -545,16 +609,17 @@ object DakSettings {
 
     /** Every setting, in registry (declaration) order. Backs search indexing, group listing and reset. */
     val all: List<SettingDef<*>> = listOf(
-        perCategoryAlerts, notificationChannels, otpDisplaySize, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
+        perCategoryAlerts, notificationChannels, otpDisplaySize, otpAutoCopy, otpAutoDelete, consumedOtpHandling, consumedOtpWindowMinutes,
         quickActions, selfTest, soundPerSim, bubbles, lockScreenPrivacy,
         tabSet, swipeRight, swipeLeft, inboxOtpCopy, senderMerges, blockList, autoArchivePromosDays, fakeCreditWarnings, classifierConfidenceThreshold, jevOptIn, jevMonthlyCap,
         accounts, homeCurrency, hideBalancesOnLock, ratesSource, reconciliationToleranceMinor,
         sim1Name, sim1Color, sim2Name, sim2Color, defaultReplySim, numberNormalization, roamingWarnings, costWarnings,
-        enterToSend, deliveryReports, sendRateSpreading, exactAlarmPermission, broadcastLists,
+        enterToSend, deliveryReports, mmsReadReceipts, mmsDeliveryToSenders, sendRateSpreading, exactAlarmPermission, broadcastLists,
         backupDestination, backupSchedule, encryptionKeyRecovery, exportData, importData,
         otpBinRetention, otherBinRetentionDays, binBiometricLock, binExcludedFromBackup,
+        privacyCenter, privacyPolicy, dataSharingChoices, exportMyData, deleteMyData,
         appLock, autoLockAfter, lockOnScreenOff, hideInRecents, protectSensitiveScreens, indexSchedule, rebuildIndex,
-        rulesList, scheduledSends, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,
+        rulesList, scheduledSends, scheduledHeadsUp, forwarding, birthdayWishes, webhooks, sendApiKeys, auditLog,
         translationLanguages, autoTranslateRules, downloadedPacks, freeTasterPack, packStorageLocation,
     )
 

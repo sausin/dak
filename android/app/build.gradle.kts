@@ -4,9 +4,12 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kover)
 }
 
 val ciVersionCode = (System.getenv("DAK_VERSION_CODE") ?: "1").toInt()
+// Tagged CI builds pass the tag's version (v1.2.3 -> 1.2.3); local and untagged builds keep the default.
+val ciVersionName = System.getenv("DAK_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.1.0"
 
 android {
     namespace = "app.dak"
@@ -15,9 +18,9 @@ android {
     defaultConfig {
         applicationId = "app.dak"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = ciVersionCode
-        versionName = "0.1.0"
+        versionName = ciVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -40,7 +43,11 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = false
+            // R8 shrinking, optimisation and obfuscation, plus unused-resource removal (docs/release.md). Debug
+            // builds stay unminified. The mapping file (build/outputs/mapping/<variant>/mapping.txt) is uploaded
+            // by CI; keep it for every published build to retrace crash reports.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
         }
@@ -125,6 +132,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
 
@@ -133,4 +141,13 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// Coverage (docs/testing.md): the "coverage" variant is what the root merges and CI gates on. One flavour only:
+// free and premium compile the same shared classes (which cannot be merged), so premium-only code (src/premium)
+// is not in the metric.
+kover {
+    currentProject {
+        createVariant("coverage") { add("freeDebug") }
+    }
 }

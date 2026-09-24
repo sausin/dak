@@ -1,0 +1,31 @@
+[
+  {
+    "id": "legacy-otp-forward",
+    "name": "Forward OTPs",
+    "trigger": {"type": "messageReceived"},
+    "conditions": {"type": "hasOtp"},
+    "actions": [{"type": "forwardSms", "to": "+919999999999"}],
+    "createdAt": 1,
+    "updatedAt": 1
+  },
+  {
+    "id": "legacy-quiet-hours",
+    "name": "Night sales webhook",
+    "enabled": true,
+    "trigger": {"type": "messageReceived", "predicates": {"type": "bodyContains", "keyword": "sale"}},
+    "conditions": {"type": "timeWindow", "fromMinuteOfDay": 1320, "toMinuteOfDay": 360},
+    "actions": [{"type": "webhook", "url": "https://example.com", "secretRef": "s"}],
+    "createdAt": 2,
+    "updatedAt": 3,
+    "schemaVersion": 1
+  },
+  {
+    "id": "legacy-scheduled",
+    "name": "One shot",
+    "enabled": false,
+    "trigger": {"type": "schedule", "spec": {"type": "oneShot", "atMillis": 5}},
+    "actions": [{"type": "archive"}],
+    "createdAt": 4,
+    "updatedAt": 4
+  }
+]

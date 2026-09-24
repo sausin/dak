@@ -41,6 +41,11 @@ object InstitutionTable {
         "SCBANK" to "Standard Chartered",
         "CITIBK" to "Citibank",
         "HSBCIN" to "HSBC",
+        "AUBANK" to "AU Small Finance Bank",
+        "BOBTXN" to "Bank of Baroda",
+        "BOBSMS" to "Bank of Baroda",
+        "CENTBK" to "Central Bank of India",
+        "BKOFIN" to "Bank of India",
     )
 
     /**
@@ -53,9 +58,20 @@ object InstitutionTable {
         return if (table.values.any { it.equals(name, ignoreCase = true) }) "IN" else null
     }
 
+    /** A DLT header: 2-letter prefix, an alphanumeric entity header with a letter, optional traffic suffix. */
+    private val dltHeader = Regex("""^[A-Z]{2}-([A-Z0-9]*[A-Z][A-Z0-9]*)(?:-[A-Z])?$""")
+
+    /**
+     * Whether [sender] is an Indian DLT (TRAI) header such as `VM-NEWBNK-S`: only Indian senders use that shape, so a
+     * number the message leaves without a currency ("debited by 250.0") is in rupees.
+     */
+    fun isDltSender(sender: String): Boolean = dltHeader.matches(sender.trim().uppercase())
+
     /**
      * Resolves an institution name from a raw SMS sender, e.g. `VM-HDFCBK`, `AD-HDFCBK-S`,
-     * `HDFCBK`, or a plain phone number (returns null for the latter).
+     * `HDFCBK`, or a plain phone number (returns null for the latter). A DLT sender whose header is not in the table
+     * resolves to the header itself (`AX-NEWBNK-S` -> `NEWBNK`), so every bank gets its own accounts without a table
+     * entry; the table only supplies friendlier names.
      */
     fun institutionFor(sender: String): String? {
         val cleaned = sender.trim().uppercase()
@@ -67,6 +83,6 @@ object InstitutionTable {
         for ((header, name) in table) {
             if (cleaned.contains(header)) return name
         }
-        return null
+        return dltHeader.matchEntire(cleaned)?.groupValues?.get(1)
     }
 }

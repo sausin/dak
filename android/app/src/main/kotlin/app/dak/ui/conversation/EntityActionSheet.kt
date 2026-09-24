@@ -21,7 +21,7 @@ import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.LocalShipping
@@ -136,7 +136,7 @@ fun EntityActionSheet(
                     else row(Icons.Outlined.ContentCopy, R.string.ent_action_copy, copy)
                     row(Icons.AutoMirrored.Outlined.Message, R.string.ent_action_sms) { onNavigate(Routes.compose(to = span.value)) }
                     row(Icons.Outlined.PersonAdd, R.string.ent_action_save_contact) { start(context, saveContactIntent(span.value)) }
-                    row(Icons.Outlined.Chat, R.string.ent_action_whatsapp) { openWhatsApp(context, span.value) }
+                    row(Icons.AutoMirrored.Outlined.Chat, R.string.ent_action_whatsapp) { openWhatsApp(context, span.value) }
                     if (!warn) row(Icons.Outlined.ContentCopy, R.string.ent_action_copy, copy)
                     else row(Icons.Outlined.Call, R.string.ent_action_call, call)
                 }

@@ -19,7 +19,7 @@ import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.ForwardToInbox
+import androidx.compose.material.icons.automirrored.outlined.ForwardToInbox
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
@@ -99,7 +99,7 @@ private val PLACES = listOf(
     Place(R.string.scr_passbook_title, Icons.Outlined.AccountBalanceWallet, Routes.PASSBOOK),
     Place(R.string.scr_bin_title, Icons.Outlined.DeleteOutline, Routes.BIN),
     Place(R.string.scr_automations_title, Icons.Outlined.AutoAwesome, Routes.AUTOMATIONS),
-    Place(R.string.fw_menu_forwarding, Icons.Outlined.ForwardToInbox, Routes.FORWARDING),
+    Place(R.string.fw_menu_forwarding, Icons.AutoMirrored.Outlined.ForwardToInbox, Routes.FORWARDING),
     Place(R.string.fw_menu_birthdays, Icons.Outlined.Cake, Routes.BIRTHDAYS),
     Place(R.string.bc_title, Icons.Outlined.Campaign, Routes.BROADCASTS),
     Place(R.string.fold_action_manage, Icons.Outlined.Category, Routes.SENDER_GROUPS),

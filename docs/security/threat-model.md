@@ -3,8 +3,8 @@
 Dak is the default SMS app, so it parses more attacker-controlled input than almost anything else on the phone,
 and it holds the SMS role and the Telephony provider. SMS/MMS parsers have a long history of remote bugs
 (Stagefright, iMessage zero-click, MMS parser crashes, WAP push abuse, Unicode crash strings), so this document
-lists every input surface, what protects it, and what is still open. It covers the wave-2a red-team pass and the
-wave-2b app UI and IPC hardening.
+lists every input surface, what protects it, and what is still open. It covers the wave-2a red-team pass, the
+wave-2b app UI and IPC hardening, and the wave-3 zero-click pass (see "Zero-click hardening").
 
 ## Security baseline: the free tier works offline
 
@@ -16,6 +16,9 @@ Firebase SDK, or binds a `CloudClassifier`.
 - **The only network path is the MMS download.** Dak calls the platform `SmsManager.downloadMultimediaMessage` /
   `sendMultimediaMessage`. The system MmsService runs the HTTP exchange over the carrier's MMS APN. Dak never
   fetches a URL itself, and never fetches message content over the ordinary internet.
+- `res/xml/network_security_config.xml` refuses cleartext for every host and trusts only system CAs, as an
+  OS-level backstop. The MMSC exchange (often plain `http://`) happens in the phone process under the platform's
+  config, so it needs no exception here (`docs/release.md`).
 - There is no WebView. Links in messages open in the user's browser, and only after the user taps them and the
   link-safety check runs.
 - Free builds bind the cloud classifier, webhooks and the relay to no-ops (`premium-api`). Message text never
@@ -63,7 +66,9 @@ Tests: `SecurityFuzzTest` runs a deterministic seeded structure-aware mutation f
 | Forged broadcasts | `SMS_DELIVER` requires `BROADCAST_SMS`. `WAP_PUSH_DELIVER` requires `BROADCAST_WAP_PUSH` and is filtered to `application/vnd.wap.mms-message`. `RESPOND_VIA_MESSAGE` requires `SEND_RESPOND_VIA_MESSAGE`. Result, boot and FileProvider components are not exported. The PendingIntents are explicit, with unique data URIs; they are mutable only where the platform must fill in result extras. |
 | Malformed SMS_DELIVER (null PDUs, empty or null bodies) | `getMessagesFromIntent` is wrapped. An empty list is dropped, and null bodies become `""`. Work runs under `goAsync` with a 7 s budget, and each handler is isolated with try/catch and a timeout. |
 | Very long concatenated SMS | The platform reassembles the parts. The body is stored verbatim. Classification looks at the first 4000 characters and link extraction at the first 20,000. |
-| Class-0 (flash) SMS | Stored and notified like any other SMS. Dak never shows a full-screen or overlay dialog for it. |
+| Class-0 (flash) SMS | Shown at once as a heads-up notification (own channel, private on the lock screen) and, only when the user taps it, a plain-text dialog (`FlashMessageActivity`: no clickable links, no full-screen intent, no overlay). Stored only on "Save". One notification per sender, so a flood replaces rather than stacks. The sender label is stripped of format and control characters. The text travels only in extras of Dak's own non-exported components. If notifications are off, it is stored like any other SMS. |
+| Forged `DEFAULT_SMS_PACKAGE_CHANGED` | The receiver is exported (the platform sends it), but the action is a protected broadcast and the extra is never trusted: `SmsRoleMonitor` re-reads the role from `RoleManager`. A spoof can at most cause a re-check. |
+| Forged or damaged WAP push used to make Dak talk to the MMSC | Undecodable notifications with a transaction id are answered m-notifyresp-ind "Unrecognised" only within the notification flood budget, and always to the carrier's MMSC (or, only when the carrier sets `enabledNotifyWapMMSC`, to a content location that passed `isDownloadableContentLocation`). |
 | Data / port-addressed SMS | Not handled: Dak registers no `DATA_SMS_RECEIVED` receiver. MWI "do not store" messages are skipped. |
 | Status reports | They arrive only on Dak's own explicit PendingIntents, never as `SMS_DELIVER`. |
 | WAP push with other content types | The manifest filter only admits MMS. m-delivery-ind and m-read-orig-ind can only update the `st` / `read_status` of a sent message with the same Message-ID. Other PDU types are ignored. |
@@ -93,8 +98,28 @@ Tests: `SecurityFuzzTest` runs a deterministic seeded structure-aware mutation f
 - The host is parsed by hand. Userinfo is stripped, so `https://bank.com@evil.xyz` resolves to `evil.xyz`, and
   links that carry userinfo are flagged.
 - Internationalised hosts used to parse to a null host and got no warning. They are now extracted with the
-  Unicode form and a punycode `asciiHost`. Confusable letters (Cyrillic, Greek, Armenian, fullwidth) are folded
-  to a Latin skeleton, so `hdfcbаnk.com` is flagged as imitating "HDFC Bank". Any other IDN host is flagged too.
+  host as written and an `asciiHost` from UTS #46 (nontransitional, IDNA2008 semantics, `unicode/Uts46.kt`) with the
+  flags and forbidden-host check the WHATWG URL standard uses, so `asciiHost` is the host the browser resolves.
+  `java.net.IDN` (IDNA2003) is no longer used: it turned `faß.de` into `fass.de`, a different domain. A host a
+  browser would refuse (invalid Punycode, a Bidi or CONTEXTJ violation, `evil.example／hdfcbank.com` whose fullwidth
+  solidus maps to `/`) gets no `asciiHost` and is flagged.
+- Look-alike hosts are reduced to their UTS #39 skeleton, generated from Unicode's `confusables.txt` (17.0.0) for
+  Latin, Cyrillic, Greek, Armenian, Cherokee, Devanagari, Bengali and Common characters, and compared with the
+  official domains' skeletons, so `hdfcbаnk.com`, `ｈｄｆｃｂａｎｋ.ｃｏｍ` and `𝐡𝐝𝐟𝐜𝐛𝐚𝐧𝐤.com` all name "HDFC Bank". Any other IDN host
+  is flagged too.
+- The warning dialog shows the host in Unicode only when UTS #39 finds it safe for the reader (single script, a
+  script of their languages or of the IDN TLD, not a whole-script look-alike of Latin such as all-Cyrillic
+  `раураl.com`), otherwise in punycode (`unicode/HostDisplay.kt`).
+
+### 4a. Sender names and bidi text (UAX #9, UTS #39)
+
+| Threat | Mitigation |
+| --- | --- |
+| A sender name, subject or snippet with RLO/LRE/isolate controls reorders the UI around it (U+202E before `gpj.exe`, an amount that reads backwards), or an Arabic/Urdu name pulls a neighbouring amount into RTL order | Untrusted text is wrapped in FSI…PDI after its scoped bidi controls are removed, so it cannot close the isolate early (`classify/.../unicode/UntrustedText.kt`, used through `BidiText` at every call site and in composed notification titles). Names also lose LRM/RLM and invisible characters; ZWJ/ZWNJ stay where Indic and Arabic spelling needs them. Conversation bubbles replace scoped controls with an invisible neutral character of the same length (offsets for OTP, search and links hold). |
+| A bank header imitated with look-alike letters (`НDFCBK` with a Cyrillic Н, `ＨＤＦＣＢＫ`, all-Cyrillic `АХІЅВК`) or digits from another script, arriving over MMS, e-mail gateways, RCS/aggregators or any non-GSM path | `SenderNameCheck` (UTS #39 restriction levels, mixed numbers and skeletons). A skeleton containing a bank's header token is `LOOKALIKE_SENDER`; other mixed-script names are `MIXED_SCRIPT_SENDER`; links from such senders are treated like an unknown number's (`unknown-sender-link` label, risky link → spam). DLT headers must be ASCII, and are checked before upper-casing (`ı` → `I`). |
+
+Residual: contact names are the user's own data and are not checked; isolate rendering in Compose and SystemUI is
+covered by unit tests only (see "Not yet verified on a device").
 
 ### 5. Backup and import files (`:backup`)
 
@@ -145,7 +170,8 @@ startup provider. `allowBackup=false`. The mutable PendingIntents are all explic
    decoding, and handles provider exceptions.
 3. **Link opening: fixed.** `LinkSafety.open` launches only parsed `http`/`https` URIs (`https://` is prefixed only
    to `www.` links), as `CATEGORY_BROWSABLE`. For IDN hosts and links with userinfo, the warning dialog shows the
-   host that will actually open, in punycode (`asciiHost`).
+   host that will actually open (`asciiHost`), in punycode unless `HostDisplay` finds the Unicode form safe for the
+   reader.
 4. **Attachments: fixed.** The sender-chosen MIME type no longer picks the handler.
    `ui/conversation/AttachmentOpener.kt` opens only image (not SVG), video and audio, `text/plain`, vCard and
    vCalendar with ACTION_VIEW. Anything else (APK, HTML, …) goes to a "Save or share" chooser as
@@ -157,15 +183,95 @@ startup provider. `allowBackup=false`. The mutable PendingIntents are all explic
 7. There is no WebView, `Html.fromHtml` or `Linkify` in the app. `annotateMessage` builds links only from
    `LinkExtractor`, so `tel:` and `intent:` auto-linking cannot happen.
 
+## Zero-click hardening (wave 3)
+
+Goal: no specially crafted SMS, MMS or WAP push can take over the phone, crash Dak, or make it lose messages or
+spend money. Everything below runs with no user interaction. Every byte of a PDU, and everything a PDU refers to,
+is treated as hostile: the MMSC URL, the fetched m-retrieve-conf, part names, addresses, display names and links.
+
+### What a crafted message reaches, in order
+
+1. **SMS_DELIVER** (`SmsDeliverReceiver`, guarded by `BROADCAST_SMS`). The raw PDUs go into the `SmsJournal` first.
+   Then the platform parses them, Dak inserts the row into the inbox, and the dispatcher runs the handlers:
+   notification, index/classifiers, automations.
+2. **WAP_PUSH_DELIVER** (`BROADCAST_WAP_PUSH`). `MmsPduDecoder` decodes the push. An m-notification-ind then passes
+   the content-location check and the flood guard before a download is queued. The downloaded m-retrieve-conf goes
+   through the decoder again, then into the provider mapping, and then to the same handlers.
+3. **Rendering**: the notification (`NotificationText`), the conversation bubble (links through `LinkSafety`,
+   attachments through `AttachmentOpener`), and Coil image decoding, which samples to the view size.
+
+### Findings and fixes
+
+| # | Sev. | Area | Proof of concept | Fix |
+|---|---|---|---|---|
+| 1 | High | MMS download | An m-notification-ind with `X-Mms-Content-Location: http://localhost./x`, `http://[::ffff:127.0.0.1]/`, `http://[0::1]/` or `http://2130706433/` passed the loopback check. `java.net.URI` accepts all four hosts. | `MmsSafety.isLocalHost` now handles a trailing dot, IPv4-mapped and IPv4-compatible IPv6, compressed IPv6 loopback, and non-canonical IPv4 (decimal, hex, octal, short forms). |
+| 2 | High | Provider / MMS text | A retrieved MMS carrying a 3 MB `text/plain` part. The inline `part.text` insert goes over Binder (1 MB limit) and fails. The message is lost and downloaded again five times. Between about 1 and 2 MB, every later read of the thread risks `SQLiteBlobTooBigException` (CursorWindow is 2 MB). | Inline text is capped at 32k characters per part and 64k per message (`MmsLimits.MAX_INLINE_TEXT_CHARS` / `MAX_MESSAGE_TEXT_CHARS`, `PduPart.text(maxChars)` decodes only the bytes it needs). |
+| 3 | High | Backup restore | An SMS Backup & Restore XML row `<sms address="+1900…" body="YES" type="6"/>` (type 6 is queued) was restored as QUEUED. `OutboxRecovery` re-enqueues QUEUED rows at boot, so the phone sent the text with no confirmation and no cost check. | `BoxMapping.restoredBox`: restored outbox and queued messages become FAILED ("tap to retry"). This applies to every restore path through `ProviderWriter.restore`. |
+| 4 | Medium | Decoder | 5 kB `From`/`To`, `Message-ID`, `Transaction-ID`, part `Content-Location`/`Content-ID`, a 1 kB media type, or thousands of content-type parameters. All were stored verbatim in provider columns and thread addresses. | Addresses over 256 characters are dropped (From becomes "unknown"). Identifiers and part headers over 1024 characters are dropped. Media types over 255 characters become `application/octet-stream`. At most 16 unmodelled parameters are kept. |
+| 5 | Medium | Decoder memory | A 16 MiB PDU with the payload three multiparts deep was copied once per level: about 4× the input size on the heap. | Nested multiparts are parsed in place (`WspReader.duplicate`). Only leaf parts are copied, so decoding allocates at most about 2× the input size. |
+| 6 | Medium | WAP push flood | Thousands of forged notifications, each with a new URL, made thousands of inbox rows and fetches. Each fetch also acts as an IP beacon for the sender. | `NotificationFloodGuard`: 10 auto-downloads per sender and 30 per device per hour. Past that the user has to tap to download. Past 200 an hour, notifications are dropped. |
+| 7 | Medium | Crash safety | A `StackOverflowError` (an Error, not an Exception) in any handler, or any exception escaping a fire-and-forget coroutine, killed the process. Doing that on every delivery is a remote denial of service against the SMS app. | `IncomingDispatcher` and `runAsync` also catch `StackOverflowError`. The application and telephony scopes have a logging `CoroutineExceptionHandler`. Out-of-memory still crashes. |
+| 8 | Medium | Notifications | A 39k-character concatenated SMS, or a 32k-character MMS, went verbatim into MessagingStyle, the OTP RemoteViews and the repeat-collapse extras, so `notify()` could exceed the Binder limit. RLO/LRO/isolate controls in a body could visually reorder the rest of the notification. | `NotificationText.body`: at most 2000 characters, and explicit bidi embeddings, overrides and isolates are stripped. |
+| 9 | Low | Links | `https://bank.example\@evil.example`. The link checker and the browser treat `\` as `/` and see host `bank.example`, but `android.net.Uri`, which decides which app handles the intent, sees `evil.example`. | `LinkSafety.normalizedWebLink` turns `\` into `/` before `Uri.parse`, and refuses links with whitespace or control characters or longer than 4096 characters. |
+| 10 | Data loss (P0) | SMS receive | A provider insert that failed or overran the 7 s `goAsync` budget lost the SMS, because the platform had already deleted its raw copy. | `SmsJournal` stores the PDUs (fsync'd, atomic rename) before any other processing. The insert runs `NonCancellable`. The journal entry is removed only once the row exists. `SmsJournalReplayWorker` replays leftovers at the next receive, at boot and at app start. Replays are idempotent: an existing identical inbox row is reused. The journal is bounded (200 pending, PDUs ≤ 1 KiB, ≤ 255 parts). A poison entry is quarantined after 5 failures (at most 50 kept) and reported in a notification that carries no message content. |
+| 11 | Safety (P0) | Sending | A text to an emergency number waited behind the shared 30-per-30-minutes limiter, for example during a broadcast. | `SendRateLimiter.reserveEmergency` never delays. `EmergencyDestinations` recognises 112/911 anywhere, plus libphonenumber emergency numbers for the home and serving regions. The classifier now recognises Australia's `000` (it looked like an international prefix). Reservations are persisted, because the platform's counter survives Dak's process. |
+
+Already in place and re-verified in this pass: receivers guarded by `BROADCAST_SMS`, `BROADCAST_WAP_PUSH` and
+`SEND_RESPOND_VIA_MESSAGE`; result, boot and notification-action receivers and both FileProviders not exported;
+explicit PendingIntents; the route token on `MainActivity`; the `EXTRA_STREAM` confused-deputy filter; the
+attachment MIME allow-list; http(s)-only links; safe part file names; backup `ArchiveLimits`; and logs that never
+contain bodies, codes or addresses.
+
+### Tests that guard these defences
+
+- `mms-pdu` `HostileInputFuzzTest` (JVM harness). It uses a deterministic, grammar-aware random PDU generator (every
+  header code and value encoding, lying lengths, nested multiparts, oversized strings) plus mutation of valid PDUs:
+  60,000 inputs per generator under a 60 s cap. For every input it asserts that no Throwable escapes, that no input
+  takes over 2 s, and that allocation stays within 2 × input + 4 MiB (measured per thread with `ThreadMXBean`), and it
+  checks every `MmsLimits` bound on the outputs. Targeted regressions cover findings 1, 2, 4 and 5. It runs next
+  to the existing `SecurityFuzzTest`, which runs 120,000 mutations.
+- `mms-pdu` `NotificationFloodGuardTest` (finding 6).
+- `core-telephony` (runs in CI): `SmsJournalTest` (round trip, re-delivery, quarantine, bounds, corrupt files,
+  path-safe keys, a decoder fuzz loop), `EmergencySendTest`, `RestoreBoxTest`, and the added
+  `MmsMappingTest.hostileTextPartsAreBoundedBeforeTheProvider`.
+- `app` (runs in CI): `NotificationTextTest` and `LinkSafetyNormalizationTest`.
+
+### Reported to other owners (not changed here)
+
+- **Automations** (`app/automation`, being reworked in parallel):
+  - The "schedule reply" action stores its send without a `ruleId`, so `ScheduledSendExecutor` skips the
+    premium-rate check.
+  - There is no per-sender cool-down on auto-replies, so two auto-repliers ping-pong forever at 30 texts per
+    30 minutes. `ForwardLoopGuard` covers forwards only.
+  - Unattended sends are spread out but never capped: N matching messages cause N forwards.
+  - The Notify action posts `event.body` unbounded.
+
+  Proposed patches are in the hand-off report.
+- `:classify` / `:finance` were checked read-only with a timing harness: every receive-path processor (the pipeline,
+  `TransactionParser.parse` and `parseBillReminder`, `FakeCreditDetector`, `OtpExtractor`, `LinkExtractor`,
+  `EntityExtractor`, `MoneyParser`, `Masker`), run on about 630 repeated-token bodies of 4k, 39k and 64k
+  characters. Nothing took more than 300 ms or threw. `TransactionParser.parse` is called on the whole body with
+  no cap of its own; the 64k MMS body cap above now bounds it.
+
 ## Residual risks
 
 - **Polynomial regex cost in user regexes** (`.*a.*b` on 4000 characters) is bounded but not zero, and Android's
   ICU matcher cannot be interrupted. The `RegexSafety` static check covers exponential cases only.
 - **Forged MMS notifications are still fetched** when the URL is a plausible `http(s)` URL: every MMS client works
   this way, and it happens over the carrier APN through the platform MmsService. The sender learns that the
-  device fetched the URL, which acts as a read receipt or IP beacon on the carrier network. There is no rate limit
-  on WAP push floods yet: many forged notifications create many rows and download jobs, bounded by WorkManager
-  uniqueness per content location.
+  device fetched the URL, which acts as a read receipt or IP beacon on the carrier network. WAP push floods are
+  rate-limited (`NotificationFloodGuard`), but within the budget a DNS name that resolves to a private or loopback
+  address is still fetched. Dak cannot resolve names itself, because MmsService does the fetch, often through the
+  carrier's MMS proxy.
+- **Very long bodies in the conversation view**: a 39k-character SMS (the platform maximum) or a 64k-character MMS
+  body is laid out as one Compose text. This can be slow on low-end phones, but it is bounded. A "show more" fold
+  would remove the cost.
+- **Automatic MMS download policy**: MMS from anyone downloads automatically, as in every major client. It is limited
+  to the carrier APN, to 16 MiB, to non-roaming, and by the flood guard. Users who want no attacker-triggered fetches
+  can turn off auto-download.
+- **SMS journal**: it holds message PDUs in plaintext in no-backup app storage, and only until the inbox write
+  succeeds (quarantined entries at most 50). The provider database itself is not encrypted either. A
+  replayed message whose first insert failed may be announced twice.
 - **Forged delivery/read reports:** a WAP push m-delivery-ind or m-read-orig-ind that names the Message-ID of a
   sent MMS can change its delivered/read status. This only affects status metadata, and Message-IDs are hard to
   guess, but it is not authenticated.
@@ -175,5 +281,13 @@ startup provider. `allowBackup=false`. The mutable PendingIntents are all explic
 - **The SMS Organizer importer** buffers up to 128 MiB and parses in memory. That is acceptable for a
   user-initiated import, but low-RAM devices may still hit OOM near the cap.
 - **Network permissions** (see the baseline section) stay declared until the device test.
+- **Text safety (P2):** the `:app` side of the UAX #9 / UTS #46 work (`BidiText`, `LinkSafety`, `MessageText`,
+  notification titles) compiles only in CI; its logic lives in `:classify` and is JVM-tested. Isolate rendering
+  (Arabic/Urdu names in lists, the shade, an RTL UI) still needs a look on a device.
 - **Not yet verified on a device:** the `:app`, `:core-telephony` and `:core-index` changes compile only in CI, and their
-  JVM tests (`MmsMappingTest`, `LinkDetectorSecurityTest`) run there.
+  JVM tests (`MmsMappingTest`, `LinkDetectorSecurityTest`) run there. The wave-3 journal, flood guard, emergency
+  bypass, restore mapping and notification changes are in the same position. Their pure parts (`SmsJournal`,
+  `SendRateLimiter`, `EmergencyDestinations`, `BoxMapping`, `MmsProviderMapping.partRows`, `NotificationText`) were
+  compiled and tested on the JVM outside the Android build. The receiver, worker and Android wiring still need an
+  emulator run: inject a failing provider insert and check the replay, and send text-to-112 while a broadcast is
+  queued.

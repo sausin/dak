@@ -62,4 +62,9 @@ internal object SmsResultCodes {
         NETWORK_ERROR -> "Network error"
         else -> "Sending failed (code $code)"
     }
+
+    /** Reason for a multipart SMS of which only [sentParts] of [partCount] parts went out. */
+    fun describePartial(sentParts: Int, partCount: Int): String =
+        "Only $sentParts of $partCount parts were sent. Retrying sends the whole message again, " +
+            "so the recipient may see some of it twice"
 }

@@ -30,7 +30,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,7 +70,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -176,7 +176,7 @@ fun SearchScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     }
                     Box {
                         IconButton(onClick = { sortMenu = true }) {
-                            Icon(Icons.Outlined.Sort, contentDescription = stringResource(R.string.scr_search_sort))
+                            Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.scr_search_sort))
                         }
                         DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                             SearchSort.entries.forEach { s ->

@@ -46,6 +46,28 @@ class FakeCreditDetectorTest {
         Sample("VK-AMAZON-P", "Great Indian Festival! Up to 80% off on mobiles. Shop now at amazon.in"),
     )
 
+    /**
+     * A fund's allotment or a broker's contract note from a header the bundle does not know is recorded as a credit to
+     * the folio / demat account (money invested). It must never be taken for a fake bank credit, or the ledger would
+     * drop it.
+     */
+    @Test
+    fun `investment confirmations from unknown headers are not fake credits`() {
+        val bodies = listOf(
+            "Dear Investor, your SIP instalment of Rs.5,000.00 in Peak Flexi Cap Fund - Direct Growth, Folio No. XXXX1234 has been processed. Units allotted: 45.678 at NAV Rs.109.4563 on 05-Sep-2026.",
+            "15.500 units redeemed from Silver Arbitrage Fund (Folio: 55443322) at NAV Rs 30.1200. Redemption amount Rs 466.86 credited to your registered bank account.",
+            "IDCW of Rs 1,250.00 declared under Peak Equity Income Fund for folio XXXX1234 has been paid to your bank a/c XX4321 on 20-Sep-2026.",
+            "Contract Note for 12-Sep-2026: Bought 10 ACME INDUSTRIES LTD @ 2,345.50. Net amount payable Rs 23,480.25 incl. charges. Client ID AB1234.",
+            "Dear Investor, the current value of your investments in Folio XXXX1234 as on 19-Sep-2026 is Rs 1,23,456.78. Units held: 1,127.890.",
+        )
+        for (header in listOf("VM-PEAKMF-S", "JD-ZENBRK-T", "AX-NEWAMC")) {
+            for (body in bodies) {
+                val v = detector.evaluate(header, body, hint = TransactionHint(HintDirection.CREDIT, 500_000L, "1234"), dateMillis = now)
+                assertTrue(v.level != ScamLevel.LIKELY_SCAM, "$header: $body -> $v")
+            }
+        }
+    }
+
     @Test
     fun `genuine corpus is never flagged`() {
         for (s in genuine) {
@@ -233,6 +255,17 @@ class FakeCreditDetectorTest {
     }
 
     @Test
+    fun `beneficiary confirmation is the user's own transfer, not a credit to an unknown account`() {
+        val known = setOf(AccountHint("HDFC Bank", "1234"))
+        val body = "Confirmation! INR 100,000.00 credited to beneficiary A/c XX5632 for your NEFT on 07-Dec-2024. Ref N34224216. - HDFC Bank"
+        val v = detector.evaluate("AX-FSTPAY", body, knownAccounts = known, dateMillis = now)
+        assertFalse(ScamReason.UNKNOWN_ACCOUNT in v.reasons, v.toString())
+        // A lookalike sender still counts as one; only the payee's account is ignored.
+        val fake = detector.evaluate("AX-FSTPAY", "INR 20,000.00 credited to HDFC Bank A/c XX9999 on 12-09-26.", knownAccounts = known, dateMillis = now)
+        assertTrue(ScamReason.UNKNOWN_ACCOUNT in fake.reasons)
+    }
+
+    @Test
     fun `unprefixed real bank header alone is not flagged but with a return request is`() {
         assertEquals(ScamLevel.NONE, detector.evaluate("HDFCBK", "INR 2,000.00 credited to HDFC Bank A/c XX1234", dateMillis = now).level)
         assertEquals(
@@ -259,6 +292,8 @@ class FakeCreditDetectorTest {
         assertEquals(setOf(300_000L), FakeCreditDetector.amountsIn("रु 3,000 जमा"))
         assertEquals(setOf(150_000L), FakeCreditDetector.amountsIn("1500/- sent"))
         assertEquals("1234", FakeCreditDetector.maskIn("A/c XX1234 credited"))
+        assertEquals("5073", FakeCreditDetector.maskIn("Credited INR 50,000.00 to A/c X5073 on 06-AUG-2026"))
+        assertEquals(null, FakeCreditDetector.maskIn("order X12345 shipped"))
         assertTrue(FakeCreditDetector.digitsMatch("001234", "1234"))
         assertFalse(FakeCreditDetector.digitsMatch("1234", "9999"))
     }
@@ -317,6 +352,24 @@ class FakeCreditDetectorTest {
         assertTrue(ScamLabels.isFlagged(followUp))
         assertFalse(ScamLabels.isFlaggedCredit(followUp))
         assertEquals("%\"scam:likely-fake-credit\"%", ScamLabels.likePattern(ScamLabels.LIKELY))
+    }
+
+    @Test
+    fun `scheme-less links and numeric promotional headers count`() {
+        // A scheme-less payment link in a fake alert is still a link.
+        val fake = detector.evaluate(
+            "+919876512345", "Rs 15,000 credited to your A/c XX4321 by IMPS. Check status at bit.ly/imps-status", dateMillis = now,
+        )
+        assertEquals(ScamLevel.LIKELY_SCAM, fake.level, fake.toString())
+        assertTrue(ScamReason.LINK_IN_ALERT in fake.reasons, fake.toString())
+        // A credit "alert" on a 6-digit (promotional-only) header.
+        val promo = detector.evaluate("VM-612345", "INR 5,000 credited to your A/c XX1234 by NEFT. -SBI", dateMillis = now)
+        assertTrue(ScamReason.PROMOTIONAL_ROUTE in promo.reasons, promo.toString())
+        // Genuine alerts from an unknown (not in the table) bank header with a scheme-less "not you?" link stay clean.
+        val genuine = detector.evaluate(
+            "JD-NIMBUS-T", "Rs 4,500.00 debited from A/c XX1234 on 12-03-26. Not you? Report at nmb.in/fraud", dateMillis = now,
+        )
+        assertEquals(ScamLevel.NONE, genuine.level, genuine.toString())
     }
 
     @Test

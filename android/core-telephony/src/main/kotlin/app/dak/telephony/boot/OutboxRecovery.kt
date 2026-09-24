@@ -20,8 +20,10 @@ import app.dak.telephony.mms.MmsDownloadManager
 import app.dak.telephony.provider.MmsColumns
 import app.dak.telephony.provider.ProviderUris
 import app.dak.telephony.provider.SmsColumns
+import app.dak.telephony.role.SmsRoleMonitor
 import app.dak.telephony.send.SendFailureStore
 import app.dak.telephony.send.SendScheduler
+import app.dak.telephony.sms.SmsJournalReplayWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +43,7 @@ class OutboxRecovery @Inject constructor(
     private val scheduler: SendScheduler,
     private val failures: SendFailureStore,
     private val downloads: MmsDownloadManager,
+    private val role: SmsRoleMonitor,
 ) {
     suspend fun recover() {
         withContext(Dispatchers.IO) {
@@ -80,6 +83,8 @@ class OutboxRecovery @Inject constructor(
             }
         }
         downloads.resumePending()
+        // Sends held while another app was the default SMS app, if the role came back while the phone was off.
+        role.resumeIfDefault()
     }
 
     private companion object {
@@ -95,7 +100,7 @@ class OutboxRecoveryWorker(context: Context, params: WorkerParameters) : Corouti
     }
 }
 
-/** BOOT_COMPLETED / MY_PACKAGE_REPLACED: schedules [OutboxRecoveryWorker]. */
+/** BOOT_COMPLETED / MY_PACKAGE_REPLACED: schedules [OutboxRecoveryWorker] and any pending incoming-SMS replay. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -106,6 +111,8 @@ class BootReceiver : BroadcastReceiver() {
                 } catch (e: Exception) {
                     Log.w(TAG, "could not schedule recovery: ${e.javaClass.simpleName}")
                 }
+                // Incoming SMS whose inbox write did not complete before the reboot / update.
+                SmsJournalReplayWorker.scheduleIfPending(context)
             }
         }
     }

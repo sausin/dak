@@ -4,9 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
+import app.dak.automation.EmergencyScheduleRefusedException
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.core.model.NO_SUB_ID
 import app.dak.telephony.SimRepository
+import app.dak.telephony.carrier.SendBlock
+import app.dak.telephony.carrier.SendMode
+import app.dak.telephony.carrier.SendPlan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +26,9 @@ sealed interface ComposerEvent {
     data class SendFailed(val problem: SendProblem, val detail: String?) : ComposerEvent
     data class Scheduled(val atMillis: Long) : ComposerEvent
     data object ScheduleTextOnly : ComposerEvent
+
+    /** Texts to emergency numbers cannot be scheduled: "send it instead". */
+    data object ScheduleEmergencyRefused : ComposerEvent
 }
 
 /**
@@ -64,16 +71,20 @@ class ComposerDelegate(
         recipients,
         subId,
         sims.sims,
-    ) { (t, a, s, prompt), to, sub, simList ->
+        controller.isDefaultSmsApp,
+    ) { (t, a, s, prompt), to, sub, simList, isDefault ->
         val sim = simList.firstOrNull { it.subId == sub } ?: sims.sim(sub)
         val roaming = sub != NO_SUB_ID && runCatching { sims.isRoaming(sub) }.getOrDefault(false)
         val segments = controller.segments(t)
         val hint = normalizationHint(to, sub)
         hintVisible = hint != null
+        val plan = runCatching { controller.plan(to, t, a, sub) }.getOrNull()
+        // Without the SMS role the composer is read-only, except for a text to emergency numbers only.
+        val readOnly = !isDefault && !(a.isEmpty() && controller.sendableWithoutRole(to, sub))
         ComposerUi(
             text = t,
             attachments = a,
-            isMms = controller.isMms(to.size, t, a),
+            isMms = plan?.isMms ?: a.isNotEmpty(),
             segments = segments,
             showSegments = a.isEmpty() && (segments.segments > 3 || (roaming && segments.segments > 0)),
             sim = sim,
@@ -81,10 +92,18 @@ class ComposerDelegate(
             roaming = roaming,
             normalizedHint = hint,
             sending = s,
-            enabled = to.isNotEmpty(),
+            enabled = to.isNotEmpty() && !readOnly,
             costPrompt = prompt,
+            notDefaultApp = !isDefault,
+            carrierNotice = plan?.let { carrierNoticeOf(it, to.size, sub) },
+            recipientLimit = plan?.takeIf { it.block == SendBlock.TOO_MANY_RECIPIENTS }?.let { controller.carrierConfig(sub).recipientLimit },
         )
     }.stateIn(scope, SharingStarted.Eagerly, ComposerUi())
+
+    /** The system role dialog closed (or the app resumed): re-read the default-SMS role. */
+    override fun onRoleResult() {
+        controller.refreshRole()
+    }
 
     /** Adds media shared from another app (ACTION_SEND). */
     fun addShared(items: List<ComposerAttachment>) {
@@ -191,6 +210,11 @@ class ComposerDelegate(
         if (to.isEmpty()) return
         val sub = subId.value
         scope.launch {
+            // Refused before the cost dialog: emergency services need the text now, not later.
+            if (refusesEmergency(to, sub)) {
+                onEvent(ComposerEvent.ScheduleEmergencyRefused)
+                return@launch
+            }
             val warnings = costWarnings(to, sub)
             if (warnings.isNotEmpty()) costPrompt.value = CostPrompt(warnings, sub, scheduleAtMillis = atMillis) else scheduleNow(atMillis)
         }
@@ -200,16 +224,33 @@ class ComposerDelegate(
         val body = text.value.trim()
         val to = recipients.value
         if (body.isEmpty() || to.isEmpty()) return
-        scheduler.schedule(to, body, subId.value.takeIf { it != NO_SUB_ID }, atMillis, conversationId = conversationId())
+        try {
+            scheduler.schedule(to, body, subId.value.takeIf { it != NO_SUB_ID }, atMillis, conversationId = conversationId())
+        } catch (e: EmergencyScheduleRefusedException) {
+            onEvent(ComposerEvent.ScheduleEmergencyRefused)
+            return
+        }
         onTextChange("")
         onEvent(ComposerEvent.Scheduled(atMillis))
     }
+
+    private suspend fun refusesEmergency(to: List<String>, sub: Int): Boolean = runCatching {
+        withContext(Dispatchers.Default) { scheduler.refusesEmergency(to, sub.takeIf { it != NO_SUB_ID }) }
+    }.getOrDefault(false)
 
     private fun normalizationHint(to: List<String>, sub: Int): String? {
         if (to.size != 1 || sub == NO_SUB_ID || !hints.shouldShowNormalizationHint()) return null
         val raw = to.first()
         val normalized = runCatching { controller.normalized(raw, sub) }.getOrDefault(raw)
         return normalized.takeIf { it != raw && it.filter(Char::isDigit) != raw.filter(Char::isDigit) }
+    }
+
+    private fun carrierNoticeOf(plan: SendPlan, recipientCount: Int, sub: Int): CarrierNotice? = when {
+        plan.block == SendBlock.MMS_DISABLED -> CarrierNotice.MMS_DISABLED
+        plan.block == SendBlock.TOO_MANY_RECIPIENTS -> CarrierNotice.TOO_MANY_RECIPIENTS
+        plan.block == SendBlock.TEXT_TOO_LONG -> CarrierNotice.TEXT_TOO_LONG
+        recipientCount > 1 && plan.mode != SendMode.MMS -> CarrierNotice.GROUP_AS_INDIVIDUAL.takeIf { !controller.carrierConfig(sub).groupMmsEnabled }
+        else -> null
     }
 
     /** Draft-side inputs of [ui]. */

@@ -52,14 +52,29 @@ object MoneyParser {
      */
     private const val MULTIPLIER = "(?:[\\s\u00A0\u202F]{0,3}(lakhs?|lacs?|crores?)(?![A-Za-z]))"
 
+    /** After a prefix currency: [CURRENCY_GAP] with an optional colon ("Rs:500.00", "INR : 500"). No adjacent `*`s. */
+    private const val PREFIX_GAP = "[\\s  ]*(?::[\\s  ]*)?"
+
+    /**
+     * A number with no currency before it must not be glued to a letter, digit or mask ("XX1234 INR 500": the "1234"
+     * is an account tail, not an amount in INR).
+     */
+    private const val BARE_START = "(?<![\\p{L}\\d*#])"
+
+    /**
+     * A currency written after a number only belongs to it when no other number follows the code ("Ref 6248123 INR
+     * 500.00": the INR is the 500's, not the reference's; "on 12-09-2026 INR 750": not the year's).
+     */
+    private const val SUFFIX_END = "(?![\\s  ]*\\d)"
+
     /**
      * Matches an optional currency token, a number, an optional spaced decimal part, an optional lakh/crore word,
      * an optional trailing currency token and an optional "/-". Groups: 1 prefix currency, 2 number, 3 spaced
      * decimal, 4 multiplier word, 5 suffix currency, 6 "/-".
      */
     private val pattern = Regex(
-        "(?:$currencyCapture$CURRENCY_GAP)?($numberFragment)$SPACED_DECIMAL?$MULTIPLIER?" +
-            "(?:$CURRENCY_GAP$currencyCapture)?(/-)?",
+        "(?:$currencyCapture$PREFIX_GAP|$BARE_START)($numberFragment)$SPACED_DECIMAL?$MULTIPLIER?" +
+            "(?:$CURRENCY_GAP$currencyCapture$SUFFIX_END)?(/-)?",
         RegexOption.IGNORE_CASE,
     )
 
@@ -87,7 +102,8 @@ object MoneyParser {
             val currency = resolveCurrency(currencyToken, symbolMap) ?: continue
             val number = withSpacedDecimal(numberRaw, match.groups[3]?.value)
             val money = try {
-                applyMultiplier(parseAmount(number, currency), match.groups[4]?.value)
+                // Multiply before rounding to the minor unit: "₹1.2345 crore" is ₹1,23,45,000, not ₹1,23,00,000.
+                Money.ofMajor(applyMultiplier(parseMajor(number, currency), match.groups[4]?.value), currency)
             } catch (e: ArithmeticException) {
                 null
             } catch (e: NumberFormatException) {
@@ -109,13 +125,13 @@ object MoneyParser {
         return numberRaw + "." + digits
     }
 
-    private fun applyMultiplier(money: Money, word: String?): Money {
-        if (word == null) return money
+    private fun applyMultiplier(major: BigDecimal, word: String?): BigDecimal {
+        if (word == null) return major
         val factor = when (word.lowercase().first()) {
             'l' -> LAKH
             else -> CRORE
         }
-        return Money.ofMajor(money.toBigDecimal().multiply(factor), money.currency)
+        return major.multiply(factor)
     }
 
     private val LAKH = BigDecimal(100_000)
@@ -156,10 +172,12 @@ object MoneyParser {
      *   "$1,234" for a 2-decimal currency); otherwise it is treated as decimal.
      * - only one kind present, more than once: thousands separator (grouping), e.g. "12,34,567".
      */
-    fun parseAmount(raw: String, currency: String): Money {
+    fun parseAmount(raw: String, currency: String): Money = Money.ofMajor(parseMajor(raw, currency), currency)
+
+    /** [raw] in major units of [currency], separators resolved as [parseAmount] does, before any rounding. */
+    private fun parseMajor(raw: String, currency: String): BigDecimal {
         val exponent = CurrencyTable.minorUnitExponent(currency.uppercase())
-        val cleaned = normalizeSeparators(raw, exponent)
-        return Money.ofMajor(BigDecimal(cleaned), currency)
+        return BigDecimal(normalizeSeparators(raw, exponent))
     }
 
     private fun normalizeSeparators(rawInput: String, exponent: Int): String {

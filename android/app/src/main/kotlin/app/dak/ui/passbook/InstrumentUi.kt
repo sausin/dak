@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.Payment
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,6 +30,7 @@ import app.dak.R
 import app.dak.core.model.InstrumentType
 import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountType
+import app.dak.finance.money.CurrencyTable
 import app.dak.finance.money.Money
 import app.dak.finance.passbook.GroupTotals
 import app.dak.finance.passbook.TotalKind
@@ -45,6 +47,7 @@ internal fun groupTitleRes(type: AccountType): Int = when (type) {
     AccountType.UPI -> R.string.inst_group_upi
     AccountType.PREPAID_CARD -> R.string.inst_group_prepaid
     AccountType.LOAN -> R.string.inst_group_loans
+    AccountType.INVESTMENT -> R.string.inst_group_investments
     AccountType.UNKNOWN -> R.string.inst_group_other
 }
 
@@ -58,11 +61,20 @@ internal fun kindRes(type: AccountType): Int = when (type) {
     AccountType.UPI -> R.string.inst_kind_upi
     AccountType.PREPAID_CARD -> R.string.inst_kind_prepaid
     AccountType.LOAN -> R.string.inst_kind_loan
+    AccountType.INVESTMENT -> R.string.inst_kind_investment
     AccountType.UNKNOWN -> R.string.inst_kind_other
 }
 
+/** Kind of [account] in its title: a mutual fund folio or demat account within investments, else [kindRes] of its type. */
 @StringRes
-private fun chipRes(type: AccountType): Int = when (type) {
+internal fun kindRes(account: Account): Int = when (account.instrument) {
+    InstrumentType.MUTUAL_FUND -> R.string.inst_kind_mutual_fund
+    InstrumentType.DEMAT -> R.string.inst_kind_demat
+    else -> kindRes(account.type)
+}
+
+@StringRes
+private fun chipRes(type: AccountType, instrument: InstrumentType?): Int = when (type) {
     AccountType.BANK_ACCOUNT -> R.string.inst_chip_account
     AccountType.CREDIT_CARD -> R.string.inst_chip_credit_card
     AccountType.DEBIT_CARD -> R.string.inst_chip_debit_card
@@ -70,6 +82,7 @@ private fun chipRes(type: AccountType): Int = when (type) {
     AccountType.UPI -> R.string.inst_chip_upi
     AccountType.PREPAID_CARD -> R.string.inst_chip_prepaid
     AccountType.LOAN -> R.string.inst_chip_loan
+    AccountType.INVESTMENT -> if (instrument == InstrumentType.DEMAT) R.string.inst_chip_demat else R.string.inst_chip_mutual_fund
     AccountType.UNKNOWN -> R.string.inst_chip_other
 }
 
@@ -83,6 +96,8 @@ internal fun typeOptionRes(instrument: InstrumentType): Int = when (instrument) 
     InstrumentType.UPI -> R.string.inst_type_option_upi
     InstrumentType.PREPAID_CARD -> R.string.inst_type_option_prepaid
     InstrumentType.LOAN -> R.string.inst_type_option_loan
+    InstrumentType.MUTUAL_FUND -> R.string.inst_type_option_mutual_fund
+    InstrumentType.DEMAT -> R.string.inst_type_option_demat
     InstrumentType.UNKNOWN -> R.string.inst_type_option_other
 }
 
@@ -95,6 +110,8 @@ internal val TYPE_OPTIONS: List<InstrumentType> = listOf(
     InstrumentType.UPI,
     InstrumentType.PREPAID_CARD,
     InstrumentType.LOAN,
+    InstrumentType.MUTUAL_FUND,
+    InstrumentType.DEMAT,
     InstrumentType.UNKNOWN,
 )
 
@@ -106,15 +123,16 @@ internal fun iconFor(type: AccountType): ImageVector = when (type) {
     AccountType.UPI -> Icons.Outlined.PhoneAndroid
     AccountType.PREPAID_CARD -> Icons.Outlined.CardGiftcard
     AccountType.LOAN -> Icons.Outlined.MonetizationOn
+    AccountType.INVESTMENT -> Icons.Outlined.PieChart
     AccountType.UNKNOWN -> Icons.Outlined.Receipt
 }
 
-/** Small type label ("Debit card") next to an account. */
+/** Small type label ("Debit card", "Mutual fund") next to an account; [instrument] tells a fund from a demat account. */
 @Composable
-internal fun TypeChip(type: AccountType, modifier: Modifier = Modifier) {
+internal fun TypeChip(type: AccountType, modifier: Modifier = Modifier, instrument: InstrumentType? = null) {
     Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer, modifier = modifier) {
         Text(
-            stringResource(chipRes(type)),
+            stringResource(chipRes(type, instrument)),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSecondaryContainer,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -164,9 +182,11 @@ internal fun totalsLine(totals: GroupTotals): String {
                 TotalKind.BALANCE -> stringResource(R.string.inst_total_balance, list)
                 TotalKind.OUTSTANDING -> stringResource(R.string.inst_total_outstanding, list)
                 TotalKind.SPENT_THIS_MONTH -> stringResource(R.string.inst_total_spent, list)
+                TotalKind.CURRENT_VALUE -> stringResource(R.string.inst_total_value, list)
             }
         }
         totals.kind == TotalKind.BALANCE -> stringResource(R.string.inst_total_no_balance)
+        totals.kind == TotalKind.CURRENT_VALUE -> stringResource(R.string.inst_total_no_value)
         totals.kind == TotalKind.OUTSTANDING -> stringResource(R.string.inst_total_no_outstanding)
         else -> stringResource(R.string.inst_total_nothing_spent)
     }
@@ -176,3 +196,15 @@ internal fun totalsLine(totals: GroupTotals): String {
         main
     }
 }
+
+/** "1,127.89" style: a units / shares figure as the SMS stated it, grouped for reading; the raw string if unparsable. */
+internal fun unitsText(units: String): String = runCatching {
+    val value = java.math.BigDecimal(units)
+    val format = java.text.NumberFormat.getNumberInstance()
+    format.maximumFractionDigits = maxOf(0, value.scale())
+    format.minimumFractionDigits = 0
+    format.format(value)
+}.getOrDefault(units)
+
+/** "₹109.4563": a NAV / price per unit with every decimal the SMS gave, in [currency]'s symbol (or ISO code). */
+internal fun unitPriceText(price: String, currency: String): String = CurrencyTable.symbolFor(currency) + unitsText(price)

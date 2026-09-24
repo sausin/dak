@@ -48,8 +48,40 @@ class IndexMigrationsTest {
             ),
             IndexMigrations.SQL_3_4,
         )
+    }
+
+    @Test
+    fun migration4To5AddsTheRunLogOnly() {
+        assertEquals(4, IndexMigrations.MIGRATION_4_5.startVersion)
+        assertEquals(5, IndexMigrations.MIGRATION_4_5.endVersion)
+        val sql = IndexMigrations.SQL_4_5
+        assertTrue(sql.none { it.contains("DROP", ignoreCase = true) || it.contains("DELETE", ignoreCase = true) || it.startsWith("ALTER") })
+        assertTrue(sql.first().startsWith("CREATE TABLE IF NOT EXISTS `automation_run` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"))
+        assertTrue(
+            sql.contains("CREATE INDEX IF NOT EXISTS `index_automation_run_ruleId_atMillis` ON `automation_run` (`ruleId`, `atMillis`)"),
+        )
+        assertTrue(sql.contains("CREATE INDEX IF NOT EXISTS `index_automation_run_atMillis` ON `automation_run` (`atMillis`)"))
+    }
+
+    @Test
+    fun migration5To6AddsInvestmentColumnsOnly() {
+        assertEquals(5, IndexMigrations.MIGRATION_5_6.startVersion)
+        assertEquals(6, IndexMigrations.MIGRATION_5_6.endVersion)
         assertEquals(
-            listOf(IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4),
+            listOf(
+                "ALTER TABLE `ledger_entry` ADD COLUMN `transfer` INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE `ledger_entry` ADD COLUMN `investmentAction` TEXT",
+                "ALTER TABLE `ledger_entry` ADD COLUMN `units` TEXT",
+                "ALTER TABLE `ledger_entry` ADD COLUMN `unitPrice` TEXT",
+                "ALTER TABLE `ledger_account` ADD COLUMN `unitsHeld` TEXT",
+            ),
+            IndexMigrations.SQL_5_6,
+        )
+        assertEquals(
+            listOf(
+                IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5,
+                IndexMigrations.MIGRATION_5_6,
+            ),
             IndexMigrations.ALL.toList(),
         )
     }

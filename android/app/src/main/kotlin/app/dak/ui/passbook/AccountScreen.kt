@@ -35,9 +35,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.annotation.StringRes
 import app.dak.R
+import app.dak.core.model.InvestmentAction
 import app.dak.core.model.TransactionDirection
 import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountType
@@ -121,8 +123,9 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 if (mergedIds.isNotEmpty()) {
                     item { MergedNumbers(mergedIds, onUnmerge = viewModel::unmerge) }
                 }
+                val investment = account?.type == AccountType.INVESTMENT
                 val latestMonth = monthly.lastOrNull()
-                if (latestMonth != null) item { MonthSummary(latestMonth) }
+                if (latestMonth != null) item { MonthSummary(latestMonth, investment) }
                 item { HorizontalDivider() }
                 if (list.isEmpty()) {
                     item { EmptyState(icon = Icons.Outlined.Receipt, title = stringResource(R.string.scr_account_no_entries), body = null) }
@@ -130,6 +133,7 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 items(list, key = { it.messageKey }) { entry ->
                     EntryRow(
                         entry = entry,
+                        investment = investment,
                         expanded = expanded == entry.messageKey,
                         onToggle = { expanded = if (expanded == entry.messageKey) null else entry.messageKey },
                         source = { viewModel.source(entry) },
@@ -198,8 +202,41 @@ private fun CardCycle(statementDay: Int?, outstanding: Money?, onEdit: () -> Uni
     }
 }
 
+/**
+ * The latest month's totals. A bank account shows spending and income (transfers into the user's own investments are
+ * not spending: they are shown on their own line); an investment account shows what was invested, redeemed / sold and
+ * paid out as dividends.
+ */
 @Composable
-private fun MonthSummary(month: MonthlyTotal) {
+private fun MonthSummary(month: MonthlyTotal, investment: Boolean) {
+    if (investment) InvestmentMonthSummary(month) else AccountMonthSummary(month)
+}
+
+@Composable
+private fun InvestmentMonthSummary(month: MonthlyTotal) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(R.string.scr_account_month, month.yearMonth), style = MaterialTheme.typography.labelLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Column {
+                Text(stringResource(R.string.inst_month_invested), style = MaterialTheme.typography.labelSmall)
+                Text(moneyText(month.transfersInHome), style = DakTheme.typography.amount, color = DakTheme.colors.financeCredit)
+            }
+            Column {
+                Text(stringResource(R.string.inst_month_redeemed), style = MaterialTheme.typography.labelSmall)
+                Text(moneyText(month.transfersOutHome), style = DakTheme.typography.amount, color = DakTheme.colors.financeDebit)
+            }
+            if (month.creditsHome.amountMinor != 0L) {
+                Column {
+                    Text(stringResource(R.string.inst_month_dividends), style = MaterialTheme.typography.labelSmall)
+                    Text(moneyText(month.creditsHome), style = DakTheme.typography.amount, color = DakTheme.colors.financeCredit)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountMonthSummary(month: MonthlyTotal) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(R.string.scr_account_month, month.yearMonth), style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -211,6 +248,13 @@ private fun MonthSummary(month: MonthlyTotal) {
                 Text(stringResource(R.string.scr_account_received), style = MaterialTheme.typography.labelSmall)
                 Text(moneyText(month.creditsHome), style = DakTheme.typography.amount, color = DakTheme.colors.financeCredit)
             }
+        }
+        if (month.transfersOutHome.amountMinor != 0L || month.transfersInHome.amountMinor != 0L) {
+            Text(
+                stringResource(R.string.inst_month_transfers, moneyText(month.transfersOutHome), moneyText(month.transfersInHome)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         val foreign = month.debitsByCurrency.keys.filter { it != month.debitsHome.currencyUpper }
         if (foreign.isNotEmpty()) {
@@ -234,6 +278,7 @@ private fun MonthSummary(month: MonthlyTotal) {
 @Composable
 private fun EntryRow(
     entry: LedgerEntry,
+    investment: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
     source: () -> kotlinx.coroutines.flow.Flow<app.dak.index.MessageItem?>,
@@ -242,16 +287,28 @@ private fun EntryRow(
     val formatter = rememberRelativeTimeFormatter()
     val debit = entry.direction == TransactionDirection.DEBIT
     val amountColor = if (debit) DakTheme.colors.financeDebit else DakTheme.colors.financeCredit
+    val action = entry.investmentAction
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    entry.merchant ?: stringResource(if (debit) R.string.scr_account_debit else R.string.scr_account_credit),
+                    entry.merchant
+                        ?: action?.let { stringResource(investmentActionRes(it)) }
+                        ?: stringResource(if (debit) R.string.scr_account_debit else R.string.scr_account_credit),
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(formatter.formatAbsolute(entry.dateMillis), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(formatter.formatAbsolute(entry.dateMillis), style = MaterialTheme.typography.labelSmall, color = muted)
+                if (action != null && entry.merchant != null) {
+                    Text(stringResource(investmentActionRes(action)), style = MaterialTheme.typography.labelSmall, color = muted)
+                }
+                unitsLine(entry)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = muted) }
+                // A bank's SIP / mutual-fund / trading-account debit: money moved to the user's own investments.
+                if (entry.transfer && !investment) {
+                    Text(stringResource(R.string.inst_entry_own_transfer), style = MaterialTheme.typography.labelSmall, color = muted)
+                }
                 entry.viaAccountId?.let { via ->
                     Text(
                         stringResource(R.string.inst_row_via, viaLabel(via)),
@@ -261,10 +318,17 @@ private fun EntryRow(
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text((if (debit) "−" else "+") + moneyText(entry.original, homeCurrency = entry.homeValue.currencyUpper), style = DakTheme.typography.amount, color = amountColor)
-                ForeignLine(entry)
-                entry.balanceAfter?.let {
-                    Text(stringResource(R.string.scr_account_balance_after, moneyText(it)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (entry.isValuation) {
+                    // A statement of value: no money moved, so no signed amount.
+                    entry.balanceAfter?.let { Text(moneyText(it), style = DakTheme.typography.amount) }
+                    Text(stringResource(R.string.inst_entry_value), style = MaterialTheme.typography.labelSmall, color = muted)
+                } else {
+                    Text((if (debit) "−" else "+") + moneyText(entry.original, homeCurrency = entry.homeValue.currencyUpper), style = DakTheme.typography.amount, color = amountColor)
+                    ForeignLine(entry)
+                    entry.balanceAfter?.let {
+                        val label = if (investment) R.string.inst_entry_value_after else R.string.scr_account_balance_after
+                        Text(stringResource(label, moneyText(it)), style = MaterialTheme.typography.labelSmall, color = muted)
+                    }
                 }
             }
         }
@@ -281,6 +345,32 @@ private fun EntryRow(
                 }
             }
         }
+    }
+}
+
+/** Label of an investment entry: "Purchase / SIP", "Redemption", "Switch", "Dividend / IDCW", "Bought", "Sold", "Valuation". */
+@StringRes
+private fun investmentActionRes(action: InvestmentAction): Int = when (action) {
+    InvestmentAction.PURCHASE -> R.string.inst_action_purchase
+    InvestmentAction.REDEMPTION -> R.string.inst_action_redemption
+    InvestmentAction.SWITCH -> R.string.inst_action_switch
+    InvestmentAction.DIVIDEND -> R.string.inst_action_dividend
+    InvestmentAction.BUY -> R.string.inst_action_buy
+    InvestmentAction.SELL -> R.string.inst_action_sell
+    InvestmentAction.VALUATION -> R.string.inst_action_valuation
+}
+
+/** "45.678 units @ ₹109.4563", "10 units", "NAV ₹21.55": what an investment entry moved, as the SMS stated it. */
+@Composable
+private fun unitsLine(entry: LedgerEntry): String? {
+    val units = entry.units
+    val price = entry.unitPrice
+    val currency = entry.original.currencyUpper
+    return when {
+        units != null && price != null -> stringResource(R.string.inst_entry_units_at, unitsText(units), unitPriceText(price, currency))
+        units != null -> stringResource(R.string.inst_entry_units, unitsText(units))
+        price != null -> stringResource(R.string.inst_entry_price, unitPriceText(price, currency))
+        else -> null
     }
 }
 

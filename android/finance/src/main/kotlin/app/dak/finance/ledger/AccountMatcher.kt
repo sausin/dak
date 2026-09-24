@@ -1,5 +1,8 @@
 package app.dak.finance.ledger
 
+import app.dak.finance.money.DigitNormalizer
+import app.dak.finance.parser.InstrumentDetector
+
 /** What the matcher knows about one ledger account. */
 data class AccountObservation(
     val accountId: String,
@@ -124,16 +127,16 @@ object AccountMatcher {
     }
 }
 
-/** Finds masked account/card numbers (`XX1234`, `**440065`, `A/c ending 1234`) in a message body. */
+/**
+ * Finds masked account/card numbers (`XX1234`, `**440065`, `A/c X5073`, `A/c ending 1234`, `Card 4375XXXX1234`) in a
+ * message body — the same numbers, found the same way, as the transaction parser reads.
+ */
 object MaskedNumbers {
-    private val masked = Regex("""[xX*]{2,}\s*(\d{4,})""")
-    private val ending = Regex("""ending\s+(?:with\s+|in\s+)?(\d{4,})""", RegexOption.IGNORE_CASE)
 
     /** The visible digits of every masked number in [body], in order of appearance, without duplicates. */
     fun findAll(body: String): List<String> =
-        (masked.findAll(body) + ending.findAll(body))
-            .sortedBy { it.range.first }
-            .map { it.groupValues[1] }
+        InstrumentDetector.findRefs(DigitNormalizer.normalizeDigits(body))
+            .map { ref -> ref.masked.filter { it.isDigit() } }
+            .filter { it.length >= AccountMatcher.MIN_SUFFIX }
             .distinct()
-            .toList()
 }

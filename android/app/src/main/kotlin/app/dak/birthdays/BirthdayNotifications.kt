@@ -42,7 +42,7 @@ class BirthdayNotifications @Inject constructor(@ApplicationContext private val 
         val edit = PendingIntent.getActivity(
             context,
             id,
-            IntentRoutes.open(context, Routes.compose(to = number, body = body)),
+            IntentRoutes.open(context, Routes.compose(to = number, body = body, subId = subId)),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, NotificationChannels.AUTOMATION)

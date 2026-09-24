@@ -14,6 +14,7 @@ import app.dak.navigation.IntentRoutes
 import app.dak.navigation.Routes
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
+import app.dak.ui.common.text.BidiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -76,7 +77,8 @@ class NotificationSummaries @Inject constructor(
             val extras = sbn.notification.extras
             val who = extras.getCharSequence(NotificationCompat.EXTRA_TITLE)
             val what = extras.getCharSequence(NotificationCompat.EXTRA_TEXT)
-            style.addLine(listOfNotNull(who, what).joinToString(": "))
+            // Each part isolated (FSI…PDI): an Arabic or Urdu sender name cannot swap places with the ": " and body.
+            style.addLine(listOfNotNull(who, what).joinToString(": ") { BidiText.isolate(it.toString()) })
         }
         val open = PendingIntent.getActivity(
             context,
@@ -122,7 +124,7 @@ class NotificationSummaries @Inject constructor(
     private fun titleOf(category: Category): Int = when (category) {
         Category.PERSONAL -> R.string.channel_personal
         Category.OTP -> R.string.channel_otp
-        Category.TRANSACTION -> R.string.channel_transactions
+        Category.TRANSACTION -> R.string.channel_alerts
         Category.PROMOTION -> R.string.channel_promotions
         Category.SPAM -> R.string.channel_spam
         Category.UNKNOWN -> R.string.channel_other

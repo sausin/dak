@@ -350,7 +350,13 @@ object BackupCrypto {
         }
 
         private fun readNextSegment(): ByteArray? {
-            val lengthBytes = tryReadFully(4) ?: run { finished = true; return null }
+            val lengthBytes = tryReadFully(4) ?: run {
+                // The writer always emits a final segment (even for an empty payload), so a body with no segment at
+                // all was cut off right after the header.
+                if (counter == 0) throw TamperedException("Backup has no data segments (truncated)")
+                finished = true
+                return null
+            }
             if (lengthBytes.size != 4) throw TamperedException("Truncated segment length header")
             val ctLen = ((lengthBytes[0].toInt() and 0xFF) shl 24) or ((lengthBytes[1].toInt() and 0xFF) shl 16) or
                 ((lengthBytes[2].toInt() and 0xFF) shl 8) or (lengthBytes[3].toInt() and 0xFF)

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import app.dak.R
 import app.dak.core.model.Category
 import app.dak.core.model.SimInfo
@@ -19,26 +20,25 @@ import javax.inject.Singleton
 /**
  * Dak's notification channels.
  *
- * - Flat channels with stable ids (the constants below) always exist, grouped under "Messages" and "App". Other
- *   modules may post to [FAILURES], [MMS] and [AUTOMATION] by id.
+ * - Flat channels with stable ids (the constants below) always exist, grouped under "Incoming messages" and "App".
+ *   Other modules may post to [FAILURES], [MMS] and [AUTOMATION] by id.
  * - On a multi-SIM device each message category also gets a per-SIM copy (`otp.sim2`, see [SimChannelIds]) inside
  *   a group named "SIM 2 · Airtel", created lazily on the first notification for that SIM. A new per-SIM copy
  *   starts from the flat channel's current settings, so earlier user customisation carries over.
  * - Per-conversation channels live in [ConversationChannels].
  *
- * Channels are created once; afterwards the system owns sound, vibration and importance. Obsolete ids are deleted
- * once per [SCHEMA] bump. All work is a few binder calls, done in `Application.onCreate` or on first use.
+ * Channels are created once; afterwards the system owns sound, vibration and importance. Renamed and obsolete ids
+ * are migrated / deleted once per [SCHEMA] bump. All work is a few binder calls, done in `Application.onCreate` or
+ * on first use. Which channel a message goes to is decided by [ChannelRouting].
  */
 @Singleton
-/** `NotificationManager.VISIBILITY_NO_OVERRIDE` is hidden from the public SDK; this is its platform value. */
-private const val VISIBILITY_NO_OVERRIDE = -1000
-
 class NotificationChannels @Inject constructor(@ApplicationContext private val context: Context) {
 
     companion object {
         const val PERSONAL = "personal"
         const val OTP = "otp"
-        const val TRANSACTIONS = "transactions"
+        /** Bank, card and payment alerts, and fake-credit warnings (replaced `transactions` in schema 3). */
+        const val ALERTS = "alerts"
         const val PROMOTIONS = "promotions"
         const val OTHER = "other"
         const val SPAM = "spam_silent"
@@ -51,28 +51,29 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
         /** Scheduled sends and automation results ("notify" action, tap-to-open prompts). */
         const val AUTOMATION = "automation"
 
+        /**
+         * Heads-ups shortly before a scheduled message goes out (Send now / Delay / Cancel), posted by
+         * [app.dak.automation.ScheduledSendHeadsUp]. Default importance: it makes a sound but does not pop up, and
+         * quiet hours / Do Not Disturb apply as set by the user (no bypass).
+         */
+        const val SCHEDULED = "scheduled_messages"
+
         const val GROUP_MESSAGES = "messages"
         const val GROUP_APP = "app"
         const val GROUP_CONVERSATIONS = "conversations"
 
-        /** Bump when [ChannelCatalog.obsolete] gains ids or defaults change. */
-        private const val SCHEMA = 2
+        /** Bump when [ChannelCatalog.renamed] or [ChannelCatalog.obsolete] gain ids or defaults change. */
+        private const val SCHEMA = 3
         private const val PREFS = "dak_notification_channels"
         private const val KEY_SCHEMA = "schema"
         private const val KEY_LOCALE = "locale"
+        private const val TAG = "DakChannels"
 
         /** Channels that must be enabled for the core promise (OTPs and people reach the user). */
         val critical: List<String> = ChannelCatalog.all.filter { it.critical }.map { it.id }
 
-        /** Base channel for an incoming message of [category]. */
-        fun forCategory(category: Category): String = when (category) {
-            Category.PERSONAL -> PERSONAL
-            Category.OTP -> OTP
-            Category.TRANSACTION -> TRANSACTIONS
-            Category.PROMOTION -> PROMOTIONS
-            Category.SPAM -> SPAM
-            Category.UNKNOWN -> OTHER
-        }
+        /** Base channel for an incoming message of [category] (see [ChannelRouting] for the full rules). */
+        fun forCategory(category: Category): String = ChannelRouting.baseChannel(category)
 
         /**
          * System settings page for one channel. [conversationShortcutId] targets the conversation's own page on
@@ -112,7 +113,14 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
             val existing = nm.notificationChannels.mapTo(HashSet()) { it.id }
             val complete = ChannelCatalog.all.all { it.id in existing }
             if (schema != SCHEMA) {
-                ChannelCatalog.obsolete.filter { it in existing }.forEach { nm.deleteNotificationChannel(it) }
+                // Never let a failed migration stop channel creation (the new channels then start from defaults).
+                try {
+                    migrateRenamed(nm)
+                } catch (e: RuntimeException) {
+                    Log.w(TAG, "channel migration failed: ${e.javaClass.simpleName}")
+                }
+                existing.filter { it in ChannelCatalog.obsolete || SimChannelIds.baseOf(it) in ChannelCatalog.obsolete }
+                    .forEach { nm.deleteNotificationChannel(it) }
             }
             if (!complete || schema != SCHEMA || prefs.getString(KEY_LOCALE, null) != locale) {
                 createBase(nm)
@@ -243,7 +251,29 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
 
     // ------------------------------------------------------------------------------------------------ internals
 
-    private fun createBase(nm: NotificationManager) {
+    /**
+     * Creates the replacement of every channel whose id was retired ([ChannelCatalog.renamed]), flat and per-SIM,
+     * before the old one is deleted: a channel the user changed seeds the new one with its settings (importance,
+     * sound, vibration, lock-screen visibility, blocked state), an untouched one gets the new defaults. DND bypass
+     * cannot be carried over (only the user can grant it). Deleting the old channel also removes notifications still
+     * showing on it, once, on the first start after the update.
+     */
+    private fun migrateRenamed(nm: NotificationManager) {
+        val current = nm.notificationChannels
+        val existing = current.mapTo(HashSet()) { it.id }
+        val toCreate = current.mapNotNull { old ->
+            val newId = ChannelCatalog.renamedTarget(old.id) ?: return@mapNotNull null
+            if (newId in existing) return@mapNotNull null
+            val renamed = ChannelCatalog.renamed[SimChannelIds.baseOf(old.id) ?: old.id] ?: return@mapNotNull null
+            val spec = ChannelCatalog.specOf(renamed.to) ?: return@mapNotNull null
+            build(spec, newId, old.group ?: GROUP_MESSAGES, seed = old.takeIf { isCustomised(it, renamed.defaults) })
+        }
+        if (toCreate.isEmpty()) return
+        createGroups(nm) // the old channels' groups exist already; this covers a flat channel that had none
+        nm.createNotificationChannels(toCreate)
+    }
+
+    private fun createGroups(nm: NotificationManager) {
         nm.createNotificationChannelGroups(
             listOf(
                 NotificationChannelGroup(GROUP_MESSAGES, context.getString(R.string.channel_group_messages)),
@@ -251,6 +281,10 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
                 NotificationChannelGroup(GROUP_CONVERSATIONS, context.getString(R.string.ch_group_conversations)),
             ),
         )
+    }
+
+    private fun createBase(nm: NotificationManager) {
+        createGroups(nm)
         // For existing ids this only refreshes name/description (and lowers importance of untouched channels,
         // which is how spam became blocked-by-default for users who never changed it).
         nm.createNotificationChannels(
@@ -290,15 +324,17 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
                 enableVibration(false)
                 setShowBadge(false)
             } else {
-                setSound(Settings.System.DEFAULT_NOTIFICATION_URI, audioAttributes(spec.perSim))
+                setSound(Settings.System.DEFAULT_NOTIFICATION_URI, audioAttributes())
                 enableVibration(true)
                 setShowBadge(true)
             }
         }
 
-    private fun audioAttributes(message: Boolean): AudioAttributes = AudioAttributes.Builder()
+    // USAGE_NOTIFICATION_COMMUNICATION_INSTANT is deprecated (the platform treats it as USAGE_NOTIFICATION); Do Not
+    // Disturb's "messages" exemption follows the notification category, not the audio usage.
+    private fun audioAttributes(): AudioAttributes = AudioAttributes.Builder()
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-        .setUsage(if (message) AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT else AudioAttributes.USAGE_NOTIFICATION)
+        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
         .build()
 
     private fun activeSlots(sims: List<SimInfo>): Set<Int> =
@@ -311,6 +347,9 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
         else context.getString(R.string.ch_group_sim_carrier, number, carrier)
     }
 }
+
+/** `NotificationManager.VISIBILITY_NO_OVERRIDE` is hidden from the public SDK; this is its platform value. */
+private const val VISIBILITY_NO_OVERRIDE = -1000
 
 /** One channel as the system currently has it. */
 data class ChannelState(

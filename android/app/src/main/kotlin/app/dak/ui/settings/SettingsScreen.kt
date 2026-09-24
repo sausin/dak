@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Translate
@@ -35,10 +36,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.navigation.DakNavigator
@@ -88,6 +90,18 @@ fun SettingsScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewM
                     )
                 }
                 if (state.query.isBlank()) {
+                    // Privacy is one tap from here and the policy one more (Play: policy reachable in-app).
+                    item(key = "privacy") {
+                        val context = LocalContext.current
+                        ListItem(
+                            modifier = Modifier.clickable { SettingsActions.openPrivacy(context) },
+                            leadingContent = { Icon(Icons.Outlined.PrivacyTip, contentDescription = null) },
+                            headlineContent = { Text(stringResource(R.string.privacy_title)) },
+                            supportingContent = {
+                                Text(stringResource(R.string.privacy_settings_entry_summary), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            },
+                        )
+                    }
                     items(state.sections, key = { it.id }) { section ->
                         ListItem(
                             modifier = Modifier.clickable { navigator.navigate(Routes.settingsGroup(section.id)) },

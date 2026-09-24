@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import app.dak.di.IndexControl
 import app.dak.navigation.Routes
 import app.dak.premium.Entitlements
+import app.dak.premium.consent.ConsentLedger
+import app.dak.premium.consent.DataFlow
 import app.dak.settings.AppSettingsStore
 import app.dak.settings.AppearanceSettings
 import app.dak.settings.DakSettings
@@ -18,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
@@ -33,7 +36,22 @@ class SettingsViewModel @Inject constructor(
     private val entitlements: Entitlements,
     private val deviceContext: DeviceContextProvider,
     private val indexControl: IndexControl,
+    private val consents: ConsentLedger,
 ) : ViewModel(), SettingsCommands {
+
+    /**
+     * A data flow whose prominent disclosure must be shown before a row can be turned on (Play User Data policy).
+     * Null when nothing is pending; the UI shows [app.dak.ui.privacy.DisclosureDialog] while set.
+     */
+    private val pendingDisclosureState = MutableStateFlow<DataFlow?>(null)
+    val pendingDisclosure: StateFlow<DataFlow?> = pendingDisclosureState.asStateFlow()
+
+    init {
+        // A restored or imported settings file can carry "Jev on", but never the consent: keep the row honest.
+        if (store.get(DakSettings.jevOptIn) && !consents.isGranted(DataFlow.CLOUD_CLASSIFICATION)) {
+            store.set(DakSettings.jevOptIn, false)
+        }
+    }
 
     /** Section shown by SettingsGroupScreen (null on the root screen). */
     val sectionId: String? = savedStateHandle.get<String>(Routes.ARG_GROUP)
@@ -57,7 +75,30 @@ class SettingsViewModel @Inject constructor(
 
     fun setRaw(def: SettingDef<*>, raw: String) {
         if (def.isLocked(entitlements)) return
+        val flow = consentFlowFor(def)
+        if (flow != null) {
+            val on = raw.toBooleanStrictOrNull() ?: return
+            if (on && !consents.isGranted(flow)) {
+                // Turning it on waits for an explicit "Allow" on the disclosure; see acceptDisclosure.
+                pendingDisclosureState.value = flow
+                return
+            }
+            if (!on) consents.withdraw(flow, SOURCE)
+        }
         store.setRaw(def, raw)
+    }
+
+    /** The user tapped "Allow" on the disclosure: record the consent, then turn the row on. */
+    fun acceptDisclosure(flow: DataFlow) {
+        pendingDisclosureState.value = null
+        consents.grant(flow, SOURCE)
+        rowFor(flow)?.let { store.setRaw(it, "true") }
+    }
+
+    /** "Not now": the row stays off; the decline is kept as an audit record. */
+    fun declineDisclosure(flow: DataFlow) {
+        pendingDisclosureState.value = null
+        consents.decline(flow, SOURCE)
     }
 
     fun toggle(row: RowState) {
@@ -69,16 +110,35 @@ class SettingsViewModel @Inject constructor(
         if (sectionId == APPEARANCE_SECTION) {
             store.resetAppearance()
         } else {
-            SettingsGroup.entries.firstOrNull { it.name == sectionId }?.let { store.resetGroup(it) }
+            SettingsGroup.entries.firstOrNull { it.name == sectionId }?.let { group ->
+                store.resetGroup(group)
+                // Defaults are off: a reset of a group holding a consent-gated row is also a withdrawal.
+                DakSettings.byGroup(group).forEach { def -> consentFlowFor(def)?.let { consents.withdraw(it, SOURCE) } }
+            }
         }
     }
 
     override fun rebuildIndex(): Boolean = indexControl.rebuildIndex()
 
+    /** Rows that switch an off-device data flow on (each needs its own consent). */
+    private fun consentFlowFor(def: SettingDef<*>): DataFlow? = when (def.key) {
+        DakSettings.jevOptIn.key -> DataFlow.CLOUD_CLASSIFICATION
+        else -> null
+    }
+
+    private fun rowFor(flow: DataFlow): SettingDef<*>? = when (flow) {
+        DataFlow.CLOUD_CLASSIFICATION -> DakSettings.jevOptIn
+        else -> null
+    }
+
     /** Section id for a setting key (deep links from anywhere in the app). */
     fun sectionIdFor(key: String): String? = when {
         AppearanceSettings.byKey(key) != null -> APPEARANCE_SECTION
         else -> DakSettings.byKey(key)?.group?.name
+    }
+
+    private companion object {
+        const val SOURCE = "settings"
     }
 
     private fun build(raw: Map<String, String>, device: DeviceContext, q: String): SettingsUiState {

@@ -4,7 +4,7 @@ package app.dak.mms.pdu
  * Decodes MMS encapsulation PDUs (OMA-MMS-ENC 1.0–1.3 with WSP header encoding).
  *
  * Supported: m-notification-ind, m-retrieve-conf, m-send-conf, m-delivery-ind, m-read-orig-ind, and (for
- * round-trips and re-sends) m-send-req, m-notifyresp-ind, m-acknowledge-ind. Unknown headers are skipped using the
+ * round-trips and re-sends) m-send-req, m-notifyresp-ind, m-acknowledge-ind, m-read-rec-ind. Unknown headers are skipped using the
  * generic WSP value rules; application headers are ignored. This function never throws.
  */
 object MmsPduDecoder {
@@ -38,6 +38,47 @@ object MmsPduDecoder {
     /** Convenience: decodes and returns the PDU only when it is of type [T]. */
     inline fun <reified T : MmsPdu> decodeAs(bytes: ByteArray): T? = decode(bytes).getOrNull() as? T
 
+    /**
+     * Salvages X-Mms-Message-Type, X-Mms-Transaction-ID and X-Mms-MMS-Version from a PDU that [decode] rejects
+     * (truncated, malformed, unknown type, missing mandatory header), reading headers until the first error. MMS-ENC
+     * puts these three first, so even a badly damaged notification usually yields its transaction id, which is what
+     * an m-notifyresp-ind "Unrecognised" answer needs (see [MmsClientTransactions.forUndecodable]). Never throws;
+     * null when not even one of the three could be read.
+     */
+    fun peekPreamble(bytes: ByteArray): PduPreamble? {
+        if (bytes.isEmpty() || bytes.size > MmsLimits.MAX_PDU_BYTES) return null
+        var type: Int? = null
+        var transactionId: String? = null
+        var version: Int? = null
+        try {
+            val r = WspReader(bytes)
+            var headers = 0
+            while (r.hasMore() && headers < MAX_PREAMBLE_HEADERS) {
+                val b = r.peek()
+                if (b < 0x80) break // application header or garbage: the preamble is over
+                r.readOctet()
+                headers++
+                when (val field = b and 0x7F) {
+                    Field.MESSAGE_TYPE -> type = r.readOctet()
+                    Field.MMS_VERSION -> version = r.readOctet() and 0x7F
+                    Field.TRANSACTION_ID -> transactionId = r.readTextString()
+                        .takeIf { it.isNotEmpty() && it.length <= MmsLimits.MAX_TOKEN_CHARS }
+                    Field.CONTENT_TYPE -> break
+                    else -> readField(field, r)
+                }
+            }
+        } catch (e: Exception) {
+            // Keep whatever was read before the damage.
+        } catch (e: StackOverflowError) {
+            // Same.
+        }
+        if (type == null && transactionId == null && version == null) return null
+        return PduPreamble(type, transactionId, version)
+    }
+
+    /** Headers [peekPreamble] reads at most before giving up (the preamble is the first three). */
+    private const val MAX_PREAMBLE_HEADERS = 32
+
     // --- Headers --------------------------------------------------------------------------------------------
 
     private class MissingHeaderException(val header: String) : Exception(header)
@@ -50,7 +91,12 @@ object MmsPduDecoder {
         private var addresses = 0
 
         fun add(field: Int, value: Any) {
-            if (field == Field.TO || field == Field.CC || field == Field.BCC) {
+            val isAddress = field == Field.TO || field == Field.CC || field == Field.BCC
+            if (value is String && value.length > maxChars(field, isAddress)) {
+                // Oversized addresses and identifiers are hostile: treat them as absent (subjects are truncated later).
+                return
+            }
+            if (isAddress) {
                 // Hostile PDUs can repeat To thousands of times; each would become a thread member and addr row.
                 if (addresses >= MmsLimits.MAX_ADDRESSES) return
                 addresses++
@@ -58,12 +104,18 @@ object MmsPduDecoder {
             values.getOrPut(field) { ArrayList(1) }.add(value)
         }
 
+        private fun maxChars(field: Int, isAddress: Boolean): Int = when {
+            isAddress -> MmsLimits.MAX_ADDRESS_CHARS
+            field in DISPLAY_TEXT_FIELDS -> Int.MAX_VALUE
+            else -> MmsLimits.MAX_TOKEN_CHARS
+        }
+
         fun first(field: Int): Any? = values[field]?.firstOrNull()
         fun octet(field: Int): Int? = first(field) as? Int
         fun text(field: Int): String? = first(field) as? String
 
         /** Human-readable header text (subject, status texts), truncated to [MmsLimits.MAX_HEADER_TEXT_CHARS]. */
-        fun displayText(field: Int): String? = text(field)?.take(MmsLimits.MAX_HEADER_TEXT_CHARS)
+        fun displayText(field: Int): String? = text(field)?.let { MmsSafety.truncate(it, MmsLimits.MAX_HEADER_TEXT_CHARS) }
         fun number(field: Int): Long? = first(field) as? Long
         fun time(field: Int): MmsTime? = first(field) as? MmsTime
         fun texts(field: Int): List<String> = values[field]?.filterIsInstance<String>().orEmpty()
@@ -76,8 +128,13 @@ object MmsPduDecoder {
         fun from(): FromValue? = first(Field.FROM) as? FromValue
     }
 
-    /** From header: [address] is null for the Insert-address-token. */
-    private class FromValue(val address: String?)
+    /** From header: [address] is null for the Insert-address-token (and for an oversized, hostile address). */
+    private class FromValue(address: String?) {
+        val address: String? = address?.takeIf { it.length <= MmsLimits.MAX_ADDRESS_CHARS }
+    }
+
+    /** Free-text headers that are truncated (see [Headers.displayText]) rather than dropped when oversized. */
+    private val DISPLAY_TEXT_FIELDS = setOf(Field.SUBJECT, Field.RETRIEVE_TEXT, Field.RESPONSE_TEXT, Field.STORE_STATUS_TEXT)
 
     private fun readHeaders(r: WspReader): Headers {
         val headers = Headers()
@@ -256,6 +313,14 @@ object MmsPduDecoder {
                 to = h.texts(Field.TO).map(MmsAddress::fromWire),
                 dateSeconds = h.number(Field.DATE),
                 readStatus = h.octet(Field.READ_STATUS),
+                mmsVersion = version,
+            )
+            MessageType.READ_REC_IND -> ReadRecInd(
+                messageId = h.text(Field.MESSAGE_ID) ?: throw MissingHeaderException("Message-ID"),
+                to = h.texts(Field.TO).firstOrNull()?.let(MmsAddress::fromWire) ?: throw MissingHeaderException("To"),
+                from = h.from()?.address,
+                dateSeconds = h.number(Field.DATE),
+                readStatus = h.octet(Field.READ_STATUS) ?: ReadStatus.READ,
                 mmsVersion = version,
             )
             else -> throw UnsupportedTypeException(type)

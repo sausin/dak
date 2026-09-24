@@ -17,24 +17,48 @@
     <string name="fw_filter_category">Only these categories (optional)</string>
     <string name="fw_field_keyword">Only if the message contains (optional)</string>
     <string name="fw_section_to">Send them to</string>
-    <string name="fw_field_number">Phone number</string>
-    <string name="fw_add_number">Add number</string>
     <string name="fw_pick_contact">Pick from contacts</string>
+    <string name="fw_contacts_only_note">Forwards only go to people saved in your contacts. Before every forward Dak checks they still are; if not, the rule pauses.</string>
+    <string name="fw_contacts_permission_needed">Allow contacts access so Dak can check, before every forward, that the recipient is still in your contacts.</string>
+    <string name="fw_recipient_not_contact">Not picked from your contacts. Remove it and pick the person from your contacts.</string>
+    <string name="fw_recipient_risky">Be careful with %1$s: %2$s.</string>
+    <string name="fw_risk_recent_contact">saved or edited in the last 7 days</string>
+    <string name="fw_risk_no_history">you have never exchanged SMS with this number</string>
+    <string name="fw_risk_international">a foreign number</string>
+    <string name="fw_risk_unusual">not a normal mobile number</string>
     <string name="fw_section_when">Active period</string>
     <string name="fw_start">Starts</string>
     <string name="fw_end">Ends (inclusive)</string>
     <string name="fw_until_stopped">Until I stop it</string>
-    <string name="fw_end_before_start">The end date is before the start date.</string>
+    <string name="fw_end_before_start">The end is before the start.</string>
+    <string name="fw_period_default_note">New rules forward for 1 hour. Anything longer, or "Until I stop it", needs your fingerprint or screen lock.</string>
+    <string name="fw_period_long_note">Longer than 1 hour: saving needs your fingerprint or screen lock.</string>
+    <string name="fw_date_time">%1$s, %2$s</string>
     <string name="fw_section_message">Message</string>
     <string name="fw_template_help">Placeholders: {sender}, {body}, {time}, {amount}, {merchant}, {sim}. Default: \"Fwd from {sender}: {body}\".</string>
     <string name="fw_include_otp">Include OTPs</string>
     <string name="fw_include_otp_summary">Off by default. Turning it on needs your fingerprint, face or screen lock.</string>
     <string name="fw_include_otp_warning">Anyone who receives your OTPs can log in to your accounts or approve payments. Only forward OTPs to someone you fully trust.</string>
     <string name="fw_free_note">Forwarding runs on this phone only. Nothing is sent to Dak\'s servers.</string>
-    <string name="fw_incomplete">Pick at least one sender and one recipient, and an end date after the start.</string>
+    <string name="fw_incomplete">Pick at least one sender and one recipient from your contacts, and an end after the start.</string>
     <string name="fw_issue_loop">%1$s is also a sender of this rule or one of your own numbers, which would forward messages in a loop.</string>
-    <string name="fw_confirm_otp_title">Confirm forwarding OTPs</string>
-    <string name="fw_confirm_otp_subtitle">This rule will forward one-time passwords to another phone.</string>
+    <string name="fw_confirm_forward_title">Confirm auto-forwarding</string>
+    <string name="fw_confirm_forward_subtitle">Your messages will be forwarded to another phone automatically.</string>
+    <!-- High-risk confirmation (long / open-ended / extended period, OTPs, risky recipient) -->
+    <string name="fw_risk_title">Stop. Did someone ask you to do this?</string>
+    <string name="fw_risk_body">Whoever receives your forwarded messages can read your bank alerts and one-time passwords (OTPs) and use them to take over your bank, UPI, email and other accounts.
+
+Scammers pretending to be from a bank, the police, a courier, your telecom operator or customer support often ask people to set up message forwarding "for verification" or "to stop a fraud". No genuine bank, official or company will ever ask you to do this.
+
+If someone on a call or chat asked you to set this up, stop now and hang up.</string>
+    <string name="fw_risk_reasons">Why you are seeing this:</string>
+    <string name="fw_risk_reason_long">Forwarding runs for more than 1 hour.</string>
+    <string name="fw_risk_reason_open">Forwarding runs until you stop it.</string>
+    <string name="fw_risk_reason_extend">You are making this rule forward for longer.</string>
+    <string name="fw_risk_reason_otp">One-time passwords (OTPs) will be forwarded.</string>
+    <string name="fw_risk_reason_recipient">%1$s: %2$s.</string>
+    <string name="fw_risk_ack">I am setting this up for myself. Nobody asked me to.</string>
+    <string name="fw_risk_continue">Continue</string>
     <string name="fw_otp_notice_title">OTPs are being forwarded</string>
     <string name="fw_otp_notice_body">At least one active rule forwards one-time passwords. Turn it off as soon as you no longer need it.</string>
     <string name="fw_row_route">%1$s → %2$s</string>
@@ -43,6 +67,14 @@
     <string name="fw_status_scheduled">Scheduled</string>
     <string name="fw_status_paused">Paused</string>
     <string name="fw_status_ended">Ended</string>
+    <string name="fw_status_paused_contact">Paused: recipient is not in your contacts</string>
+    <string name="fw_status_paused_access">Paused: allow contacts access</string>
+    <string name="fw_row_needs_confirmation">Not forwarding until you confirm it with your fingerprint or screen lock</string>
+    <string name="fw_row_confirm">Confirm</string>
+    <string name="fw_enable_contact_missing">%1$s is not in your contacts any more. Edit the rule and pick a contact.</string>
+    <string name="fw_paused_notification_title">Forwarding paused: %1$s</string>
+    <string name="fw_paused_contact_missing">%1$s is no longer in your contacts, so nothing is forwarded to them. Forwards only go to saved contacts.</string>
+    <string name="fw_paused_no_access">Dak can no longer read your contacts to check %1$s, so forwarding is paused. Allow contacts access, then turn the rule back on.</string>
     <string name="fw_period_range">%1$s – %2$s</string>
     <string name="fw_period_from">from %1$s</string>
     <string name="fw_period_until">until %1$s</string>
@@ -69,7 +101,7 @@
     <string name="fw_bd_mode_ask">Ask me first</string>
     <string name="fw_bd_mode_auto">Send automatically</string>
     <string name="fw_bd_mode_ask_summary">On the day you get a notification with Send, Edit and Skip.</string>
-    <string name="fw_bd_mode_auto_summary">The wish is sent at the chosen time without asking.</string>
+    <string name="fw_bd_mode_auto_summary">The wish is sent at the chosen time without asking. Needs app lock: without it, or past the daily limit on automatic messages, you get the Send notification instead.</string>
     <string name="fw_bd_send_time">Send time</string>
     <string name="fw_bd_anniversaries">Include anniversaries</string>
     <string name="fw_bd_edit_birthday_template">Birthday message</string>
@@ -103,4 +135,86 @@
     <!-- Inbox overflow -->
     <string name="fw_menu_forwarding">Auto-forwarding</string>
     <string name="fw_menu_birthdays">Birthday wishes</string>
+
+    <!-- Automations that send messages off the phone need app lock (OutboundAutomationGuard) -->
+    <string name="fw_lock_needed_title">Set up app lock first</string>
+    <string name="fw_lock_needed_body">Auto-forwarding and other automations that send messages need app lock. That way, someone who picks up your unlocked phone for a minute, or a scammer who talks you through it, can\'t quietly set one up to get your bank messages and codes.</string>
+    <string name="fw_lock_needed_action">Set up app lock</string>
+    <string name="fw_lock_needed_not_now">Not now</string>
+    <string name="fw_status_off_lock_off">Turned off: app lock was switched off</string>
+    <string name="fw_status_off_screen_lock">Turned off: phone screen lock was removed</string>
+    <string name="fw_status_off_lock_needed">Turned off: needs app lock</string>
+    <string name="fw_guard_disabled_title">Forwarding turned off for your safety</string>
+    <plurals name="fw_guard_disabled_body">
+        <item quantity="one">%1$d automation that sends messages was turned off because %2$s. Set up app lock to turn it back on.</item>
+        <item quantity="other">%1$d automations that send messages were turned off because %2$s. Set up app lock to turn them back on.</item>
+    </plurals>
+    <string name="fw_guard_disabled_why">Dak needs app lock for them so nobody else using your phone can send your messages to themselves.</string>
+    <string name="fw_guard_reason_lock_off">app lock was switched off</string>
+    <string name="fw_guard_reason_screen_lock">your phone\'s screen lock was removed</string>
+    <string name="fw_guard_reason_lock_needed">app lock isn\'t set up</string>
+
+    <!-- "Was this you?" security alert -->
+    <string name="fw_channel_security_name">Security alerts</string>
+    <string name="fw_channel_security_description">Tells you when auto-forwarding or another automation that sends your messages is turned on or off, so you notice if someone else set it up.</string>
+    <string name="fw_remind_title_forwarding">Was this you? Auto-forwarding is on</string>
+    <string name="fw_remind_title_automation">Was this you? An automation sends messages</string>
+    <string name="fw_remind_body">Turned on %1$s: %2$s. %3$s %4$s Didn\'t set this up? Turn it off and check your phone\'s security. Scammers, or someone who had your phone for a moment, use forwarding to get bank messages and codes.</string>
+    <string name="fw_remind_still_active">Still active.</string>
+    <string name="fw_remind_ended">Has ended.</string>
+    <plurals name="fw_remind_sent_count">
+        <item quantity="one">%1$d message sent so far.</item>
+        <item quantity="other">%1$d messages sent so far.</item>
+    </plurals>
+    <string name="fw_remind_action_turn_off">Turn off</string>
+    <string name="fw_remind_action_history">See what was sent</string>
+    <string name="fw_remind_turned_off_title">Turned off: %1$s</string>
+    <string name="fw_remind_turned_off_body">Nothing more will be sent. If you didn\'t set this up, change your phone\'s screen lock PIN and tap here to see what was sent.</string>
+    <string name="fw_generic_summary">%1$s (%2$s)</string>
+    <string name="fw_kind_forward">forwards SMS to %1$s</string>
+    <string name="fw_kind_reply">replies by SMS</string>
+    <string name="fw_kind_webhook">sends to %1$s</string>
+    <string name="fw_kind_web_client">sends to your web client</string>
+    <string name="fw_kind_relay">relays to %1$s</string>
+    <string name="fw_kind_open">opens links in other apps</string>
+    <string name="fw_kind_unknown">an action this version of Dak doesn\'t know</string>
+
+    <!-- Using an ended rule again -->
+    <string name="fw_section_ended">Ended — tap to use again</string>
+    <string name="fw_row_use_again">Use again</string>
+    <string name="fw_use_again_done">Forwarding again until %1$s</string>
+    <string name="fw_use_again_done_open">Forwarding again until you stop it</string>
+
+    <!-- History (automation run log) -->
+    <string name="fw_history_menu">Forwarding history</string>
+    <string name="fw_history_rule_title">History: %1$s</string>
+    <string name="fw_history_row_cd">History of %1$s</string>
+    <string name="fw_history_open_message_cd">Open the original message</string>
+    <string name="fw_history_message_gone">The original message is no longer on this phone.</string>
+    <string name="fw_history_empty_title">Nothing sent yet</string>
+    <string name="fw_history_empty_body">Every message an automation forwards or sends is listed here, with the time, the original message and where it went.</string>
+    <plurals name="fw_history_sent">
+        <item quantity="one">%1$d message sent to %2$s</item>
+        <item quantity="other">%1$d messages sent to %2$s</item>
+    </plurals>
+    <string name="fw_history_sent_none">No messages sent</string>
+    <string name="fw_history_between">between %1$s and %2$s</string>
+    <string name="fw_history_failed">%1$d failed</string>
+    <string name="fw_history_skipped">%1$d skipped</string>
+    <string name="fw_history_from">from %1$s</string>
+    <string name="fw_history_to">To %1$s</string>
+    <string name="fw_outcome_sent">Sent</string>
+    <string name="fw_outcome_failed">Failed</string>
+    <string name="fw_outcome_skipped">Skipped</string>
+    <string name="fw_skip_not_confirmed">Not sent: waiting for your fingerprint or screen lock confirmation</string>
+    <string name="fw_skip_no_app_lock">Not sent: app lock was off</string>
+    <string name="fw_queued_auto_reply">Auto-reply</string>
+    <string name="fw_queued_auto_forward">Auto-forward</string>
+    <string name="fw_queued_automation">Automation</string>
+    <string name="fw_skip_contact_removed">Not sent: the recipient is no longer in your contacts</string>
+    <string name="fw_skip_no_contacts_access">Not sent: Dak couldn\'t check your contacts</string>
+    <string name="fw_skip_possible_scam">Not sent: the message looked like a scam</string>
+    <string name="fw_skip_premium">Not sent: needs a premium feature</string>
+    <string name="fw_limit_title">Automatic sending paused for today</string>
+    <string name="fw_limit_text">Your automations sent %1$d messages today, the daily limit, so further forwards and auto-replies were skipped. Check your automations if this was unexpected.</string>
 </resources>

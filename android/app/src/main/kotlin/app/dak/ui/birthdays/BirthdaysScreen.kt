@@ -56,7 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +68,8 @@ import app.dak.birthdays.BirthdaySettings
 import app.dak.birthdays.WishMode
 import app.dak.core.model.SimInfo
 import app.dak.navigation.DakNavigator
+import app.dak.navigation.Routes
+import app.dak.ui.forwarding.AppLockNeededDialog
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.EmptyState
@@ -96,6 +98,7 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val sims by viewModel.simList.collectAsStateWithLifecycle()
     var templateTarget by remember { mutableStateOf<TemplateTarget?>(null) }
     var askedOnce by remember { mutableStateOf(false) }
+    var lockNeeded by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         askedOnce = true
@@ -122,7 +125,7 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     settings = state.settings,
                     sims = sims.filter { it.isActive },
                     onEnabled = viewModel::setEnabled,
-                    onMode = viewModel::setMode,
+                    onMode = { mode -> if (!viewModel.setMode(mode)) lockNeeded = true },
                     onTime = viewModel::setTime,
                     onSim = viewModel::setSim,
                     onAnniversaries = viewModel::setIncludeAnniversaries,
@@ -205,6 +208,17 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 onCancel = { templateTarget = null },
             )
         }
+    }
+
+    // "Send automatically" is an unattended send: it needs app lock, like auto-forwarding.
+    if (lockNeeded) {
+        AppLockNeededDialog(
+            onSetUp = {
+                lockNeeded = false
+                navigator.navigate(Routes.APP_LOCK)
+            },
+            onDismiss = { lockNeeded = false },
+        )
     }
 }
 

@@ -147,6 +147,19 @@ Written by app agent 2. Everything below lives in its own packages; strings are 
   records in `ScheduledSendStore` and arms an `AlarmManager` alarm (exact when allowed on 12+) to
   `ScheduledSendReceiver` plus a WorkManager `ScheduledSendWorker` safety net; `ScheduledSendExecutor.runDue()` is
   idempotent and mutex-guarded and spreads sends with `SendThrottle` (`SendRateLimiter.planSends`, 30 / 30 min).
+- Scheduled-message heads-up (`ScheduledSendHeadsUp`, channel `scheduled_messages`, default importance, group `app`):
+  `refresh()` (after every schedule / move / cancel, every executor run, boot re-arm and a lead-time change) lets the
+  pure `HeadsUpPlanner` decide what to post, remove and summarise, and arms one alarm + WorkManager job for the next
+  heads-up due. Lead time from `automations.scheduledHeadsUp` (off / 5 / 15 / 60 min, default 15); automatic
+  birthday wishes also get 08:00 on the day; a late heads-up is posted at once unless < 2 min are left. One per send
+  (tag + id from the send id), one per broadcast, grouped with an InboxStyle summary from two, at most five shown
+  individually. Actions go to `ScheduledSendHeadsUpReceiver` (not exported, immutable PendingIntents with only the
+  send id) and `ScheduledSendHeadsUpActions`: Send now reruns `ScheduledSendExecutor` (all its gates), Delay / Cancel
+  need no unlock. Tapping opens `Routes.scheduledSends(id)`. "Ask me first" wishes get no heads-up (their prompt is
+  the notification); an automatic wish turned into a prompt loses its heads-up first.
+- Emergency numbers are never scheduled (`ScheduledEmergencyPolicy`): `ScheduledSendScheduler.schedule` throws
+  `EmergencyScheduleRefusedException` (composer, broadcasts, birthdays check `refusesEmergency` first), auto-replies
+  and held auto-forwards return false, and a legacy PENDING row with one is cancelled when due with a one-time notice.
 - `RuleRepository` decodes/encodes `AutomationStore` JSON with `RuleCodec`; `disableExpired(now)`.
 - Auto-forwarding (free, on-device from the user's SIM): forwarding rules are ordinary rules built from
   `:automations`' `ForwardingSpec` (`meta.kind = forwarding`). `AutomationRunner` disables expired rules lazily
@@ -154,8 +167,19 @@ Written by app agent 2. Everything below lives in its own packages; strings are 
   "Fwd → <recipient>" (`UserLabels`) in addition to the audit-log "Forwarded to …" marker.
   `ForwardingStatusNotifier` keeps a silent ongoing notification (own low-importance channel `forwarding_status`,
   group `app`) while any forwarding rule is active or scheduled; `refresh()` after every change.
-- `DailyHousekeeping.runIfDue()` (at most once per ~20 h): expire rules, refresh the forwarding notification,
-  re-scan contacts for birthdays. Runs from the daily `dak-maintenance` job (`AutomationMaintenanceTask`, order
+- Outbound automations need app lock (`OutboundAutomationGuard`): anything whose actions `sendsOffDevice()` (forward,
+  auto-reply, webhook, relays, open-intent, unknown) runs only while `AppLockManager.isLockSetUp()` (re-reads the
+  stored method and the phone's screen lock). Enforced in `AutomationRunner` (skip + turn all off, fail closed), in
+  `RuleRepository` (never stored enabled without a lock), by the screens ("Set up app lock first"), on app start /
+  lock changes (`OutboundAutomationGuard.Starter` from `DakApplication`) and by `DailyHousekeeping`. The App lock
+  screen lists affected rules before the lock is switched off. Rows show why (`ForwardingHold.LOCK_*`).
+- "Was this you?": turning such a rule on (`RuleRepository`, `OtpForwardConfirmations.confirm`) arms a unique
+  `OutboundReminderWorker` (`outbound-reminder:<ruleId>`, 3 h, then daily while on) that posts a high-importance
+  alert on its own `security_alerts` channel with "Turn off" (`OutboundRuleReceiver`, not exported) and the history.
+- Run log: `AutomationRunner` writes one `automation_run` row (core-index, kept ≥ 1 year or the newest 5,000) per
+  outbound action sent or skipped (`AutomationRunLog`); `Routes.AUTOMATION_HISTORY` shows one rule's or all of it.
+- `DailyHousekeeping.runIfDue()` (at most once per ~20 h): expire rules, turn off outbound automations if no app
+  lock is set up, refresh the forwarding notification, trim the run log, re-scan contacts for birthdays. Runs from the daily `dak-maintenance` job (`AutomationMaintenanceTask`, order
   110), an incoming SMS, or a scheduled-send run — no wakeup of its own.
 - `ScheduledSendReceiver`: runs due sends inline and enqueues the retry job only if that fails; on boot / clock
   changes it re-arms only when `ScheduledSendScheduler.mightHavePending()` and re-posts the forwarding
@@ -263,6 +287,8 @@ All screens keep the pinned signatures and get their ViewModel via `hiltViewMode
         <action android:name="android.intent.action.TIMEZONE_CHANGED" />
     </intent-filter>
 </receiver>
+<receiver android:name=".automation.OutboundRuleReceiver" android:exported="false" />
+<receiver android:name=".automation.ScheduledSendHeadsUpReceiver" android:exported="false" />
 <provider android:name="androidx.core.content.FileProvider"
     android:authorities="${applicationId}.dakfiles" android:exported="false" android:grantUriPermissions="true">
     <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/dak_file_paths" />

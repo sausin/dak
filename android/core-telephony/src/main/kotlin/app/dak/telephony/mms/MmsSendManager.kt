@@ -10,15 +10,19 @@ import android.util.Log
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
 import app.dak.mms.pdu.MmsMessageBuilder
+import app.dak.mms.pdu.MmsPdu
 import app.dak.mms.pdu.MmsPduDecoder
 import app.dak.mms.pdu.MmsPduEncoder
-import app.dak.mms.pdu.MmsStatus
+import app.dak.mms.pdu.MmsSafety
 import app.dak.mms.pdu.NotifyRespInd
 import app.dak.mms.pdu.ResponseStatus
 import app.dak.mms.pdu.SendConf
 import app.dak.telephony.OutgoingMmsPart
 import app.dak.telephony.SendResult
 import app.dak.telephony.TelephonySettings
+import app.dak.telephony.carrier.CarrierConfigRepository
+import app.dak.telephony.carrier.ReportPolicy
+import app.dak.telephony.carrier.SendModePolicy
 import app.dak.telephony.internal.PendingIntentFlags
 import app.dak.telephony.internal.SmsManagers
 import app.dak.telephony.internal.TAG
@@ -46,6 +50,7 @@ class MmsSendManager @Inject constructor(
     private val settings: TelephonySettings,
     private val failures: SendFailureStore,
     private val scheduler: SendScheduler,
+    private val carrierConfig: CarrierConfigRepository,
 ) {
 
     suspend fun send(
@@ -59,13 +64,16 @@ class MmsSendManager @Inject constructor(
     ): SendResult {
         val thread = threadId?.takeIf { it > 0 } ?: writer.threadIdFor(addresses.toSet()).takeIf { it > 0 }
             ?: return SendResult.Failed("Could not open the conversation; is Dak the default SMS app?")
+        val config = carrierConfig.forSubscription(subId)
         val req = MmsMessageBuilder.build(
             to = addresses,
             text = text,
             attachments = parts.map { MmsMessageBuilder.Attachment(it.mimeType, it.fileName, it.bytes) },
-            subject = subject,
+            subject = SendModePolicy.subject(subject, config),
             dateSeconds = System.currentTimeMillis() / 1000,
-            requestDeliveryReport = requestDeliveryReport && settings.requestMmsDeliveryReports,
+            // X-Mms-Delivery-Report / X-Mms-Read-Report: the user's settings AND the carrier's report support.
+            requestDeliveryReport = ReportPolicy.requestMmsDeliveryReport(requestDeliveryReport, config),
+            requestReadReport = ReportPolicy.requestMmsReadReport(settings.sendMmsReadReceipts, config),
         )
         val bytes = MmsPduEncoder.encode(req)
         val limit = maxMessageSize(subId)
@@ -90,7 +98,7 @@ class MmsSendManager @Inject constructor(
     suspend fun onSent(intent: Intent, resultCode: Int) {
         MmsFiles.resolve(context, intent.getStringExtra(MmsSentReceiver.EXTRA_FILE))?.delete()
         if (intent.getBooleanExtra(MmsSentReceiver.EXTRA_IS_NOTIFY_RESPONSE, false)) {
-            if (resultCode != Activity.RESULT_OK) Log.i(TAG, "m-notifyresp-ind not accepted: $resultCode")
+            if (resultCode != Activity.RESULT_OK) Log.i(TAG, "MMS client PDU not accepted: $resultCode")
             return
         }
         val id = intent.getLongExtra(MmsSentReceiver.EXTRA_MESSAGE_ID, -1L)
@@ -115,11 +123,15 @@ class MmsSendManager @Inject constructor(
     }
 
     /**
-     * Sends m-notifyresp-ind (status Retrieved) for a downloaded message, when enabled in [TelephonySettings].
-     * Best effort: the result is ignored.
+     * Sends a client transaction PDU (m-notifyresp-ind, m-acknowledge-ind or m-read-rec-ind, see
+     * [app.dak.mms.pdu.MmsClientTransactions]) for a message received on [subId]. Best effort: the result is only
+     * logged. When the carrier sets `enabledNotifyWapMMSC` the PDU is posted to the notification's
+     * [contentLocation] (as AOSP does), otherwise to the MMSC; an unsafe location is never used.
      */
-    suspend fun sendNotifyResponse(transactionId: String, subId: Int) {
-        val bytes = MmsPduEncoder.encode(NotifyRespInd(transactionId = transactionId, status = MmsStatus.RETRIEVED))
+    suspend fun sendClientPdu(pdu: MmsPdu, subId: Int, contentLocation: String? = null) {
+        val bytes = MmsPduEncoder.encode(pdu)
+        val location = contentLocation
+            ?.takeIf { carrierConfig.forSubscription(subId).notifyWapMmsc && MmsSafety.isDownloadableContentLocation(it) }
         withContext(Dispatchers.IO) {
             try {
                 val file = MmsFiles.newFile(context, "notifyresp")
@@ -131,9 +143,11 @@ class MmsSendManager @Inject constructor(
                     .putExtra(MmsSentReceiver.EXTRA_IS_NOTIFY_RESPONSE, true)
                 val pi = PendingIntent.getBroadcast(context, file.name.hashCode(), intent, PendingIntentFlags.mutableResult)
                 SmsManagers.forSubscription(context, subId)
-                    .sendMultimediaMessage(context, MmsFiles.contentUri(context, file), null, null, pi)
+                    .sendMultimediaMessage(context, MmsFiles.contentUri(context, file), location, null, pi)
+                val status = (pdu as? NotifyRespInd)?.status?.let { " status 0x%02X".format(it) }.orEmpty()
+                Log.i(TAG, "MMS client PDU 0x%02X%s handed to the platform".format(pdu.messageType, status))
             } catch (e: Exception) {
-                Log.w(TAG, "m-notifyresp-ind not sent: ${e.javaClass.simpleName}")
+                Log.w(TAG, "MMS client PDU 0x%02X not sent: %s".format(pdu.messageType, e.javaClass.simpleName))
             }
         }
     }
@@ -174,16 +188,5 @@ class MmsSendManager @Inject constructor(
     }
 
     /** Carrier MMS size limit for [subId] (`maxMessageSize` carrier config), 300 KB when unknown. */
-    @Suppress("DEPRECATION")
-    private fun maxMessageSize(subId: Int): Int = try {
-        SmsManagers.forSubscription(context, subId).carrierConfigValues
-            ?.getInt(SmsManager.MMS_CONFIG_MAX_MESSAGE_SIZE, DEFAULT_MAX_SIZE)
-            ?.takeIf { it > 0 } ?: DEFAULT_MAX_SIZE
-    } catch (e: Exception) {
-        DEFAULT_MAX_SIZE
-    }
-
-    private companion object {
-        const val DEFAULT_MAX_SIZE = 300 * 1024
-    }
+    fun maxMessageSize(subId: Int): Int = carrierConfig.forSubscription(subId).maxMessageSizeBytes
 }

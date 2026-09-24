@@ -176,4 +176,25 @@ class MoneyParserTest {
         assertEquals(Money(10000L, "CNY"), MoneyParser.parse("元100 spent"))
         assertEquals(Money(20000L, "CNY"), MoneyParser.parse("RMB 200 spent"))
     }
+
+    @Test
+    fun `a colon may separate the currency from the amount`() {
+        assertEquals(Money(50000L, "INR"), MoneyParser.parse("debited for Rs:500.00 on 12-09"))
+        assertEquals(Money(421000L, "INR"), MoneyParser.parse("Avl Bal Rs: 4,210.00"))
+    }
+
+    @Test
+    fun `a suffix currency belongs to the next number, not to a reference, year or account tail`() {
+        assertEquals(listOf(Money(50000L, "INR")), MoneyParser.findAll("UPI Ref 624812345678 INR 500.00 credited").map { it.money })
+        assertEquals(listOf(Money(75000L, "INR")), MoneyParser.findAll("debited on 12-09-2026 INR 750.00").map { it.money })
+        assertEquals(listOf(Money(50000L, "INR")), MoneyParser.findAll("Spent Card no. XX4321 INR 500 12-09-26").map { it.money })
+        // A suffix currency with nothing after it still attaches.
+        assertEquals(Money(50000L, "INR"), MoneyParser.parse("paid 500 INR."))
+    }
+
+    @Test
+    fun `a number glued to a letter or mask is never an amount`() {
+        assertNull(MoneyParser.parse("Card XX1234 INR"))
+        assertNull(MoneyParser.parse("A/c *1234 INR"))
+    }
 }

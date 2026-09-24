@@ -68,13 +68,11 @@ object IntentRoutes {
                     return Routes.conversation(id)
                 }
                 if (data.scheme?.lowercase() !in smsSchemes) return null
-                val (to, uriBody) = parseSmsUri(data)
-                Routes.compose(to = to, body = bodyExtra(intent) ?: uriBody)
+                composeRoute(intent, data)
             }
-            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> {
-                val address = intent.getStringExtra("address")
-                Routes.compose(to = address, body = bodyExtra(intent))
-            }
+            // SEND may carry an sms:/smsto: data URI (recipients) next to EXTRA_TEXT / EXTRA_STREAM.
+            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE ->
+                composeRoute(intent, intent.data?.takeIf { it.scheme?.lowercase() in smsSchemes })
             ACTION_REPORT_FRAUD -> Routes.fraudHelp()
             else -> null
         }
@@ -88,7 +86,8 @@ object IntentRoutes {
         intent ?: return emptyList()
         val raw = runCatching {
             when (intent.action) {
-                Intent.ACTION_SEND -> listOfNotNull(streamExtra(intent))
+                // SENDTO with EXTRA_STREAM is outside the platform contract, but gallery and camera apps send it.
+                Intent.ACTION_SEND, Intent.ACTION_SENDTO -> listOfNotNull(streamExtra(intent))
                 Intent.ACTION_SEND_MULTIPLE -> streamListExtra(intent).filterNotNull()
                 else -> emptyList()
             }
@@ -117,25 +116,25 @@ object IntentRoutes {
 
     private val TELEPHONY_AUTHORITIES = setOf("mms", "sms", "mms-sms", "telephony", "icc", "carrier_information", "service-state")
 
-    private fun bodyExtra(intent: Intent): String? =
-        intent.getStringExtra("sms_body")
-            ?: intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
-            ?: intent.getStringExtra(Intent.EXTRA_TEXT)
-
-    /** `smsto:+9198…,+9199…?body=hello` → ("+9198…,+9199…", "hello"). */
-    internal fun parseSmsUri(uri: Uri): Pair<String?, String?> {
-        val ssp = uri.schemeSpecificPart.orEmpty()
-        val q = ssp.indexOf('?')
-        val recipients = (if (q >= 0) ssp.substring(0, q) else ssp).trim().removePrefix("//")
-        val body = if (q >= 0) {
-            ssp.substring(q + 1).split('&')
-                .firstOrNull { it.startsWith("body=", ignoreCase = true) }
-                ?.substringAfter('=')
-                ?.let { Uri.decode(it) }
-        } else null
-        val to = recipients.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }.joinToString(",")
-        return (to.ifEmpty { null }) to body
+    /** Compose route from the RFC 5724 URI (if any) and the `address` / `sms_body` / `EXTRA_TEXT` extras. */
+    private fun composeRoute(intent: Intent, smsUri: Uri?): String {
+        val request = SmsUriParser.resolve(
+            encodedSsp = smsUri?.let(::encodedSsp),
+            addressExtra = runCatching { intent.getStringExtra("address") }.getOrNull(),
+            smsBodyExtra = runCatching { intent.getStringExtra("sms_body") }.getOrNull(),
+            // getCharSequenceExtra also returns plain String extras (String is a CharSequence).
+            textExtra = runCatching { intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString() }.getOrNull(),
+        )
+        return Routes.compose(to = request.to, body = request.body)
     }
+
+    /**
+     * The URI's scheme-specific part, still percent-encoded, so [SmsUriParser] can split on `?`, `&` and `,` before
+     * decoding once. `Uri.schemeSpecificPart` is already decoded and must not be used. RFC 5724 has no fragment,
+     * so an unencoded `#` is data and is put back.
+     */
+    private fun encodedSsp(uri: Uri): String =
+        uri.encodedSchemeSpecificPart.orEmpty() + (uri.encodedFragment?.let { "#$it" } ?: "")
 
     @Suppress("DEPRECATION")
     private fun streamExtra(intent: Intent): Uri? =

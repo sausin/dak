@@ -70,6 +70,48 @@ class EnrichmentHelpersTest {
     }
 
     @Test
+    fun transactionParsingGateCoversEveryCategory() {
+        for (category in Category.entries) {
+            val expectedForBank = category == Category.TRANSACTION || category == Category.UNKNOWN
+            assertEquals(expectedForBank, DefaultMessageEnricher.shouldParseTransaction("VM-HDFCBK", category), "$category")
+            // A person's message is parsed only when the classifier itself said TRANSACTION.
+            assertEquals(category == Category.TRANSACTION, DefaultMessageEnricher.shouldParseTransaction("+919876543210", category), "$category")
+            // ...and never when that person is a saved contact (a forwarded bank SMS is not the user's money).
+            assertFalse(DefaultMessageEnricher.shouldParseTransaction("+91 98765 43210", category, isSavedContact = true), "$category")
+        }
+        // A saved contact that is a business header is still parsed.
+        assertTrue(DefaultMessageEnricher.shouldParseTransaction("VM-HDFCBK", Category.TRANSACTION, isSavedContact = true))
+    }
+
+    @Test
+    fun formattedPhoneNumbersArePeople() {
+        for (n in listOf("+91 98765 43210", "98765-43210", "+1 (415) 555-2671", "098765\u00A043210", "+91.98765.43210")) {
+            assertTrue(DefaultMessageEnricher.isPersonNumber(n), n)
+            assertFalse(DefaultMessageEnricher.cloudEligibleSender(n), n)
+        }
+        for (b in listOf("VM-HDFCBK", "VM-HDFCBK-T", "56070", "AMAZON", "VM-612345")) {
+            assertFalse(DefaultMessageEnricher.isPersonNumber(b), b)
+            assertTrue(DefaultMessageEnricher.cloudEligibleSender(b), b)
+        }
+    }
+
+    @Test
+    fun cloudStageNeverSeesPeopleFromAnyCountry() {
+        for (person in listOf("+447911123456", "919876543210", " +919876543210 ", "+14155552671")) {
+            assertFalse(DefaultMessageEnricher.cloudEligibleSender(person), person)
+        }
+    }
+
+    @Test
+    fun cloudStageNeverSeesPeople() {
+        assertTrue(DefaultMessageEnricher.cloudEligibleSender("VM-HDFCBK-T"))
+        assertTrue(DefaultMessageEnricher.cloudEligibleSender("56070"))
+        assertTrue(DefaultMessageEnricher.cloudEligibleSender("AMAZON"))
+        assertFalse(DefaultMessageEnricher.cloudEligibleSender("+919876543210"))
+        assertFalse(DefaultMessageEnricher.cloudEligibleSender("09876543210"))
+    }
+
+    @Test
     fun defaultEnricherClassifiesWithBundledTemplatesAndParsesTransactions() = runTest {
         val enricher = DefaultMessageEnricher(isContact = { false })
         assertTrue(enricher.version > 0)
@@ -82,11 +124,12 @@ class EnrichmentHelpersTest {
             dateMillis = 0,
         )
         val e = enricher.enrich(debit, allowCloud = false)
-        if (e.classification.category == Category.TRANSACTION || e.classification.category == Category.UNKNOWN) {
-            val txn = assertNotNull(e.transaction)
-            assertEquals(TransactionDirection.DEBIT, txn.direction)
-            assertEquals(125000L, txn.amountMinor)
-            assertEquals("INR", txn.currency)
-        }
+        // Unconditional: a bank debit from a DLT header must reach the transaction parser whatever the templates say
+        // (TRANSACTION, or UNKNOWN for a header the templates do not know yet).
+        assertTrue(e.classification.category in setOf(Category.TRANSACTION, Category.UNKNOWN), "${e.classification.category}")
+        val txn = assertNotNull(e.transaction)
+        assertEquals(TransactionDirection.DEBIT, txn.direction)
+        assertEquals(125000L, txn.amountMinor)
+        assertEquals("INR", txn.currency)
     }
 }

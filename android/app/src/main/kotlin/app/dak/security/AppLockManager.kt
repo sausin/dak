@@ -40,6 +40,14 @@ data class AppLockState(
     val sensitiveUnlocked: Boolean = false,
 )
 
+/** A fresh reading of the lock setup (see [AppLockManager.currentLock]). */
+data class LockSetup(
+    val method: LockMethodChoice,
+    val deviceSecure: Boolean,
+    val hasAppPin: Boolean,
+    val effective: EffectiveLock,
+)
+
 /** Result of checking a typed app PIN. */
 sealed interface PinCheck {
     data object Correct : PinCheck
@@ -161,6 +169,28 @@ class AppLockManager @Inject constructor(
 
     /** Re-reads device state (screen lock added/removed) and recomputes the effective lock. */
     fun refresh() = update { refreshDevice() }
+
+    /**
+     * What guards the app right now, read fresh: the stored method (not the copy [start] keeps in sync, so it is right
+     * even in a background process where no activity started the manager) and the phone's screen lock, which the user
+     * can remove outside Dak. Also refreshes [state]. Automations that send messages off the phone run only while this
+     * is not [EffectiveLock.NONE] (`OutboundAutomationGuard`).
+     */
+    fun currentLock(): LockSetup {
+        update { refreshDevice() }
+        val method = LockMethodChoice.fromValue(settings.get(DakSettings.appLock))
+        return LockSetup(method, deviceSecure, hasPinState.value, AppLockRules.effectiveLock(method, deviceSecure, hasPinState.value))
+    }
+
+    /** True when an app lock is set up and enforceable right now ([currentLock]). */
+    fun isLockSetUp(): Boolean = currentLock().effective != EffectiveLock.NONE
+
+    /** The lock that would remain after removing the app PIN (the method and screen lock unchanged). */
+    fun effectiveWithoutPin(): EffectiveLock {
+        update { refreshDevice() }
+        val method = LockMethodChoice.fromValue(settings.get(DakSettings.appLock))
+        return AppLockRules.effectiveLock(method, deviceSecure, hasAppPin = false)
+    }
 
     /** How a one-off confirmation (sensitive screen, OTP forwarding) should authenticate right now. */
     fun confirmationLock(): EffectiveLock {

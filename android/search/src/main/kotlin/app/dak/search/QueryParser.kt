@@ -259,8 +259,15 @@ object QueryParser {
             v == "this month" -> today.withDayOfMonth(1).let { range(it, it.plusMonths(1)) }
             v == "last month" -> today.withDayOfMonth(1).minusMonths(1).let { range(it, it.plusMonths(1)) }
             lastNDays != null -> {
-                val n = lastNDays.groupValues[1].toLong()
-                range(today.minusDays(n), today.plusDays(1))
+                // Never throws: an N too large for a Long or for the calendar is not a range.
+                val n = lastNDays.groupValues[1].toLongOrNull() ?: return null
+                try {
+                    range(today.minusDays(n), today.plusDays(1))
+                } catch (e: java.time.DateTimeException) {
+                    null
+                } catch (e: ArithmeticException) {
+                    null
+                }
             }
             v.matches(Regex("""\d{4}""")) -> {
                 val year = v.toInt()

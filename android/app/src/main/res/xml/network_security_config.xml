@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network security config for Dak's own process (docs/release.md, "Network security config").
+
+  Dak itself makes no HTTP requests: MMS is sent and downloaded by the platform MmsService
+  (SmsManager.sendMultimediaMessage / downloadMultimediaMessage), which runs in the phone process under the
+  platform's own config. Carrier MMSCs on plain http:// are therefore unaffected by this file, and Dak needs no
+  cleartext exception for them. The free tier is offline (scripts/check-offline-baseline.sh); this file is the
+  OS-level backstop in case a library ever tries to reach the network.
+
+  - Cleartext (http://) is refused everywhere.
+  - Only the system CA store is trusted, never user-installed CAs, so a CA added in Settings cannot intercept
+    future premium traffic. This applies to debug builds too; to inspect premium traffic through a proxy
+    locally, add a <debug-overrides> block in a local, uncommitted change.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+      Template for pinning premium endpoints once Dak servers exist (the free tier has no server). Pin the SPKI
+      SHA-256 of the issuing intermediate or root CA, keep at least one backup pin from a different key, and set
+      an expiration so an old install falls back to normal CA validation instead of losing premium features:
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.dak-server.invalid</domain>
+        <pin-set expiration="2027-12-31">
+            <pin digest="SHA-256">PRIMARY_SPKI_SHA256_BASE64=</pin>
+            <pin digest="SHA-256">BACKUP_SPKI_SHA256_BASE64=</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+    -->
+</network-security-config>

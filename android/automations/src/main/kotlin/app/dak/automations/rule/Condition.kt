@@ -63,10 +63,14 @@ public sealed interface Condition {
     @SerialName("amountAtMost")
     public data class AmountAtMost(val amountMinor: Long, val currency: String? = null) : Condition
 
-    /** Local time-of-day window, inclusive, as minutes since midnight (0..1439). Wraps past midnight if from > to. */
+    /**
+     * Time-of-day window, inclusive, as minutes since midnight (0..1439), in [zoneId] (an IANA zone such as
+     * `Asia/Kolkata`; null or unrecognised = UTC, which is how rules saved before the field existed were always
+     * evaluated). Wraps past midnight if from > to. Evaluated on the wall clock of that zone, so it follows DST.
+     */
     @Serializable
     @SerialName("timeWindow")
-    public data class TimeWindow(val fromMinuteOfDay: Int, val toMinuteOfDay: Int) : Condition
+    public data class TimeWindow(val fromMinuteOfDay: Int, val toMinuteOfDay: Int, val zoneId: String? = null) : Condition
 
     @Serializable
     @SerialName("directionIs")

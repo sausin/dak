@@ -16,11 +16,13 @@ object Routes {
     fun conversation(conversationId: String, highlight: String? = null): String =
         "conversation/${enc(conversationId)}" + query(ARG_HIGHLIGHT to highlight)
 
-    const val COMPOSE = "compose?to={to}&body={body}"
+    const val COMPOSE = "compose?to={to}&body={body}&sub={sub}"
     const val ARG_TO = "to"
     const val ARG_BODY = "body"
-    fun compose(to: String? = null, body: String? = null): String =
-        "compose" + query(ARG_TO to to, ARG_BODY to body)
+    /** Preferred SIM subscription id (decimal); the composer uses it only if that SIM is still active. */
+    const val ARG_SUB = "sub"
+    fun compose(to: String? = null, body: String? = null, subId: Int? = null): String =
+        "compose" + query(ARG_TO to to, ARG_BODY to body, ARG_SUB to subId?.takeIf { it >= 0 }?.toString())
 
     const val SEARCH = "search?q={q}"
     const val ARG_Q = "q"
@@ -43,12 +45,29 @@ object Routes {
     fun passbookAccount(accountId: String): String = "passbook/account/${enc(accountId)}"
 
     const val AUTOMATIONS = "automations"
+
+    /**
+     * The Automations screen opened on one scheduled send (from its heads-up notification): [ARG_SCHEDULED_ID] is shown
+     * first, and with [ARG_PICK_TIME] = "1" the date and time pickers open straight away ("Pick time").
+     */
+    const val SCHEDULED_SENDS = "scheduledsends?scheduledId={scheduledId}&pickTime={pickTime}"
+    const val ARG_SCHEDULED_ID = "scheduledId"
+    const val ARG_PICK_TIME = "pickTime"
+    fun scheduledSends(scheduledId: Long? = null, pickTime: Boolean = false): String =
+        "scheduledsends" + query(ARG_SCHEDULED_ID to scheduledId?.toString(), ARG_PICK_TIME to (if (pickTime) "1" else null))
     const val BACKUP = "backup"
     const val BLOCKED = "blocked"
     const val SELF_TEST = "selftest"
 
     /** Time-boxed auto-forwarding rules (e.g. bank alerts to your CA for tax season). */
     const val FORWARDING = "forwarding"
+    /**
+     * What automations sent (the run log): one rule's history ([ARG_RULE_ID]), or every rule's, including deleted
+     * ones, when it is null.
+     */
+    const val AUTOMATION_HISTORY = "automationhistory?ruleId={ruleId}"
+    const val ARG_RULE_ID = "ruleId"
+    fun automationHistory(ruleId: String? = null): String = "automationhistory" + query(ARG_RULE_ID to ruleId)
     /** Birthday wishes picked up from contacts. */
     const val BIRTHDAYS = "birthdays"
     /** Fraud reporting: verified helplines, 1909 / cybercrime flows. Optional message to report. */

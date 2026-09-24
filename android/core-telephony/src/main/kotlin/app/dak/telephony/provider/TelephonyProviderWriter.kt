@@ -19,10 +19,13 @@ import app.dak.telephony.OutgoingStatus
 import app.dak.telephony.ProviderWriter
 import app.dak.telephony.internal.TAG
 import app.dak.telephony.internal.insertTolerant
+import app.dak.telephony.internal.safeQuery
 import app.dak.telephony.internal.updateTolerant
+import app.dak.telephony.mms.MmsReadReceipts
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -46,6 +49,8 @@ data class IncomingSms(
 @Singleton
 class TelephonyProviderWriter @Inject constructor(
     @ApplicationContext private val context: Context,
+    // Lazy: MmsReadReceipts -> MmsSendManager -> this writer.
+    private val readReceipts: dagger.Lazy<MmsReadReceipts>,
 ) : ProviderWriter {
 
     private val resolver get() = context.contentResolver
@@ -76,6 +81,36 @@ class TelephonyProviderWriter @Inject constructor(
         }
         resolver.insertTolerant(ProviderUris.SMS_INBOX, values, SmsColumns.SUBSCRIPTION_ID)
             ?.let { MessageKey(MessageKind.SMS, ContentUris.parseId(it)) }
+    }
+
+    /**
+     * TP-PID "Replace Short Message" (0x41–0x47): overwrites the newest inbox row from the same originating address
+     * with the same `protocol` (body, dates, service centre, SIM; unread and unseen again) and returns its key, or
+     * null when there is no such row (then the caller inserts). The row keeps its id and thread.
+     */
+    suspend fun replaceIncoming(sms: IncomingSms): MessageKey? = withContext(Dispatchers.IO) {
+        val protocol = sms.protocol ?: return@withContext null
+        val id = resolver.safeQuery(
+            ProviderUris.SMS_INBOX,
+            arrayOf(SmsColumns.ID),
+            "${SmsColumns.ADDRESS} = ? AND ${SmsColumns.PROTOCOL} = ?",
+            arrayOf(sms.address, protocol.toString()),
+            "${SmsColumns.DATE} DESC",
+        )?.use { c -> if (c.moveToFirst()) c.getLong(0) else null } ?: return@withContext null
+        val values = ContentValues().apply {
+            put(SmsColumns.BODY, sms.body)
+            put(SmsColumns.DATE, sms.dateMillis)
+            put(SmsColumns.DATE_SENT, sms.dateSentMillis)
+            put(SmsColumns.READ, 0)
+            put(SmsColumns.SEEN, 0)
+            sms.serviceCenter?.let { put(SmsColumns.SERVICE_CENTER, it) }
+            sms.replyPathPresent?.let { put(SmsColumns.REPLY_PATH_PRESENT, if (it) 1 else 0) }
+            sms.subject?.let { put(SmsColumns.SUBJECT, it) }
+            if (sms.subId >= 0) put(SmsColumns.SUBSCRIPTION_ID, sms.subId)
+        }
+        // OEM schemas without sub_id: retried without it.
+        val updated = resolver.updateTolerant(ProviderUris.sms(id), values, optionalColumn = SmsColumns.SUBSCRIPTION_ID) > 0
+        if (updated) MessageKey(MessageKind.SMS, id) else null
     }
 
     override suspend fun insertOutgoingSms(address: String, body: String, subId: Int, threadId: Long?): MessageKey? =
@@ -161,6 +196,8 @@ class TelephonyProviderWriter @Inject constructor(
     }
 
     override suspend fun markThreadRead(threadId: Long) {
+        // MMS read reports (opt-in): collected while the rows are still unread, sent once they are marked read.
+        val receipts = readReceipts.get().pendingInThread(threadId)
         withContext(Dispatchers.IO) {
             val values = ContentValues().apply {
                 put(SmsColumns.READ, 1)
@@ -174,15 +211,33 @@ class TelephonyProviderWriter @Inject constructor(
                 Log.w(TAG, "markThreadRead failed: ${e.javaClass.simpleName}")
             }
         }
+        sendReadReceipts(receipts)
     }
 
     override suspend fun markRead(key: MessageKey) {
+        val receipts = if (key.kind == MessageKind.MMS) {
+            readReceipts.get().pendingFor(key.providerId)
+        } else {
+            emptyList()
+        }
         withContext(Dispatchers.IO) {
             val values = ContentValues().apply {
                 put(SmsColumns.READ, 1)
                 put(SmsColumns.SEEN, 1)
             }
             resolver.updateTolerant(uriFor(key), values)
+        }
+        sendReadReceipts(receipts)
+    }
+
+    private suspend fun sendReadReceipts(receipts: List<MmsReadReceipts.Pending>) {
+        if (receipts.isEmpty()) return
+        try {
+            readReceipts.get().send(receipts)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "MMS read reports not sent: ${e.javaClass.simpleName}")
         }
     }
 
@@ -195,9 +250,13 @@ class TelephonyProviderWriter @Inject constructor(
         }
     }
 
-    override suspend fun restore(message: Message): MessageKey? = when (message.kind) {
-        MessageKind.SMS -> restoreSms(message)
-        MessageKind.MMS -> restoreMms(message)
+    override suspend fun restore(message: Message): MessageKey? {
+        // Never restore into the send queue (see BoxMapping.restoredBox): imported files are untrusted.
+        val safe = message.copy(box = BoxMapping.restoredBox(message.box))
+        return when (safe.kind) {
+            MessageKind.SMS -> restoreSms(safe)
+            MessageKind.MMS -> restoreMms(safe)
+        }
     }
 
     override suspend fun threadIdFor(addresses: Set<String>): Long = withContext(Dispatchers.IO) {

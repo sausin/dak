@@ -3,12 +3,14 @@ package app.dak.telephony.mms
 import app.dak.core.model.Attachment
 import app.dak.mms.pdu.ContentType
 import app.dak.mms.pdu.MmsCharset
+import app.dak.mms.pdu.MmsLimits
 import app.dak.mms.pdu.MmsSafety
 import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduPart
 import app.dak.mms.pdu.Priority
 import app.dak.mms.pdu.RetrieveConf
 import app.dak.mms.pdu.SendReq
+import app.dak.mms.pdu.SmilPresentation
 import app.dak.mms.pdu.MessageType
 import app.dak.telephony.provider.MmsAddrColumns
 import app.dak.telephony.provider.MmsColumns
@@ -28,6 +30,8 @@ internal data class StoredPart(
     val name: String?,
     val fileName: String?,
     val contentLocation: String?,
+    /** `cid` (Content-ID, e.g. `<image1>`), for SMIL `cid:` references. */
+    val contentId: String? = null,
 )
 
 /**
@@ -110,8 +114,22 @@ internal object MmsProviderMapping {
         putSubId(subId)
     }
 
-    /** Part rows in order; text/plain and SMIL are stored inline (decoded), everything else as data. */
-    fun partRows(parts: List<PduPart>): List<PartRow> = parts.mapIndexed { index, part ->
+    /**
+     * Part rows in order; text/plain and SMIL are stored inline (decoded), everything else as data. Inline text is
+     * bounded per part ([MmsLimits.MAX_INLINE_TEXT_CHARS]) and per message ([MmsLimits.MAX_MESSAGE_TEXT_CHARS]): the
+     * `text` column crosses Binder on insert and a CursorWindow on every read, so a hostile multi-megabyte text part
+     * would otherwise fail the insert (message lost and re-fetched) or make every later read of the thread throw.
+     */
+    fun partRows(parts: List<PduPart>): List<PartRow> {
+        var textBudget = MmsLimits.MAX_MESSAGE_TEXT_CHARS
+        return parts.mapIndexed { index, part ->
+            val row = partRow(index, part, textBudget)
+            textBudget -= row.text?.length ?: 0
+            row
+        }
+    }
+
+    private fun partRow(index: Int, part: PduPart, textBudget: Int): PartRow {
         val mime = part.contentType.mimeType
         val inline = isInlineText(mime)
         val values = buildMap<String, Any> {
@@ -128,7 +146,12 @@ internal object MmsProviderMapping {
             part.contentId?.let { put(MmsPartColumns.CONTENT_ID, it) }
             part.contentLocation?.let { put(MmsPartColumns.CONTENT_LOCATION, it) }
         }
-        if (inline) PartRow(values, text = part.text().orEmpty(), data = null) else PartRow(values, text = null, data = part.data)
+        return if (inline) {
+            val limit = minOf(MmsLimits.MAX_INLINE_TEXT_CHARS, textBudget.coerceAtLeast(0))
+            PartRow(values, text = part.text(limit).orEmpty(), data = null)
+        } else {
+            PartRow(values, text = null, data = part.data)
+        }
     }
 
     /** From / To / Cc rows of a received message. */
@@ -167,8 +190,12 @@ internal object MmsProviderMapping {
         return result
     }
 
-    /** Body text (text/plain parts joined by newlines) and attachments (everything but text and SMIL). */
-    fun bodyAndAttachments(parts: List<StoredPart>): Pair<String, List<Attachment>> {
+    /**
+     * Body text (text/plain parts joined by newlines) and attachments (everything but text and SMIL), both in the
+     * presentation order of the message's SMIL when it has one ([presentationOrder]), else in part order.
+     */
+    fun bodyAndAttachments(stored: List<StoredPart>): Pair<String, List<Attachment>> {
+        val parts = presentationOrder(stored)
         val text = parts.filter { it.contentType.equals(ContentType.TEXT_PLAIN, ignoreCase = true) }
             .mapNotNull { it.text }
             .joinToString("\n")
@@ -182,6 +209,20 @@ internal object MmsProviderMapping {
                 )
             }
         return text to attachments
+    }
+
+    /**
+     * [parts] in the order the sender's SMIL presents them (slide by slide, see [SmilPresentation]): the SMIL is
+     * untrusted and only used to *sort* the message's own parts by Content-ID / Content-Location / name; nothing it
+     * names is ever loaded. Parts it does not reference follow in part order; without a usable SMIL (missing, not
+     * stored inline, malformed, over the parser's limits) the part order is kept.
+     */
+    fun presentationOrder(parts: List<StoredPart>): List<StoredPart> {
+        if (parts.size < 2) return parts
+        val smil = parts.firstOrNull { it.contentType.equals(ContentType.SMIL, ignoreCase = true) && !it.text.isNullOrEmpty() }
+            ?: return parts
+        val keys = parts.map { SmilPresentation.PartKey(it.contentId, it.contentLocation, it.name, it.fileName) }
+        return SmilPresentation.order(smil.text, keys).map { parts[it] }
     }
 
     /** `content://mms/part/<id>`: the URI apps (and our UI) use to open a stored part. */

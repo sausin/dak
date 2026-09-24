@@ -1,6 +1,11 @@
 package app.dak.ui.automations
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
+import android.content.Context
+import android.text.format.DateFormat
+import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +27,8 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.ForwardToInbox
+import androidx.compose.material.icons.automirrored.outlined.ForwardToInbox
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
@@ -33,6 +39,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,14 +64,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automation.ForwardingHold
 import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automation.RuleEntry
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.forwarding.ForwardingStatus
 import app.dak.automations.rule.RelayChannel
+import app.dak.automations.rule.isExpired
 import app.dak.automations.safety.ValidationIssue
 import app.dak.core.model.Category
 import app.dak.core.model.SimInfo
@@ -78,13 +88,17 @@ import app.dak.ui.common.LockChip
 import app.dak.ui.common.WarningBanner
 import app.dak.ui.common.categoryLabel
 import app.dak.ui.common.rememberRelativeTimeFormatter
+import app.dak.ui.forwarding.AppLockNeededDialog
 import app.dak.ui.settings.UpgradeSheet
 import app.dak.ui.theme.DakTheme
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 /**
  * Automations: rules with enable toggles, a simple rule editor for the common triggers and actions, presets,
- * scheduled sends, and premium actions shown locked. OTP-forwarding rules require a biometric confirmation.
+ * scheduled sends, and premium actions shown locked. OTP-forwarding rules require a biometric confirmation; rules that
+ * send messages off the phone need the app lock ([AppLockNeededDialog] otherwise). Rules whose period ended are listed
+ * apart and switch back on with a fresh period; each rule has its history of what was sent.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,6 +107,9 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val scheduled by viewModel.scheduled.collectAsStateWithLifecycle()
+    val focusGone by viewModel.focusGone.collectAsStateWithLifecycle()
+    val focusId = viewModel.focusScheduledId
+    val focused = focusId?.let { id -> scheduled.firstOrNull { it.id == id } }
     val sims by viewModel.simList.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -100,6 +117,7 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     var editing by remember { mutableStateOf<RuleDraft?>(null) }
     var upgradeFor by remember { mutableStateOf<Feature?>(null) }
     var issues by remember { mutableStateOf<List<ValidationIssue>>(emptyList()) }
+    var lockNeeded by remember { mutableStateOf(false) }
     val confirmTitle = stringResource(R.string.scr_auto_confirm_title)
     val confirmSubtitle = stringResource(R.string.scr_auto_confirm_subtitle)
     val noLockText = stringResource(R.string.scr_auto_needs_screen_lock)
@@ -111,6 +129,46 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 AuthResult.UNAVAILABLE -> scope.launch { snackbar.showSnackbar(noLockText) }
                 AuthResult.DENIED -> Unit
             }
+        }
+    }
+
+    /** Date and time pickers, then moves [send] ("Change time", or the heads-up's "Pick time"). */
+    fun changeTime(send: ScheduledSend) {
+        pickDateTime(context, send.sendAtMillis) { at ->
+            viewModel.moveScheduled(send, at) { moved ->
+                val text = if (moved) {
+                    context.getString(
+                        R.string.sched_moved,
+                        DateUtils.formatDateTime(context, at, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME),
+                    )
+                } else {
+                    context.getString(R.string.sched_time_in_past)
+                }
+                scope.launch { snackbar.showSnackbar(text) }
+            }
+        }
+    }
+
+    LaunchedEffect(focused?.id) {
+        if (focused != null && viewModel.consumePickTime()) changeTime(focused)
+    }
+
+    fun turnOn(entry: RuleEntry) {
+        val rule = entry.rule
+        val spec = rule?.let { ForwardingSpec.fromRule(it) }
+        // Ended forwarding rules are used again from the Forwarding screen (contact and risky-recipient checks).
+        if (spec != null && spec.status(System.currentTimeMillis()) == ForwardingStatus.ENDED) {
+            navigator.navigate(Routes.FORWARDING)
+            return
+        }
+        when (val check = viewModel.checkEnable(entry)) {
+            EnableCheck.Unreadable -> Unit
+            EnableCheck.NeedsAppLock -> lockNeeded = true
+            is EnableCheck.NeedsConfirmation -> confirmThen {
+                // Re-checked when applied: the lock may have gone while the fingerprint prompt was up.
+                if (!viewModel.enable(entry, check.rule, confirmed = true)) lockNeeded = true
+            }
+            is EnableCheck.Ready -> if (!viewModel.enable(entry, check.rule)) lockNeeded = true
         }
     }
 
@@ -131,6 +189,30 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+            // Opened from a scheduled message's heads-up: that send first, highlighted.
+            if (focusId != null) {
+                item(key = "focus-title") { SectionTitle(R.string.sched_focus_title) }
+                if (focused != null) {
+                    item(key = "focus-row") {
+                        ScheduledRow(
+                            send = focused,
+                            sims = sims,
+                            highlighted = true,
+                            onChangeTime = { changeTime(focused) },
+                            onCancel = { viewModel.cancelScheduled(focused) },
+                        )
+                    }
+                } else if (focusGone) {
+                    item(key = "focus-gone") {
+                        Text(
+                            stringResource(R.string.sched_focus_gone),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+            }
             if (!viewModel.canScheduleExact()) {
                 item {
                     WarningBanner(
@@ -147,7 +229,7 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             }
             item {
                 ShortcutRow(
-                    icon = { Icon(Icons.Outlined.ForwardToInbox, contentDescription = null) },
+                    icon = { Icon(Icons.AutoMirrored.Outlined.ForwardToInbox, contentDescription = null) },
                     title = stringResource(R.string.fw_title),
                     summary = stringResource(R.string.fw_shortcut_summary),
                     onClick = { navigator.navigate(Routes.FORWARDING) },
@@ -181,16 +263,15 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     )
                 }
             }
-            items(list, key = { it.stored.id }) { entry ->
+            val now = System.currentTimeMillis()
+            val (ended, current) = list.partition { it.rule?.isExpired(now) == true }
+            val rowItem: @Composable (RuleEntry, Boolean) -> Unit = { entry, isEnded ->
                 RuleRow(
                     entry = entry,
-                    onToggle = { enabled ->
-                        if (enabled && viewModel.needsConfirmationToEnable(entry)) {
-                            confirmThen { viewModel.setEnabled(entry, true, confirmed = true) }
-                        } else {
-                            viewModel.setEnabled(entry, enabled)
-                        }
-                    },
+                    hold = viewModel.holdOf(entry),
+                    ended = isEnded,
+                    onToggle = { enabled -> if (enabled) turnOn(entry) else viewModel.disable(entry) },
+                    onHistory = { navigator.navigate(Routes.automationHistory(entry.stored.id)) },
                     onEdit = {
                         val draft = entry.rule?.let { RuleDraft.fromRule(it) }
                         if (entry.rule?.let { ForwardingSpec.isForwarding(it) } == true) {
@@ -206,6 +287,11 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 )
                 HorizontalDivider()
             }
+            items(current, key = { it.stored.id }) { entry -> rowItem(entry, false) }
+            if (ended.isNotEmpty()) {
+                item(key = "ended-header") { SectionTitle(R.string.fw_section_ended) }
+                items(ended, key = { it.stored.id }) { entry -> rowItem(entry, true) }
+            }
             item { SectionTitle(R.string.scr_auto_scheduled) }
             if (scheduled.isEmpty()) {
                 item {
@@ -217,7 +303,14 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     )
                 }
             }
-            items(scheduled, key = { "s" + it.id }) { send -> ScheduledRow(send, sims) { viewModel.cancelScheduled(send) } }
+            items(scheduled, key = { "s" + it.id }) { send ->
+                ScheduledRow(
+                    send = send,
+                    sims = sims,
+                    onChangeTime = { changeTime(send) },
+                    onCancel = { viewModel.cancelScheduled(send) },
+                )
+            }
             item { Row(Modifier.padding(48.dp)) {} }
         }
     }
@@ -236,9 +329,9 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         SaveCheck.Saved -> editing = null
                         SaveCheck.Incomplete -> issues = listOf(ValidationIssue.NoActions)
                         is SaveCheck.Invalid -> issues = check.issues
+                        SaveCheck.NeedsAppLock -> lockNeeded = true
                         is SaveCheck.NeedsConfirmation -> confirmThen {
-                            viewModel.confirmAndSave(check.rule)
-                            editing = null
+                            if (viewModel.confirmAndSave(check.rule)) editing = null else lockNeeded = true
                         }
                     }
                 },
@@ -247,6 +340,16 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
     upgradeFor?.let { UpgradeSheet(feature = it, onDismiss = { upgradeFor = null }) }
+    if (lockNeeded) {
+        AppLockNeededDialog(
+            onSetUp = {
+                lockNeeded = false
+                editing = null
+                navigator.navigate(Routes.APP_LOCK)
+            },
+            onDismiss = { lockNeeded = false },
+        )
+    }
 }
 
 @Composable
@@ -260,24 +363,54 @@ private fun SectionTitle(res: Int) {
 }
 
 @Composable
-private fun RuleRow(entry: RuleEntry, onToggle: (Boolean) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun RuleRow(
+    entry: RuleEntry,
+    hold: ForwardingHold?,
+    ended: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onHistory: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     ListItem(
         modifier = Modifier.clickable(onClick = onEdit),
         headlineContent = { Text(entry.stored.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
-            Text(
-                if (entry.rule == null) stringResource(R.string.scr_auto_unreadable) else describe(entry),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column {
+                Text(
+                    if (entry.rule == null) stringResource(R.string.scr_auto_unreadable) else describe(entry),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                holdText(hold)?.let {
+                    Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                }
+                if (ended && entry.rule != null) {
+                    TextButton(onClick = { onToggle(true) }) { Text(stringResource(R.string.fw_row_use_again)) }
+                }
+            }
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onHistory) {
+                    Icon(Icons.Outlined.History, contentDescription = stringResource(R.string.fw_history_row_cd, entry.stored.name))
+                }
                 IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.action_delete)) }
-                Switch(checked = entry.stored.enabled, onCheckedChange = onToggle, enabled = entry.rule != null)
+                Switch(checked = entry.stored.enabled && !ended, onCheckedChange = onToggle, enabled = entry.rule != null)
             }
         },
     )
+}
+
+/** Why the app turned a rule off by itself, for its row. */
+@Composable
+private fun holdText(hold: ForwardingHold?): String? = when (hold) {
+    null -> null
+    ForwardingHold.CONTACT_MISSING -> stringResource(R.string.fw_status_paused_contact)
+    ForwardingHold.CONTACTS_ACCESS -> stringResource(R.string.fw_status_paused_access)
+    ForwardingHold.LOCK_OFF -> stringResource(R.string.fw_status_off_lock_off)
+    ForwardingHold.SCREEN_LOCK_REMOVED -> stringResource(R.string.fw_status_off_screen_lock)
+    ForwardingHold.LOCK_NEEDED -> stringResource(R.string.fw_status_off_lock_needed)
 }
 
 @Composable
@@ -307,10 +440,21 @@ private fun describe(entry: RuleEntry): String {
 }
 
 @Composable
-private fun ScheduledRow(send: ScheduledSend, sims: List<SimInfo>, onCancel: () -> Unit) {
+private fun ScheduledRow(
+    send: ScheduledSend,
+    sims: List<SimInfo>,
+    onChangeTime: () -> Unit,
+    onCancel: () -> Unit,
+    highlighted: Boolean = false,
+) {
     val formatter = rememberRelativeTimeFormatter()
     val sim = sims.firstOrNull { it.subId == send.subId }
     ListItem(
+        colors = if (highlighted) {
+            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        } else {
+            ListItemDefaults.colors()
+        },
         leadingContent = { Icon(Icons.Outlined.Schedule, contentDescription = null) },
         headlineContent = { Text(send.addresses.joinToString(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
@@ -323,8 +467,41 @@ private fun ScheduledRow(send: ScheduledSend, sims: List<SimInfo>, onCancel: () 
                 )
             }
         },
-        trailingContent = { TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) } },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onChangeTime) { Text(stringResource(R.string.sched_action_change_time)) }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
+            }
+        },
     )
+}
+
+/** Platform date then time pickers, starting at [initial]; only today and later can be picked by date. */
+private fun pickDateTime(context: Context, initial: Long, onPicked: (Long) -> Unit) {
+    val cal = Calendar.getInstance().apply { timeInMillis = maxOf(initial, System.currentTimeMillis()) }
+    val dateDialog = DatePickerDialog(
+        context,
+        { _, year, month, day ->
+            TimePickerDialog(
+                context,
+                { _, hour, minute ->
+                    val picked = Calendar.getInstance().apply {
+                        set(year, month, day, hour, minute, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    onPicked(picked.timeInMillis)
+                },
+                cal.get(Calendar.HOUR_OF_DAY),
+                cal.get(Calendar.MINUTE),
+                DateFormat.is24HourFormat(context),
+            ).show()
+        },
+        cal.get(Calendar.YEAR),
+        cal.get(Calendar.MONTH),
+        cal.get(Calendar.DAY_OF_MONTH),
+    )
+    dateDialog.datePicker.minDate = System.currentTimeMillis() - 1_000L
+    dateDialog.show()
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -378,7 +555,8 @@ private fun RuleEditor(
 
         EditorSection(R.string.scr_auto_then)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActionKind.entries.forEach { kind ->
+            // SMS forwarding lives in Auto-forwarding (contacts only, time-boxed); only an existing forward rule shows it.
+            ActionKind.entries.filter { it != ActionKind.FORWARD_SMS || draft.action == ActionKind.FORWARD_SMS }.forEach { kind ->
                 val locked = isLocked(kind)
                 FilterChip(
                     selected = draft.action == kind,

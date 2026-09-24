@@ -123,4 +123,4 @@ fun costReason(verdict: CostVerdict): String = when (verdict.kind) {
 }
 
 private fun countryName(region: String): String =
-    Locale("", region).displayCountry.ifBlank { region }
+    runCatching { Locale.Builder().setRegion(region).build().displayCountry }.getOrNull()?.ifBlank { null } ?: region

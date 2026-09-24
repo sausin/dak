@@ -4,6 +4,7 @@ import app.dak.classify.DigitNormalizer
 import app.dak.classify.LinkExtractor
 import app.dak.classify.SenderId
 import app.dak.classify.SenderKind
+import app.dak.classify.SenderNameCheck
 import app.dak.classify.TemplateBundle
 import app.dak.classify.TrafficType
 import app.dak.classify.text.GatedRegex
@@ -110,13 +111,24 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
             }
         }
 
+        // --- Sender written with look-alike or mixed scripts (UTS #39), in any region and for any money message: a
+        // bank's header in Cyrillic or fullwidth letters is an imitation of that bank, other mixes are a spoof signal.
+        sender.spoof?.let { spoof ->
+            if (spoof.asciiLookalike && BankNames.familyOfHeaderSkeleton(spoof.skeleton) != null) {
+                reasons += ScamReason.LOOKALIKE_SENDER
+            } else if (spoof.mixedScript) {
+                reasons += ScamReason.MIXED_SCRIPT_SENDER
+            }
+        }
+
         // --- Account the user does not have
         if (alert != null && claimed != null && knownAccounts.isNotEmpty()) {
             val atBank = knownAccounts.filter { BankNames.familyIn(it.institution)?.id == claimed.id }
             if (atBank.isEmpty()) {
                 reasons += ScamReason.NO_ACCOUNT_AT_BANK
             } else {
-                val mask = maskIn(text) ?: hint?.last4
+                // The other party's account in a transfer confirmation is not the user's, so it is never compared.
+                val mask = maskIn(COUNTERPARTY_ACCOUNT.regex.replace(text, " ")) ?: hint?.last4
                 if (mask != null && atBank.none { digitsMatch(it.maskedDigits, mask) }) reasons += ScamReason.UNKNOWN_ACCOUNT
             }
         }
@@ -218,6 +230,8 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         val knownFamily: BankNames.Family?,
         /** A registered DLT header of a known bank/wallet, not on the promotional route. */
         val verified: Boolean,
+        /** UTS #39 findings for a non-ASCII sender name that mixes scripts or passes for ASCII; null otherwise. */
+        val spoof: SenderNameCheck.Result?,
     )
 
     private fun isIndia(region: String?): Boolean = region.equals(INDIA, ignoreCase = true)
@@ -233,11 +247,12 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         val entry = if (kind == SenderKind.DLT_HEADER || kind == SenderKind.ALPHANUMERIC) templates.sender(key) else null
         val family = entry?.brand?.let { BankNames.familyIn(it) }
         val verified = if (india) {
-            kind == SenderKind.DLT_HEADER && family != null && header?.trafficType != TrafficType.PROMOTIONAL
+            kind == SenderKind.DLT_HEADER && family != null && header?.route != TrafficType.PROMOTIONAL
         } else {
-            family != null && header?.trafficType != TrafficType.PROMOTIONAL
+            family != null && header?.route != TrafficType.PROMOTIONAL
         }
-        return Sender(kind, key, header?.trafficType, entry != null, entry?.brand, family, verified)
+        val spoof = SenderNameCheck.check(address)?.takeIf { it.suspicious }
+        return Sender(kind, key, header?.route, entry != null, entry?.brand, family, verified && spoof == null, spoof)
     }
 
     // ------------------------------------------------------------------------------------------------ text
@@ -249,8 +264,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         if (!hasAmount && hinted == null) return null
         if (!ACCOUNT_REF.containsMatchIn(text) && hinted == null) return null
         return when {
-            hinted == HintDirection.CREDIT || CREDIT_WORDS.containsMatchIn(text) -> Alert.CREDIT
-            hinted == HintDirection.DEBIT || DEBIT_WORDS.containsMatchIn(text) -> Alert.DEBIT
+            // "Credited to beneficiary ..." confirms the user's own outgoing transfer: money left, it did not arrive.
+            hinted == HintDirection.CREDIT || (CREDIT_WORDS.containsMatchIn(text) && !BENEFICIARY_CREDIT.containsMatchIn(text)) -> Alert.CREDIT
+            hinted == HintDirection.DEBIT || DEBIT_WORDS.containsMatchIn(text) || BENEFICIARY_CREDIT.containsMatchIn(text) -> Alert.DEBIT
             else -> null
         }
     }
@@ -353,7 +369,11 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
             O,
         )
 
-        private val MASK = GatedRegex("""(?:(?<![x*])[x*]{2,}+|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""", O)
+        private val MASK = GatedRegex(
+            // A single mask character only after an account keyword ("A/c X5073", AU Bank).
+            """(?:\b(?:a\s?/\s?c|acc?t|account)\.?\s*(?:no\.?\s*)?[x*]|(?<![x*])[x*]{2,}+|\bending\s+(?:with\s+)?|\bno\.?\s*)(\d{3,6})(?!\d)""",
+            O,
+        )
 
         internal fun amountsIn(text: String): Set<Long> {
             val out = HashSet<Long>()
@@ -374,7 +394,8 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         internal val allPatterns: List<GatedRegex>
             get() = listOf(
                 AMOUNT_BEFORE, AMOUNT_AFTER, MONEY_WORDS, ACCOUNT_REF, CREDIT_WORDS, DEBIT_WORDS, RETURN_REQUEST, MOBILE, VPA,
-                UPI_LINK, PIN_TO_RECEIVE, COLLECT, RECEIVE_BAIT, TRANSFER_MENTION, MASK, BARE_AMOUNT,
+                UPI_LINK, PIN_TO_RECEIVE, COLLECT, RECEIVE_BAIT, TRANSFER_MENTION, MASK, BARE_AMOUNT, COUNTERPARTY_ACCOUNT,
+                BENEFICIARY_CREDIT,
             )
 
         /** Plain numbers of 3-7 digits (or Indian-grouped "15,000"), as rupees in minor units. */
@@ -384,6 +405,18 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
             BARE_AMOUNT.findAll(text).take(8).mapNotNull { it.groupValues[1].replace(",", "").toLongOrNull()?.times(100) }.toSet()
 
         internal fun maskIn(text: String): String? = MASK.find(text)?.groupValues?.get(1)
+
+        /** The other party's account ("beneficiary A/c XX5632", "payee account XX1234"). */
+        private val COUNTERPARTY_ACCOUNT = GatedRegex(
+            """\b(?:beneficiary|benef|bene|payee|recipient|receiver)(?:'s)?\.?\s*(?:bank\s+)?(?:a\s?/\s?c|acc?t|account)\.?\s*(?:no\.?\s*)?[x*]*\d{3,}""",
+            O,
+        )
+
+        /** "Credited to beneficiary ...": the bank confirming the user's own outgoing transfer. */
+        private val BENEFICIARY_CREDIT = GatedRegex(
+            """\bcredited\s+(?:in)?to\s+(?:the\s+|your\s+)?(?:beneficiary|benef|bene|payee|recipient|receiver)""",
+            O,
+        )
 
         /** Masks match when the shorter visible tail is a suffix of the longer one (XX1234 vs XXXX001234). */
         internal fun digitsMatch(a: String, b: String): Boolean {

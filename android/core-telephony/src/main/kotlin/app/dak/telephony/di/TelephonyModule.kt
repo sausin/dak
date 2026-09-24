@@ -1,6 +1,7 @@
 package app.dak.telephony.di
 
 import android.content.Context
+import android.util.Log
 import app.dak.telephony.BlockedNumbers
 import app.dak.telephony.IncomingMessageHandler
 import app.dak.telephony.MessageSender
@@ -22,6 +23,8 @@ import app.dak.telephony.provider.TelephonyProviderReader
 import app.dak.telephony.provider.TelephonyProviderWriter
 import app.dak.telephony.region.RegionProvider
 import app.dak.telephony.region.TelephonyRegionProvider
+import app.dak.telephony.role.SmsRoleMonitor
+import app.dak.telephony.sms.FlashMessages
 import app.dak.telephony.send.SendRateLimiter
 import app.dak.telephony.send.TelephonyMessageSender
 import app.dak.telephony.sim.TelephonySimRepository
@@ -33,10 +36,12 @@ import dagger.Provides
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.Multibinds
 import javax.inject.Qualifier
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -88,11 +93,45 @@ object TelephonyProvidesModule {
     @Provides
     @Singleton
     @TelephonyScope
-    fun provideTelephonyScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    fun provideTelephonyScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + logUncaught)
+
+    /**
+     * Receiver and service work runs on attacker-triggered input (every SMS / WAP push). An exception that escapes a
+     * fire-and-forget coroutine must be logged, not crash the process: a crash on every delivery is a remote DoS of
+     * the phone's SMS app. Out-of-memory still crashes (nothing sensible can continue).
+     */
+    private val logUncaught = CoroutineExceptionHandler { _, e ->
+        if (e is OutOfMemoryError) throw e
+        Log.e("DakTelephony", "uncaught exception in telephony scope", e)
+    }
 
     @Provides
     @Singleton
-    fun provideSendRateLimiter(): SendRateLimiter = SendRateLimiter()
+    fun provideSendRateLimiter(@ApplicationContext context: Context): SendRateLimiter =
+        SendRateLimiter(store = PrefsReservationStore(context))
+}
+
+/** Reservation times in private SharedPreferences: the platform's send counter outlives our process, so must we. */
+private class PrefsReservationStore(context: Context) : SendRateLimiter.Store {
+    private val prefs = context.getSharedPreferences("dak_send_rate_limiter", Context.MODE_PRIVATE)
+
+    override fun load(): List<Long> = try {
+        prefs.getString(KEY, null)?.split(',')?.mapNotNull { it.toLongOrNull() }.orEmpty()
+    } catch (e: RuntimeException) {
+        emptyList()
+    }
+
+    override fun save(reservations: List<Long>) {
+        try {
+            prefs.edit().putString(KEY, reservations.joinToString(",")).apply()
+        } catch (e: RuntimeException) {
+            Log.w("DakTelephony", "could not persist send reservations: ${e.javaClass.simpleName}")
+        }
+    }
+
+    private companion object {
+        const val KEY = "reservations"
+    }
 }
 
 /**
@@ -109,6 +148,8 @@ interface TelephonyEntryPoint {
     fun mmsSendManager(): MmsSendManager
     fun messageSender(): TelephonyMessageSender
     fun outboxRecovery(): OutboxRecovery
+    fun smsRoleMonitor(): SmsRoleMonitor
+    fun flashMessages(): FlashMessages
 
     @TelephonyScope
     fun telephonyScope(): CoroutineScope

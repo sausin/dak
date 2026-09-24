@@ -38,7 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,7 +51,7 @@ import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.WarningBanner
 
 /**
- * Notification channels: every Dak channel grouped as the system groups them (Messages, one group per SIM on
+ * Notification channels: every Dak channel grouped as the system groups them (Incoming messages, one group per SIM on
  * multi-SIM devices, App), its current importance read from the system, a switch that opens the system page for
  * the channel (apps cannot change channel settings themselves), the per-conversation custom channels with remove,
  * warnings for blocked critical channels, and "Reset channels".

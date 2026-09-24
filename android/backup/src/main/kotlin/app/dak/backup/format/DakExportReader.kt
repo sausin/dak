@@ -29,6 +29,14 @@ class DakExportReader(
         private set
 
     /**
+     * Automation run history from `automation_runs.jsonl` (empty for archives without it). Lines that do not parse
+     * are skipped: the history is best effort and must never stop a message restore. Size, line-length and row-count
+     * limits still apply and fail the read like every other part.
+     */
+    var automationRuns: List<AutomationRunRecord> = emptyList()
+        private set
+
+    /**
      * Lazily parses every `messages/NNNN.jsonl` entry. [attachmentSink] is invoked with each
      * `attachments/<sha256>` entry's name and content stream (valid only for the duration of the
      * call; read it fully before returning) as it is encountered, in archive order.
@@ -71,6 +79,8 @@ class DakExportReader(
                             line = readBoundedLine(reader)
                         }
                     }
+                    name == DakExportWriter.AUTOMATION_RUNS_ENTRY ->
+                        automationRuns = readAutomationRuns(entryStream(zip, ArchiveLimits.MAX_AUTOMATION_RUNS_BYTES, name))
                     name == "threads.json" -> threads = json.decodeFromString(readMetadata(entryStream(zip, ArchiveLimits.MAX_METADATA_BYTES, name)))
                     name == "settings.json" -> settingsJson = readMetadata(entryStream(zip, ArchiveLimits.MAX_METADATA_BYTES, name))
                     name == "manifest.json" -> manifest = json.decodeFromString(readMetadata(entryStream(zip, ArchiveLimits.MAX_METADATA_BYTES, name)))
@@ -80,6 +90,23 @@ class DakExportReader(
             }
         }
 
+    private fun readAutomationRuns(input: InputStream): List<AutomationRunRecord> {
+        val reader = input.bufferedReader(Charsets.UTF_8)
+        val runs = ArrayList<AutomationRunRecord>()
+        var line = readBoundedLine(reader, ArchiveLimits.MAX_AUTOMATION_RUN_LINE_CHARS)
+        while (line != null) {
+            if (line.isNotBlank()) {
+                if (runs.size >= ArchiveLimits.MAX_AUTOMATION_RUNS) {
+                    throw ArchiveLimitException("more than ${ArchiveLimits.MAX_AUTOMATION_RUNS} automation runs")
+                }
+                checkJsonDepth(line)
+                runCatching { json.decodeFromString<AutomationRunRecord>(line) }.getOrNull()?.let { runs += it.bounded() }
+            }
+            line = readBoundedLine(reader, ArchiveLimits.MAX_AUTOMATION_RUN_LINE_CHARS)
+        }
+        return runs
+    }
+
     private fun readMetadata(input: InputStream): String {
         val text = input.readBytes().toString(Charsets.UTF_8)
         checkJsonDepth(text)
@@ -87,14 +114,14 @@ class DakExportReader(
     }
 
     /** Like [java.io.BufferedReader.readLine] (split on `\n`, `\r` dropped) but refuses absurdly long lines. */
-    private fun readBoundedLine(reader: java.io.Reader): String? {
+    private fun readBoundedLine(reader: java.io.Reader, maxChars: Int = ArchiveLimits.MAX_JSON_LINE_CHARS): String? {
         val sb = StringBuilder()
         while (true) {
             val c = reader.read()
             if (c < 0) return if (sb.isEmpty()) null else sb.toString()
             if (c == '\n'.code) return sb.toString()
             if (c != '\r'.code) sb.append(c.toChar())
-            if (sb.length > ArchiveLimits.MAX_JSON_LINE_CHARS) throw ArchiveLimitException("message line too long")
+            if (sb.length > maxChars) throw ArchiveLimitException("line too long")
         }
     }
 }

@@ -9,8 +9,12 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Direct battery-optimisation exemption prompt: timely OTP/bank-alert delivery is the core function. -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Not requested: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS is Play-restricted and a default SMS app is already woken
+         for SMS_DELIVER / WAP_PUSH_DELIVER. Dak opens the battery-optimisation settings list instead (no permission
+         needed). tools:node="remove" keeps a library from merging it back in. See docs/play-submission.md. -->
+    <uses-permission
+        android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        tools:node="remove" />
 
     <!-- Share location as a maps link from the composer. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -38,6 +42,7 @@
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Dak"
@@ -108,6 +113,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Settings → Privacy: policy (offline), data-sharing consents, export and delete of Dak's own data.
+             Not exported: only Dak's own screens open it. -->
+        <activity
+            android:name=".ui.privacy.PrivacyActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/privacy_title"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Notification actions (copy code, delete, mark read, reply). Only our own PendingIntents reach it. -->
         <receiver
             android:name=".notifications.NotificationActionReceiver"
@@ -123,6 +137,18 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- Heads-up before a scheduled message goes out: its wakeup alarm and its Send now / Delay / Cancel actions.
+             No intent filter: only our own explicit, immutable PendingIntents (carrying the scheduled-send id) reach it.
+             Reboots are covered by ScheduledSendReceiver, which re-arms the heads-up with the sends. -->
+        <receiver
+            android:name=".automation.ScheduledSendHeadsUpReceiver"
+            android:exported="false" />
+
+        <!-- "Turn off" on the "Was this you?" security alert for auto-forwarding. Only our own PendingIntent reaches it. -->
+        <receiver
+            android:name=".automation.OutboundRuleReceiver"
+            android:exported="false" />
 
         <!-- Camera capture target for the composer attachment tray. -->
         <provider

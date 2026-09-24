@@ -41,6 +41,20 @@ class MmsDownloadStateStore @Inject constructor(@ApplicationContext context: Con
 
     fun replacement(id: Long): Long? = prefs.getLong(REPLACEMENT_PREFIX + id, -1L).takeIf { it >= 0 }
 
+    /**
+     * Remembers that the notification in row [id] was answered m-notifyresp-ind (Deferred), so the later retrieval
+     * is acknowledged with m-acknowledge-ind instead (see [app.dak.mms.pdu.MmsClientTransactions]).
+     */
+    fun markDeferred(id: Long) {
+        prefs.edit().putBoolean(DEFERRED_PREFIX + id, true).commit()
+    }
+
+    fun wasDeferred(id: Long): Boolean = prefs.getBoolean(DEFERRED_PREFIX + id, false)
+
+    fun clearDeferred(id: Long) {
+        if (prefs.contains(DEFERRED_PREFIX + id)) prefs.edit().remove(DEFERRED_PREFIX + id).apply()
+    }
+
     private fun load(): Map<Long, MmsDownloadState> {
         val out = HashMap<Long, MmsDownloadState>()
         for ((key, value) in prefs.all) {
@@ -54,5 +68,6 @@ class MmsDownloadStateStore @Inject constructor(@ApplicationContext context: Con
     private companion object {
         const val STATE_PREFIX = "s:"
         const val REPLACEMENT_PREFIX = "r:"
+        const val DEFERRED_PREFIX = "x:"
     }
 }

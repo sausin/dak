@@ -40,14 +40,83 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      - name: Resolve version
+        # Tags (v1.2.3) set the app's versionName and the APK file names; other builds are labelled with the CI
+        # run number, so downloaded APKs are always distinguishable.
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = tag ] && [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            version="${REF_NAME#v}"
+            echo "DAK_VERSION_NAME=$version" >> "$GITHUB_ENV"
+            echo "DAK_APK_LABEL=$version" >> "$GITHUB_ENV"
+          else
+            echo "DAK_APK_LABEL=build$DAK_VERSION_CODE" >> "$GITHUB_ENV"
+          fi
+
       - name: Offline baseline guard (no runtime AI/network deps in free tier)
         run: scripts/check-offline-baseline.sh
 
-      - name: Unit tests (JVM + Android modules)
-        run: ./gradlew --continue test
+      - name: Test tooling (scripts/sms-pdu.py, decoded by independent PDU libraries)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/pdu-venv"
+          "$RUNNER_TEMP/pdu-venv/bin/pip" install --quiet pytest==9.1.1 python-gsmmodem-new==0.13.0 smspdudecoder==2.2.0
+          "$RUNNER_TEMP/pdu-venv/bin/python" -m pytest -q -p no:cacheprovider scripts/tests
 
-      - name: Build debug APKs (free + premium) and an unsigned release build check
-        run: ./gradlew --stacktrace assembleFreeDebug assemblePremiumDebug assembleFreeRelease
+      - name: Unit tests (JVM + Android modules) with coverage
+        # One test run: Kover instruments the test tasks, and the "coverage" report variant (jvm / debug / freeDebug
+        # per module, merged at the root) is built from the same run. docs/testing.md.
+        run: ./gradlew --continue test koverXmlReportCoverage koverHtmlReportCoverage
+
+      - name: Coverage summary and floors
+        # Per-module line/branch table in the job summary, badge JSON, and a failure if any module drops below
+        # its floor in coverage-floors.json.
+        run: python3 scripts/coverage-summary.py --badge "$RUNNER_TEMP/coverage.json"
+
+      - name: Upload coverage report (HTML + XML)
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report-${{ github.run_number }}
+          path: |
+            android/build/reports/kover/
+            android/*/build/reports/kover/
+          if-no-files-found: ignore
+
+      - name: Publish coverage badge (main only)
+        # Commits coverage.json to the orphan `badges` branch, read by the README badge via shields.io's endpoint
+        # badge. Never runs for pull requests; a failure here only loses a badge update, not the build.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/badges"
+          rm -rf "$dir" && git init -q "$dir" && cd "$dir"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+          if git -c http.extraheader="$auth" fetch -q --depth=1 origin badges 2>/dev/null; then
+            git checkout -q -b badges FETCH_HEAD
+          else
+            git checkout -q --orphan badges
+          fi
+          cp "$RUNNER_TEMP/coverage.json" coverage.json
+          git add coverage.json
+          if git diff --cached --quiet; then echo "Badge unchanged."; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "coverage: $(python3 -c 'import json;print(json.load(open("coverage.json"))["message"])') (${GITHUB_SHA::7})"
+          git -c http.extraheader="$auth" push -q origin HEAD:refs/heads/badges
+          cat coverage.json
+
+      - name: Build debug APKs (free + premium) and unsigned release builds (R8 check)
+        # Release builds run R8 (minify + resource shrinking); a missing class or bad keep rule fails this step.
+        run: ./gradlew --stacktrace assembleFreeDebug assemblePremiumDebug assembleFreeRelease assemblePremiumRelease
+
+      - name: Release smoke check (R8 ran, persisted class names kept)
+        run: scripts/check-release-mapping.sh freeRelease premiumRelease
 
       - name: Decode release keystore
         id: keystore
@@ -67,6 +136,16 @@ jobs:
           DAK_KEY_PASSWORD: ${{ secrets.DAK_KEY_PASSWORD }}
         run: ./gradlew --stacktrace assembleFreeRelease assemblePremiumRelease
 
+      - name: Put the version in APK file names
+        # app-free-debug.apk -> dak-1.2.3-free-debug.apk (AGP 9 has no output-file-name hook, so rename here).
+        run: |
+          for apk in app/build/outputs/apk/*/*/app-*.apk; do
+            [ -e "$apk" ] || continue
+            name="$(basename "$apk")"
+            mv "$apk" "$(dirname "$apk")/dak-${DAK_APK_LABEL}-${name#app-}"
+          done
+          ls app/build/outputs/apk/*/*/
+
       - name: Upload debug APKs
         uses: actions/upload-artifact@v7
         with:
@@ -80,6 +159,14 @@ jobs:
         with:
           name: dak-release-apks-${{ github.run_number }}
           path: android/app/build/outputs/apk/*/release/*.apk
+
+      - name: Upload R8 mapping files
+        # Needed to retrace release crash reports; keep the ones from tagged builds.
+        uses: actions/upload-artifact@v7
+        with:
+          name: dak-r8-mapping-${{ github.run_number }}
+          path: android/app/build/outputs/mapping/*/mapping.txt
+          if-no-files-found: error
 
       - name: Upload test reports
         if: failure()

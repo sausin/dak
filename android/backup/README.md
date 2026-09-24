@@ -17,12 +17,16 @@ for its JSON Schema.
   - `writeAttachment(sha256: String, bytes: ByteArray)` / `writeAttachment(sha256: String, input: InputStream)`
   - `writeMessages(messages: Sequence<MessageRecord>)` — consumes the sequence exactly once, lazily.
   - `writeThreads(threads: List<ThreadPrefs>)`, `writeSettings(settingsJson: String)`
+  - `writeAutomationRuns(runs: Sequence<AutomationRunRecord>)` — optional `automation_runs.jsonl`
   - `finish(meta: ManifestMeta): Manifest` — writes the trailer `manifest.json`; call last.
   - `close()`
 - **`DakExportReader(input: InputStream)`** — streaming reader.
   - `readMessages(attachmentSink: (sha256, InputStream) -> Unit = { _, _ -> }): Sequence<MessageRecord>`
-    — lazy; iterate it fully to populate `threads`, `settingsJson` and `manifest` (they sit after the
-    message chunks in the archive).
+    — lazy; iterate it fully to populate `threads`, `settingsJson`, `automationRuns` and `manifest` (they sit
+    after the message chunks in the archive).
+- **`AutomationRunRestore.plan(incoming, existingKeys, nowMillis)`** — which backed-up run-history rows to insert:
+  dedupes, drops invalid or future-dated rows, bounds strings and count. Rows are log entries only.
+- **`PersonalDataExportWriter(output)`** — the "Export my Dak data" ZIP (`writeJson`, `writeJsonLines`, `finish`).
 - **`Hashing`** — `sha256Hex(ByteArray|String|InputStream)`, `hexToBytes`, `ByteArray.toHex()`.
 
 ## `app.dak.backup.xml` — SMS Backup & Restore (SyncTech) XML
@@ -69,12 +73,14 @@ parent-id cycles, chains longer than 10k snapshots and snapshot ids with path sy
 - **`BackupPlanner.plan(previousDigest: Map<String, String>, current: Sequence<MessageRecord>): BackupPlan`**
   (`added`/`changed`/`deletedKeys`/`unchangedCount`) and `BackupPlanner.digestOf(messages): Map<String, String>`.
 - **`BackupEngine(target: BackupTarget, encryption: BackupEncryption? = null)`**
-  - `suspend fun backup(messages: Sequence<MessageRecord>, threads = emptyList(), settingsJson = "{}", appVersion: String, attachmentSource: suspend (sha256) -> InputStream? = { null }, previousManifest: Manifest? = null, previousDigest: Map<String,String> = emptyMap(), knownAttachmentHashes: Set<String> = emptySet(), device: String? = null, now = System.currentTimeMillis(), id = UUID.randomUUID().toString()): BackupResult`
+  - `suspend fun backup(messages: Sequence<MessageRecord>, threads = emptyList(), settingsJson = "{}", automationRuns = emptySequence(), appVersion: String, attachmentSource: suspend (sha256) -> InputStream? = { null }, previousManifest: Manifest? = null, previousDigest: Map<String,String> = emptyMap(), knownAttachmentHashes: Set<String> = emptySet(), device: String? = null, now = System.currentTimeMillis(), id = UUID.randomUUID().toString()): BackupResult`
     — omit `previousManifest`/`previousDigest` for a FULL snapshot, pass a prior `BackupResult`'s
     `manifest`/`digest` for an INCREMENTAL one.
   - `fun restore(key: RestoreKey? = null, existingKeys: (kind: MessageKind, address: String, dateMillis: Long, bodyHash: String) -> Boolean, attachmentSink: (sha256, InputStream) -> Unit = { _, _ -> }, fromBlobName: String? = null): Flow<MessageRecord>`
     — walks the incremental chain, merges it, and emits only messages `existingKeys` reports as not
     already present. **Never deletes or blanks anything.**
+  - `suspend fun readExtras(key: RestoreKey? = null, fromBlobName: String? = null): SnapshotExtras` — the settings
+    JSON and automation run history of the newest (or named) snapshot.
   - `RestoreKey.Passphrase(CharArray)` / `RestoreKey.RecoveryCode(String)`.
 
 ## `app.dak.backup.importers` — foreign-backup importers

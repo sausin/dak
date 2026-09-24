@@ -3,6 +3,7 @@ package app.dak.index.sync
 import app.dak.core.model.Attachment
 import app.dak.core.model.DeliveryStatus
 import app.dak.core.model.ExtractedTransaction
+import app.dak.core.model.InvestmentAction
 import app.dak.core.model.Message
 import app.dak.core.model.MessageKey
 import app.dak.finance.ledger.Account
@@ -36,6 +37,9 @@ internal object IndexRowMapper {
     ): IndexedMessage {
         val c = enrichment.classification
         val txn = enrichment.transaction
+        // A valuation statement moves no money: the ledger reads it (transactionJson + accountId) for the account's
+        // current value, but the message shows no amount chip and matches no amount search or automation.
+        val moved = txn?.takeIf { it.investmentAction != InvestmentAction.VALUATION }
         val grouping = SenderGrouping.resolve(message.address, message.threadId, rules)
         return IndexedMessage(
             kind = message.kind,
@@ -60,11 +64,11 @@ internal object IndexRowMapper {
             webOtpDomain = c.otp?.webOtpDomain,
             hasLink = LinkDetector.containsLink(message.body),
             hasAttachment = message.attachments.isNotEmpty(),
-            amountMinor = txn?.amountMinor,
-            currency = txn?.currency,
-            direction = txn?.direction,
+            amountMinor = moved?.amountMinor,
+            currency = moved?.currency,
+            direction = moved?.direction,
             instrumentLast4 = txn?.last4,
-            merchant = txn?.merchant,
+            merchant = moved?.merchant,
             accountId = txn?.let { Account.idOf(it) },
             transactionJson = txn?.let { IndexJson.json.encodeToString(ExtractedTransaction.serializer(), it) },
             starred = flag?.starred ?: false,

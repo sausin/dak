@@ -17,6 +17,8 @@
     <string name="safe_report_title">Report this message</string>
     <string name="safe_report_trai">Report spam to TRAI (1909)</string>
     <string name="safe_report_trai_body">Opens a complaint SMS with the message text, sender and date, in the format TRAI publishes. Check it before sending: your operator may reply if it needs changes. Complaints must be sent within a few days of the message.</string>
+    <string name="safe_report_trai_sim">Sends from %1$s, the SIM that received this message.</string>
+    <string name="safe_report_trai_sim_fallback">Sends from %1$s. The SIM that received this message is not available.</string>
     <string name="safe_report_chakshu">Report suspected fraud on Chakshu</string>
     <string name="safe_report_chakshu_body">For fake KYC, impersonation, fake customer care or prize messages. The message details are copied: on the Sanchar Saathi page choose the medium (SMS) and category, then paste them.</string>
     <string name="safe_report_cyber">Report financial fraud on cybercrime.gov.in</string>

@@ -50,11 +50,23 @@ public object OtpExtractor {
         RegexOption.IGNORE_CASE,
     )
 
+    // "OTP for txn of Rs 2,499 at SHOP on card XX4411 is 773201", "OTP for your application on the portal is 552910":
+    // a longer window, but only up to an explicit "is" right before the code.
+    private val codeAfterKeywordIs = GatedRegex(
+        """(?i)(?:$otpKeywordEn|$otpKeywordHi)[^\n]{0,90}?\bis\s*:?\s*((?=[A-Z]*\d)[A-Z0-9]{4,8})\b""",
+    )
+
+    // "Use 5521 as your one time password", "Enter 482913 as the verification code"
+    private val codeAsKeyword = GatedRegex(
+        """\b(?:use|enter)\s+([A-Z0-9]{4,8})\s+(?:as|is)\s+(?:your|the)?\s*(?:[\p{L}\d&'.-]{1,24}\s+){0,3}?(?:$otpKeywordEn)""",
+        RegexOption.IGNORE_CASE,
+    )
+
     // "code: 1234", "pin: 1234", "code is 1234"
     private val genericCode = GatedRegex("""(?i)\b(?:code|pin)\s*(?:is|:)\s*([A-Z0-9]{4,8})\b""")
 
     /** The keyword-gated patterns, for the prefilter equivalence test. */
-    internal val gatedPatterns: List<GatedRegex> get() = listOf(webOtpRegex, amountRegex, codeAfterKeyword, codeBeforeKeyword, genericCode)
+    internal val gatedPatterns: List<GatedRegex> get() = listOf(webOtpRegex, amountRegex, codeAfterKeyword, codeBeforeKeyword, codeAfterKeywordIs, codeAsKeyword, genericCode)
 
     /** Attempts to extract OTP info from [body]. Returns null if no OTP-shaped code is found. */
     public fun extract(rawBody: String): OtpInfo? {
@@ -111,15 +123,31 @@ public object OtpExtractor {
             if (i < body.length) append(body, i, body.length)
         }
 
-        firstValidCode(codeAfterKeyword, masked)?.let { return it }
+        // "Use 5521 as your one time password. Valid for 1800 seconds.": a number after the keyword but in the next
+        // sentence is only the code when nothing names one more directly.
+        val afterKeyword = firstValidMatch(codeAfterKeyword, masked)
+        val afterCode = afterKeyword?.groupValues?.get(1)
+        if (afterKeyword != null && !crossesSentence(masked, afterKeyword)) return afterCode
         firstValidCode(codeBeforeKeyword, masked)?.let { return it }
+        firstValidCode(codeAfterKeywordIs, masked)?.let { return it }
+        firstValidCode(codeAsKeyword, masked)?.let { return it }
         firstValidCode(genericCode, masked)?.let { return it }
-        return null
+        return afterCode
     }
 
-    private fun firstValidCode(regex: GatedRegex, masked: String): String? {
+    /** A full stop, `!` or `?` followed by a blank between the keyword and the code of [match]. */
+    private val sentenceEnd = Regex("""[.!?]\s""")
+
+    private fun crossesSentence(text: String, match: MatchResult): Boolean {
+        val codeStart = match.groups[1]?.range?.first ?: return false
+        return sentenceEnd.containsMatchIn(text.subSequence(match.range.first, codeStart))
+    }
+
+    private fun firstValidCode(regex: GatedRegex, masked: String): String? = firstValidMatch(regex, masked)?.groupValues?.get(1)
+
+    private fun firstValidMatch(regex: GatedRegex, masked: String): MatchResult? {
         for (match in regex.findAll(masked)) {
-            normalizeCode(match.groupValues[1])?.let { return it }
+            if (normalizeCode(match.groupValues[1]) != null) return match
         }
         return null
     }

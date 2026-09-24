@@ -1,6 +1,7 @@
 package app.dak.classify
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -30,8 +31,9 @@ class MaskerTest {
 
     @Test
     fun `masks amounts and generic numbers`() {
-        val masked = Masker.mask("Rs 2,500 debited, ref 1029384756")
-        assertTrue(masked.contains("<AMT>") || masked.contains("<NUM>"))
+        assertEquals("<AMT> debited, ref <NUM>", Masker.mask("Rs 2,500 debited, ref 1029384756"))
+        // Other digit scripts are masked too (as numbers: the amount pattern is ASCII-only, which leaks nothing).
+        assertEquals("OTP <NUM> for ₹ <NUM>", Masker.mask("OTP ४८२९१३ for ₹ ५००"))
     }
 
     @Test
@@ -45,5 +47,25 @@ class MaskerTest {
     fun `masks card numbers as NUM not AMT`() {
         val masked = Masker.mask("Card 4111111111111234 was charged")
         assertTrue(masked.contains("<NUM>"))
+    }
+
+    @Test
+    fun `never throws or leaks a digit on random input in any digit script`() {
+        val r = kotlin.random.Random(31337)
+        val zeros = listOf('0', '०', '০', '٠', '۰', '０', '௦')
+        val parts = listOf("Rs", "₹", "INR", "$", " ", ",", ".", "-", "@", "http://", "www.", "a.b", "Dear ", "Rohit", "to ", "from ", "x")
+        repeat(3_000) {
+            val sb = StringBuilder()
+            repeat(r.nextInt(1, 25)) {
+                if (r.nextBoolean()) {
+                    val zero = zeros[r.nextInt(zeros.size)]
+                    repeat(r.nextInt(1, 14)) { sb.append(zero + r.nextInt(10)) }
+                } else {
+                    sb.append(parts[r.nextInt(parts.size)])
+                }
+            }
+            val masked = Masker.mask(sb.toString())
+            assertFalse(masked.any { it.isDigit() }, "leaked a digit: $masked")
+        }
     }
 }

@@ -62,7 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.navigation.DakNavigator
@@ -73,6 +73,7 @@ import app.dak.safety.helplines.HelplineAction
 import app.dak.safety.helplines.HelplineCategory
 import app.dak.safety.helplines.UserHelpline
 import app.dak.ui.common.DakTopAppBar
+import app.dak.ui.conversation.simLabel
 import app.dak.ui.theme.DakTheme
 
 /**
@@ -293,7 +294,7 @@ private fun ReportCard(
                 ActionRow(
                     icon = Icons.Outlined.Sms,
                     title = stringResource(R.string.safe_report_trai),
-                    body = stringResource(R.string.safe_report_trai_body),
+                    body = stringResource(R.string.safe_report_trai_body) + traiSimLine(ui.complaintSim),
                     onClick = onTrai,
                 )
             }
@@ -345,6 +346,19 @@ private fun ActionRow(icon: ImageVector, title: String, body: String?, onClick: 
             null
         },
     )
+}
+
+/** "\n\nSends from SIM 2, the SIM that received this message." (empty when no SIM is known). */
+@Composable
+private fun traiSimLine(choice: ComplaintSim.Choice?): String {
+    val sim = choice?.sim ?: return ""
+    val label = simLabel(sim)
+    val line = if (choice.isReceivingSim) {
+        stringResource(R.string.safe_report_trai_sim, label)
+    } else {
+        stringResource(R.string.safe_report_trai_sim_fallback, label)
+    }
+    return "\n\n$line"
 }
 
 @Composable

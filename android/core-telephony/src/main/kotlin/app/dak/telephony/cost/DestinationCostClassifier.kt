@@ -52,7 +52,8 @@ class DestinationCostClassifier {
         if (digits == 0) return verdict(CostKind.NORMAL)
         val international = address.startsWith("+") || address.filter { it.isDigit() }.startsWith(INTL_PREFIX_00)
 
-        if (!international && isEmergency(address, home, network)) return CostVerdict(address, CostKind.EMERGENCY, home, roamingAbroad)
+        // Before the international check: Australia's 000 starts with the "00" international prefix.
+        if (!address.startsWith("+") && isEmergency(address, home, network)) return CostVerdict(address, CostKind.EMERGENCY, home, roamingAbroad)
 
         val parseRegion = home ?: UNKNOWN_REGION
         val number: PhoneNumber = try {

@@ -43,14 +43,21 @@ import javax.inject.Singleton
  * Posts the notification for every incoming message (priority 0: runs before indexing). Classification comes
  * straight from :classify so the notification never waits for the index.
  *
- * - OTP: code large and bold (custom view), Copy / Delete now / Mark read, in-call security warning, and the quiet
- *   path for OTPs an app already consumed (Notifications → Advanced → Consumed OTP handling), looked up in the
+ * - OTP: code large and bold (custom view), copied to the clipboard on arrival ([OtpClipboard], setting "Copy OTPs
+ *   automatically") and marked "Copied", else a Copy action; Mark read / Delete; in-call security warning; and the
+ *   quiet path for OTPs an app already consumed (Notifications → Advanced → Consumed OTP handling), looked up in the
  *   index's persisted app-hash table ([NotifierIndexLookups]; no package scan on this path).
  * - Muted conversations: still shown, but silently (no sound, vibration or heads-up), OTPs included.
- * - Personal: MessagingStyle per conversation with inline Reply (RemoteInput) and Mark read.
- * - Other categories: their own channel (promotions quiet, spam blocked by default) with Mark read / Delete.
- * - Channels: per-SIM copies on multi-SIM devices and per-conversation custom channels ([NotificationChannels],
- *   [ConversationChannels]); sound and vibration always come from the channel, never from code.
+ * - Personal and unknown senders: MessagingStyle per conversation with inline Reply (RemoteInput; only when the
+ *   sender has a number to reply to) and Mark read.
+ * - Alerts (transactions): sender or brand as title, Mark read / Delete. Promotions: Mark read only (the channel is
+ *   silent). Spam: blocked by default, Mark read / Delete. Likely fake credit alerts: a warning on Alerts.
+ * - Actions are standard notification actions with short labels, an icon and a semantic action, primary action
+ *   first and Delete last: the shade draws them as text in the system style (light and dark), watches, cars and
+ *   assistants use the icons and semantics.
+ * - Channels: [ChannelRouting] picks the category channel from the classifier output; per-SIM copies on multi-SIM
+ *   devices and per-conversation custom channels ([NotificationChannels], [ConversationChannels]); sound and
+ *   vibration always come from the channel, never from code.
  * - Repeats ([RepeatCollapse]): an identical (personal) or same-template (others) message within the window
  *   updates the existing notification with "×N" instead of stacking, quietly; a resent OTP replaces the old one
  *   with the latest code. More than three active notifications in a category get an InboxStyle summary
@@ -96,7 +103,7 @@ class MessageNotifier @Inject constructor(
      * @param otpConsumer the app that auto-read the OTP (quiet path), if any.
      * @param muted the conversation is muted: post silently (no sound, vibration or heads-up).
      */
-    fun post(message: Message, classification: Classification, otpConsumer: String? = null, muted: Boolean = false): Boolean {
+    suspend fun post(message: Message, classification: Classification, otpConsumer: String? = null, muted: Boolean = false): Boolean {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return false
         channels.ensureCreated()
@@ -109,11 +116,21 @@ class MessageNotifier @Inject constructor(
         val built = if (scam.level == ScamLevel.LIKELY_SCAM) {
             buildScamWarning(message, sender, muted)
         } else if (category == Category.OTP && otp != null) {
-            buildOtp(message, otp, sender, custom?.first, otpConsumer, muted)
-        } else if (category == Category.PERSONAL || category == Category.UNKNOWN || custom != null) {
+            val quiet = otpConsumer != null && settings.get(DakSettings.consumedOtpHandling) != "normal"
+            val channel = (if (quiet) null else custom?.first)
+                ?: channels.channelFor(ChannelRouting.baseChannel(category, otpConsumed = quiet), message.subId, sims.sims.value)
+            // Copied before posting, so the notification can say so. Not for a code an app already read, nor while
+            // the user has this OTP channel turned off (no clipboard changes the user is not told about).
+            val copied = !quiet && settings.get(DakSettings.otpAutoCopy) && !channels.isBlocked(channel) &&
+                OtpClipboard.copyFromBackground(context, otp.code)
+            buildOtp(message, otp, sender, channel, otpConsumer, quiet, copied, muted)
+        } else if (custom != null ||
+            ((category == Category.PERSONAL || category == Category.UNKNOWN) && !ChannelRouting.isInvestmentAlert(category, classification.labels))
+        ) {
             buildConversation(message, category, sender, custom, muted)
         } else {
-            buildInformational(message, category, sender, muted)
+            // Investment labels pick the channel: a demat security alert is loud, a routine fund / broker update quiet.
+            buildInformational(message, category, sender, muted, classification.labels)
         }
         if (channels.isBlocked(built.channelId)) return category == Category.SPAM
         manager.notify(built.target.tag, built.target.id, built.notification)
@@ -143,11 +160,14 @@ class MessageNotifier @Inject constructor(
         message: Message,
         otp: OtpInfo,
         sender: String,
-        customChannel: String?,
+        channel: String,
         consumer: String?,
+        quiet: Boolean,
+        copied: Boolean,
         muted: Boolean,
     ): Built {
-        val template = RepeatCollapse.template(message.body)
+        val shownBody = NotificationText.body(message.body)
+        val template = RepeatCollapse.template(shownBody)
         val now = System.currentTimeMillis()
         // A resent / duplicated OTP from the same thread replaces the previous one with the latest code.
         val previous = active().firstOrNull { sbn ->
@@ -158,41 +178,41 @@ class MessageNotifier @Inject constructor(
         val repeat = previous != null && RepeatCollapse.isRepeat(
             previous.notification.extras.getString(EXTRA_REPEAT_KEY), previous.notification.extras.getLong(EXTRA_REPEAT_AT), template, now,
         )
-        val count = if (repeat) previous!!.notification.extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
-        val sameCode = repeat && previous!!.notification.extras.getString(EXTRA_OTP_CODE) == otp.code
-        val target = NotificationActions.Target(tag = if (repeat) previous!!.tag else "otp:${message.key}", id = ID_OTP)
+        val count = if (repeat) previous.notification.extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
+        val sameCode = repeat && previous.notification.extras.getString(EXTRA_OTP_CODE) == otp.code
+        val target = NotificationActions.Target(tag = if (repeat) previous.tag else "otp:${message.key}", id = ID_OTP)
         val handling = settings.get(DakSettings.consumedOtpHandling)
-        val quiet = consumer != null && handling != "normal"
         val inCall = callState.isInCall()
         val large = settings.get(DakSettings.otpDisplaySize) == "large"
         val warning = if (inCall) context.getString(R.string.otp_in_call_warning) else null
         val usedBy = consumer?.let { context.getString(R.string.otp_used_by, labelOf(it)) }
-        val shownSender = RepeatCollapse.withCount(sender, count)
+        // Isolated (FSI…PDI): the sender name sits next to the code and "Used by …" in one line.
+        val shownSender = RepeatCollapse.withCount(BidiText.isolate(sender), count)
+        val copiedLabel = if (copied) context.getString(R.string.otp_copied) else null
 
         val collapsed = RemoteViews(context.packageName, R.layout.notification_otp).apply {
             setTextViewText(R.id.otp_code, otp.code)
             setTextViewTextSize(R.id.otp_code, TypedValue.COMPLEX_UNIT_SP, if (large) 32f else 24f)
+            copiedLabel?.let { showOtpStatus(this, it) }
             setTextViewText(R.id.otp_sender, warning ?: listOfNotNull(shownSender, usedBy).joinToString(" · "))
         }
         val expanded = RemoteViews(context.packageName, R.layout.notification_otp_big).apply {
             setTextViewText(R.id.otp_code, otp.code)
             setTextViewTextSize(R.id.otp_code, TypedValue.COMPLEX_UNIT_SP, if (large) 40f else 28f)
+            copiedLabel?.let { showOtpStatus(this, it) }
             if (warning != null) {
                 setViewVisibility(R.id.otp_warning, View.VISIBLE)
                 setTextViewText(R.id.otp_warning, warning)
             }
             setTextViewText(R.id.otp_sender, listOfNotNull(shownSender, usedBy).joinToString(" · "))
-            setTextViewText(R.id.otp_body, message.body)
+            setTextViewText(R.id.otp_body, shownBody)
         }
 
-        val channel = if (quiet) {
-            channels.channelFor(NotificationChannels.OTP_CONSUMED, message.subId, sims.sims.value)
-        } else {
-            customChannel ?: channels.channelFor(NotificationChannels.OTP, message.subId, sims.sims.value)
-        }
+        // The title is what watches, summaries and screen readers show; the custom views draw the code themselves.
+        val title = if (copied) context.getString(R.string.otp_code_copied, otp.code) else otp.code
         val builder = baseBuilder(channel = channel, message = message, smallIcon = R.drawable.ic_stat_otp, category = Category.OTP)
-            .setContentTitle("${otp.code} · $shownSender")
-            .setContentText(warning ?: message.body)
+            .setContentTitle("$title · $shownSender")
+            .setContentText(warning ?: shownBody)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsed)
             .setCustomBigContentView(expanded)
@@ -200,9 +220,13 @@ class MessageNotifier @Inject constructor(
             .setPriority(if (quiet || muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
             // An exact duplicate (same code) updates quietly; a new code alerts as the channel says.
             .setOnlyAlertOnce(sameCode)
-            .addAction(0, context.getString(R.string.action_copy_code), NotificationActions.copyCode(context, target, otp.code))
-            .addAction(0, context.getString(R.string.action_delete_now), deleteAction(target, message))
-            .addAction(0, context.getString(R.string.action_mark_read), NotificationActions.markRead(context, target, message.key, message.threadId))
+        // Already on the clipboard: no Copy button. Otherwise (setting off, quiet path, copy refused) it leads.
+        if (!copied) {
+            builder.addAction(
+                action(R.drawable.ic_action_copy, R.string.action_copy_code, NotificationActions.copyCode(context, target, otp.code)),
+            )
+        }
+        builder.addAction(markReadAction(target, message)).addAction(deleteAction(target, message))
 
         if (usedBy != null) builder.setSubText(usedBy)
         if (inCall) builder.setColor(ContextCompat.getColor(context, R.color.dak_notification_warning))
@@ -262,12 +286,12 @@ class MessageNotifier @Inject constructor(
             extras.getString(EXTRA_REPEAT_SENDER) == message.address &&
             RepeatCollapse.isRepeat(extras.getString(EXTRA_REPEAT_KEY), extras.getLong(EXTRA_REPEAT_AT), key, now) &&
             removeLastMessage(style)
-        val count = if (repeat) extras!!.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
+        val count = if (repeat) extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
         val shown = RepeatCollapse.withCount(body, count)
         style.addMessage(shown, message.dateMillis, from)
 
         val conversationId = custom?.second ?: ConversationChannels.conversationIdFor(message.address, message.threadId)
-        val channel = custom?.first ?: channels.channelFor(NotificationChannels.forCategory(category), message.subId, sims.sims.value)
+        val channel = custom?.first ?: channels.channelFor(ChannelRouting.baseChannel(category), message.subId, sims.sims.value)
         val builder = baseBuilder(channel, message, R.drawable.ic_stat_dak, category)
             .setStyle(style)
             .setContentTitle(sender)
@@ -288,12 +312,15 @@ class MessageNotifier @Inject constructor(
         builder.extras.putLong(EXTRA_REPEAT_AT, now)
         builder.extras.putInt(EXTRA_REPEAT_COUNT, count)
 
-        if (settings.get(DakSettings.quickActions) && AppLockNotifications.actionsNeedUnlock(settings)) {
+        val replyable = settings.get(DakSettings.quickActions) && canReply(message.address)
+        if (replyable && AppLockNotifications.actionsNeedUnlock(settings)) {
             // App lock on: no inline reply from the notification; "Reply" opens the conversation after unlocking.
-            builder.addAction(0, context.getString(R.string.action_reply), AppLockNotifications.openInApp(context, message, "reply"))
-        } else if (settings.get(DakSettings.quickActions)) {
+            builder.addAction(
+                action(R.drawable.ic_action_reply, R.string.action_reply, AppLockNotifications.openInApp(context, message, "reply"), opensApp = true),
+            )
+        } else if (replyable) {
             val reply = NotificationCompat.Action.Builder(
-                IconCompat.createWithResource(context, R.drawable.ic_stat_dak),
+                IconCompat.createWithResource(context, R.drawable.ic_action_reply),
                 context.getString(R.string.action_reply),
                 NotificationActions.reply(context, target, message.address, message.subId, message.threadId),
             )
@@ -304,16 +331,7 @@ class MessageNotifier @Inject constructor(
                 .build()
             builder.addAction(reply)
         }
-        builder.addAction(
-            NotificationCompat.Action.Builder(
-                IconCompat.createWithResource(context, R.drawable.ic_stat_dak),
-                context.getString(R.string.action_mark_read),
-                NotificationActions.markRead(context, target, message.key, message.threadId),
-            )
-                .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
-                .setShowsUserInterface(false)
-                .build(),
-        )
+        builder.addAction(markReadAction(target, message))
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
         if (muted) builder.setSilent(true)
         return Built(target, builder.build(), channel)
@@ -334,11 +352,12 @@ class MessageNotifier @Inject constructor(
 
     /**
      * Warning for a likely fake credit alert (docs/security/fake-credit-scams.md): never styled or channelled as a
-     * transaction; Report opens the fraud-help screen for this message, Block adds the sender to the system list.
+     * transaction; posted on Alerts. Report opens the fraud-help screen for this message, Block adds the sender to the
+     * system list.
      */
     private fun buildScamWarning(message: Message, sender: String, muted: Boolean): Built {
         val target = NotificationActions.Target(tag = "scam:${message.key}", id = ID_CONVERSATION)
-        val channel = channels.channelFor(NotificationChannels.OTHER, message.subId, sims.sims.value)
+        val channel = channels.channelFor(ChannelRouting.baseChannel(Category.UNKNOWN, likelyScam = true), message.subId, sims.sims.value)
         val text = context.getString(R.string.scam_notification_text)
         val route = Routes.fraudHelp(message.key.toString())
         val report = PendingIntent.getActivity(
@@ -348,14 +367,14 @@ class MessageNotifier @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val builder = baseBuilder(channel, message, R.drawable.ic_stat_dak, Category.UNKNOWN)
-            .setContentTitle(context.getString(R.string.scam_notification_title, sender))
+            .setContentTitle(context.getString(R.string.scam_notification_title, BidiText.isolate(sender)))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text + "\n\n" + displayBody(message)))
             .setColor(ContextCompat.getColor(context, R.color.dak_notification_warning))
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setPriority(if (muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_DEFAULT)
-            .addAction(0, context.getString(R.string.scam_action_report), report)
-            .addAction(0, context.getString(R.string.scam_action_block), NotificationActions.block(context, target, message.address))
+            .setPriority(if (muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
+            .addAction(action(R.drawable.ic_action_report, R.string.scam_action_report, report, opensApp = true))
+            .addAction(action(R.drawable.ic_action_block, R.string.scam_action_block, NotificationActions.block(context, target, message.address)))
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
         if (muted) builder.setSilent(true)
         return Built(target, builder.build(), channel)
@@ -363,13 +382,13 @@ class MessageNotifier @Inject constructor(
 
     // ------------------------------------------------------------------------------------------------ Other
 
-    private fun buildInformational(message: Message, category: Category, sender: String, muted: Boolean): Built {
+    private fun buildInformational(message: Message, category: Category, sender: String, muted: Boolean, labels: Set<String> = emptySet()): Built {
         val target = threadTarget(message)
         val body = displayBody(message)
         val now = System.currentTimeMillis()
         val state = RepeatCollapse.next(readState(activeTarget(target)?.notification?.extras), body, RepeatCollapse.template(body), now)
         val latest = RepeatCollapse.withCount(body, state.count)
-        val channel = channels.channelFor(NotificationChannels.forCategory(category), message.subId, sims.sims.value)
+        val channel = channels.channelFor(ChannelRouting.baseChannel(category, labels = labels), message.subId, sims.sims.value)
         val style = if (state.lines.size > 1) {
             NotificationCompat.InboxStyle()
                 .setBigContentTitle(sender)
@@ -388,13 +407,18 @@ class MessageNotifier @Inject constructor(
                 when (category) {
                     Category.SPAM -> NotificationCompat.PRIORITY_MIN
                     Category.PROMOTION -> NotificationCompat.PRIORITY_LOW
-                    else -> if (muted) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_DEFAULT
+                    else -> when {
+                        muted -> NotificationCompat.PRIORITY_LOW
+                        category == Category.TRANSACTION -> NotificationCompat.PRIORITY_HIGH
+                        else -> NotificationCompat.PRIORITY_DEFAULT
+                    }
                 },
             )
             .setOnlyAlertOnce(state.isRepeat)
-            .addAction(0, context.getString(R.string.action_mark_read), NotificationActions.markRead(context, target, message.key, message.threadId))
-        if (settings.get(DakSettings.quickActions)) {
-            builder.addAction(0, context.getString(R.string.action_delete), deleteAction(target, message))
+            .addAction(markReadAction(target, message))
+        // Promotions stay light and quiet: Mark read only.
+        if (settings.get(DakSettings.quickActions) && category != Category.PROMOTION) {
+            builder.addAction(deleteAction(target, message))
         }
         writeState(builder.extras, state)
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
@@ -448,13 +472,53 @@ class MessageNotifier @Inject constructor(
         return builder
     }
 
+    /**
+     * A standard action with a short label and an icon. Most phones draw only the label (the default template has
+     * ignored action icons since Android 7), in the system's own style for light and dark; watches, Android Auto and
+     * OEM templates that draw icons use [icon], and assistants use [semantic].
+     */
+    private fun action(
+        icon: Int,
+        label: Int,
+        intent: PendingIntent,
+        semantic: Int = NotificationCompat.Action.SEMANTIC_ACTION_NONE,
+        opensApp: Boolean = false,
+    ): NotificationCompat.Action =
+        NotificationCompat.Action.Builder(IconCompat.createWithResource(context, icon), context.getString(label), intent)
+            .setSemanticAction(semantic)
+            .setShowsUserInterface(opensApp)
+            .build()
+
+    private fun markReadAction(target: NotificationActions.Target, message: Message): NotificationCompat.Action =
+        action(
+            R.drawable.ic_action_mark_read,
+            R.string.action_mark_read,
+            NotificationActions.markRead(context, target, message.key, message.threadId),
+            NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ,
+        )
+
     /** Delete in the background, or, with the app lock on, open the message so the user unlocks first. */
-    private fun deleteAction(target: NotificationActions.Target, message: Message): PendingIntent =
-        if (AppLockNotifications.actionsNeedUnlock(settings)) {
+    private fun deleteAction(target: NotificationActions.Target, message: Message): NotificationCompat.Action {
+        val locked = AppLockNotifications.actionsNeedUnlock(settings)
+        val intent = if (locked) {
             AppLockNotifications.openInApp(context, message, "delete")
         } else {
             NotificationActions.delete(context, target, message.key)
         }
+        return action(R.drawable.ic_action_delete, R.string.action_delete, intent, NotificationCompat.Action.SEMANTIC_ACTION_DELETE, opensApp = locked)
+    }
+
+    /** Shows [label] ("Copied") beside the code in an OTP layout. */
+    private fun showOtpStatus(views: RemoteViews, label: String) {
+        views.setTextViewText(R.id.otp_status, label)
+        views.setViewVisibility(R.id.otp_status, View.VISIBLE)
+    }
+
+    /**
+     * SMS replies need a number: senders without a digit are alphanumeric ids ("VM-HDFCBK", "Amazon") that cannot
+     * receive one (same rule as the conversation screen's business check).
+     */
+    private fun canReply(address: String): Boolean = address.any { it.isDigit() }
 
     private fun applyLockScreenPrivacy(builder: NotificationCompat.Builder, message: Message, sender: String, isOtp: Boolean) {
         when (settings.get(DakSettings.lockScreenPrivacy)) {
@@ -496,7 +560,7 @@ class MessageNotifier @Inject constructor(
         )
 
     private fun displayBody(message: Message): String = when {
-        message.body.isNotBlank() -> message.body
+        message.body.isNotBlank() -> NotificationText.body(message.body)
         message.attachments.any { it.mimeType.startsWith("image/") } -> context.getString(R.string.notification_photo)
         message.attachments.isNotEmpty() -> context.getString(R.string.notification_attachment)
         else -> context.getString(R.string.notification_new_message)

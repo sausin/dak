@@ -43,7 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.navigation.DakNavigator
@@ -162,6 +162,7 @@ internal class ComposerStrings(
     private val tooLarge: String,
     private val scheduled: String,
     private val textOnly: String,
+    private val emergencyRefused: String,
 ) {
     fun message(event: ComposerEvent): String = when (event) {
         is ComposerEvent.SendFailed -> when (event.problem) {
@@ -171,6 +172,7 @@ internal class ComposerStrings(
         }
         is ComposerEvent.Scheduled -> scheduled
         ComposerEvent.ScheduleTextOnly -> textOnly
+        ComposerEvent.ScheduleEmergencyRefused -> emergencyRefused
     }
 
     companion object {
@@ -180,6 +182,7 @@ internal class ComposerStrings(
             tooLarge = context.getString(R.string.scr_snack_attachment_too_large),
             scheduled = context.getString(R.string.scr_snack_scheduled),
             textOnly = context.getString(R.string.scr_snack_schedule_text_only),
+            emergencyRefused = context.getString(R.string.sched_emergency_refused),
         )
     }
 }

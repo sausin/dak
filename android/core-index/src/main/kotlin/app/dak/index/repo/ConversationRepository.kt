@@ -128,7 +128,6 @@ class ConversationRepository @Inject constructor(
     suspend fun markMessageRead(key: MessageKey): Unit = withContext(Dispatchers.IO) {
         messageDao.markRead(key.kind.name, key.providerId)
         runCatching { writer.markRead(key) }
-        Unit
     }
 
     suspend fun setPinned(conversationId: String, pinned: Boolean) = updatePrefs(conversationId) { it.copy(pinned = pinned) }
@@ -178,7 +177,6 @@ class ConversationRepository @Inject constructor(
             messageDao.upsertFlag(MessageFlag(key.kind, key.providerId, starred, flag?.archived ?: false))
             messageDao.setStarred(key.kind.name, key.providerId, starred)
         }
-        Unit
     }
 
     /** Archives / unarchives one message (automation "archive" action). */
@@ -188,7 +186,6 @@ class ConversationRepository @Inject constructor(
             messageDao.upsertFlag(MessageFlag(key.kind, key.providerId, flag?.starred ?: false, archived))
             messageDao.setArchived(key.kind.name, key.providerId, archived)
         }
-        Unit
     }
 
     private suspend fun threadsOf(conversationId: String): List<Long> =

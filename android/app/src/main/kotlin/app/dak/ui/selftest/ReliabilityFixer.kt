@@ -40,8 +40,9 @@ fun rememberReliabilityFixer(onReturn: () -> Unit): (ReliabilityFix) -> Unit {
                         .putExtra(Settings.EXTRA_CHANNEL_ID, fix.channelId),
                 )
                 ReliabilityFix.RequestBatteryExemption -> {
-                    val ok = runCatching { activityLauncher.launch(BatteryOptimization.requestIntent(context)) }.isSuccess
-                    if (!ok) context.startSafely(BatteryOptimization.settingsIntent())
+                    // The battery-optimisation list (no restricted permission); app details if an OEM removed it.
+                    val ok = runCatching { activityLauncher.launch(BatteryOptimization.settingsIntent()) }.isSuccess
+                    if (!ok) context.startSafely(appDetailsIntent(context))
                 }
                 ReliabilityFix.OpenAppDetails -> context.startSafely(appDetailsIntent(context))
             }

@@ -5,7 +5,23 @@ import app.dak.index.MessageItem
 import app.dak.index.TransactionItem
 import java.math.BigDecimal
 
-/** What a double-tap on a bubble copies: the OTP code first, else the transaction amount, else nothing. */
+/**
+ * How long after it arrived an OTP still offers one-tap copy in the thread (code chip, tap on the code, double-tap,
+ * "Copy code"). Older codes are almost always expired, so they only keep the highlight; "Copy text" still works.
+ */
+internal const val OTP_COPY_WINDOW_MILLIS = 24 * 60 * 60_000L
+
+/**
+ * True when [item] carries an OTP that arrived less than [OTP_COPY_WINDOW_MILLIS] before [nowMillis]. A message
+ * dated slightly in the future (clock skew) counts as fresh.
+ */
+internal fun isOtpCopyable(item: MessageItem, nowMillis: Long): Boolean =
+    !item.otp?.code.isNullOrBlank() && nowMillis - item.dateMillis < OTP_COPY_WINDOW_MILLIS
+
+/**
+ * What a double-tap on a bubble copies: the OTP code while it is fresh ([isOtpCopyable]), else the transaction
+ * amount, else nothing.
+ */
 sealed interface QuickCopy {
     val text: String
 
@@ -13,8 +29,11 @@ sealed interface QuickCopy {
     data class Amount(override val text: String) : QuickCopy
 
     companion object {
-        fun of(item: MessageItem): QuickCopy? {
-            item.otp?.code?.takeIf { it.isNotBlank() }?.let { return Code(it) }
+        fun of(item: MessageItem, nowMillis: Long): QuickCopy? = of(item, otpCopyable = isOtpCopyable(item, nowMillis))
+
+        /** As above, with the OTP freshness already decided by the caller ([BubbleDecor.otpCopyable]). */
+        fun of(item: MessageItem, otpCopyable: Boolean): QuickCopy? {
+            if (otpCopyable) item.otp?.code?.takeIf { it.isNotBlank() }?.let { return Code(it) }
             item.transaction?.let { return Amount(plainAmount(it)) }
             return null
         }

@@ -22,7 +22,8 @@
           "properties": {
             "messages": { "type": "integer", "minimum": 0 },
             "threads": { "type": "integer", "minimum": 0 },
-            "attachments": { "type": "integer", "minimum": 0 }
+            "attachments": { "type": "integer", "minimum": 0 },
+            "automationRuns": { "type": "integer", "minimum": 0, "default": 0, "description": "Lines in automation_runs.jsonl (0 or absent: no run history in this archive)." }
           }
         },
         "parts": {
@@ -104,6 +105,26 @@
         "bubbleColorArgb": { "type": ["integer", "null"] }
       }
     },
+    "automationRunRecord": {
+      "title": "One line of automation_runs.jsonl",
+      "type": "object",
+      "required": ["ruleId", "ruleName", "atMillis", "actionKind", "outcome"],
+      "additionalProperties": true,
+      "properties": {
+        "ruleId": { "type": "string" },
+        "ruleName": { "type": "string" },
+        "atMillis": { "type": "integer" },
+        "messageKey": { "type": ["string", "null"] },
+        "conversationId": { "type": ["string", "null"] },
+        "sourceLabel": { "type": ["string", "null"] },
+        "actionKind": { "type": "string", "description": "ForwardSms, Webhook, RelayRule, ..." },
+        "destinationLabel": { "type": ["string", "null"] },
+        "destination": { "type": ["string", "null"] },
+        "outcome": { "enum": ["SENT", "FAILED", "SKIPPED"] },
+        "reason": { "type": ["string", "null"] },
+        "textPreview": { "type": ["string", "null"], "description": "One-line preview, OTP codes masked." }
+      }
+    },
     "threadsFile": {
       "title": "threads.json",
       "type": "array",
@@ -113,6 +134,7 @@
   "oneOf": [
     { "$ref": "#/$defs/manifest" },
     { "$ref": "#/$defs/messageRecord" },
-    { "$ref": "#/$defs/threadsFile" }
+    { "$ref": "#/$defs/threadsFile" },
+    { "$ref": "#/$defs/automationRunRecord" }
   ]
 }

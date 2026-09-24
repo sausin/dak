@@ -35,17 +35,17 @@
     <string name="time_yesterday">Yesterday</string>
 
     <!-- Notification channels -->
-    <string name="channel_group_messages">Messages</string>
+    <string name="channel_group_messages">Incoming messages</string>
     <string name="channel_group_app">App</string>
-    <string name="channel_personal">Personal</string>
-    <string name="channel_personal_desc">Messages from people</string>
+    <string name="channel_personal">Messages</string>
+    <string name="channel_personal_desc">Messages from people, with reply</string>
     <string name="channel_otp">OTP codes</string>
-    <string name="channel_otp_desc">One-time passwords, shown large with a copy button</string>
-    <string name="channel_transactions">Transactions</string>
-    <string name="channel_transactions_desc">Bank, card and payment alerts</string>
+    <string name="channel_otp_desc">One-time passwords, shown large and copied for you</string>
+    <string name="channel_alerts">Alerts</string>
+    <string name="channel_alerts_desc">Bank, card and payment alerts, and fraud warnings</string>
     <string name="channel_promotions">Promotions</string>
     <string name="channel_promotions_desc">Offers and marketing, delivered quietly</string>
-    <string name="channel_other">Other messages</string>
+    <string name="channel_other">General</string>
     <string name="channel_other_desc">Messages Dak could not categorise</string>
     <string name="channel_spam">Spam (silent)</string>
     <string name="channel_spam_desc">Likely spam, never makes a sound</string>
@@ -69,6 +69,10 @@
     <string name="action_reply_hint">Reply by SMS</string>
     <string name="otp_in_call_warning">You are on a call. Never share this code with the caller: banks and apps never ask for it.</string>
     <string name="otp_used_by">Used by %1$s</string>
+    <!-- Next to the large code on the OTP notification, once it is on the clipboard. -->
+    <string name="otp_copied">Copied</string>
+    <!-- OTP notification title when the code was copied automatically (shown on watches, in summaries, to screen readers). -->
+    <string name="otp_code_copied">Code %1$s copied</string>
     <string name="notification_you">You</string>
     <string name="notification_group_title">Group message</string>
     <string name="notification_new_message">New message</string>
@@ -175,9 +179,9 @@
     <string name="onboarding_reliability_title">Never miss an OTP</string>
     <string name="onboarding_reliability_body">Some phones pause apps in the background to save battery, which delays messages. Two quick settings prevent that.</string>
     <string name="onboarding_battery_title">Battery optimisation</string>
-    <string name="onboarding_battery_body">Allow Dak to run in the background so new messages always notify.</string>
+    <string name="onboarding_battery_body">Let Dak run in the background so new messages always notify. Your phone\'s battery settings will open: find Dak there and turn off battery optimisation.</string>
     <string name="onboarding_battery_done">Done: Dak is allowed to run in the background.</string>
-    <string name="onboarding_battery_button">Allow background use</string>
+    <string name="onboarding_battery_button">Open battery settings</string>
     <string name="onboarding_oem_title">Extra step on %1$s phones</string>
     <string name="onboarding_oem_button">Open settings</string>
     <string name="onboarding_selftest_hint">You can check everything later in Settings → Notifications → Notification self-test.</string>

@@ -32,6 +32,7 @@ internal object ProviderProjections {
     val MMS_PART: List<String> = listOf(
         MmsPartColumns.ID, MmsPartColumns.MSG_ID, MmsPartColumns.SEQ, MmsPartColumns.CONTENT_TYPE, MmsPartColumns.TEXT,
         MmsPartColumns.CHARSET, MmsPartColumns.NAME, MmsPartColumns.FILENAME, MmsPartColumns.CONTENT_LOCATION,
+        MmsPartColumns.CONTENT_ID,
     )
 
     /** Columns `mmsAddress()` reads. */

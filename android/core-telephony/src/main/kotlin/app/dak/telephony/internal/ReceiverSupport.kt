@@ -35,6 +35,9 @@ internal fun BroadcastReceiver.runAsync(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "$name failed", e)
+        } catch (e: StackOverflowError) {
+            // Crafted input must never crash the receiver's process (a crash loop would effectively disable SMS).
+            Log.e(TAG, "$name overflowed the stack")
         } finally {
             pending.finish()
         }

@@ -1,5 +1,7 @@
 package app.dak.finance.parser
 
+import app.dak.core.model.InstrumentType
+import app.dak.core.model.TransactionDirection
 import app.dak.finance.ledger.Account
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,5 +61,27 @@ class MaskedNumberParsingTest {
         assertNotNull(txn)
         assertEquals("7788", txn.maskedNumber)
         assertEquals("7788", txn.last4)
+    }
+
+    @Test
+    fun `single mask character after A-c is an account number (AU Bank)`() {
+        val txn = TransactionParser.parse(
+            "AX-AUBANK-S",
+            "Credited INR 50,000.00 to A/c X5073 on 06-AUG-2026 Ref IMPS-62181 -ABC XYZ -SBIN. Bal INR 1,00,000.00.\n-AU Bank",
+        )
+        assertNotNull(txn)
+        assertEquals(TransactionDirection.CREDIT, txn.direction)
+        assertEquals(5_000_000L, txn.amountMinor)
+        assertEquals(10_000_000L, txn.balanceMinor)
+        assertEquals(InstrumentType.BANK_ACCOUNT, txn.instrument)
+        assertEquals("X5073", txn.maskedNumber)
+        assertEquals("5073", txn.last4)
+        assertEquals("AU Small Finance Bank", txn.institution)
+    }
+
+    @Test
+    fun `a lone X-number without an account keyword is not an account`() {
+        val txn = TransactionParser.parse("VM-HDFCBK", "Rs.500.00 debited for order X12345 on 12-09-26.")
+        assertEquals(null, txn?.maskedNumber)
     }
 }

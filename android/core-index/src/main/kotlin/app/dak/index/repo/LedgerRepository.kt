@@ -43,7 +43,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.math.BigDecimal
 import java.util.Optional
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -73,6 +72,8 @@ data class AccountSummary(
     val lastActivityMillis: Long,
     /** True when the user set this account's type by hand ([LedgerRepository.setAccountType]). */
     val typeOverridden: Boolean = false,
+    /** For an investment account: units / shares held as the latest SMS stating them said (a plain decimal string). */
+    val unitsHeld: String? = null,
 )
 
 /**
@@ -108,9 +109,10 @@ class LedgerRepository @Inject constructor(
 
     /**
      * The Passbook's sections: Bank accounts, Credit cards, Debit cards, Wallets, UPI, Prepaid & forex cards, Loans,
-     * Other (empty ones left out), each with header totals per currency (see `AccountGroups`). Each item carries its
-     * spend this month (UTC, as of [nowMillis]), a credit card's cycle outstanding when its statement day is known,
-     * and a debit card's / loan's linked bank account when an SMS named one.
+     * Investments, Other (empty ones left out), each with header totals per currency (see `AccountGroups`). Each item
+     * carries its spend this month (UTC, as of [nowMillis]; own-account and investment transfers excluded), a credit
+     * card's cycle outstanding when its statement day is known, and a debit card's / loan's linked bank account when an
+     * SMS named one.
      */
     fun accountGroups(nowMillis: Long = System.currentTimeMillis()): Flow<List<AccountGroup<AccountGroupItem>>> =
         combine(accounts(), ledgerDao.observeDebitsSince(AccountGroups.monthStartUtc(nowMillis))) { summaries, debits -> summaries to debits }
@@ -424,112 +426,23 @@ class LedgerRepository @Inject constructor(
         private const val CHUNK = 300
         private const val CO_OCCURRENCE_SCAN = 200
 
-        fun toAccount(row: AccountRow): Account = Account(
-            id = row.id,
-            institution = row.institution,
-            instrument = row.instrument,
-            last4 = row.last4,
-            homeCurrency = row.homeCurrency,
-            statementDay = row.statementDay,
-            maskedNumber = row.maskedNumber,
-            linkedAccountId = row.linkedAccountId,
-        )
-
         fun toSummary(row: AccountRow, typeOverridden: Boolean = false): AccountSummary =
-            AccountSummary(toAccount(row), balanceOf(row), row.entryCount, row.lastActivityMillis, typeOverridden)
+            AccountSummary(toAccount(row), balanceOf(row), row.entryCount, row.lastActivityMillis, typeOverridden, row.unitsHeld)
 
-        fun balanceOf(row: AccountRow): BalanceState {
-            val known = if (row.balanceMinor != null && row.balanceCurrency != null && row.balanceAsOfMillis != null) {
-                BalanceState.Known(Money(row.balanceMinor, row.balanceCurrency), row.balanceAsOfMillis)
-            } else {
-                null
-            }
-            return when (row.balanceState) {
-                STATE_KNOWN -> known ?: BalanceState.NoInfo
-                STATE_UNKNOWN -> BalanceState.Unknown(row.unknownSinceMillis ?: 0L, known)
-                else -> BalanceState.NoInfo
-            }
-        }
+        // Row <-> model mapping lives in the pure LedgerRowMapping (JVM-tested); these keep the existing call sites.
+        fun toAccount(row: AccountRow): Account = LedgerRowMapping.toAccount(row)
 
-        fun toAccountRow(ledger: AccountLedger, statementDay: Int?, nowMillis: Long): AccountRow {
-            val state = ledger.balanceState
-            val known: BalanceState.Known? = when (state) {
-                is BalanceState.Known -> state
-                is BalanceState.Unknown -> state.lastKnown
-                BalanceState.NoInfo -> null
-            }
-            return AccountRow(
-                id = ledger.account.id,
-                institution = ledger.account.institution,
-                instrument = ledger.account.instrument,
-                last4 = ledger.account.last4,
-                homeCurrency = ledger.account.homeCurrency,
-                statementDay = statementDay,
-                balanceState = when (state) {
-                    is BalanceState.Known -> STATE_KNOWN
-                    is BalanceState.Unknown -> STATE_UNKNOWN
-                    BalanceState.NoInfo -> STATE_NO_INFO
-                },
-                balanceMinor = known?.balance?.amountMinor,
-                balanceCurrency = known?.balance?.currencyUpper,
-                balanceAsOfMillis = known?.asOfMillis,
-                unknownSinceMillis = (state as? BalanceState.Unknown)?.sinceMillis,
-                entryCount = ledger.entries.size,
-                lastActivityMillis = ledger.entries.maxOfOrNull { it.dateMillis } ?: 0L,
-                updatedAt = nowMillis,
-                maskedNumber = ledger.account.maskedNumber,
-                linkedAccountId = ledger.account.linkedAccountId,
-            )
-        }
+        fun balanceOf(row: AccountRow): BalanceState = LedgerRowMapping.balanceOf(row)
 
-        fun toEntryRow(accountId: String, e: LedgerEntry): LedgerEntryRow = LedgerEntryRow(
-            messageKey = e.messageKey,
-            accountId = accountId,
-            dateMillis = e.dateMillis,
-            direction = e.direction,
-            originalMinor = e.original.amountMinor,
-            originalCurrency = e.original.currencyUpper,
-            indicativeMinor = e.indicativeHome?.amountMinor,
-            indicativeCurrency = e.indicativeHome?.currencyUpper,
-            rate = e.rate?.toPlainString(),
-            rateDateMillis = e.rateDateMillis,
-            settled = e.settled,
-            markupPercent = e.effectiveMarkupPercent?.toPlainString(),
-            balanceAfterMinor = e.balanceAfter?.amountMinor,
-            balanceAfterCurrency = e.balanceAfter?.currencyUpper,
-            merchant = e.merchant,
-            reference = e.reference,
-            viaAccountId = e.viaAccountId,
-        )
+        fun toAccountRow(ledger: AccountLedger, statementDay: Int?, nowMillis: Long): AccountRow =
+            LedgerRowMapping.toAccountRow(ledger, statementDay, nowMillis)
 
-        fun toEntry(row: LedgerEntryRow): LedgerEntry = LedgerEntry(
-            messageKey = row.messageKey,
-            dateMillis = row.dateMillis,
-            direction = row.direction,
-            original = Money(row.originalMinor, row.originalCurrency),
-            indicativeHome = if (row.indicativeMinor != null && row.indicativeCurrency != null) {
-                Money(row.indicativeMinor, row.indicativeCurrency)
-            } else {
-                null
-            },
-            rate = row.rate?.let(::decimalOrNull),
-            rateDateMillis = row.rateDateMillis,
-            settled = row.settled,
-            effectiveMarkupPercent = row.markupPercent?.let(::decimalOrNull),
-            balanceAfter = if (row.balanceAfterMinor != null && row.balanceAfterCurrency != null) {
-                Money(row.balanceAfterMinor, row.balanceAfterCurrency)
-            } else {
-                null
-            },
-            merchant = row.merchant,
-            reference = row.reference,
-            viaAccountId = row.viaAccountId,
-        )
+        fun toEntryRow(accountId: String, e: LedgerEntry): LedgerEntryRow = LedgerRowMapping.toEntryRow(accountId, e)
 
-        private fun decimalOrNull(s: String): BigDecimal? = runCatching { BigDecimal(s) }.getOrNull()
+        fun toEntry(row: LedgerEntryRow): LedgerEntry = LedgerRowMapping.toEntry(row)
 
-        const val STATE_KNOWN = "KNOWN"
-        const val STATE_UNKNOWN = "UNKNOWN"
-        const val STATE_NO_INFO = "NO_INFO"
+        const val STATE_KNOWN = LedgerRowMapping.STATE_KNOWN
+        const val STATE_UNKNOWN = LedgerRowMapping.STATE_UNKNOWN
+        const val STATE_NO_INFO = LedgerRowMapping.STATE_NO_INFO
     }
 }

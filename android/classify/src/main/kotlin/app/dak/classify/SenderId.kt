@@ -26,19 +26,31 @@ public enum class TrafficType(public val suffix: Char) {
 
 /**
  * A parsed Indian DLT (Distributed Ledger Technology) sender header, of the shape
- * `<principal-entity-prefix>-<entity-header>[-<traffic-type>]`, e.g. `VM-HDFCBK`, `JD-HDFCBK`,
- * `AX-HDFCBK-S`, `VK-AMAZON-P`, `BZ-SWIGGY-T`.
+ * `<prefix>-<entity-header>[-<traffic-type>]`, e.g. `VM-HDFCBK`, `JD-HDFCBK`, `AX-HDFCBK-S`, `VK-AMAZON-P`,
+ * `BZ-SWIGGY-T`, or a numeric promotional header such as `VM-612345`.
  *
- * The 2-letter prefix identifies the registered telemarketer/access-provider that relayed the
- * message (`VM`, `JD`, `AX`, `VK`, `BZ`, `TX`, `BP`, `BW`, `DM`, `DN`, `DT`, `TA`, `TD`, `TG`, `TJ`,
- * `TK`, `TS`, `TV`, `VD`, `VI`, `VP` are all seen in the wild) and is not brand-identifying: the
- * same entity header is routinely seen fronted by several different prefixes.
+ * The 2-letter prefix is added by the terminating network: one letter for the access provider (operator) and one
+ * for its licensed service area (circle); `VM`, `JD`, `AX`, `VK`, `BZ`, `TX`, `BP` and many more are seen in the
+ * wild. It says where the message was delivered, not who sent it, so the same entity header is routinely seen behind
+ * several prefixes and the prefix is never brand-identifying.
+ *
+ * The entity header is the sender's registered header: alphanumeric (with a letter; up to 20 characters accepted)
+ * for service, transactional and government traffic, or exactly 6 digits for promotional traffic.
  */
 public data class DltHeader(
     val prefix: String,
     val entityHeader: String,
     val trafficType: TrafficType?,
 ) {
+    /** A 6-digit numeric entity header: TRAI reserves these for promotional traffic. */
+    val isNumeric: Boolean get() = entityHeader.isNotEmpty() && entityHeader.all { it in '0'..'9' }
+
+    /**
+     * The route the message travelled on: the explicit [trafficType] suffix, or [TrafficType.PROMOTIONAL] for a
+     * numeric header without one; null when unknown (an alphanumeric header without a suffix).
+     */
+    val route: TrafficType? get() = trafficType ?: if (isNumeric) TrafficType.PROMOTIONAL else null
+
     public fun raw(): String = buildString {
         append(prefix)
         append('-')
@@ -55,22 +67,31 @@ public object SenderId {
 
     private val prefixRegex = Regex("^[A-Za-z]{2}$")
 
+    /** Length of a numeric (promotional) DLT entity header. */
+    private const val NUMERIC_HEADER_LENGTH = 6
+
     /**
-     * Parses [address] as an Indian DLT header, if it looks like one: a 2-letter prefix, a dash,
-     * an alphanumeric entity header (2-20 chars), and an optional dash + single-letter traffic-type
-     * suffix. Returns null for anything else (numeric senders, plain short codes, free text).
+     * Parses [address] as an Indian DLT header, if it looks like one: a 2-letter prefix, a dash, an entity header
+     * (up to 20 ASCII letters and digits with at least one letter, or exactly 6 digits for a numeric promotional
+     * header; DLT headers are ASCII, so `VM-НDFCBK` with a Cyrillic Н is not one),
+     * and an optional dash + single-letter traffic-type suffix. Returns null for anything else (phone numbers, plain
+     * short codes, free text, and other digit runs behind a dash such as `VM-12345` or `91-9876543210`).
      */
     public fun parseDltHeader(address: String): DltHeader? {
+        // ASCII only, checked before upper-casing: "ı" (dotless i) and "ſ" (long s) upper-case to I and S.
+        if (address.any { it.code >= 0x80 }) return null
         val trimmed = address.trim().uppercase()
         val parts = trimmed.split('-')
         if (parts.size !in 2..3) return null
         val prefix = parts[0]
         if (!prefixRegex.matches(prefix)) return null
         val entity = parts[1]
-        if (entity.isEmpty() || entity.length > 20 || !entity.all { it.isLetterOrDigit() }) return null
-        // An entity header must contain at least one letter (else it's likely a numeric sender split
-        // by a stray dash, not a DLT header).
-        if (entity.none { it.isLetter() }) return null
+        if (entity.isEmpty() || entity.length > 20 || !entity.all { it in 'A'..'Z' || it in '0'..'9' }) return null
+        // An alphanumeric entity header has a letter. An all-digit one is a numeric promotional header, which is
+        // exactly 6 ASCII digits: any other digit run is more likely a number split by a stray dash.
+        if (entity.none { it.isLetter() } && !(entity.length == NUMERIC_HEADER_LENGTH && entity.all { it in '0'..'9' })) {
+            return null
+        }
         var traffic: TrafficType? = null
         if (parts.size == 3) {
             val suffix = parts[2]

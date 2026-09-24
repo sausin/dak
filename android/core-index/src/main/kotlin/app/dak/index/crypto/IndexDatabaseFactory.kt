@@ -51,7 +51,8 @@ object IndexDatabaseFactory {
         val database = Room.databaseBuilder(appContext, DakIndexDatabase::class.java, DakIndexDatabase.NAME)
             .openHelperFactory(DeferredOpenHelperFactory(opener))
             .addMigrations(*IndexMigrations.ALL)
-            .fallbackToDestructiveMigrationOnDowngrade()
+            // The index is rebuilt from the Telephony provider, so a downgrade may drop everything.
+            .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
         return OpenedIndex(database, opener)
     }

@@ -79,20 +79,24 @@ class LedgerBackfillCostTest {
             }
             println(report)
 
-            // The counters must see the work, or the numbers above mean nothing.
-            assertTrue(full.accountRebuilds >= accounts && full.rowsRead > 0 && full.entryWrites > 0, "counters: $full")
-            assertTrue(batches.size >= 5, "the stage-2 pass should take several batches: ${batches.size}")
-            assertTrue(stageOne.accountRebuilds + stageTwo.accountRebuilds > 0)
+            // The counters must see the work, or the numbers above mean nothing. Entries are written while the backfill
+            // builds the ledger; the full rebuild afterwards writes none, because rebuilds only write entries that
+            // changed (LedgerRepository) and the ledger is already complete.
+            assertTrue(full.accountRebuilds >= accounts && full.rowsRead > 0, "counters: $full\n$report")
+            assertTrue(stageOne.entryWrites + stageTwo.entryWrites > 0, "the backfill wrote no ledger entries\n$report")
+            assertEquals(0, full.entryWrites, "a rebuild of a complete ledger rewrote entries\n$report")
+            assertTrue(batches.size >= 5, "the stage-2 pass should take several batches: ${batches.size}\n$report")
+            assertTrue(stageOne.accountRebuilds + stageTwo.accountRebuilds > 0, report)
 
             // The deferred rebuild (IndexMaintenance.LEDGER_FLUSH_BATCHES): batches rebuild nothing except every 20th,
             // and the whole pass costs at most one full rebuild per 20 batches plus the one at the end.
             val flushes = batches.size / 20
             batches.forEachIndexed { i, c ->
-                if ((i + 1) % 20 != 0) assertEquals(0, c.accountRebuilds, "batch ${i + 1} rebuilt accounts: $c")
+                if ((i + 1) % 20 != 0) assertEquals(0, c.accountRebuilds, "batch ${i + 1} rebuilt accounts: $c\n$report")
             }
-            assertTrue(done.accountRebuilds >= accounts, "the end of the pass rebuilds every account: $done")
-            assertTrue(stageTwo.accountRebuilds <= full.accountRebuilds * (1 + flushes), "rebuilds: $stageTwo vs $full")
-            assertTrue(stageTwo.rowsRead <= full.rowsRead * (1 + flushes), "rows read: $stageTwo vs $full")
+            assertTrue(done.accountRebuilds >= accounts, "the end of the pass rebuilds every account: $done\n$report")
+            assertTrue(stageTwo.accountRebuilds <= full.accountRebuilds * (1 + flushes), "rebuilds: $stageTwo vs $full\n$report")
+            assertTrue(stageTwo.rowsRead <= full.rowsRead * (1 + flushes), "rows read: $stageTwo vs $full\n$report")
         }
     }
 

@@ -39,8 +39,19 @@ interface LedgerDao {
     @Query("SELECT * FROM ledger_entry WHERE accountId = :accountId ORDER BY dateMillis ASC")
     suspend fun entries(accountId: String): List<LedgerEntryRow>
 
+    /** Entries of [accountId] dated in `[fromMillis, toMillisExclusive)`, oldest first (a card's billing cycle). */
+    @Query(
+        "SELECT * FROM ledger_entry WHERE accountId = :accountId AND dateMillis >= :fromMillis " +
+            "AND dateMillis < :toMillisExclusive ORDER BY dateMillis ASC",
+    )
+    suspend fun entriesBetween(accountId: String, fromMillis: Long, toMillisExclusive: Long): List<LedgerEntryRow>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putEntries(rows: List<LedgerEntryRow>)
+
+    /** Deletes the given entries of one account (see `LedgerRepository`'s diff write). */
+    @Query("DELETE FROM ledger_entry WHERE accountId = :accountId AND messageKey IN (:messageKeys)")
+    suspend fun deleteEntriesOf(accountId: String, messageKeys: List<String>): Int
 
     @Query("DELETE FROM ledger_entry WHERE accountId = :accountId")
     suspend fun deleteEntries(accountId: String): Int

@@ -67,13 +67,22 @@ class SearchRepository @Inject constructor(
     /**
      * Typed-ahead suggestions from recent queries, senders (brands, merge-group names, addresses) and contacts,
      * ranked by `app.dak.search.SuggestionEngine`.
+     *
+     * [senders] are the sender names to rank ([senderNames]). Loading them groups the whole index, so a search screen
+     * loads them once per session and passes them to every keystroke's call; null loads them for this call only.
      */
-    suspend fun suggestions(prefix: String, limit: Int = 8): List<Suggestion> = withContext(Dispatchers.IO) {
+    suspend fun suggestions(prefix: String, limit: Int = 8, senders: List<String>? = null): List<Suggestion> = withContext(Dispatchers.IO) {
         val recent = savedDao.recentQueries(HISTORY_SUGGESTIONS)
-        val senders = messageDao.recentSenderNames(SENDER_SUGGESTIONS)
+        val names = senders ?: messageDao.recentSenderNames(SENDER_SUGGESTIONS)
         val contactNames = if (prefix.isBlank()) emptyList() else contacts.namesMatching(prefix, limit)
-        SuggestionEngine({ recent }, { senders }, { contactNames }).suggest(prefix, limit)
+        SuggestionEngine({ recent }, { names }, { contactNames }).suggest(prefix, limit)
     }
+
+    /**
+     * The most recently active sender display names (brand if known, else raw address) that [suggestions] ranks. One
+     * GROUP BY over every indexed message: call it once when a search session starts, not per keystroke.
+     */
+    suspend fun senderNames(): List<String> = withContext(Dispatchers.IO) { messageDao.recentSenderNames(SENDER_SUGGESTIONS) }
 
     /** Records an executed query for suggestions (call when the user submits a search). */
     suspend fun recordQuery(queryText: String): Unit = withContext(Dispatchers.IO) {

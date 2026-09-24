@@ -151,5 +151,27 @@ object IndexMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+    /** Name of the inbox list's covering index (Room's `index_<table>_<columns>` scheme). */
+    const val INBOX_COVERING_INDEX: String =
+        "index_${Tables.MESSAGE}_conversationId_dateMillis_category_subId_archived_starred_read_box_threadId"
+
+    /** SQL of [MIGRATION_7_8], exposed for tests. */
+    val SQL_7_8: List<String> = listOf(
+        // IndexedMessage's covering index for the inbox list (ConversationSqlBuilder.page / count).
+        "CREATE INDEX IF NOT EXISTS `$INBOX_COVERING_INDEX` ON `${Tables.MESSAGE}` " +
+            "(`conversationId`, `dateMillis`, `category`, `subId`, `archived`, `starred`, `read`, `box`, `threadId`)",
+    )
+
+    /**
+     * 7 -> 8: a covering index so paging the inbox never reads message rows (docs/performance.md, "Ledger and
+     * inbox"). Additive only; SQLite builds it from the existing rows during the upgrade.
+     */
+    val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (sql in SQL_7_8) db.execSQL(sql)
+        }
+    }
+
+    val ALL: Array<Migration> =
+        arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
 }

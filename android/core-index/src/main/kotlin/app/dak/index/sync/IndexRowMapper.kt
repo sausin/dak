@@ -135,7 +135,10 @@ internal object IndexRowMapper {
         if (json.isEmpty()) emptyList()
         else runCatching { IndexJson.json.decodeFromString(attachmentsSerializer, json) }.getOrDefault(emptyList())
 
-    fun transaction(row: IndexedMessage): ExtractedTransaction? = row.transactionJson?.let {
+    fun transaction(row: IndexedMessage): ExtractedTransaction? = transaction(row.transactionJson)
+
+    /** Decodes a row's `transactionJson`; null when absent or unreadable. */
+    fun transaction(json: String?): ExtractedTransaction? = json?.let {
         runCatching { IndexJson.json.decodeFromString(ExtractedTransaction.serializer(), it) }.getOrNull()
     }
 

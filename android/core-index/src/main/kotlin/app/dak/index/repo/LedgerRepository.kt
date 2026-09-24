@@ -126,7 +126,11 @@ class LedgerRepository @Inject constructor(
                 val items = summaries.map { s ->
                     val day = s.account.statementDay
                     val outstanding = if (s.account.type == AccountType.CREDIT_CARD && day != null) {
-                        AccountLedger(s.account, ledgerDao.entries(s.account.id).map { toEntry(it) }).cardOutstanding(nowMillis, BillingCycle(day))
+                        // Only the current cycle's entries count toward the outstanding, so only those are read.
+                        val cycle = BillingCycle(day)
+                        val range = cycle.cycleRange(nowMillis)
+                        val inCycle = ledgerDao.entriesBetween(s.account.id, range.first, range.last + 1)
+                        AccountLedger(s.account, inCycle.map { toEntry(it) }).cardOutstanding(nowMillis, cycle)
                     } else {
                         null
                     }
@@ -281,7 +285,7 @@ class LedgerRepository @Inject constructor(
         val rows = if (linkers.isEmpty()) ownRows else ownRows + linkers.chunked(CHUNK).flatMap { messageDao.byAccounts(it) }
         // Likely fake credit alerts never create entries or move balances (docs/security/fake-credit-scams.md).
         val inputs = rows.filterNot { ScamLabels.excludedFromLedger(it.labels) }.mapNotNull { row ->
-            IndexRowMapper.transaction(row)?.let { LedgerInput(IndexRowMapper.key(row).toString(), row.dateMillis, it) }
+            IndexRowMapper.transaction(row.transactionJson)?.let { LedgerInput(MessageKey(row.kind, row.providerId).toString(), row.dateMillis, it) }
         }
         val previous = ledgerDao.account(accountId)
         val previousLinked = listOfNotNull(previous?.linkedAccountId)
@@ -305,10 +309,17 @@ class LedgerRepository @Inject constructor(
         val reconciled = AccountLedger(built.account, Reconciler.reconcile(built.entries).entries)
         val now = System.currentTimeMillis()
         val accountRow = toAccountRow(reconciled, previous?.statementDay, now)
-        val entryRows = reconciled.entries.map { toEntryRow(accountId, it) }
+        // Keyed like the table ((accountId, messageKey), REPLACE): a later row for the same key wins, as it did when
+        // every row was inserted in turn.
+        val entryRows = reconciled.entries.map { toEntryRow(accountId, it) }.associateBy { it.messageKey }
         db.withTransaction {
-            ledgerDao.deleteEntries(accountId)
-            entryRows.chunked(CHUNK).forEach { ledgerDao.putEntries(it) }
+            // Diff write: an incoming SMS changes one or a few entries of an account, so rewriting all of them (a busy
+            // account has thousands) is replaced by deleting the gone ones and writing only the new or changed ones.
+            val stored = ledgerDao.entries(accountId).associateBy { it.messageKey }
+            val gone = stored.keys.filter { it !in entryRows }
+            val changed = entryRows.values.filter { stored[it.messageKey] != it }
+            gone.chunked(CHUNK).forEach { ledgerDao.deleteEntriesOf(accountId, it) }
+            changed.chunked(CHUNK).forEach { ledgerDao.putEntries(it) }
             ledgerDao.putAccount(accountRow)
         }
         return (previousLinked + listOfNotNull(reconciled.account.linkedAccountId)).distinct()

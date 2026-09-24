@@ -96,9 +96,16 @@ class SearchViewModel @Inject constructor(
         }
         .cachedIn(viewModelScope)
 
+    /** Sender names for suggestions, loaded once per search session (one GROUP BY over the index). */
+    private var sessionSenders: List<String>? = null
+
+    private suspend fun senderNames(): List<String> = sessionSenders ?: search.senderNames().also { sessionSenders = it }
+
     private val suggestionPrefix = MutableStateFlow("")
+
+    // mapLatest runs these one at a time, so the session cache needs no lock; a cancelled load just reloads next time.
     val suggestions: StateFlow<List<Suggestion>> = suggestionPrefix.debounce(120).mapLatest { prefix ->
-        if (prefix.isBlank()) emptyList() else runCatching { search.suggestions(prefix) }.getOrDefault(emptyList())
+        if (prefix.isBlank()) emptyList() else runCatching { search.suggestions(prefix, senders = senderNames()) }.getOrDefault(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val saved: StateFlow<List<SavedSearchItem>> = savedSearches.all()

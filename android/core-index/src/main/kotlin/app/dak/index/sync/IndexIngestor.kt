@@ -51,12 +51,16 @@ class IndexIngestor @Inject constructor(
      * @param allowCloud permit the opt-in cloud classification stage (single incoming messages only).
      * @param refreshSignaturesOnMiss recompute app hashes when an OTP's retriever hash is unknown.
      * @param force re-enrich even rows that are up to date.
+     * @param deferLedger when set, the ledger accounts this call touched are added to it and NOT recomputed: the caller
+     *   (the stage-2 backfill) recomputes them later in one pass. When null (every live caller) they are recomputed
+     *   before this returns.
      */
     suspend fun ingest(
         messages: List<Message>,
         allowCloud: Boolean = false,
         refreshSignaturesOnMiss: Boolean = false,
         force: Boolean = false,
+        deferLedger: MutableSet<String>? = null,
     ): List<IndexedMessage> = withContext(Dispatchers.IO) {
         if (messages.isEmpty()) return@withContext emptyList()
         val version = enricher.version
@@ -94,8 +98,10 @@ class IndexIngestor @Inject constructor(
                     val consumedBy = detected ?: old?.otpConsumedBy
                     IndexRowMapper.build(message, enrichment, rules, flags[key], consumedBy, version, now, old?.repeatGroup)
                 }
-                old?.accountId?.let { affectedAccounts += it }
-                row.accountId?.let { affectedAccounts += it }
+                if (old == null || ledgerInputsChanged(old, row)) {
+                    old?.accountId?.let { affectedAccounts += it }
+                    row.accountId?.let { affectedAccounts += it }
+                }
                 toWrite += row
                 out += row
             }
@@ -113,9 +119,20 @@ class IndexIngestor @Inject constructor(
             }
             yield()
         }
-        ledger.recompute(affectedAccounts)
+        if (deferLedger != null) deferLedger += affectedAccounts else ledger.recompute(affectedAccounts)
         out
     }
+
+    /**
+     * Whether the ledger could see a difference between [old] and [new]: `LedgerRepository` reads a row's account id,
+     * transaction, labels (fake-credit exclusion), date and key, nothing else. A read / seen / box / delivery-report
+     * refresh changes none of them, so it no longer rebuilds the account (docs/performance.md, "Ledger and inbox").
+     */
+    private fun ledgerInputsChanged(old: IndexedMessage, new: IndexedMessage): Boolean =
+        old.accountId != new.accountId ||
+            old.transactionJson != new.transactionJson ||
+            old.labels != new.labels ||
+            old.dateMillis != new.dateMillis
 
     /**
      * Enriches [messages] (keyed by message key). Large lists are split into [ENRICH_PARALLELISM] slices classified

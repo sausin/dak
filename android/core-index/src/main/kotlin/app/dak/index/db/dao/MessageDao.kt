@@ -43,6 +43,21 @@ data class ChannelRow(
 /** Size of one repeat group. */
 data class RepeatCountRow(val repeatGroup: String, val n: Int)
 
+/**
+ * The columns of an index row the ledger reads (`LedgerRepository`): its key, date, labels (fake-credit exclusion) and
+ * transaction. Loading only these instead of whole rows (body, FTS text, attachments...) keeps an account rebuild from
+ * reading the bodies of every one of its messages.
+ */
+data class LedgerSourceRow(
+    val kind: MessageKind,
+    val providerId: Long,
+    val dateMillis: Long,
+    val labels: Set<String>,
+    val transactionJson: String?,
+)
+
+private const val LEDGER_SOURCE_COLUMNS = "kind, providerId, dateMillis, labels, transactionJson"
+
 /** First/last activity of one ledger account id in the index. */
 data class AccountSpanRow(val accountId: String, val firstSeen: Long, val lastSeen: Long, val n: Int)
 
@@ -219,8 +234,9 @@ interface MessageDao {
 
     // ---- ledger ----
 
-    @Query("SELECT * FROM indexed_message WHERE accountId IN (:accountIds) ORDER BY dateMillis ASC")
-    suspend fun byAccounts(accountIds: List<String>): List<IndexedMessage>
+    /** The ledger's inputs of every row of [accountIds], oldest first (see [LedgerSourceRow]). */
+    @Query("SELECT " + LEDGER_SOURCE_COLUMNS + " FROM indexed_message WHERE accountId IN (:accountIds) ORDER BY dateMillis ASC")
+    suspend fun byAccounts(accountIds: List<String>): List<LedgerSourceRow>
 
     @Query(
         "SELECT accountId, MIN(dateMillis) AS firstSeen, MAX(dateMillis) AS lastSeen, COUNT(*) AS n " +
@@ -301,8 +317,9 @@ interface MessageDao {
     @Query("SELECT * FROM indexed_message WHERE UPPER(TRIM(address)) = :addressUpper LIMIT 1")
     suspend fun anyFromAddress(addressUpper: String): IndexedMessage?
 
-    @Query("SELECT * FROM indexed_message WHERE accountId = :accountId ORDER BY dateMillis ASC")
-    suspend fun byAccount(accountId: String): List<IndexedMessage>
+    /** The ledger's inputs of every row of [accountId], oldest first (see [LedgerSourceRow]). */
+    @Query("SELECT " + LEDGER_SOURCE_COLUMNS + " FROM indexed_message WHERE accountId = :accountId ORDER BY dateMillis ASC")
+    suspend fun byAccount(accountId: String): List<LedgerSourceRow>
 
     @Query("SELECT DISTINCT accountId FROM indexed_message WHERE accountId IS NOT NULL")
     suspend fun accountIds(): List<String>

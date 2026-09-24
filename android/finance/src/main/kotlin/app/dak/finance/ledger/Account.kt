@@ -86,7 +86,7 @@ data class Account(
          * threads.
          */
         fun idFor(institution: String?, instrument: InstrumentType, last4: String?): String {
-            val inst = institution?.uppercase()?.replace(Regex("\\s+"), "_") ?: "UNKNOWN"
+            val inst = institution?.uppercase()?.replace(WHITESPACE, "_") ?: "UNKNOWN"
             val last = last4 ?: "0000"
             return "$inst:${instrument.name}:$last"
         }
@@ -117,6 +117,9 @@ data class Account(
             if (digits.length < 4) return null
             return idFor(transaction.institution, InstrumentType.BANK_ACCOUNT, if (digits.length > 4) digits else digits.takeLast(4))
         }
+
+        /** Compiled once: [idFor] runs for every indexed transaction and every ledger rebuild. */
+        private val WHITESPACE = Regex("\\s+")
 
         /** Parts of an id made by [idFor]: (institution key, instrument name, digits), or null if malformed. */
         fun partsOf(accountId: String): Triple<String, String, String>? {

@@ -83,6 +83,16 @@ class LedgerBackfillCostTest {
             assertTrue(full.accountRebuilds >= accounts && full.rowsRead > 0 && full.entryWrites > 0, "counters: $full")
             assertTrue(batches.size >= 5, "the stage-2 pass should take several batches: ${batches.size}")
             assertTrue(stageOne.accountRebuilds + stageTwo.accountRebuilds > 0)
+
+            // The deferred rebuild (IndexMaintenance.LEDGER_FLUSH_BATCHES): batches rebuild nothing except every 20th,
+            // and the whole pass costs at most one full rebuild per 20 batches plus the one at the end.
+            val flushes = batches.size / 20
+            batches.forEachIndexed { i, c ->
+                if ((i + 1) % 20 != 0) assertEquals(0, c.accountRebuilds, "batch ${i + 1} rebuilt accounts: $c")
+            }
+            assertTrue(done.accountRebuilds >= accounts, "the end of the pass rebuilds every account: $done")
+            assertTrue(stageTwo.accountRebuilds <= full.accountRebuilds * (1 + flushes), "rebuilds: $stageTwo vs $full")
+            assertTrue(stageTwo.rowsRead <= full.rowsRead * (1 + flushes), "rows read: $stageTwo vs $full")
         }
     }
 
@@ -101,6 +111,7 @@ class LedgerBackfillCostTest {
             val ms = (System.nanoTime() - t0) / 1_000_000
             println("LEDGER-COST read/seen-only re-ingest of ${corpus.size} msgs: $cost, $ms ms")
             assertLedgerUnchanged(before, h.ledgerSnapshot())
+            assertEquals(LedgerCost.ZERO, cost, "a read / seen change touches no ledger input")
         }
     }
 

@@ -116,6 +116,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val composerUi by viewModel.composer.ui.collectAsStateWithLifecycle()
     val vanishing by viewModel.vanishing.collectAsStateWithLifecycle()
     val scheduled by viewModel.scheduled.collectAsStateWithLifecycle()
+    val failedSends by viewModel.failedSends.collectAsStateWithLifecycle()
     val enterToSend by hiltViewModel<UxPrefsViewModel>().enterToSend.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -230,7 +231,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 viewModel.onOtpCopied(item.key)
             }
             override fun onDeleteOtp(item: MessageItem) = viewModel.deleteOtpNow(item.key)
-            override fun onRetrySend(item: MessageItem) = viewModel.retrySend(item.key)
+            override fun onRetrySend(item: MessageItem) = viewModel.onBubbleRetry(item)
             override fun onRetryMms(item: MessageItem) = viewModel.retryMms(item.key)
             override fun mmsState(item: MessageItem): Flow<MmsDownloadState> = viewModel.mmsState(item.key)
             override suspend fun repeatsOf(item: MessageItem): List<MessageItem> = foldVm.repeatsOf(item.key)
@@ -320,7 +321,17 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             onMute = { viewModel.setMuted(!prefs.muted) },
                             onArchive = { viewModel.setArchived(!prefs.archived) },
                             onStar = { viewModel.setStarred(!prefs.starred) },
-                            onIncognito = { if (prefs.incognito) viewModel.setIncognito(false) else incognitoDialog = true },
+                            onIncognito = {
+                                when {
+                                    prefs.incognito -> viewModel.setIncognito(false)
+                                    // The first time, explain it properly: only this phone's copy can vanish.
+                                    viewModel.needsIncognitoIntro() -> incognitoDialog = true
+                                    else -> {
+                                        viewModel.setIncognito(true)
+                                        scope.launch { snackbar.showSnackbar(context.getString(R.string.inc_snack_on)) }
+                                    }
+                                }
+                            },
                             onReplySim = { simDialog = true },
                             onBubbleColour = { styleDialog = true },
                             onFontSize = { fontDialog = true },
@@ -388,6 +399,18 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                         onViewed = { viewModel.onIncomingViewed(item) },
                                         onElapsed = { viewModel.vanishNow(item) },
                                     )
+                                }
+                                // Incognito send that failed: the user decides (Retry / Delete, then Keep), with a timeout.
+                                if (item.key !in vanishing) {
+                                    viewModel.failedPromptFor(item, failedSends)?.let { step ->
+                                        FailedSendPrompt(
+                                            key = item.key,
+                                            step = step,
+                                            onRetry = { viewModel.retryIncognito(item) },
+                                            onKeep = { viewModel.keepFailed(item) },
+                                            onDelete = { viewModel.discardFailed(item) },
+                                        )
+                                    }
                                 }
                             }
                         }

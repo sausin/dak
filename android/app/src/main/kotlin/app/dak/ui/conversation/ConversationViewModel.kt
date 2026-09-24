@@ -10,11 +10,14 @@ import app.dak.automation.IndexAuditSink
 import app.dak.automation.ScheduledSendOrigin
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automation.UserLabels
+import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKey
 import app.dak.core.model.NO_SUB_ID
 import app.dak.core.model.SimInfo
 import app.dak.di.AndroidContactLookup
 import app.dak.di.ContactMatch
+import app.dak.incognito.FailedSendState
+import app.dak.incognito.FailedSendStep
 import app.dak.incognito.IncognitoVanisher
 import app.dak.index.MessageItem
 import app.dak.index.bin.BinReceipt
@@ -153,6 +156,9 @@ class ConversationViewModel @Inject constructor(
     /** Incognito bubbles dissolving right now (deleted when the animation ends). */
     val vanishing: StateFlow<Set<MessageKey>> = vanisher.vanishing
 
+    /** Decisions on failed incognito sends (Retry / Keep), so their prompts update. */
+    val failedSends: StateFlow<FailedSendState> = vanisher.failedState
+
     /** Messages scheduled from this thread that have not gone out yet, soonest first. */
     val scheduled: StateFlow<List<ScheduledSend>> = scheduledSends.pendingFor(conversationId)
         .map { list -> list.filter { ScheduledSendOrigin.of(it.ruleId) == ScheduledSendOrigin.USER }.sortedBy { it.sendAtMillis } }
@@ -248,8 +254,39 @@ class ConversationViewModel @Inject constructor(
         vanisher.vanish(listOf(item.key), animate = true)
     }
 
+    /** True until the user has read, once, that incognito deletes only this phone's copy. */
+    fun needsIncognitoIntro(): Boolean = !vanisher.introSeen
+
+    /**
+     * The step of [item]'s failed-send prompt, or null when it needs none: only a send of an incognito chat (made
+     * since it went incognito) that failed for good gets one, and not once the user chose to keep it.
+     */
+    fun failedPromptFor(item: MessageItem, state: FailedSendState): FailedSendStep? {
+        val since = prefs.value.incognitoSince ?: return null
+        if (item.box != MessageBox.FAILED || item.dateMillis < since) return null
+        return state.stepOf(item.key.toString()).takeIf { it != FailedSendStep.KEPT }
+    }
+
+    /** Failed incognito send, "Retry": one more attempt; failing again offers Keep. */
+    fun retryIncognito(item: MessageItem) {
+        vanisher.markRetried(item.key)
+        retrySend(item.key)
+    }
+
+    /** "Tap to retry" on a failed bubble: in an incognito chat it counts as the prompt's Retry. */
+    fun onBubbleRetry(item: MessageItem) {
+        if (failedPromptFor(item, vanisher.failedState.value) != null) retryIncognito(item) else retrySend(item.key)
+    }
+
+    /** Failed incognito send, "Keep": an ordinary failed message from now on. */
+    fun keepFailed(item: MessageItem) = vanisher.keep(item.key)
+
+    /** Failed incognito send, "Delete" (or its prompt timed out). */
+    fun discardFailed(item: MessageItem) = vanisher.discardFailed(item.key)
+
     /** Turns incognito on (from now on) or off. */
     fun setIncognito(value: Boolean) = launchPrefs {
+        if (value) vanisher.markIntroSeen()
         conversations.setIncognito(conversationId, value)
         if (!value) synchronized(viewed) { viewed.clear() }
     }

@@ -16,10 +16,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -37,27 +41,98 @@ import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import app.dak.R
+import app.dak.incognito.FailedSendStep
 import app.dak.incognito.IncognitoVanisher
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-/** Explains incognito before turning it on: what vanishes, what cannot (the other phone's copy). */
+/**
+ * Shown the first time incognito is turned on: what vanishes, and, set apart so it cannot be missed, what cannot (the
+ * other person's copy). Later it turns on with a one-line reminder instead.
+ */
 @Composable
 fun IncognitoConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
         title = { Text(stringResource(R.string.inc_dialog_title)) },
-        text = { Text(stringResource(R.string.inc_dialog_body)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer, shape = MaterialTheme.shapes.medium) {
+                    Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.inc_intro_other_side_title), style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(R.string.inc_intro_other_side_body), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                Text(stringResource(R.string.inc_dialog_body))
+            }
+        },
         confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.inc_dialog_confirm)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
+}
+
+/**
+ * Under a failed incognito send: Retry / Delete ([FailedSendStep.FIRST_FAILURE]) or, after a retry failed too,
+ * Keep / Delete ([FailedSendStep.SECOND_FAILURE]). Unanswered for [IncognitoVanisher.FAILED_PROMPT_MILLIS] (while on
+ * screen), the message is deleted, as incognito promises; the countdown is shown so that is never a surprise.
+ */
+@Composable
+fun FailedSendPrompt(key: Any, step: FailedSendStep, onRetry: () -> Unit, onKeep: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+    val remaining = remember(key, step) { Animatable(1f) }
+    val timeout by rememberUpdatedState(onDelete)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(key, step) {
+        // The clock only runs while the thread is on screen: nothing is deleted while the user is elsewhere.
+        var done = false
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (done) return@repeatOnLifecycle
+            val left = (remaining.value * IncognitoVanisher.FAILED_PROMPT_MILLIS).toInt()
+            remaining.animateTo(0f, tween(left, easing = LinearEasing))
+            done = true
+            timeout()
+        }
+    }
+    val seconds = ((remaining.value * IncognitoVanisher.FAILED_PROMPT_MILLIS) / 1000f).toInt() + 1
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.fillMaxWidth().padding(start = 64.dp, end = 12.dp, top = 2.dp, bottom = 6.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                stringResource(if (step == FailedSendStep.SECOND_FAILURE) R.string.inc_failed_again else R.string.inc_failed_first),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                pluralStringResource(R.plurals.inc_failed_deletes_in, seconds, seconds),
+                style = MaterialTheme.typography.labelSmall,
+            )
+            LinearProgressIndicator(progress = { remaining.value }, modifier = Modifier.fillMaxWidth().height(3.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.align(Alignment.End)) {
+                TextButton(onClick = onDelete) { Text(stringResource(R.string.inc_failed_delete)) }
+                if (step == FailedSendStep.SECOND_FAILURE) {
+                    FilledTonalButton(onClick = onKeep) { Text(stringResource(R.string.inc_failed_keep)) }
+                } else {
+                    FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.inc_failed_retry)) }
+                }
+            }
+        }
+    }
 }
 
 /** Shown at the top of an incognito thread, with a one-tap way out. */

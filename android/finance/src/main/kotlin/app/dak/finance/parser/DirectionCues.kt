@@ -28,29 +28,67 @@ internal object DirectionCues {
     private val DEBIT = TransactionDirection.DEBIT
     private val CREDIT = TransactionDirection.CREDIT
 
-    private data class CueRule(val regex: Regex, val direction: TransactionDirection, val strong: Boolean, val refund: Boolean = false, val transfer: Boolean = false)
+    /** A cue pattern and the literals one of which every match contains (see [GatedPattern]; `LiteralGateTest`). */
+    private data class CueRule(val pattern: GatedPattern, val direction: TransactionDirection, val strong: Boolean, val refund: Boolean = false, val transfer: Boolean = false)
 
     private fun rx(pattern: String) = Regex(pattern, RegexOption.IGNORE_CASE)
 
+    private fun gated(pattern: String, vararg literals: String) = GatedPattern(pattern, literals.toList())
+
     private val rules = listOf(
-        CueRule(rx("""\b(?:debited|deducted|withdrawn|spent)\b"""), DEBIT, strong = true),
-        CueRule(rx("""\bcharged\b"""), DEBIT, strong = true),
-        CueRule(rx("""\bused\s+(?:for|at|to)\b"""), DEBIT, strong = true),
-        CueRule(rx("""\b(?:was|has\s+been|is|been)\s+authori[sz]ed\b"""), DEBIT, strong = true),
-        CueRule(rx("""\b(?:sent|paid|transferred|trfd?)\b"""), DEBIT, strong = true, transfer = true),
-        CueRule(rx("""\b(?:refunded|reversed)\b|\bcredited\s+back\b"""), CREDIT, strong = true, refund = true),
-        CueRule(rx("""\b(?:credited|deposited|received|disbursed|loaded)\b"""), CREDIT, strong = true),
+        CueRule(gated("""\b(?:debited|deducted|withdrawn|spent)\b""", "debited", "deducted", "withdrawn", "spent"), DEBIT, strong = true),
+        CueRule(gated("""\bcharged\b""", "charged"), DEBIT, strong = true),
+        CueRule(gated("""\bused\s+(?:for|at|to)\b""", "used"), DEBIT, strong = true),
+        CueRule(gated("""\b(?:was|has\s+been|is|been)\s+authori[sz]ed\b""", "authori"), DEBIT, strong = true),
+        CueRule(gated("""\b(?:sent|paid|transferred|trfd?)\b""", "sent", "paid", "transferred", "trf"), DEBIT, strong = true, transfer = true),
+        CueRule(gated("""\b(?:refunded|reversed)\b|\bcredited\s+back\b""", "refunded", "reversed", "credited"), CREDIT, strong = true, refund = true),
         CueRule(
-            rx("""\bmoney\s+added\b|\badded\s+(?:to|in|into)\s+(?:your\s+)?(?:[a-z]+\s+){0,2}?(?:wallet|balance|account|a/c|card)\b"""),
+            gated("""\b(?:credited|deposited|received|disbursed|loaded)\b""", "credited", "deposited", "received", "disbursed", "loaded"),
             CREDIT,
             strong = true,
         ),
-        CueRule(rx("""\b(?:txn|transaction)\s+(?:of\b|(?=(?:rs|inr)\b|₹))|\bpurchase\b|\bpayment\s+of\b|\bwithdrawal\b|\ba\s+charge\s+of\b"""), DEBIT, strong = false),
-        CueRule(rx("""\bauto[- ]?debit\b|(?<![-\w])debit\b(?!\s*(?:card|cum))|\bdr\b|\bfor\s+using\b|\b(?:imps|neft|rtgs)\s+of\b"""), DEBIT, strong = false),
-        CueRule(rx("""\btransfer\b"""), DEBIT, strong = false, transfer = true),
-        CueRule(rx("""\bdeposit\s+of\b|\bcash\s+deposit\b|\bcredit\s+of\b|\bcr\b"""), CREDIT, strong = false),
-        CueRule(rx("""\brefund\b|\breversal\b"""), CREDIT, strong = false, refund = true),
+        // Hindi: "₹1,250.00 डेबिट किए गए", "खाते में ₹500 जमा हुए"; never "डेबिट किए जाएंगे" (will be debited).
+        CueRule(
+            gated("""(?:डेबिट|निकाले)\s+(?:किए|किये|किया|हुए|हुआ|हो\s+गए|हो\s+गया)(?!\s+जा)""", "डेबिट", "निकाले"),
+            DEBIT,
+            strong = true,
+        ),
+        CueRule(
+            gated("""(?:क्रेडिट|जमा)\s+(?:किए|किये|किया|हुए|हुआ|हो\s+गए|हो\s+गया)(?!\s+जा)""", "क्रेडिट", "जमा"),
+            CREDIT,
+            strong = true,
+        ),
+        CueRule(
+            gated(
+                """\bmoney\s+added\b|\badded\s+(?:to|in|into)\s+(?:your\s+)?(?:[a-z]+\s+){0,2}?(?:wallet|balance|account|a/c|card)\b""",
+                "added",
+            ),
+            CREDIT,
+            strong = true,
+        ),
+        CueRule(
+            gated(
+                """\b(?:txn|transaction)\s+(?:of\b|(?=(?:rs|inr)\b|₹))|\bpurchase\b|\bpayment\s+of\b|\bwithdrawal\b|\ba\s+charge\s+of\b""",
+                "txn", "transaction", "purchase", "payment", "withdrawal", "charge",
+            ),
+            DEBIT,
+            strong = false,
+        ),
+        CueRule(
+            gated(
+                """\bauto[- ]?debit\b|(?<![-\w])debit\b(?!\s*(?:card|cum))|\bdr\b|\bfor\s+using\b|\b(?:imps|neft|rtgs)\s+of\b""",
+                "debit", "dr", "using", "imps", "neft", "rtgs",
+            ),
+            DEBIT,
+            strong = false,
+        ),
+        CueRule(gated("""\btransfer\b""", "transfer"), DEBIT, strong = false, transfer = true),
+        CueRule(gated("""\bdeposit\s+of\b|\bcash\s+deposit\b|\bcredit\s+of\b|\bcr\b""", "deposit", "credit", "cr"), CREDIT, strong = false),
+        CueRule(gated("""\brefund\b|\breversal\b""", "refund", "reversal"), CREDIT, strong = false, refund = true),
     )
+
+    /** Every gated pattern, for the gate soundness test. */
+    internal val gatedPatterns: List<GatedPattern> get() = rules.map { it.pattern } + otpWord
 
     /** Just before a cue, these make it negated or conditional ("not credited", "if debited", "is yet to be"). */
     private val negations = setOf("not", "never", "if", "unless", "yet", "once", "until", "when")
@@ -61,12 +99,16 @@ internal object DirectionCues {
         "pre",
     )
 
-    /** Every cue in [body] that states a movement as done, in order of appearance. */
-    fun find(body: String): List<Cue> {
+    /**
+     * Every cue in [body] that states a movement as done, in order of appearance. [folded] is [GatedPattern.fold] of
+     * [body]; [gated] false runs every pattern (for the equivalence test).
+     */
+    fun find(body: String, folded: String = GatedPattern.fold(body), gated: Boolean = true): List<Cue> {
         val out = ArrayList<Cue>()
         val taken = java.util.BitSet(body.length)
         for (rule in rules) {
-            for (m in rule.regex.findAll(body)) {
+            val matches = if (gated) rule.pattern.findAll(body, folded) else rule.pattern.regex.findAll(body)
+            for (m in matches) {
                 val r = m.range
                 if (taken.nextSetBit(r.first).let { it != -1 && it <= r.last }) continue
                 taken.set(r.first, r.last + 1)
@@ -113,7 +155,10 @@ internal object DirectionCues {
 
     // --- gates: messages that are not a completed transaction ---
 
-    private val otpWord = rx("""\botp\b|one[- ]time\s+password|verification\s+code|security\s+code|\bpasscode\b""")
+    private val otpWord = GatedPattern(
+        """\botp\b|one[- ]time\s+password|verification\s+code|security\s+code|\bpasscode\b""",
+        listOf("otp", "password", "verification", "security", "passcode"),
+    )
 
     /** An OTP code: "Use 482913 to authorise", "482913 is your ...". */
     private val otpCode = rx("""\buse\s+\d{4,8}\s+(?:to|as|for)\b|\b\d{4,8}\s+is\s+(?:your|the)\b""")
@@ -122,9 +167,9 @@ internal object DirectionCues {
     private val otpWarning = rx("""share|disclos|reveal|\bask""")
 
     /** Whether [body] is an OTP / verification message (a mention inside a safety warning does not count). */
-    fun isOtp(body: String): Boolean {
+    fun isOtp(body: String, folded: String = GatedPattern.fold(body)): Boolean {
         if (otpCode.containsMatchIn(body)) return true
-        for (m in otpWord.findAll(body)) {
+        for (m in otpWord.findAll(body, folded)) {
             val window = body.substring(maxOf(0, m.range.first - 40), m.range.first)
             if (!otpWarning.containsMatchIn(window)) return true
         }

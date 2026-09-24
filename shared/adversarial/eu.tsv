@@ -7,23 +7,30 @@
 # ---------------------------------------------------------------- Germany
 eu-de-pkg-01	+4915200000501	scam,link-warning	dhl,parcel,german	DHL: Ihr Paket konnte nicht zugestellt werden. Bitte bestätigen Sie Ihre Adresse innerhalb von 24 Stunden: https://dhl-paket-zustellung.top/de
 eu-de-bank-01	+4915200000502	scam,link-warning	sparkasse,german	Sparkasse: Ihr Online-Banking wurde gesperrt. Bitte verifizieren Sie Ihre Daten sofort: https://sparkasse-verifizierung.xyz
-eu-de-fam-01	+4915200000503	scam	hallo-mama,german,known-gap	Hallo Mama, das ist meine neue Nummer. Mein Handy ist kaputt. Kannst du mir kurz bei einer Überweisung helfen?
+eu-de-fam-01	+4915200000503	scam	hallo-mama,german	Hallo Mama, das ist meine neue Nummer. Mein Handy ist kaputt. Kannst du mir kurz bei einer Überweisung helfen?
 
 # ---------------------------------------------------------------- France
 eu-fr-pkg-01	+33600000504	scam,link-warning	la-poste,parcel,french,region:FR	La Poste: Votre colis est en attente de livraison. Des frais de 1,99 € sont à régler : https://laposte-suivi-colis.xyz/fr
-eu-fr-fine-01	+33600000505	scam	antai,fine,french,known-gap,region:FR	ANTAI: Avis de contravention. Vous avez une amende impayée de 35 €. Réglez-la avant majoration : https://antai-gouv-paiement.com
-eu-fr-cpf-01	+33600000506	scam	cpf,french,known-gap,region:FR	Mon Compte Formation : vos droits CPF de 1 450 € expirent demain. Utilisez-les maintenant : https://moncompte-formation-droits.fr
+eu-fr-fine-01	+33600000505	scam,lookalike	antai,fine,french,region:FR	ANTAI: Avis de contravention. Vous avez une amende impayée de 35 €. Réglez-la avant majoration : https://antai-gouv-paiement.com
+eu-fr-cpf-01	+33600000506	scam	cpf,french,region:FR	Mon Compte Formation : vos droits CPF de 1 450 € expirent demain. Utilisez-les maintenant : https://moncompte-formation-droits.fr
 
 # ---------------------------------------------------------------- Netherlands / Spain / Italy
-eu-nl-bank-01	+31600000507	scam	ing,dutch,known-gap,region:NL	Beste klant, uw ING-pas verloopt binnenkort. Vraag direct een nieuwe pas aan via https://ing-pasvernieuwen.nl om blokkering te voorkomen.
+eu-nl-bank-01	+31600000507	scam	ing,dutch,region:NL	Beste klant, uw ING-pas verloopt binnenkort. Vraag direct een nieuwe pas aan via https://ing-pasvernieuwen.nl om blokkering te voorkomen.
 eu-nl-pkg-01	+31600000508	scam,link-warning	postnl,dutch,region:NL	PostNL: Uw pakket kan niet worden bezorgd. Betaal €1,50 verzendkosten via https://postnl-bezorging.top
 eu-es-pkg-01	+34600000509	scam,link-warning	correos,spanish,region:ES	Correos: Su paquete está retenido en aduanas. Pague 2,99 € para la entrega: https://correos-aduana.info/es
-eu-es-bank-01	+34600000510	scam	bbva,spanish,known-gap,region:ES	BBVA: Hemos detectado un acceso no autorizado a su cuenta. Verifique su identidad en https://bbva-seguridad-clientes.com
+eu-es-bank-01	+34600000510	scam	bbva,spanish,region:ES	BBVA: Hemos detectado un acceso no autorizado a su cuenta. Verifique su identidad en https://bbva-seguridad-clientes.com
 eu-it-pkg-01	+39300000511	scam,link-warning	poste,italian,region:IT	Poste Italiane: il tuo pacco è in giacenza. Paga 1,90 € per la riconsegna: https://poste-giacenza.xyz
 
 # ---------------------------------------------------------------- BENIGN look-alikes
-eu-de-ok-01	DHL	not-scam	benign,dhl,german,known-gap	DHL: Ihr Paket kommt heute zwischen 10:00 und 12:00 Uhr. Sendungsnummer 00340434161234567890.
-eu-de-ok-02	Sparkasse	not-scam,otp:482913	benign,otp,german,known-gap	Ihr Bestätigungscode lautet 482913. Geben Sie diesen Code niemals weiter.
+eu-de-ok-01	DHL	not-scam	benign,dhl,german	DHL: Ihr Paket kommt heute zwischen 10:00 und 12:00 Uhr. Sendungsnummer 00340434161234567890.
+eu-de-ok-02	Sparkasse	not-scam,otp:482913	benign,otp,german	Ihr Bestätigungscode lautet 482913. Geben Sie diesen Code niemals weiter.
 eu-fr-ok-01	LaPoste	not-scam	benign,parcel,french,region:FR	La Poste : votre colis 6A12345678901 sera livré aujourd'hui.
-eu-fr-ok-02	BNP	not-scam,otp:731904	benign,otp,french,region:FR,known-gap	BNP Paribas : votre code de sécurité est 731904. Ne le communiquez jamais.
+eu-fr-ok-02	BNP	not-scam,otp:731904	benign,otp,french,region:FR	BNP Paribas : votre code de sécurité est 731904. Ne le communiquez jamais.
 eu-nl-ok-01	+31600000512	not-scam	benign,personal,dutch,region:NL	Ik heb je €20 overgemaakt via Tikkie, bedankt voor het eten!
+
+# ---------------------------------------------------------------- BENIGN counterparts of the multilingual rules (threat + link, "new number", OTPs, deliveries, government links)
+eu-de-ok-03	+4915200000513	not-scam	benign,german,hallo-mama-genuine	Hallo Mama, bin gut angekommen. Melde mich morgen!
+eu-de-ok-04	+4915200000514	not-scam,no-otp	benign,german,customer-number	Ihre Kundennummer lautet 48291355. Bitte bei Rückfragen angeben.
+eu-nl-ok-02	ING	not-scam	benign,dutch,region:NL	Uw betaalpas verloopt binnenkort. U ontvangt automatisch een nieuwe pas per post.
+eu-fr-ok-03	ANTAI	not-scam,no-link-warning	benign,french,government-link,region:FR	Avis de contravention : payez en ligne sur https://www.antai.gouv.fr avec le numéro de télépaiement.
+eu-es-ok-01	+34600000515	not-scam	benign,spanish,personal,region:ES	Mi tarjeta está bloqueada, ¿me puedes prestar 20 euros? Te llamo luego

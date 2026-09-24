@@ -104,7 +104,7 @@ regexes are caught. A set of invariants must also hold:
 
 | Tag | Meaning |
 | --- | --- |
-| `known-gap` | A **real** scam (or a real bug) that today's defences miss. The test prints the line's failures instead of failing. Once the line passes, the test fails until you remove the tag. Never use this to hide a wrong expectation. |
+| `known-gap` | A **real** scam (or a real bug) that today's defences miss. The test prints the line's failures instead of failing. Once the line passes, the test fails until you remove the tag. Never use this to hide a wrong expectation. Put the reason in a `#` comment above the line when the gap is out of scope. |
 | `contact` | The sender is a saved contact, for the whole run, so use a number no other line uses. |
 | `after:<id>` | This message arrives an hour after the earlier line `<id>` in the same file. That line is passed as recent history, to test "sent by mistake, please return it" follow-ups. |
 | `region:XX` | Evaluate this line as if received on a SIM from `XX` (or `region:none`). |

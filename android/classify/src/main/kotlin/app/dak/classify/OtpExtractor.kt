@@ -1,7 +1,7 @@
 package app.dak.classify
 
+import app.dak.classify.text.AnalysisText
 import app.dak.classify.text.GatedRegex
-
 import app.dak.core.model.OtpInfo
 
 /**
@@ -38,10 +38,18 @@ public object OtpExtractor {
     // Arabic (Gulf / MENA banks): "verification code", "activation code", "one-time password / code".
     private val otpKeywordAr = "رمز التحقق|رمز التفعيل|كلمة المرور لمرة واحدة|رمز لمرة واحدة|الرمز السري المؤقت"
 
+    // German, French, Spanish, Italian and Dutch: "Ihr Bestätigungscode lautet 482913", "votre code de sécurité est 731904",
+    // "su código de verificación es 482913", "il codice di verifica è 482913", "uw verificatiecode is 482913".
+    private val otpKeywordEu =
+        "best[äa]tigungscode|sicherheitscode|verifizierungscode|einmalpasswort|einmalcode|anmeldecode|" +
+            "code de s[ée]curit[ée]|code de v[ée]rification|code de confirmation|mot de passe [àa] usage unique|" +
+            "c[óo]digo de verificaci[óo]n|c[óo]digo de seguridad|c[óo]digo de confirmaci[óo]n|" +
+            "codice di verifica|codice di sicurezza|codice di conferma|verificatiecode|beveiligingscode|bevestigingscode"
+
     // "OTP is 123456", "OTP: 123456", "your OTP for login is 123456", "OTP for ADCB login is 348201" (the code must
     // contain a digit, so a brand name in between is skipped rather than ending the search).
     private val codeAfterKeyword = GatedRegex(
-        """(?i)(?:$otpKeywordEn|$otpKeywordHi|$otpKeywordAr)[^\n]{0,40}?\b((?=[A-Z]*\d)[A-Z0-9]{4,8})\b""",
+        """(?i)(?:$otpKeywordEn|$otpKeywordHi|$otpKeywordAr|$otpKeywordEu)[^\n]{0,40}?\b((?=[A-Z]*\d)[A-Z0-9]{4,8})\b""",
     )
 
     // "123456 is your OTP", "123456 is the verification code", "G-123456 is your Google verification code"
@@ -62,18 +70,26 @@ public object OtpExtractor {
         RegexOption.IGNORE_CASE,
     )
 
+    // "771204 is your code to confirm a payment", "4821 is your Uber code": a bare "code" needs digits and "is your".
+    private val digitsAreYourCode = GatedRegex("""(?i)\b(\d{4,8})\s+is\s+your\s+(?:\p{L}+\s+){0,2}?code\b""")
+
+    // "Your WhatsApp code: 123-456", "code 123 456": a six-digit code written in two halves (returned joined).
+    private val splitCode = GatedRegex("""(?i)\b(?:code|otp|pin|passcode)\b[^\n\d]{0,20}?(?<!\d[- ]?)(\d{3})[- ](\d{3})(?![- ]?\d)""")
+
     // "code: 1234", "pin: 1234", "code is 1234"
     private val genericCode = GatedRegex("""(?i)\b(?:code|pin)\s*(?:is|:)\s*([A-Z0-9]{4,8})\b""")
 
     /** The keyword-gated patterns, for the prefilter equivalence test. */
-    internal val gatedPatterns: List<GatedRegex> get() = listOf(webOtpRegex, amountRegex, codeAfterKeyword, codeBeforeKeyword, codeAfterKeywordIs, codeAsKeyword, genericCode)
+    internal val gatedPatterns: List<GatedRegex> get() =
+        listOf(webOtpRegex, amountRegex, codeAfterKeyword, codeBeforeKeyword, codeAfterKeywordIs, codeAsKeyword, digitsAreYourCode, splitCode, genericCode)
 
     /** Attempts to extract OTP info from [body]. Returns null if no OTP-shaped code is found. */
     public fun extract(rawBody: String): OtpInfo? {
         // Normalise non-ASCII decimal digits (Devanagari, Bengali, Arabic-Indic, full-width, ...)
         // up front so every `\d`/digit check below matches regardless of script, and so any code
         // returned is always ASCII digits (copy/autofill needs ASCII, not e.g. Devanagari ०-९).
-        val body = DigitNormalizer.normalizeDigits(rawBody)
+        // The analysis form (AnalysisText): RTL overrides applied, invisible characters dropped, zalgo capped.
+        val body = DigitNormalizer.normalizeDigits(AnalysisText.of(rawBody))
         val webOtp = webOtpRegex.find(body)
         val webOtpDomain = webOtp?.groupValues?.get(1)
         val webOtpCode = webOtp?.groupValues?.get(2)?.takeIf { it.any { c -> c.isDigit() } }
@@ -131,6 +147,8 @@ public object OtpExtractor {
         firstValidCode(codeBeforeKeyword, masked)?.let { return it }
         firstValidCode(codeAfterKeywordIs, masked)?.let { return it }
         firstValidCode(codeAsKeyword, masked)?.let { return it }
+        firstValidCode(digitsAreYourCode, masked)?.let { return it }
+        splitCode.find(masked)?.let { return it.groupValues[1] + it.groupValues[2] }
         firstValidCode(genericCode, masked)?.let { return it }
         return afterCode
     }

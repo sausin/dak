@@ -118,7 +118,9 @@ class OtpExtractorEdgeCasesTest {
             val info = OtpExtractor.extract(body) ?: return@repeat
             val normalized = DigitNormalizer.normalizeDigits(body)
             assertTrue(info.code.all { it.code < 128 }, "non-ASCII code ${info.code} from: $body")
-            assertTrue(info.code in normalized, "code ${info.code} not in: $body")
+            // A six-digit code may be written in two halves ("123-456", "123 456"), returned joined.
+            val halves = if (info.code.length == 6) listOf("-", " ").map { info.code.substring(0, 3) + it + info.code.substring(3) } else emptyList()
+            assertTrue(info.code in normalized || halves.any { it in normalized }, "code ${info.code} not in: $body")
             assertTrue(info.code.any { it.isDigit() }, "code without a digit ${info.code} from: $body")
         }
     }

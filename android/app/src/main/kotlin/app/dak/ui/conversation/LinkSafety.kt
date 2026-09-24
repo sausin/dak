@@ -142,7 +142,10 @@ object LinkSafety {
 fun LinkWarningDialog(warning: LinkWarning, onOpen: () -> Unit, onDismiss: () -> Unit, onReport: (() -> Unit)? = null) {
     val verdict = warning.verdict
     val reason = when (verdict.risk) {
-        LinkRisk.LOOKALIKE -> stringResource(R.string.scr_link_lookalike, verdict.matchedBrand ?: BidiText.isolateLtr(verdict.link.host.orEmpty()))
+        // No brand: a bare IP address or an official-sounding host (e.g. "government" words on a non-government
+        // domain) that imitates no one site in particular.
+        LinkRisk.LOOKALIKE -> verdict.matchedBrand?.let { stringResource(R.string.scr_link_lookalike, it) }
+            ?: stringResource(R.string.scr_link_lookalike_unbranded)
         LinkRisk.SUSPICIOUS_TLD -> stringResource(R.string.scr_link_suspicious_tld)
         LinkRisk.SHORTENED -> stringResource(R.string.scr_link_shortened)
         else -> stringResource(if (warning.scamFlagged) R.string.scam_link_in_flagged else R.string.scr_link_unknown_sender)

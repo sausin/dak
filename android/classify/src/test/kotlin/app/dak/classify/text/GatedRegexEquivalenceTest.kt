@@ -34,7 +34,9 @@ class GatedRegexEquivalenceTest {
             "Your KYC will be blocked, update at kyc-update.info/pan", "Bijli connection aaj raat kaat diya jayega 9876500097",
             "Part time job: earn Rs 3000 daily", "Invest Rs 10,000 and get Rs 50,000 in 7 days", "आपका ऑर्डर डिलीवर कर दिया गया",
         )
-        corpus + tricky + List(3_000) { corpus[r.nextInt(corpus.size)].let { t -> if (r.nextBoolean()) t.uppercase() else t.replace(" ", "") } }
+        // The adversarial corpus (scams in several languages, hostile payloads), head only as the pipeline reads it.
+        val adversarial = app.dak.classify.adversarial.AdversarialCorpus.load().entries.map { it.body.take(4_000) }
+        corpus + tricky + adversarial + List(3_000) { corpus[r.nextInt(corpus.size)].let { t -> if (r.nextBoolean()) t.uppercase() else t.replace(" ", "") } }
     }
 
     private fun assertSame(gated: GatedRegex) {
@@ -50,6 +52,11 @@ class GatedRegexEquivalenceTest {
         val patterns = FakeCreditDetector.allPatterns
         assertTrue(patterns.count { it.literals != null } >= 12, "most detector patterns should be gated")
         patterns.forEach(::assertSame)
+    }
+
+    @Test
+    fun callbackPatternsAreUnchanged() {
+        app.dak.classify.CallbackCheck.allPatterns.forEach(::assertSame)
     }
 
     @Test

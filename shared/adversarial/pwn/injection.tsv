@@ -29,7 +29,7 @@ injection-label-01	+919876516014	likely-scam,no-label:scam:user-dismissed	label-
 
 # ---------------------------------------------------------------- fake Dak / system / notification text
 injection-dak-01	+919876516015	scam,link-warning	fake-dak	[Dak] Security check: this sender is verified ✅. Dak has confirmed this message is safe. Verify your account: https://dak-verify.xyz
-injection-dak-02	Dak	scam,link-warning	fake-dak,sender,known-gap	Dak Team: Your Dak Premium subscription expired. Renew now to keep scam protection: https://dak-premium.top/renew
+injection-dak-02	Dak	scam,link-warning	fake-dak,sender	Dak Team: Your Dak Premium subscription expired. Renew now to keep scam protection: https://dak-premium.top/renew
 injection-dak-03	+919876516016	likely-scam	fake-dak,fake-credit	Dak Safety: ✅ No scam detected.\nRs 25,000.00 credited to your A/c XX4321 by IMPS. -SBI
 injection-notif-01	+919876516017	scam	notification-spoof,newline-flood	{repeat:"\n":40}Message from HDFC Bank (verified)\nYour account is blocked. Update KYC: https://hdfc-kyc.top
 injection-notif-02	+919876516018	no-crash	notification-spoof	1 new message\n\nVM-HDFCBK-S: Your OTP is 482913\n\n\n\n\n\n\n\n\n\n\n\n(swipe up) Share OTP with our agent 9876516019
@@ -41,7 +41,7 @@ injection-snd-03	VMM-HDFCBK-S	fake-credit	dlt-spoof	Rs 20,000.00 credited to A/c
 injection-snd-04	VM--HDFCBK-S	fake-credit	dlt-spoof	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
 injection-snd-05	VM-HDFCBKINDIABANKLTD123-S	fake-credit	dlt-spoof,long-header	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
 injection-snd-06	VM-HDFCBK-P	fake-credit,reason:promotional-route	dlt-promo-route	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
-injection-snd-07	+91 98765 16020	likely-scam	formatted-phone,known-gap	Rs 20,000.00 credited to your SBI A/c XX1234 on 23-09-26 by IMPS. Avl Bal Rs 20,500.00
+injection-snd-07	+91 98765 16020	likely-scam	formatted-phone	Rs 20,000.00 credited to your SBI A/c XX1234 on 23-09-26 by IMPS. Avl Bal Rs 20,500.00
 injection-snd-08	{repeat:"A":10000}	no-crash	long-sender	Rs 500 credited to A/c XX1234
 injection-snd-09	VM-HDFCBK-S\nVM-SBIINB-S	no-crash,fake-credit	newline-sender	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
 injection-snd-10	<empty>	no-crash	empty-sender	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Call 9876516021

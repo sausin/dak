@@ -1,5 +1,6 @@
 package app.dak.classify
 
+import app.dak.classify.text.AnalysisText
 import app.dak.core.model.Category
 import app.dak.core.model.Classification
 import app.dak.core.model.ClassifierSource
@@ -58,14 +59,14 @@ public class ClassifierPipeline(
     internal val cacheCounters: Pair<Long, Long> get() = (cache?.hits ?: 0L) to (cache?.misses ?: 0L)
 
     /** Classifies one message received on SIM [subId] (whose region picks the sender conventions). */
-    public suspend fun classify(address: String, body: String, subId: Int): Classification =
-        classifyBounded(
-            address,
-            if (body.length > MAX_CLASSIFY_CHARS) body.substring(0, MAX_CLASSIFY_CHARS) else body,
-            runCatching { regionFor(subId) }.getOrDefault(SenderRegion.UNKNOWN),
-        )
+    public suspend fun classify(address: String, body: String, subId: Int): Classification {
+        val head = if (body.length > MAX_CLASSIFY_CHARS) body.substring(0, MAX_CLASSIFY_CHARS) else body
+        // Rules, the model and OTP extraction read the analysis form (AnalysisText: RTL overrides applied, invisible
+        // characters dropped, combining-mark floods capped); links are taken from the text as shown.
+        return classifyBounded(address, AnalysisText.of(head), head, runCatching { regionFor(subId) }.getOrDefault(SenderRegion.UNKNOWN))
+    }
 
-    private suspend fun classifyBounded(address: String, body: String, region: SenderRegion): Classification {
+    private suspend fun classifyBounded(address: String, body: String, shownBody: String, region: SenderRegion): Classification {
         // Only the head of a message is classified: templates, the model and OTP extraction all key off the first
         // few hundred characters, and bounding the input bounds the worst case of every regex run on it (MMS text
         // parts can be megabytes of sender-chosen text).
@@ -77,7 +78,7 @@ public class ClassifierPipeline(
 
         var labels = mutableSetOf<String>()
         val senderClass = senderClassOf(address)
-        val links by lazy(LazyThreadSafetyMode.NONE) { LinkExtractor.extract(body) }
+        val links by lazy(LazyThreadSafetyMode.NONE) { LinkExtractor.extract(shownBody) }
         // A sender name written with look-alike or mixed scripts (`НDFCBK` with a Cyrillic Н; UTS #39) is an
         // imitation, however business-like it looks: its links are treated like an unknown number's.
         val spoofedSender = SenderNameCheck.isSuspicious(address)
@@ -114,12 +115,31 @@ public class ClassifierPipeline(
         var candidate: Classification = if (matched != null && matched.confidence >= threshold) {
             routeChecked(matched, dltHeader) { links }
         } else {
-            modelStage(address, body, senderEntry, region, dltHeader, senderClass, hasCode, entry)
+            // The DLT route bounds what the model may say exactly as it bounds a rule's verdict: a bank's KYC reminder
+            // on its registered `-S` route is not spam because the model's small vocabulary reads it that way.
+            routeChecked(modelStage(address, body, senderEntry, region, dltHeader, senderClass, hasCode, entry), dltHeader) { links }
         }
-        // A phone number nobody saved (or a look-alike sender name), sending a look-alike, suspicious-TLD or userinfo
-        // link: phishing, whatever the wording (OTP messages excluded: the code is what the user needs to see). Only an
-        // OTP with a code counts: a code-less "verify your account now" the model leans towards OTP is still phishing.
-        if ((senderClass == SenderClass.UNKNOWN_NUMBER || spoofedSender) && !(candidate.category == Category.OTP && hasCode) && hasRiskyLink(links)) {
+        // A phone number nobody saved (or a look-alike sender name, or, where every business sends from a DLT header, a
+        // name that is not one), sending a look-alike, suspicious-TLD or userinfo link: phishing, whatever the wording
+        // (OTP messages excluded: the code is what the user needs to see). Only an OTP with a code counts: a code-less
+        // "verify your account now" the model leans towards OTP is still phishing.
+        val unregisteredName = region.dltSenderIds && SenderId.classify(address) == SenderKind.ALPHANUMERIC
+        if ((senderClass == SenderClass.UNKNOWN_NUMBER || spoofedSender || unregisteredName) &&
+            !(candidate.category == Category.OTP && hasCode) && hasRiskyLink(links)
+        ) {
+            candidate = Classification(
+                category = Category.SPAM,
+                confidence = maxOf(candidate.confidence, RISKY_LINK_CONFIDENCE),
+                source = ClassifierSource.TEMPLATE,
+                labels = candidate.labels + "fraud-risk",
+            )
+        }
+
+        // A stranger's number claiming a problem with the reader's card, account, order or a legal case and asking them
+        // to call an ordinary (not toll-free) number: the callback scam (CallbackCheck; per message, never cached).
+        if (senderClass == SenderClass.UNKNOWN_NUMBER && candidate.category != Category.SPAM &&
+            !(candidate.category == Category.OTP && hasCode) && CallbackCheck.matches(body)
+        ) {
             candidate = Classification(
                 category = Category.SPAM,
                 confidence = maxOf(candidate.confidence, RISKY_LINK_CONFIDENCE),
@@ -184,6 +204,7 @@ public class ClassifierPipeline(
             SenderClass.UNKNOWN_NUMBER -> !region.dltSenderIds
         }
         SenderScope.PRIVATE_NUMBER -> senderClass == SenderClass.UNKNOWN_NUMBER && region.dltSenderIds
+        SenderScope.UNKNOWN_NUMBER -> senderClass == SenderClass.UNKNOWN_NUMBER
     }
 
     /**

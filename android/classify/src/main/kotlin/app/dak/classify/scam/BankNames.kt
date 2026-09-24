@@ -9,6 +9,8 @@ import app.dak.classify.unicode.Confusables
  * India, including some the template bundle does not list yet (a claim of those is still recognised, and a sender
  * header for them is then "not in the bank table").
  *
+ * Names are matched in Latin script and, for the banks most imitated, in Devanagari ("पंजाब नेशनल बैंक").
+ *
  * Every pattern is a plain alternation with no nested quantifiers (linear time on any input).
  */
 internal object BankNames {
@@ -25,18 +27,18 @@ internal object BankNames {
 
     /** Order matters: State Bank of India is checked before Bank of India. */
     val families: List<Family> = listOf(
-        Family("sbi", "State Bank of India", """\bsbi\b|state\s?bank""", listOf("SBI")),
-        Family("hdfc", "HDFC Bank", """\bhdfc""", listOf("HDFC")),
-        Family("icici", "ICICI Bank", """\bicici""", listOf("ICICI")),
-        Family("axis", "Axis Bank", """\baxis\b""", listOf("AXIS")),
-        Family("kotak", "Kotak Mahindra Bank", """\bkotak\b""", listOf("KOTAK")),
+        Family("sbi", "State Bank of India", """\bsbi\b|state\s?bank|एसबीआई|स्टेट\s+बैंक""", listOf("SBI")),
+        Family("hdfc", "HDFC Bank", """\bhdfc|एचडीएफसी""", listOf("HDFC")),
+        Family("icici", "ICICI Bank", """\bicici|आईसीआईसीआई""", listOf("ICICI")),
+        Family("axis", "Axis Bank", """\baxis\b|एक्सिस\s+बैंक""", listOf("AXIS")),
+        Family("kotak", "Kotak Mahindra Bank", """\bkotak\b|कोटक""", listOf("KOTAK")),
         Family("yes", "Yes Bank", """\byes\s?bank\b""", listOf("YESB")),
         Family("idfc", "IDFC First Bank", """\bidfc\b""", listOf("IDFC")),
         Family("indusind", "IndusInd Bank", """\bindusind\b""", listOf("INDUS")),
-        Family("pnb", "Punjab National Bank", """\bpnb\b|punjab\s+national""", listOf("PNB", "PUNB")),
-        Family("bob", "Bank of Baroda", """bank\s+of\s+baroda|\bbob\b""", listOf("BOB", "BARODA")),
-        Family("canara", "Canara Bank", """\bcanara\b""", listOf("CANB", "CANARA")),
-        Family("union", "Union Bank of India", """\bunion\s+bank\b""", listOf("UNIONB", "UBOI")),
+        Family("pnb", "Punjab National Bank", """\bpnb\b|punjab\s+national|पंजाब\s+नेशनल|पीएनबी""", listOf("PNB", "PUNB")),
+        Family("bob", "Bank of Baroda", """bank\s+of\s+baroda|\bbob\b|बैंक\s+ऑफ\s+ब(?:ड़|ड़)ौदा""", listOf("BOB", "BARODA")),
+        Family("canara", "Canara Bank", """\bcanara\b|केनरा""", listOf("CANB", "CANARA")),
+        Family("union", "Union Bank of India", """\bunion\s+bank\b|यूनियन\s+बैंक""", listOf("UNIONB", "UBOI")),
         Family("boi", "Bank of India", """(?<!state\s)bank\s+of\s+india\b""", listOf("BOIIND", "BKOFIN")),
         Family("central", "Central Bank of India", """central\s+bank""", listOf("CBOI", "CENTBK")),
         Family("indian", "Indian Bank", """\bindian\s+bank\b""", listOf("INDIANB")),

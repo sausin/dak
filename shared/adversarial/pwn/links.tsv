@@ -20,7 +20,7 @@ links-typo-01	+919876514011	lookalike,link-warning	typosquat	ICICI reward points
 
 # ---------------------------------------------------------------- IP hosts and odd hosts
 links-ip-01	+919876514012	link-warning,scam	ipv4	SBI NetBanking will be blocked today, verify now: http://192.0.2.44/sbi/login.php
-links-ip-02	VM-HDFCBK-S	link-warning	ipv4-decimal,verified-sender,known-gap	Update KYC: http://3221225516/kyc
+links-ip-02	VM-HDFCBK-S	link-warning,lookalike	ipv4-decimal,verified-sender	Update KYC: http://3221225516/kyc
 links-ip-03	+919876514013	no-crash	ipv6	Open http://[::1]:8080/x and http://[2001:db8::1]/y
 links-host-01	+919876514014	no-crash	long-host	https://{repeat:"a.":150}com/x
 links-host-02	+919876514015	no-crash	long-label	https://{repeat:"a":70}.com/x
@@ -53,3 +53,9 @@ links-webotp-01	+919876514035	otp:482913	webotp,spoof	Your OTP is 482913\n\n@evi
 links-flood-01	+919876514036	no-crash	flood,beyond-scan-limit	{repeat:"https://a.example/ ":2000}
 links-flood-02	+919876514037	no-crash	flood,bare	{repeat:"a.co/x ":5000}
 links-flood-03	+919876514038	no-crash,links:1	long-url	https://evil.example/{repeat:"a":100000}
+
+# ---------------------------------------------------------------- hosts that only look like the new link signals (a "gov" word inside a name, a version number, a real gov host)
+links-benign-01	VM-GOVIND-S	no-link-warning	gov-substring	Order sweets online: https://govinda-sweets.com/menu
+links-benign-02	+919876514040	no-link-warning,not-scam	version-number	Updated to v2.10.3 today, works fine now
+links-benign-03	VM-INCTAX-G	no-link-warning	gov-in	File your return at https://www.incometax.gov.in/iec/foportal
+links-benign-04	DMV	no-link-warning	gov-us	Info at https://www.usps.com and https://www.dmv.ca.gov/portal

@@ -17,16 +17,18 @@ us-pkg-03	+16465550117	scam,link-warning	ups,parcel,fee	UPS: Your parcel 1Z77A0 
 
 # ---------------------------------------------------------------- IRS / benefits
 us-irs-01	+12025550118	scam	irs,tax-refund	IRS: You are eligible for a tax refund of $1,284.50. Submit your details to claim it: https://irs-gov-refund.info/claim
-us-irs-02	+12025550119	scam	irs,threat,known-gap	IRS Notice: A lawsuit has been filed against you for unpaid taxes. Call the IRS officer at +1 202 555 0120 today to avoid arrest.
+us-irs-02	+12025550119	scam	irs,threat	IRS Notice: A lawsuit has been filed against you for unpaid taxes. Call the IRS officer at +1 202 555 0120 today to avoid arrest.
 
 # ---------------------------------------------------------------- banks / P2P
 us-bank-01	+18005550121	scam,link-warning	bank,fraud-alert	Chase Fraud Alert: Did you attempt a purchase of $1,249.99 at Walmart? If NO, secure your account at https://chase-secure-verify.xyz
-us-bank-02	+13125550122	scam	bank,callback,known-gap	Wells Fargo: Your debit card has been temporarily locked due to suspicious activity. Call us at 312-555-0123 to unlock it.
+us-bank-02	+13125550122	scam,spam	bank,callback	Wells Fargo: Your debit card has been temporarily locked due to suspicious activity. Call us at 312-555-0123 to unlock it.
 us-p2p-01	+13125550124	fake-credit,scam	zelle,collect	Zelle: You have received $500.00 from Mark T. Tap the link to accept the payment into your bank account: https://zelle-accept.top/r
-us-p2p-02	+13125550125	scam	cashapp,advance-fee,known-gap	Cash App: $750 has been sent to you but is pending. To release the funds, upgrade to a business account for $50 first.
+us-p2p-02	+13125550125	scam	cashapp,advance-fee	Cash App: $750 has been sent to you but is pending. To release the funds, upgrade to a business account for $50 first.
 
 # ---------------------------------------------------------------- jobs / wrong number
 us-job-01	+15125550126	scam	job	Hi, this is Emily from Indeed recruiting. We have a remote part-time job, $300-$500 a day, 60-90 minutes. Reply YES for details.
+# known-gap (out of scope for on-device rules): a "wrong number" opener reads exactly like a genuine misdirected
+# text; only the conversation that follows (investment talk, a move to WhatsApp or Telegram) gives it away.
 us-wrong-01	+15125550127	scam	wrong-number,pig-butchering,known-gap	Hey Jessica, are we still on for golf this Sunday? Let me know soon 🙂
 
 # ---------------------------------------------------------------- BENIGN look-alikes
@@ -37,3 +39,9 @@ us-ok-04	28777	not-scam,no-link-warning	benign,usps	USPS: Your item was delivere
 us-ok-05	+15125550128	not-scam	benign,personal,contact	I sent you $40 on Venmo for the pizza, thanks!
 us-ok-06	69525	not-scam	benign,ups	UPS: Your package 1Z999AA10123456784 is out for delivery today. Track at https://www.ups.com/track
 us-ok-07	+15125550129	not-scam	benign,personal	Can you send me the $20 for the tickets when you get a chance? No rush
+
+# ---------------------------------------------------------------- BENIGN counterparts of the callback and threat rules
+us-ok-08	+15125550130	not-scam	benign,personal,card	Hey, my card got declined at the store lol, can you call me at 512-555-0131?
+us-ok-09	+15125550137	not-scam	benign,personal,arrest-joke	Lol he said he'd avoid arrest if he just paid the parking ticket 😂
+us-ok-10	38675	not-scam	benign,court-reminder	Court reminder: Case 2026-TR-0123 hearing on 10/02 at 9:00 AM, Room 4. Please arrive early.
+us-ok-11	IRS	not-scam,no-link-warning	benign,government-link	Check your refund status at https://www.irs.gov/refunds

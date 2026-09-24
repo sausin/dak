@@ -77,6 +77,7 @@ class EnrichmentBenchmarkTest {
     private fun breakdown(): List<String> {
         val path = EnrichmentPath.create()
         val detector = app.dak.classify.scam.FakeCreditDetector(app.dak.classify.TemplateBundle.loadDefault())
+        val checker = app.dak.classify.LookalikeDomainChecker()
         val stages: List<Pair<String, (CorpusMessage) -> Any?>> = listOf(
             "full path (EnrichmentPath.enrich)" to { m -> runBlocking { path.enrich(m) } },
             "classify (templates+model+otp)" to { m -> runBlocking { path.pipeline.classify(m.address, m.body, m.subId) } },
@@ -87,6 +88,9 @@ class EnrichmentBenchmarkTest {
             "LinkPresence.containsLink" to { m -> app.dak.classify.LinkPresence.containsLink(m.body) },
             "TextNormalizer.normalize(body)" to { m -> app.dak.search.TextNormalizer.normalize(m.body) },
             "OtpExtractor.extract (all msgs)" to { m -> app.dak.classify.OtpExtractor.extract(m.body) },
+            "TransactionParser.parseBillReminder" to { m -> app.dak.finance.parser.TransactionParser.parseBillReminder(m.address, m.body) },
+            "LinkExtractor.extract" to { m -> app.dak.classify.LinkExtractor.extract(m.body) },
+            "LookalikeDomainChecker on extracted links" to { m -> app.dak.classify.LinkExtractor.extract(m.body).map { checker.check(it) } },
         )
         return stages.map { (name, stage) ->
             repeat(WARMUP) { corpus.forEach { stage(it) } }

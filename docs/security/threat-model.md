@@ -88,7 +88,8 @@ Tests: `SecurityFuzzTest` runs a deterministic seeded structure-aware mutation f
 | User-written automation regexes (the user writes the pattern, the attacker writes the input) | `RegexSafety` rejects nested or ambiguous repetition (`(a+)+`, `(a\|aa)*`, `(\w+\s?)*`), backreferences, and patterns over 500 characters. The rule editor shows the problem, and the engine never runs an unsafe pattern. Input is capped at 4000 characters. Android's ICU regex cannot be interrupted, so the check is static. |
 | Transaction parser, OTP extractor, link extractor | Harness tests on 50k-character pathological bodies, plus 1M characters for the OTP extractor: all finish in under a second. |
 | **Transaction parser read the whole body** (a 1 MB MMS text part from a business sender cost 1-2 s per message on a desktop JVM) | **Fixed:** only the first `TransactionParser.MAX_PARSE_CHARS` (4000) characters are parsed, like the classifier. |
-| Long runs of combining marks (zalgo) make every `\b` quadratic: the regex engine walks back over the marks to find the base character at each position (seen on the JDK; ICU does the same walk) | **Open:** about 1.7 s on the JVM for a 3000-mark body across the pipeline, OTP, entity and masker regexes. Mitigation to evaluate: collapse long combining-mark runs before regex analysis. Tracked as `unicode-zalgo-02` in the adversarial corpus. |
+| **Long runs of combining marks (zalgo) made every `\b` quadratic**: the regex engine walks back over the marks to find the base character at each position (seen on the JDK; ICU does the same walk). A 3000-mark body cost about 1.7 s across the pipeline, OTP, entity and masker regexes | **Fixed:** analysis reads `AnalysisText` (`classify/.../text/AnalysisText.kt`, copied in `:finance` for the parser): runs of more than 8 combining marks are cut to 8 (entity spans use a length-preserving variant), so every regex stays linear; the text shown is untouched. `unicode-zalgo-02` now takes a few ms. |
+| **Text hidden from analysis by bidi controls or invisible characters** (`Rs <RLO>00.000,05<PDF> credited` shows as `Rs 50,000.00` on a bidi-unaware screen; `K<ZWSP>YC`) | **Fixed:** `AnalysisText` applies right-to-left overrides as they are displayed and drops scoped bidi controls, bidi marks and zero-width / invisible characters before rules, the model, OTP extraction, the fake-credit detector and the parser run. |
 
 The adversarial corpus (`shared/adversarial/`, run by `AdversarialCorpusTest`) runs every scam and robustness payload
 through all of these defences with a per-message time budget and invariant checks. Lines tagged `known-gap` record
@@ -109,6 +110,11 @@ misses that are still open.
   `java.net.IDN` (IDNA2003) is no longer used: it turned `faß.de` into `fass.de`, a different domain. A host a
   browser would refuse (invalid Punycode, a Bidi or CONTEXTJ violation, `evil.example／hdfcbank.com` whose fullwidth
   solidus maps to `/`) gets no `asciiHost` and is flagged.
+- A bare IP address host (`http://192.0.2.44/`, `http://3221225516/`, which browsers read as an IPv4 address, or an
+  IPv6 literal) is flagged as a look-alike: no bank, courier or government links to one.
+- A government word as a host label outside a government domain (`gov-uk-support-payment.com`,
+  `fines.ae-gov.com`, `antai-gouv-paiement.com`) is flagged as a look-alike. `.gov`, `.mil` and `gov.xx` /
+  `gouv.xx` / `gob.xx` / `nic.xx` style domains are not.
 - An official domain spelled out at the start of another host (`sbi.co.in.account-verify.example`,
   `irctc.co.in-refund.example`) is flagged as a look-alike of that brand.
 - Look-alike hosts are reduced to their UTS #39 skeleton, generated from Unicode's `confusables.txt` (17.0.0) for

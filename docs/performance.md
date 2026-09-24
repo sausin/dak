@@ -215,9 +215,44 @@ This follows the rules in docs/battery.md:
   sooner.
 - An incoming SMS runs inline, with no thread hop, and saves about 60 µs of CPU.
 
+## Adversarial-corpus pass (September 2026)
+
+Same benchmark (JVM 21, 4-core sandbox, 50,000 synthetic messages, median of 5 passes). "Before" is commit
+`15c1dfd`. "After" includes the parser and link-checker changes below, plus the new scam rules of template bundle 5.
+
+| Path / stage | Before | After |
+|---|---:|---:|
+| Full enrichment path, 1 thread (prefilter) | 5,229 msgs/s | 8,569 msgs/s (**1.6×**) |
+| Full enrichment path, 3 threads (prefilter) | 9,223 msgs/s | 16,250 msgs/s (**1.8×**) |
+| Full enrichment path, 1 thread (per message) | 199 µs | 120 µs |
+| `TransactionParser.parse` (every message) | 174 µs | 59 µs (**2.9×**) |
+| `TransactionParser.parseBillReminder` | 16.3 µs | 3.7 µs |
+| `LookalikeDomainChecker` on a message's links | 5.0 µs | 3.4 µs |
+| Classification only, 1 thread (prefilter) | 24,447 msgs/s | 24,665 msgs/s (9 more rules, unchanged) |
+| A 3,000-mark "zalgo" body, all defences (`unicode-zalgo-02`) | 1,580-1,700 ms | a few ms |
+
+What changed:
+
+- **Literal gates in `:finance`** (`parser/LiteralGate.kt`, `GatedPattern`). This is a small local version of
+  `GatedRegex`, because `:finance` does not depend on `:classify`. The direction cues, the OTP word, the promotion,
+  request and statement vetoes and the bill-reminder patterns now run only when one of their keywords is in the
+  case-folded body. The body is folded once per message. `InvestmentParser` checks one vocabulary pattern first and
+  skips its ~20 passes for messages that are not about investments. `LiteralGateTest` checks, on the whole parser
+  corpus in upper-case, lower-case and Unicode-case variants, that the gates never skip a match and that gated and
+  ungated results are identical. The bill reminder's due-date regex is compiled once.
+- **`LookalikeDomainChecker`** splits brand names into words once, not on every check. It skips the edit distance
+  when the lengths differ by more than 2, and computes it with two rows.
+- **Analysis text** (`AnalysisText`, in `:classify` and copied in `:finance`) caps runs of combining marks at 8
+  before any regex runs. Before that cap, every `\b` rescanned the whole run.
+
+Locale: every `lowercase()` / `uppercase()` in `:classify` and `:finance` is Kotlin's locale-invariant form, so no
+code change was needed. `LocaleIndependenceTest` pins identical results under Turkish, Azerbaijani and Lithuanian
+default locales.
+
 ## Next
 
-- **`TransactionParser` / `MoneyParser` (`:finance`)** is now the largest cost: about 47 µs per parsed message,
+- **`TransactionParser` / `MoneyParser` (`:finance`)**: the parser's gates are done (see above). `MoneyParser`'s
+  pattern remains. The notes below predate that pass. **`TransactionParser` / `MoneyParser` (`:finance`)** is now the largest cost: about 47 µs per parsed message,
   roughly half of what remains. Its negative checks (OTP, promotion and bill wording), direction words and
   `MoneyParser`'s pattern are all literal-keyed alternations that `GatedRegex` would gate. `MoneyParser`'s currency
   prefix is optional, so a 100-way alternation is tried at every digit. Two things stop this for now. `:finance`

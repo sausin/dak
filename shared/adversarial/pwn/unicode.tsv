@@ -9,7 +9,7 @@
 unicode-bidi-01	+919876513001	links:1,link-host:evil.example,scam	rlo,link	Your KYC is pending, account will be blocked today. Update: https://evil.example/\u202Emoc.knabcfdh//:sptth
 unicode-bidi-02	+919876513002	no-crash,links:0	rlo,filename	Your e-invoice is attached: invoice_2026\u202Efdp.apk - open it to see the amount
 unicode-bidi-03	+919876513003	no-crash	isolates,unbalanced	Hello \u2069\u2069\u2069 world \u2066\u2067\u2068 no terminator \u202A\u202B
-unicode-bidi-04	+919876513004	likely-scam	rlo,amount,fake-credit,known-gap	Rs \u202E00.000,05\u202C credited to your A/c XX4321 by IMPS. -SBI
+unicode-bidi-04	+919876513004	likely-scam	rlo,amount,fake-credit	Rs \u202E00.000,05\u202C credited to your A/c XX4321 by IMPS. -SBI
 unicode-bidi-05	+919876513005	no-crash	bidi-flood	{repeat:"\u202E\u202D":3000}OTP 1234
 unicode-bidi-06	+919876513006	no-crash,links:2,link-host:evil.example	lri,link	Pay here \u2066https://evil.example/pay\u2069\u2067hdfcbank.com\u2069
 
@@ -36,7 +36,7 @@ unicode-host-09	+919876513029	lookalike,link-warning	mixed-script-host	SBI YONO:
 
 # ---------------------------------------------------------------- combining floods, emoji, RTL scripts
 unicode-zalgo-01	+919876513031	no-crash	zalgo	Z{repeat:"\u0301\u0336\u0489":2000}algo OTP is 482913
-unicode-zalgo-02	+919876513032	no-crash	zalgo,digits,known-gap	4{repeat:"\u0336":3000}82913 is your OTP
+unicode-zalgo-02	+919876513032	no-crash	zalgo,digits	4{repeat:"\u0336":3000}82913 is your OTP
 unicode-emoji-01	+919876513033	no-crash	emoji-zwj	{repeat:"\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}":2000}
 unicode-emoji-02	+919876513034	no-crash,not-scam	emoji,flags,skin-tone	Happy Diwali 🪔🎆 from all of us 👨🏽\u200D👩🏽\u200D👧🏽 🇮🇳🇮🇳 ❤\uFE0F\u200D🔥
 unicode-rtl-01	+919876513035	no-crash	hebrew	הקוד שלך הוא 482913 אל תשתף אותו
@@ -49,7 +49,7 @@ unicode-dig-02	VM-HDFCBK-T	otp:482913	bengali-digits,otp	আপনার OTP হ
 unicode-dig-03	VM-HDFCBK-T	otp:482913	mixed-digit-scripts,otp	Your OTP is 48२9१3. Do not share.
 unicode-dig-04	VM-HDFCBK-T	no-crash,no-otp	superscript-digits	Your OTP is ⁴⁸²⁹¹³. Do not share.
 unicode-dig-05	VM-HDFCBK-T	no-crash	math-digits	Your OTP is \u{1D7D2}\u{1D7D6}\u{1D7D0}\u{1D7D7}\u{1D7CF}\u{1D7D1}. Do not share.
-unicode-dig-06	VM-SBIINB-S	txn:debit,amount:1250.00	devanagari-digits,amount,known-gap	आपके खाते XX1234 से ₹१,२५०.०० डेबिट किए गए। - SBI
+unicode-dig-06	VM-SBIINB-S	txn:debit,amount:1250.00	devanagari-digits,amount	आपके खाते XX1234 से ₹१,२५०.०० डेबिट किए गए। - SBI
 unicode-dig-07	+919876513039	likely-scam	devanagari-digits,fake-credit	Rs.२५,०००.०० credited to your A/c XX४३२१ by IMPS. -SBI
 
 # ---------------------------------------------------------------- broken surrogates, NUL and control characters

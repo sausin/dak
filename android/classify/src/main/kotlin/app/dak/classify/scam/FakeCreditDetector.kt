@@ -7,6 +7,7 @@ import app.dak.classify.SenderKind
 import app.dak.classify.SenderNameCheck
 import app.dak.classify.TemplateBundle
 import app.dak.classify.TrafficType
+import app.dak.classify.text.AnalysisText
 import app.dak.classify.text.GatedRegex
 import java.math.BigDecimal
 
@@ -287,8 +288,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         return Analysis(body, normalize(body)).also { lastAnalysis.set(it) }
     }
 
+    /** The head of [body] in its analysis form (see [AnalysisText]: what a screen shows, zalgo capped), digits in ASCII. */
     private fun normalize(body: String): String =
-        DigitNormalizer.normalizeDigits(if (body.length > MAX_SCAN_CHARS) body.substring(0, MAX_SCAN_CHARS) else body)
+        DigitNormalizer.normalizeDigits(AnalysisText.of(if (body.length > MAX_SCAN_CHARS) body.substring(0, MAX_SCAN_CHARS) else body))
 
     public companion object {
         /** Only this many leading characters of a body are examined. */

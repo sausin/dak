@@ -3,6 +3,7 @@ package app.dak.finance.parser
 import app.dak.core.model.ExtractedTransaction
 import app.dak.core.model.InstrumentType
 import app.dak.core.model.TransactionDirection
+import app.dak.finance.money.AnalysisText
 import app.dak.finance.money.CurrencyTable
 import app.dak.finance.money.DigitNormalizer
 import app.dak.finance.money.MoneyOccurrence
@@ -45,13 +46,29 @@ data class BillReminder(
  */
 object TransactionParser {
 
+    /** Literals every bill-reminder pattern ([billReminderPattern], [DirectionCues.due]) needs; `LiteralGateTest`. */
+    internal val BILL_WORDS = listOf("due", "bill", "pay")
+
     /** Only this many leading characters of a body are parsed (the classifier reads as many). */
     const val MAX_PARSE_CHARS: Int = 4_000
 
-    private val promoPattern = Regex(
+    private val promoPattern = GatedPattern(
         """cashback up ?to|get flat|avail (?:the )?offer|%\s?off|use code|\bwin\s|assured cashback|limited period|click here|exclusive offer|download (?:the )?app|hurry|t&c appl|\bup\s?to\s+(?:rs\.?|inr|₹)|\bapply\s+now\b|\bpre-?approved\b|\beligible\s+for\b""",
-        RegexOption.IGNORE_CASE,
+        listOf(
+            "cashback", "get flat", "avail", "%", "use code", "win", "limited period", "click here", "exclusive offer", "download",
+            "hurry", "t&c appl", "up", "apply", "approved", "eligible",
+        ),
     )
+
+    /** Every gated pattern, for the gate soundness test. */
+    internal val gatedPatterns: List<GatedPattern> get() = listOf(promoPattern)
+
+    /** Gates for the request / statement vetoes (every match contains the literal). */
+    private val requestWord = listOf("request")
+    private val statementWord = "statement"
+
+    /** "due on 12 Sep", "due by Friday": the due-date hint of a bill reminder. */
+    private val dueHintPattern = Regex("""due\s+(?:on|by)[^.,\n]*""", RegexOption.IGNORE_CASE)
 
     private val billReminderPattern = Regex(
         """due on|minimum amount due|payment due|total amount due|bill (?:of|amount)|kindly pay|pay (?:your|the) (?:bill|minimum)""",
@@ -111,15 +128,20 @@ object TransactionParser {
         // of the digit script the SMS was written in. Only the head of the body is read, like the classifier: a
         // transaction SMS is a few hundred characters, and an MMS text part can be megabytes of sender-chosen text
         // that every regex below would otherwise scan (seconds per message; shared/adversarial/pwn/redos.tsv).
-        val body = DigitNormalizer.normalizeDigits(if (rawBody.length > MAX_PARSE_CHARS) rawBody.substring(0, MAX_PARSE_CHARS) else rawBody)
-        if (DirectionCues.isOtp(body)) return null
+        // The analysis form (AnalysisText): combining-mark floods capped, RTL overrides applied, invisible characters
+        // dropped, as the classifier and the fake-credit detector read it.
+        val head = if (rawBody.length > MAX_PARSE_CHARS) rawBody.substring(0, MAX_PARSE_CHARS) else rawBody
+        val body = DigitNormalizer.normalizeDigits(AnalysisText.of(head))
+        // Case-folded once for the literal gates of the patterns below (GatedPattern).
+        val folded = GatedPattern.fold(body)
+        if (DirectionCues.isOtp(body, folded)) return null
         // A mutual-fund folio's or demat account's own message (allotment, redemption, trade, valuation, alert).
-        InvestmentParser.parse(sender, body, symbolMap)?.let { return it.transaction }
-        if (promoPattern.containsMatchIn(body)) return null
-        if (DirectionCues.request.containsMatchIn(body)) return null
-        if (DirectionCues.statement.containsMatchIn(body)) return null
+        InvestmentParser.parse(sender, body, symbolMap, folded)?.let { return it.transaction }
+        if (promoPattern.containsMatchIn(body, folded)) return null
+        if (requestWord.any { folded.contains(it) } && DirectionCues.request.containsMatchIn(body)) return null
+        if (folded.contains(statementWord) && DirectionCues.statement.containsMatchIn(body)) return null
 
-        val cues = DirectionCues.find(body)
+        val cues = DirectionCues.find(body, folded)
         val strong = cues.filter { it.strong }
         val refund = strong.firstOrNull { it.refund }
         val failed = DirectionCues.failure.containsMatchIn(body)
@@ -207,7 +229,7 @@ object TransactionParser {
     }
 
     /** Whether [body] reads as a promotion or offer ("cashback up to", "apply now", "% off"). */
-    internal fun isPromotion(body: String): Boolean = promoPattern.containsMatchIn(body)
+    internal fun isPromotion(body: String): Boolean = promoPattern.regex.containsMatchIn(body)
 
     /** The UPI / RRN / UTR / ref / txn id reference of [body], if any. */
     internal fun referenceOf(body: String): String? = detectReference(body)
@@ -218,10 +240,14 @@ object TransactionParser {
         rawBody: String,
         symbolMap: Map<String, String> = CurrencyTable.defaultSymbolToCurrency,
     ): BillReminder? {
-        val body = DigitNormalizer.normalizeDigits(rawBody)
+        val head = if (rawBody.length > MAX_PARSE_CHARS) rawBody.substring(0, MAX_PARSE_CHARS) else rawBody
+        val body = DigitNormalizer.normalizeDigits(AnalysisText.of(head))
+        // Every reminder pattern below needs "due", "bill" or "pay": skip the regexes on everything else.
+        val folded = GatedPattern.fold(body)
+        if (BILL_WORDS.none { folded.contains(it) }) return null
         if (!billReminderPattern.containsMatchIn(body) && !DirectionCues.due.containsMatchIn(body)) return null
         val amount = MoneyParser.findAll(body, symbolMap).firstOrNull() ?: return null
-        val dueHint = Regex("""due\s+(?:on|by)[^.,\n]*""", RegexOption.IGNORE_CASE).find(body)?.value
+        val dueHint = dueHintPattern.find(body)?.value
         return BillReminder(
             amountMinor = amount.money.amountMinor,
             currency = amount.money.currencyUpper,

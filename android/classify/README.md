@@ -42,9 +42,13 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
   now" / "returns up to" offers promotions; a debit / credit on a masked "A/c XX1234" (`txn-account-movement`) is an
   unlabelled transaction first, so a bank's SIP debit stays a loud alert (`InvestmentClassificationTest`). Bump the
   bundle `version` when rules change so stored messages are re-classified.
-- `TemplateRule.senderScope` (`ANY` default, `BUSINESS`, `PRIVATE_NUMBER`): `BUSINESS` rules (money, order,
+- Bundle 5 adds scam rules found through the adversarial corpus (`shared/adversarial/`): code-sharing requests,
+  "Hi Mum, new number", APK links, task / crypto release fees, loan-app extortion, arrest threats, "safe account"
+  transfers, account threats with a link in Dutch / Spanish / French / German / Italian, Hindi electricity and Arabic
+  prize wording, and multilingual delivery updates (see `docs/security/fake-credit-scams.md`).
+- `TemplateRule.senderScope` (`ANY` default, `BUSINESS`, `PRIVATE_NUMBER`, `UNKNOWN_NUMBER`): `BUSINESS` rules (money, order,
   delivery, bill, booking, service wording that people also write to each other) are skipped for saved contacts and,
-  in India, for private numbers; `PRIVATE_NUMBER` rules apply only to unknown private numbers in India (where
+  in India, for private numbers; `UNKNOWN_NUMBER` rules (bundle 5+) to unknown full-length phone numbers in every region; `PRIVATE_NUMBER` rules apply only to unknown private numbers in India (where
   businesses cannot send from one).
 - `TemplateBundle.parse(json, verifier: BundleVerifier): TemplateBundle?` — parses and verifies an
   OTA `SignedTemplateBundle`; returns null on any signature failure (fail closed).
@@ -97,6 +101,17 @@ Pure-Kotlin (JVM) message classification pipeline for Dak. Package `app.dak.clas
   `src/test/kotlin/app/dak/classify/gen/SeedCorpus.kt`. Re-run
   `GenerateModelWeightsTest` after editing the corpus to regenerate
   `src/main/resources/app/dak/classify/model-weights.json`.
+
+## Analysis text
+
+- `text.AnalysisText.of(body)` — what the regex analysis reads (rules, model, OTP extraction, the fake-credit
+  detector, the masker; `:finance` keeps an identical copy for the transaction parser): right-to-left overrides applied
+  as displayed, bidi controls and invisible characters dropped, runs of more than 8 combining marks cut to 8 (keeps
+  every regex linear on "zalgo" text). `capMarksKeepingOffsets` is the length-preserving variant used by
+  `EntityExtractor`. The text shown to the user is never changed.
+- `CallbackCheck` — the "call this ordinary number about your locked card / new payee / lawsuit" scam from unknown
+  phone numbers (English and Arabic); toll-free lines are exempt. A per-message check in the pipeline, not a template
+  rule, because template rules must be digit-blind.
 
 ## Cloud classifier seam
 

@@ -21,7 +21,7 @@ import javax.inject.Singleton
 /** One phone number of a contact, with its localized type label ("Mobile", "Work", …). */
 data class ContactNumber(val number: String, val label: String?, val isPrimary: Boolean)
 
-/** A birthday or anniversary found in the user's contacts. */
+/** A birthday, anniversary or other date found in the user's contacts. */
 data class ContactOccasion(
     val contactId: Long,
     val lookupKey: String?,
@@ -31,10 +31,13 @@ data class ContactOccasion(
     val kind: OccasionKind,
     val date: ContactDate,
     val numbers: List<ContactNumber>,
+    /** The date's label for [OccasionKind.OTHER]: a custom label from Contacts, else null ("Other"). */
+    val label: String? = null,
 )
 
 /**
- * Reads `ContactsContract.CommonDataKinds.Event` birthdays (and optionally anniversaries) with READ_CONTACTS, plus
+ * Reads `ContactsContract.CommonDataKinds.Event` birthdays (and optionally anniversaries and other dates: "Other"
+ * or a custom label, one per contact) with READ_CONTACTS, plus
  * the contacts' phone numbers and given names. Read on demand only (screen open, daily housekeeping): Dak registers
  * no contacts ContentObserver, to save battery. Returns an empty list without the permission; never throws.
  */
@@ -44,10 +47,10 @@ class ContactOccasionReader @Inject constructor(@ApplicationContext private val 
     fun hasPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
 
-    suspend fun read(includeAnniversaries: Boolean): List<ContactOccasion> = withContext(Dispatchers.IO) {
+    suspend fun read(includeAnniversaries: Boolean, includeOtherDates: Boolean = false): List<ContactOccasion> = withContext(Dispatchers.IO) {
         if (!hasPermission()) return@withContext emptyList()
         try {
-            val events = readEvents(includeAnniversaries)
+            val events = readEvents(includeAnniversaries, includeOtherDates)
             if (events.isEmpty()) return@withContext emptyList()
             val ids = events.map { it.contactId }.distinct()
             val numbers = readNumbers(ids)
@@ -62,6 +65,7 @@ class ContactOccasionReader @Inject constructor(@ApplicationContext private val 
                     kind = e.kind,
                     date = e.date,
                     numbers = numbers[e.contactId].orEmpty(),
+                    label = e.label,
                 )
             }
         } catch (e: SecurityException) {
@@ -79,10 +83,15 @@ class ContactOccasionReader @Inject constructor(@ApplicationContext private val 
         val photoUri: String?,
         val kind: OccasionKind,
         val date: ContactDate,
+        val label: String? = null,
     )
 
-    private fun readEvents(includeAnniversaries: Boolean): List<RawEvent> {
-        val types = if (includeAnniversaries) "${Event.TYPE_BIRTHDAY},${Event.TYPE_ANNIVERSARY}" else "${Event.TYPE_BIRTHDAY}"
+    private fun readEvents(includeAnniversaries: Boolean, includeOtherDates: Boolean): List<RawEvent> {
+        val types = buildList {
+            add(Event.TYPE_BIRTHDAY)
+            if (includeAnniversaries) add(Event.TYPE_ANNIVERSARY)
+            if (includeOtherDates) addAll(listOf(Event.TYPE_OTHER, Event.TYPE_CUSTOM))
+        }.joinToString(",")
         val projection = arrayOf(
             ContactsContract.Data.CONTACT_ID,
             ContactsContract.Data.LOOKUP_KEY,
@@ -90,6 +99,7 @@ class ContactOccasionReader @Inject constructor(@ApplicationContext private val 
             ContactsContract.Data.PHOTO_THUMBNAIL_URI,
             Event.START_DATE,
             Event.TYPE,
+            Event.LABEL,
         )
         val selection = "${ContactsContract.Data.MIMETYPE} = ? AND ${Event.TYPE} IN ($types)"
         val out = LinkedHashMap<String, RawEvent>()
@@ -98,11 +108,16 @@ class ContactOccasionReader @Inject constructor(@ApplicationContext private val 
                 while (c.moveToNext()) {
                     val contactId = c.getLong(0)
                     val date = BirthdayDates.parse(c.getString(4)) ?: continue
-                    val kind = if (c.getInt(5) == Event.TYPE_ANNIVERSARY) OccasionKind.ANNIVERSARY else OccasionKind.BIRTHDAY
+                    val kind = when (c.getInt(5)) {
+                        Event.TYPE_BIRTHDAY -> OccasionKind.BIRTHDAY
+                        Event.TYPE_ANNIVERSARY -> OccasionKind.ANNIVERSARY
+                        else -> OccasionKind.OTHER
+                    }
                     val key = "$contactId:${kind.name}"
-                    // Several raw contacts (Google, WhatsApp, SIM) may carry the same event; prefer one with a year.
+                    // Several raw contacts (Google, WhatsApp, SIM) may carry the same event; prefer one with a year. Other
+                    // dates can be different events, so the first one listed stays (one per contact).
                     val existing = out[key]
-                    if (existing != null && (existing.date.year != null || date.year == null)) continue
+                    if (existing != null && (kind == OccasionKind.OTHER || existing.date.year != null || date.year == null)) continue
                     out[key] = RawEvent(
                         contactId = contactId,
                         lookupKey = c.getString(1),
@@ -110,6 +125,7 @@ class ContactOccasionReader @Inject constructor(@ApplicationContext private val 
                         photoUri = c.getString(3),
                         kind = kind,
                         date = date,
+                        label = if (kind == OccasionKind.OTHER) c.getString(6)?.trim()?.takeIf { it.isNotEmpty() } else null,
                     )
                 }
             }

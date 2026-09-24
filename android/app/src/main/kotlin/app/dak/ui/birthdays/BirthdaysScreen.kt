@@ -5,6 +5,7 @@ import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.provider.ContactsContract
 import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -27,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Contacts
+import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -34,6 +36,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -69,10 +72,10 @@ import app.dak.birthdays.WishMode
 import app.dak.core.model.SimInfo
 import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
-import app.dak.ui.forwarding.AppLockNeededDialog
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.EmptyState
+import app.dak.ui.forwarding.AppLockNeededDialog
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -84,7 +87,9 @@ private sealed interface TemplateTarget {
 }
 
 /**
- * Birthday wishes picked up from contacts. Global opt-in (off by default); even when on, nothing is sent for a
+ * Birthday, anniversary and other-date wishes picked up from contacts, on one screen: anniversaries and other dates
+ * ("Other" or a custom label such as "Graduation") are one chip each, and "Add a date" opens a contact in the
+ * Contacts app to add one (it shows up here on return). Global opt-in (off by default); even when on, nothing is sent for a
  * contact until the user turns on "auto-send wish" for them. "Ask me first" (default) posts a Send / Edit / Skip
  * notification on the day; "Send automatically" sends at the chosen time from the chosen SIM.
  */
@@ -103,6 +108,16 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         askedOnce = true
         viewModel.refresh()
+    }
+    // "Add a date": pick a contact, then edit it in the Contacts app (dates live there, so they sync and back up
+    // with the contact); coming back re-scans.
+    val editContact = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { viewModel.refresh() }
+    val pickContact = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
+        if (uri != null) {
+            val edit = Intent(Intent.ACTION_EDIT).setDataAndType(uri, ContactsContract.Contacts.CONTENT_ITEM_TYPE)
+                .putExtra("finishActivityOnSaveCompleted", true)
+            try { editContact.launch(edit) } catch (e: ActivityNotFoundException) { }
+        }
     }
     // Coming back from system settings (permission granted there) re-checks.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -129,6 +144,7 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     onTime = viewModel::setTime,
                     onSim = viewModel::setSim,
                     onAnniversaries = viewModel::setIncludeAnniversaries,
+                    onOtherDates = viewModel::setIncludeOtherDates,
                     onEditTemplate = { templateTarget = TemplateTarget.Default(it) },
                 )
             }
@@ -152,12 +168,18 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 }
             } else {
                 item {
-                    Text(
-                        stringResource(R.string.fw_bd_upcoming),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 4.dp),
-                    )
+                    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.fw_bd_upcoming),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { try { pickContact.launch(null) } catch (e: ActivityNotFoundException) { } }) {
+                            Icon(Icons.Outlined.EditCalendar, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(R.string.occ_add_date), modifier = Modifier.padding(start = 6.dp))
+                        }
+                    }
                 }
                 val upcoming = state.upcoming
                 if (upcoming != null && upcoming.isEmpty()) {
@@ -222,8 +244,7 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     }
 }
 
-private fun defaultFor(kind: OccasionKind): String =
-    if (kind == OccasionKind.ANNIVERSARY) WishTemplates.DEFAULT_ANNIVERSARY else WishTemplates.DEFAULT_BIRTHDAY
+private fun defaultFor(kind: OccasionKind): String = WishTemplates.defaultsFor(kind).first().text
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -235,6 +256,7 @@ private fun GlobalSettings(
     onTime: (Int, Int) -> Unit,
     onSim: (Int?) -> Unit,
     onAnniversaries: (Boolean) -> Unit,
+    onOtherDates: (Boolean) -> Unit,
     onEditTemplate: (OccasionKind) -> Unit,
 ) {
     val context = LocalContext.current
@@ -278,14 +300,28 @@ private fun GlobalSettings(
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onAnniversaries(!settings.includeAnniversaries) }) {
-            Text(stringResource(R.string.fw_bd_anniversaries), modifier = Modifier.weight(1f))
-            Switch(checked = settings.includeAnniversaries, onCheckedChange = onAnniversaries)
+        // Which dates count, as one row of chips (birthdays always do): no extra menus or screens per kind.
+        Text(stringResource(R.string.occ_include), style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(selected = true, onClick = {}, enabled = false, label = { Text(stringResource(R.string.occ_kind_birthdays)) })
+            FilterChip(
+                selected = settings.includeAnniversaries,
+                onClick = { onAnniversaries(!settings.includeAnniversaries) },
+                label = { Text(stringResource(R.string.occ_kind_anniversaries)) },
+            )
+            FilterChip(
+                selected = settings.includeOtherDates,
+                onClick = { onOtherDates(!settings.includeOtherDates) },
+                label = { Text(stringResource(R.string.occ_kind_other)) },
+            )
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             AssistChip(onClick = { onEditTemplate(OccasionKind.BIRTHDAY) }, label = { Text(stringResource(R.string.fw_bd_edit_birthday_template)) })
             if (settings.includeAnniversaries) {
                 AssistChip(onClick = { onEditTemplate(OccasionKind.ANNIVERSARY) }, label = { Text(stringResource(R.string.fw_bd_edit_anniversary_template)) })
+            }
+            if (settings.includeOtherDates) {
+                AssistChip(onClick = { onEditTemplate(OccasionKind.OTHER) }, label = { Text(stringResource(R.string.occ_edit_other_template)) })
             }
         }
     }
@@ -308,8 +344,12 @@ private fun OccasionRow(
     }
     // Day and month in the user's own order ("5 Mar" in India / UK, "Mar 5" in the US).
     val dateText = item.date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "dMMM")))
-    val anniversaryText = stringResource(R.string.fw_bd_anniversary)
-    val detail = if (o.kind == OccasionKind.ANNIVERSARY) "$whenText · $dateText · $anniversaryText" else "$whenText · $dateText"
+    val kindText = when (o.kind) {
+        OccasionKind.BIRTHDAY -> null
+        OccasionKind.ANNIVERSARY -> stringResource(R.string.fw_bd_anniversary)
+        OccasionKind.OTHER -> o.label ?: stringResource(R.string.occ_other_date)
+    }
+    val detail = listOfNotNull(whenText, dateText, kindText).joinToString(" · ")
     val ageText = item.age?.let { stringResource(R.string.fw_bd_turns, it) }
     ListItem(
         modifier = Modifier.clickable(onClick = onEditTemplate),
@@ -365,7 +405,7 @@ private fun TemplateEditor(
     onCancel: () -> Unit,
 ) {
     var text by remember { mutableStateOf(initial) }
-    val presets = if (kind == OccasionKind.ANNIVERSARY) WishTemplates.anniversaryDefaults else WishTemplates.birthdayDefaults
+    val presets = WishTemplates.defaultsFor(kind)
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),

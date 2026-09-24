@@ -22,6 +22,8 @@ enum class WishMode { ASK, AUTO }
 data class BirthdaySettings(
     val enabled: Boolean = false,
     val includeAnniversaries: Boolean = false,
+    /** Other dates saved on contacts ("Other" or a custom label such as "Graduation"). */
+    val includeOtherDates: Boolean = false,
     val hour: Int = 9,
     val minute: Int = 0,
     val mode: String = WishMode.ASK.name,
@@ -29,11 +31,22 @@ data class BirthdaySettings(
     val subId: Int? = null,
     val birthdayTemplate: String = WishTemplates.DEFAULT_BIRTHDAY,
     val anniversaryTemplate: String = WishTemplates.DEFAULT_ANNIVERSARY,
+    val otherTemplate: String = WishTemplates.DEFAULT_OTHER,
 ) {
     val wishMode: WishMode get() = WishMode.entries.firstOrNull { it.name == mode } ?: WishMode.ASK
 
-    fun templateFor(kind: OccasionKind): String =
-        if (kind == OccasionKind.ANNIVERSARY) anniversaryTemplate else birthdayTemplate
+    fun templateFor(kind: OccasionKind): String = when (kind) {
+        OccasionKind.BIRTHDAY -> birthdayTemplate
+        OccasionKind.ANNIVERSARY -> anniversaryTemplate
+        OccasionKind.OTHER -> otherTemplate
+    }
+
+    /** Whether occasions of [kind] are shown and wished (birthdays always are). */
+    fun includes(kind: OccasionKind): Boolean = when (kind) {
+        OccasionKind.BIRTHDAY -> true
+        OccasionKind.ANNIVERSARY -> includeAnniversaries
+        OccasionKind.OTHER -> includeOtherDates
+    }
 }
 
 /**
@@ -54,6 +67,8 @@ data class OccasionConfig(
     val month: Int = 1,
     val day: Int = 1,
     val year: Int? = null,
+    /** The date's own label from Contacts (other dates only), e.g. "Graduation". */
+    val label: String? = null,
     val scheduledSendId: Long? = null,
     val scheduledAtMillis: Long? = null,
 ) {

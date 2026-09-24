@@ -40,4 +40,5 @@
     <string name="scam_reason_collect_request">Approving a \"request\" to receive money actually sends money from your account.</string>
     <string name="scam_reason_follow_up">It arrived soon after a suspicious credit alert, asking about the same money.</string>
     <string name="scam_reason_return_after_credit">It asks you to return a recent credit. Ask the sender to contact their bank instead; never send it back yourself.</string>
+    <string name="scam_link_in_flagged">This message looks like a fake credit alert. Its links may lead to a fraud page, even when the address looks real.</string>
 </resources>

@@ -62,4 +62,18 @@ class WishTemplatesTest {
         // Tags written before "sent" existed still decode.
         assertEquals(auto, WishTag.decode("birthday:auto:7:ANNIVERSARY:2027"))
     }
+
+    @Test
+    fun `other dates name the occasion, or read special day without a label`() {
+        assertEquals("Happy graduation, Anita! Thinking of you today.", WishTemplates.render(WishTemplates.DEFAULT_OTHER, "Anita Rao", "Anita", occasion = "Graduation"))
+        assertEquals("Happy special day, Anita! Thinking of you today.", WishTemplates.render(WishTemplates.DEFAULT_OTHER, "Anita Rao", "Anita", occasion = " "))
+        assertEquals(WishTemplates.otherDefaults, WishTemplates.defaultsFor(OccasionKind.OTHER))
+    }
+
+    @Test
+    fun `other date wish tags round-trip`() {
+        val tag = WishTag(ask = true, contactId = 9, kind = OccasionKind.OTHER, year = 2027)
+        assertEquals(tag, WishTag.decode(tag.encode()))
+        assertEquals("9:OTHER:2027", tag.dedupeKey)
+    }
 }

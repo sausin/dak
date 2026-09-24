@@ -340,7 +340,7 @@ interface MessageDao {
 
     /** Conversations with a message since [sinceMillis] whose labels match [likely] or [suspicious]. */
     @Query(
-        "SELECT DISTINCT conversationId FROM indexed_message WHERE dateMillis >= :sinceMillis " +
+        "SELECT DISTINCT conversationId FROM indexed_message WHERE dateMillis >= :sinceMillis AND box = 'INBOX' " +
             "AND (labels LIKE :likely OR labels LIKE :suspicious)",
     )
     fun observeScamFlaggedConversations(sinceMillis: Long, likely: String, suspicious: String): Flow<List<String>>

@@ -214,11 +214,12 @@ class AutomationRunner @Inject constructor(
 
     /**
      * Fake-credit level of [message] (docs/security/fake-credit-scams.md): from the index labels when indexed (a
-     * "Not a scam" dismissal clears it), else straight from the detector.
+     * "Not a scam" dismissal clears it), else straight from the detector. Never gated by the "Warn about fake credit
+     * alerts" switch: that only hides warnings, it must not let a likely fake be forwarded or answered automatically.
      */
-    private fun scamLevelOf(message: Message, item: MessageItem?): ScamLevel =
+    private suspend fun scamLevelOf(message: Message, item: MessageItem?): ScamLevel =
         if (item != null) ScamLabels.fromLabels(item.labels)?.level ?: ScamLevel.NONE
-        else fakeCredit.verdictFor(message).level
+        else fakeCredit.evaluate(message).level
 
     /** Likely fakes run no automation at all; suspicious ones never leave the device (forward, reply, relay). */
     private fun blockedByScamFlag(level: ScamLevel, action: ActionSpec): Boolean = when (level) {

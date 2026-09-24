@@ -94,25 +94,24 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_status_otp_suffix">" · includes OTPs"</string>
 
     <!-- Birthday wishes -->
-    <string name="fw_bd_title">Birthday wishes</string>
-    <string name="fw_bd_shortcut_summary">Birthdays from your contacts, with a wish ready to send on the day.</string>
-    <string name="fw_bd_enable">Send birthday wishes</string>
+    <string name="fw_bd_title">Birthdays &amp; occasions</string>
+    <string name="fw_bd_shortcut_summary">Birthdays, anniversaries and other dates from your contacts, with a wish ready to send on the day.</string>
+    <string name="fw_bd_enable">Send wishes</string>
     <string name="fw_bd_enable_summary">Nothing is sent until you also turn on \"Auto-send\" for a contact.</string>
     <string name="fw_bd_mode_ask">Ask me first</string>
     <string name="fw_bd_mode_auto">Send automatically</string>
     <string name="fw_bd_mode_ask_summary">On the day you get a notification with Send, Edit and Skip.</string>
     <string name="fw_bd_mode_auto_summary">The wish is sent at the chosen time without asking. Needs app lock: without it, or past the daily limit on automatic messages, you get the Send notification instead.</string>
     <string name="fw_bd_send_time">Send time</string>
-    <string name="fw_bd_anniversaries">Include anniversaries</string>
     <string name="fw_bd_edit_birthday_template">Birthday message</string>
     <string name="fw_bd_edit_anniversary_template">Anniversary message</string>
     <string name="fw_bd_permission_title">Allow access to contacts</string>
-    <string name="fw_bd_permission_body">Dak reads birthdays and anniversaries from your contacts on this phone. They are never uploaded.</string>
+    <string name="fw_bd_permission_body">Dak reads birthdays, anniversaries and other dates from your contacts on this phone. They are never uploaded.</string>
     <string name="fw_bd_allow">Allow</string>
     <string name="fw_bd_open_settings">Open settings</string>
     <string name="fw_bd_upcoming">Next 60 days</string>
-    <string name="fw_bd_none_title">No birthdays coming up</string>
-    <string name="fw_bd_none_body">Add birthdays to your contacts and they will show up here.</string>
+    <string name="fw_bd_none_title">Nothing coming up</string>
+    <string name="fw_bd_none_body">Tap \"Add a date\" to add a birthday, anniversary or any other date to a contact.</string>
     <string name="fw_bd_today">Today</string>
     <string name="fw_bd_tomorrow">Tomorrow</string>
     <string name="fw_bd_in_days">In %1$d days</string>
@@ -121,10 +120,10 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_bd_choose_number">Choose number</string>
     <string name="fw_bd_no_number">No phone number</string>
     <string name="fw_bd_auto_send">Auto-send</string>
-    <string name="fw_bd_feature_off_hint">Turn on \"Send birthday wishes\" above to send this.</string>
+    <string name="fw_bd_feature_off_hint">Turn on \"Send wishes\" above to send this.</string>
     <string name="fw_bd_template_title">Message</string>
     <string name="fw_bd_template_field">Your message</string>
-    <string name="fw_bd_template_help">Placeholders: {firstName}, {name}, {age} (only when the birth year is known).</string>
+    <string name="fw_bd_template_help">Placeholders: {firstName}, {name}, {age} (only when the birth year is known), {occasion} (the date\'s label, for other dates).</string>
     <string name="fw_bd_template_reset">Use default</string>
     <string name="fw_bd_prompt_title">%1$s\'s birthday today</string>
     <string name="fw_bd_prompt_title_anniversary">%1$s\'s anniversary today</string>
@@ -134,7 +133,7 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
 
     <!-- Inbox overflow -->
     <string name="fw_menu_forwarding">Auto-forwarding</string>
-    <string name="fw_menu_birthdays">Birthday wishes</string>
+    <string name="fw_menu_birthdays">Birthdays &amp; occasions</string>
 
     <!-- Automations that send messages off the phone need app lock (OutboundAutomationGuard) -->
     <string name="fw_lock_needed_title">Set up app lock first</string>

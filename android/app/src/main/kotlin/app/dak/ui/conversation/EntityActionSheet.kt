@@ -17,11 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.LocalShipping
@@ -40,6 +40,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -100,7 +101,8 @@ fun EntityActionSheet(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val flagged = ScamLabels.fromLabels(item.labels) != null
+    // Honours "Warn about fake credit alerts", like the bubble banner and the inbox chip.
+    val flagged = remember(item.labels) { entityDeps(context).fakeCreditCheck().verdictFromLabels(item.labels) != null }
     val passbookAccount by produceState<String?>(initialValue = null, span, item.key) {
         value = if (span.type == EntityType.MASKED_ACCOUNT) matchingAccountId(context, item, span.value) else null
     }

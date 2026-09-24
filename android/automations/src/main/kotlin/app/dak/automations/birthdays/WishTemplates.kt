@@ -4,8 +4,9 @@ package app.dak.automations.birthdays
 public data class WishTemplate(val id: String, val language: String, val text: String)
 
 /**
- * Birthday/anniversary wish templates. Placeholders: `{firstName}`, `{name}` (full display name) and `{age}`
- * (empty when the birth year is unknown). Unknown placeholders pass through unchanged; the result is trimmed and
+ * Birthday/anniversary/other-date wish templates. Placeholders: `{firstName}`, `{name}` (full display name), `{age}`
+ * (empty when the birth year is unknown) and `{occasion}` (the date's label from Contacts, e.g. "graduation day";
+ * empty when there is none). Unknown placeholders pass through unchanged; the result is trimmed and
  * double spaces left by an empty placeholder are collapsed.
  */
 public object WishTemplates {
@@ -23,13 +24,32 @@ public object WishTemplates {
         WishTemplate("hi_anniv", "hi", "सालगिरह की हार्दिक शुभकामनाएँ, {firstName}!"),
     )
 
+    /** For any other date saved on a contact (a custom label such as "Graduation", or "Other"). */
+    public val otherDefaults: List<WishTemplate> = listOf(
+        WishTemplate("en_other", "en", "Happy {occasion}, {firstName}! Thinking of you today."),
+        WishTemplate("en_other_short", "en", "Thinking of you today, {firstName}! 🎉"),
+        WishTemplate("hi_other", "hi", "आज के खास दिन की शुभकामनाएँ, {firstName}!"),
+    )
+
     public val DEFAULT_BIRTHDAY: String = birthdayDefaults.first().text
     public val DEFAULT_ANNIVERSARY: String = anniversaryDefaults.first().text
+    public val DEFAULT_OTHER: String = otherDefaults.first().text
 
-    /** Fills the placeholders. A blank [firstName] falls back to the first word of [name]. */
-    public fun render(template: String, name: String, firstName: String?, age: Int? = null): String {
+    /** The presets offered for [kind]. */
+    public fun defaultsFor(kind: OccasionKind): List<WishTemplate> = when (kind) {
+        OccasionKind.BIRTHDAY -> birthdayDefaults
+        OccasionKind.ANNIVERSARY -> anniversaryDefaults
+        OccasionKind.OTHER -> otherDefaults
+    }
+
+    /**
+     * Fills the placeholders. A blank [firstName] falls back to the first word of [name]; a blank [occasion] reads
+     * [FALLBACK_OCCASION] ("Happy special day"), and a label is lower-cased to sit mid-sentence ("Happy graduation").
+     */
+    public fun render(template: String, name: String, firstName: String?, age: Int? = null, occasion: String? = null): String {
         val first = firstName?.trim()?.takeIf { it.isNotEmpty() } ?: firstWord(name)
-        val values = mapOf("firstName" to first, "name" to name.trim(), "age" to (age?.toString() ?: ""))
+        val label = occasion?.trim()?.takeIf { it.isNotEmpty() }?.lowercase() ?: FALLBACK_OCCASION
+        val values = mapOf("firstName" to first, "name" to name.trim(), "age" to (age?.toString() ?: ""), "occasion" to label)
         val out = StringBuilder(template.length + 16)
         var i = 0
         while (i < template.length) {
@@ -47,6 +67,9 @@ public object WishTemplates {
         return out.toString().replace(Regex(" {2,}"), " ").replace(" ,", ",").replace(" !", "!").trim()
     }
 
+    /** What `{occasion}` reads when a date has no label of its own. */
+    public const val FALLBACK_OCCASION: String = "special day"
+
     /** First word of a display name ("Dr. Anita Rao" → "Anita": a leading title is skipped). */
     public fun firstWord(name: String): String {
         val words = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
@@ -55,8 +78,12 @@ public object WishTemplates {
     }
 }
 
-/** What kind of contact event a wish is for. */
-public enum class OccasionKind { BIRTHDAY, ANNIVERSARY }
+/**
+ * What kind of contact event a wish is for. [OTHER] is any other date saved on a contact ("Other" or a custom label
+ * such as "Graduation"): one per contact, the first one Contacts lists. Names are persisted (wish tags, settings):
+ * only ever append.
+ */
+public enum class OccasionKind { BIRTHDAY, ANNIVERSARY, OTHER }
 
 /**
  * Tags a scheduled send as a birthday/anniversary wish, stored in the scheduled send's `ruleId` column so the

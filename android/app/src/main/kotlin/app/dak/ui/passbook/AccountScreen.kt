@@ -1,5 +1,6 @@
 package app.dak.ui.passbook
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,9 +13,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -34,10 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.annotation.StringRes
 import app.dak.R
 import app.dak.core.model.InvestmentAction
 import app.dak.core.model.TransactionDirection
@@ -54,8 +63,6 @@ import app.dak.ui.common.rememberRelativeTimeFormatter
 import app.dak.ui.common.text.MoneyDisplay
 import app.dak.ui.common.text.rememberDisplayLocale
 import app.dak.ui.theme.DakTheme
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Receipt
 import kotlinx.coroutines.launch
 import java.math.RoundingMode
 
@@ -79,6 +86,8 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val linked by viewModel.linked.collectAsStateWithLifecycle()
     val mergedIds by viewModel.mergedIds.collectAsStateWithLifecycle()
     val mergeCandidates by viewModel.mergeCandidates.collectAsStateWithLifecycle()
+    val hidden by viewModel.hidden.collectAsStateWithLifecycle()
+    var overflow by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val account = summary?.account
@@ -91,6 +100,23 @@ fun AccountScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 actions = {
                     if (account != null) {
                         TextButton(onClick = { mergeDialog = true }) { Text(stringResource(R.string.fold_alias_merge_with)) }
+                        Box {
+                            IconButton(onClick = { overflow = true }) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.action_more))
+                            }
+                            DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(if (hidden) R.string.pb_unhide else R.string.pb_hide)) },
+                                    leadingIcon = { Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, contentDescription = null) },
+                                    onClick = {
+                                        overflow = false
+                                        viewModel.setHidden(!hidden)
+                                        // Removed: back to the Passbook, where it now sits under "Hidden accounts".
+                                        if (!hidden) navigator.back()
+                                    },
+                                )
+                            }
+                        }
                     }
                 },
             )

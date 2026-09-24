@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Conversation extras: contact details from the thread header (prefix cd_), send-later from the composer (sch_),
-  incognito / vanishing chats (inc_).
+  incognito / vanishing chats (inc_), accounts removed from the Passbook (pb_), other dates for wishes (occ_).
 -->
 <resources>
     <!-- Contact details sheet (tap the thread header) -->
@@ -46,4 +46,24 @@
     <string name="inc_notification_body">New incognito message · open Dak to read</string>
     <string name="inc_vanishing">Message vanishing</string>
     <string name="inc_countdown">This message vanishes in a few seconds</string>
+
+    <!-- Passbook: removing accounts that are not relevant -->
+    <string name="pb_hide">Remove from Passbook</string>
+    <string name="pb_unhide">Show in Passbook</string>
+    <string name="pb_hidden_snack">Removed from Passbook</string>
+    <!-- %1$d = number of hidden accounts -->
+    <string name="pb_hidden_header">Hidden accounts (%1$d)</string>
+    <string name="pb_hidden_summary">Left out of the Passbook and its totals. Their SMS stay in your messages.</string>
+    <string name="pb_restore">Show</string>
+
+    <!-- Birthdays & occasions: anniversaries and other dates -->
+    <string name="occ_include">Include</string>
+    <string name="occ_kind_birthdays">Birthdays</string>
+    <string name="occ_kind_anniversaries">Anniversaries</string>
+    <string name="occ_kind_other">Other dates</string>
+    <string name="occ_other_date">Special day</string>
+    <string name="occ_edit_other_template">Other-date message</string>
+    <string name="occ_add_date">Add a date</string>
+    <!-- %1$s = contact name -->
+    <string name="occ_prompt_title_other">A special day for %1$s today</string>
 </resources>

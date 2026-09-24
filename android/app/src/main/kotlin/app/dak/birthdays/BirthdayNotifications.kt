@@ -34,7 +34,11 @@ class BirthdayNotifications @Inject constructor(@ApplicationContext private val 
         val manager = NotificationManagerCompat.from(context)
         val id = notificationId(tag)
         val title = context.getString(
-            if (tag.kind == OccasionKind.ANNIVERSARY) R.string.fw_bd_prompt_title_anniversary else R.string.fw_bd_prompt_title,
+            when (tag.kind) {
+                OccasionKind.BIRTHDAY -> R.string.fw_bd_prompt_title
+                OccasionKind.ANNIVERSARY -> R.string.fw_bd_prompt_title_anniversary
+                OccasionKind.OTHER -> R.string.occ_prompt_title_other
+            },
             name,
         )
         val send = broadcast(ScheduledSendReceiver.ACTION_BIRTHDAY_SEND, tag, number, body, subId, id)

@@ -27,6 +27,7 @@ import app.dak.finance.money.CurrencyTable
 import app.dak.finance.money.MoneyParser
 import app.dak.index.MessageItem
 import app.dak.index.repo.LedgerRepository
+import app.dak.safety.FakeCreditCheck
 import app.dak.search.AmountTokens
 import app.dak.telephony.region.RegionProvider
 import dagger.hilt.EntryPoint
@@ -43,6 +44,7 @@ import java.math.RoundingMode
 interface EntityDeps {
     fun regionProvider(): RegionProvider
     fun ledgerRepository(): LedgerRepository
+    fun fakeCreditCheck(): FakeCreditCheck
 }
 
 internal fun entityDeps(context: Context): EntityDeps =

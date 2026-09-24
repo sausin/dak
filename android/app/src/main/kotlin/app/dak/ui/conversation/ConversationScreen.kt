@@ -221,7 +221,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             override fun onShowActions(item: MessageItem) { messageMenuFor = item }
             override fun onLink(item: MessageItem, link: ExtractedLink) {
                 val unknown = LinkSafety.UNKNOWN_SENDER_LINK_LABEL in item.labels
-                val warning = LinkSafety.warningFor(link, unknown)
+                // A link in a message flagged as a fake credit alert is never one tap away, whatever its domain.
+                val warning = LinkSafety.warningFor(link, unknown, scamFlagged = ScamLabels.fromLabels(item.labels) != null)
                 if (warning != null) linkWarning = warning.copy(messageKey = item.key.toString()) else LinkSafety.open(context, link.url)
             }
             override fun onCopyOtp(item: MessageItem, code: String) {

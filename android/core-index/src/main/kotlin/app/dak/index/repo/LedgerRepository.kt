@@ -28,6 +28,7 @@ import app.dak.finance.reconcile.Reconciler
 import app.dak.index.db.DakIndexDatabase
 import app.dak.index.db.entity.AccountAliasRow
 import app.dak.index.db.entity.AccountRow
+import app.dak.index.db.entity.AccountHiddenRow
 import app.dak.index.db.entity.AccountTypeOverrideRow
 import app.dak.index.db.entity.LedgerEntryRow
 import app.dak.index.sync.IndexRowMapper
@@ -115,7 +116,9 @@ class LedgerRepository @Inject constructor(
      * SMS named one.
      */
     fun accountGroups(nowMillis: Long = System.currentTimeMillis()): Flow<List<AccountGroup<AccountGroupItem>>> =
-        combine(accounts(), ledgerDao.observeDebitsSince(AccountGroups.monthStartUtc(nowMillis))) { summaries, debits -> summaries to debits }
+        combine(accounts(), hiddenIds(), ledgerDao.observeDebitsSince(AccountGroups.monthStartUtc(nowMillis))) { all, hidden, debits ->
+            all.filterNot { it.account.id in hidden } to debits
+        }
             .map { (summaries, debits) ->
                 val spend = debits.groupBy { it.accountId }
                     .mapValues { (_, rows) -> AccountGroups.sum(rows.map { Money(it.totalMinor, it.currency) }) }
@@ -136,6 +139,26 @@ class LedgerRepository @Inject constructor(
                 )
             }
             .flowOn(Dispatchers.IO)
+
+    /**
+     * Ids (canonical) of the accounts the user removed from the Passbook. Hiding is display-only: [accounts] still
+     * lists them, so scam detection, entity sheets and merges keep seeing every account.
+     */
+    fun hiddenIds(): Flow<Set<String>> =
+        ledgerDao.observeHidden().map { rows -> rows.mapTo(HashSet()) { it.accountId } }.distinctUntilChanged()
+
+    /** The accounts removed from the Passbook, most recently active first (to bring one back). */
+    fun hiddenAccounts(): Flow<List<AccountSummary>> =
+        combine(accounts(), hiddenIds()) { all, hidden -> all.filter { it.account.id in hidden } }
+
+    /**
+     * Removes [accountId] from the Passbook ([hidden] = true) or brings it back. Stored against the canonical id, so a
+     * merged account hides as a whole; nothing is recomputed or deleted.
+     */
+    suspend fun setAccountHidden(accountId: String, hidden: Boolean) {
+        val id = loadAliases().resolve(accountId)
+        if (hidden) ledgerDao.putHidden(AccountHiddenRow(id, System.currentTimeMillis())) else ledgerDao.deleteHidden(id)
+    }
 
     /**
      * Sets [accountId]'s type by hand ("This is a credit card"), or clears it with null (back to the type detected
@@ -309,7 +332,10 @@ class LedgerRepository @Inject constructor(
      * Recomputed whenever accounts or decisions change; pairs already answered are never suggested again.
      */
     fun aliasSuggestions(): Flow<List<AccountAliasSuggestion>> =
-        combine(ledgerDao.observeAccounts(), aliasDao.observeAll()) { accounts, decisions -> accounts to decisions }
+        combine(ledgerDao.observeAccounts(), aliasDao.observeAll(), hiddenIds()) { accounts, decisions, hidden ->
+            // A hidden account is one the user said is not relevant: never ask about it.
+            accounts.filterNot { it.id in hidden } to decisions
+        }
             .map { (accounts, decisions) -> computeSuggestions(accounts, decisions) }
             .flowOn(Dispatchers.IO)
 

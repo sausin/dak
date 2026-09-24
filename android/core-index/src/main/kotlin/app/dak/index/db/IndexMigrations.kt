@@ -132,5 +132,24 @@ object IndexMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+    /** SQL of [MIGRATION_6_7], exposed for tests. */
+    val SQL_6_7: List<String> = listOf(
+        // ConversationPrefs.incognitoSince (vanishing chats; null = off).
+        "ALTER TABLE `${Tables.PREFS}` ADD COLUMN `incognitoSince` INTEGER",
+        // AccountHiddenRow: accounts the user removed from the Passbook.
+        "CREATE TABLE IF NOT EXISTS `${Tables.ACCOUNT_HIDDEN}` (`accountId` TEXT NOT NULL, `hiddenAt` INTEGER NOT NULL, " +
+            "PRIMARY KEY(`accountId`))",
+    )
+
+    /**
+     * 6 -> 7: incognito conversations and hidden Passbook accounts. Additive only: every existing conversation reads
+     * "not incognito" and no account starts hidden.
+     */
+    val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (sql in SQL_6_7) db.execSQL(sql)
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 }

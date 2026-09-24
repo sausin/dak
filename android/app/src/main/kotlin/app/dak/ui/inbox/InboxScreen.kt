@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -278,7 +279,7 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                                 selected = c.conversationId in selection,
                                 selectionMode = selectionMode,
                                 scamFlagged = c.conversationId in scamFlagged,
-                                otpCode = if (otpCopyEnabled && !selectionMode) freshOtpCode(c, now) else null,
+                                otpCode = if (otpCopyEnabled && !selectionMode && !c.incognito) freshOtpCode(c, now) else null,
                                 onCopyOtp = { code ->
                                     copyToClipboard(context, code, sensitive = true)
                                     viewModel.onOtpCopied(c, code)
@@ -418,6 +419,7 @@ private fun ConversationRow(
                 )
                 if (conversation.pinned) Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.scr_pinned), modifier = Modifier.size(14.dp))
                 if (conversation.muted) Icon(Icons.Outlined.NotificationsOff, contentDescription = stringResource(R.string.scr_muted), modifier = Modifier.size(14.dp))
+                if (conversation.incognito) Icon(Icons.Outlined.VisibilityOff, contentDescription = stringResource(R.string.inc_label), modifier = Modifier.size(14.dp))
             }
             Row(verticalAlignment = Alignment.Top) {
                 // Ticks on our own last message (same glyph as the bubble).
@@ -425,7 +427,8 @@ private fun ConversationRow(
                     DeliveryTick(it, Modifier.padding(top = 3.dp, end = 4.dp))
                 }
                 Text(
-                    BidiText.isolate(conversation.snippet),
+                    // An incognito chat never previews its messages outside the thread.
+                    if (conversation.incognito) stringResource(R.string.inc_inbox_snippet) else BidiText.isolate(conversation.snippet),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (unread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,

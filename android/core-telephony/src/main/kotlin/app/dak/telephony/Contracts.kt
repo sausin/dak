@@ -197,6 +197,15 @@ interface IncomingMessageHandler {
     suspend fun onIncoming(message: Message)
 }
 
+/**
+ * Told when an outgoing message has left the phone (the radio / MMSC confirmed it: SMS all parts SENT, MMS send-conf
+ * OK), after the provider row is marked sent. Contributed via Hilt `@IntoSet`; called at most once per successful
+ * attempt, off the main thread, inside the sent-broadcast budget: must return quickly (enqueue heavy work).
+ */
+interface OutgoingSentListener {
+    suspend fun onSent(key: MessageKey)
+}
+
 /** Shared system block list (`BlockedNumberContract`), writable only while we are the default SMS app. */
 interface BlockedNumbers {
     suspend fun isBlocked(address: String): Boolean

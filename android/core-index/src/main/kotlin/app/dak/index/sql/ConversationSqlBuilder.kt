@@ -13,7 +13,7 @@ import app.dak.index.InboxTab
  *
  * Result columns (see `ConversationRow`): conversationId, dateMillis, kind, providerId, threadId, address,
  * mergeKey, canonicalSender, snippet, category, box, hasAttachment, unreadCount, messageCount, subIds, threadIds,
- * pinned, muted, archived, starred, groupName, repeatGroup, deliveryStatus.
+ * pinned, muted, archived, starred, incognito, groupName, repeatGroup, deliveryStatus.
  */
 internal object ConversationSqlBuilder {
 
@@ -31,7 +31,7 @@ internal object ConversationSqlBuilder {
             append("GROUP_CONCAT(DISTINCT m.subId) AS subIds, ")
             append("GROUP_CONCAT(DISTINCT m.threadId) AS threadIds, ")
             append("COALESCE(p.pinned, 0) AS pinned, COALESCE(p.muted, 0) AS muted, ")
-            append("COALESCE(p.archived, 0) AS archived, COALESCE(p.starred, 0) AS starred, ")
+            append("COALESCE(p.archived, 0) AS archived, COALESCE(p.starred, 0) AS starred, (p.incognitoSince IS NOT NULL) AS incognito, ")
             append("g.displayName AS groupName ")
             append(FROM)
             append("WHERE ").append(where).append(' ')

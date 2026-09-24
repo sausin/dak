@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import app.dak.telephony.BlockedNumbers
 import app.dak.telephony.IncomingMessageHandler
+import app.dak.telephony.OutgoingSentListener
 import app.dak.telephony.MessageSender
 import app.dak.telephony.MmsDownloads
 import app.dak.telephony.NumberNormalizer
@@ -85,6 +86,10 @@ abstract class TelephonyBindingsModule {
     /** Declared so an app with no handlers still gets a valid (empty) set. Contribute with `@IntoSet`. */
     @Multibinds
     abstract fun incomingMessageHandlers(): Set<IncomingMessageHandler>
+
+    /** Declared so an app with no sent listeners still gets a valid (empty) set. Contribute with `@IntoSet`. */
+    @Multibinds
+    abstract fun outgoingSentListeners(): Set<OutgoingSentListener>
 }
 
 @Module

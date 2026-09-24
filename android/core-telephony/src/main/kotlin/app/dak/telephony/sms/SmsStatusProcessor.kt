@@ -7,6 +7,7 @@ import android.util.Log
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
 import app.dak.telephony.OutgoingStatus
+import app.dak.telephony.SentDispatcher
 import app.dak.telephony.internal.TAG
 import app.dak.telephony.provider.SmsColumns
 import app.dak.telephony.provider.TelephonyProviderWriter
@@ -29,6 +30,7 @@ class SmsStatusProcessor @Inject constructor(
     private val progress: SendProgressStore,
     private val failures: SendFailureStore,
     private val scheduler: SendScheduler,
+    private val sent: SentDispatcher,
 ) {
     suspend fun onSent(intent: Intent, resultCode: Int) {
         val id = intent.getLongExtra(SmsStatusReceiver.EXTRA_MESSAGE_ID, -1L)
@@ -52,6 +54,7 @@ class SmsStatusProcessor @Inject constructor(
                 writer.markSmsStatus(key, OutgoingStatus.SENT)
                 failures.clear(key)
                 if (!deliveryRequested) progress.clear(id)
+                sent.dispatch(key)
             }
             SendAttemptOutcome.ALL_FAILED -> handleFailure(key, attempt, settled.failureCode)
             SendAttemptOutcome.PARTIAL -> markPartlySent(key, settled)

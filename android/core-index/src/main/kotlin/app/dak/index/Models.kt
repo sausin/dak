@@ -41,6 +41,8 @@ data class ConversationSummary(
     val snippetRepeatCount: Int = 1,
     /** Delivery state of the snippet's message when it is outgoing ([lastBox]); ticks in the inbox row. */
     val lastDeliveryStatus: DeliveryStatus = DeliveryStatus.NONE,
+    /** Incognito (vanishing) chat: the inbox shows no preview of its messages. */
+    val incognito: Boolean = false,
 )
 
 /** OTP details on a message. */

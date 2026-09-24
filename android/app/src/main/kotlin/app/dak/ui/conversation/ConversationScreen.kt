@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -113,6 +114,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     val forwarded by viewModel.forwarded.collectAsStateWithLifecycle()
     val userLabels by viewModel.userLabels.collectAsStateWithLifecycle()
     val composerUi by viewModel.composer.ui.collectAsStateWithLifecycle()
+    val vanishing by viewModel.vanishing.collectAsStateWithLifecycle()
+    val scheduled by viewModel.scheduled.collectAsStateWithLifecycle()
     val enterToSend by hiltViewModel<UxPrefsViewModel>().enterToSend.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -129,6 +132,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     var fontDialog by remember { mutableStateOf(false) }
     var foldIntoDialog by remember { mutableStateOf(false) }
     var unfoldDialog by remember { mutableStateOf(false) }
+    var contactSheet by rememberSaveable { mutableStateOf(false) }
+    var incognitoDialog by rememberSaveable { mutableStateOf(false) }
     var scrolledToHighlight by rememberSaveable { mutableStateOf(false) }
     // Multi-select: keys (MessageKey.toString()) of the selected messages; saved so rotation keeps the selection.
     var selection by rememberSaveable(stateSaver = SELECTION_SAVER) { mutableStateOf(emptySet<String>()) }
@@ -151,6 +156,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         val threads = messages.itemSnapshotList.items.mapTo(HashSet()) { it.threadId }
         viewModel.onResumed(threads)
     }
+    // Leaving the thread (or the app): read incognito messages vanish now.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onPaused() }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -279,7 +286,12 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     }
                 },
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Tapping who the thread is with shows their details (and "Save contact" for an unsaved number).
+                    Row(
+                        modifier = Modifier.clickable(onClickLabel = stringResource(R.string.cd_open_details)) { contactSheet = true },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         Avatar(name = header.title, key = header.addresses.firstOrNull() ?: viewModel.conversationId, size = 36.dp, photoUri = header.photoUri, isBusiness = header.isBusiness)
                         Column {
                             Text(BidiText.displaySafe(header.title), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
@@ -289,6 +301,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         }
                         if (prefs.pinned) Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.scr_pinned), modifier = Modifier.size(16.dp))
                         if (prefs.muted) Icon(Icons.Outlined.NotificationsOff, contentDescription = stringResource(R.string.scr_muted), modifier = Modifier.size(16.dp))
+                        if (prefs.incognito) Icon(Icons.Outlined.VisibilityOff, contentDescription = stringResource(R.string.inc_label), modifier = Modifier.size(16.dp))
                     }
                 },
                 actions = {
@@ -306,6 +319,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             onMute = { viewModel.setMuted(!prefs.muted) },
                             onArchive = { viewModel.setArchived(!prefs.archived) },
                             onStar = { viewModel.setStarred(!prefs.starred) },
+                            onIncognito = { if (prefs.incognito) viewModel.setIncognito(false) else incognitoDialog = true },
                             onReplySim = { simDialog = true },
                             onBubbleColour = { styleDialog = true },
                             onFontSize = { fontDialog = true },
@@ -335,6 +349,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
             // A different channel shows different messages: start the selection over.
             ChannelFilterRow(channels = foldChannels, selected = channelFilter, onSelect = { selection = emptySet(); foldVm.selectChannel(it) })
+            if (prefs.incognito) IncognitoBanner(onTurnOff = { viewModel.setIncognito(false) })
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (messages.loadState.refresh is LoadState.Loading && messages.itemCount == 0) {
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -361,14 +376,29 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             selectionMode = selecting,
                             selected = item.key.toString() in selection,
                         )
-                        Column {
-                            ScamWarningBanner(item = item, onReport = { key -> navigator.navigate(Routes.fraudHelp(key)) })
-                            MessageBubble(item = item, decor = decor, actions = bubbleActions)
+                        VanishingBubble(vanishing = item.key in vanishing, seed = item.key.hashCode()) {
+                            Column {
+                                ScamWarningBanner(item = item, onReport = { key -> navigator.navigate(Routes.fraudHelp(key)) })
+                                MessageBubble(item = item, decor = decor, actions = bubbleActions)
+                                // Incognito: a received message is readable for a short window, then dissolves.
+                                if (prefs.incognito && viewModel.vanishesOnRead(item) && item.key !in vanishing) {
+                                    VanishCountdown(
+                                        key = item.key,
+                                        onViewed = { viewModel.onIncomingViewed(item) },
+                                        onElapsed = { viewModel.vanishNow(item) },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
                 JumpToLatest(listState = listState, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp))
             }
+            ScheduledStrip(
+                items = scheduled,
+                onOpen = { id -> navigator.navigate(Routes.scheduledSends(scheduledId = id)) },
+                onCancel = viewModel::cancelScheduled,
+            )
             Composer(
                 ui = composerUi,
                 text = viewModel.composer.draftText,
@@ -379,6 +409,21 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
 
+    if (contactSheet) {
+        ContactDetailsSheet(
+            header = header,
+            conversationKey = viewModel.conversationId,
+            onBlock = { viewModel.block() },
+            onContactsChanged = viewModel::refreshContacts,
+            onDismiss = { contactSheet = false },
+        )
+    }
+    if (incognitoDialog) {
+        IncognitoConfirmDialog(
+            onConfirm = { incognitoDialog = false; viewModel.setIncognito(true) },
+            onDismiss = { incognitoDialog = false },
+        )
+    }
     if (confirmDeleteSelected && selecting) {
         DeleteSelectedDialog(
             count = selection.size,
@@ -471,6 +516,7 @@ private fun ThreadMenu(
     onMute: () -> Unit,
     onArchive: () -> Unit,
     onStar: () -> Unit,
+    onIncognito: () -> Unit,
     onReplySim: () -> Unit,
     onBubbleColour: () -> Unit,
     onFontSize: () -> Unit,
@@ -488,6 +534,7 @@ private fun ThreadMenu(
         entry(if (prefs.muted) R.string.scr_action_unmute else R.string.scr_action_mute, onMute)
         entry(if (prefs.archived) R.string.scr_action_unarchive else R.string.scr_action_archive, onArchive)
         entry(if (prefs.starred) R.string.scr_action_unstar else R.string.scr_action_star, onStar)
+        entry(if (prefs.incognito) R.string.inc_action_off else R.string.inc_action_on, onIncognito)
         if (canChooseSim) entry(R.string.scr_action_reply_sim, onReplySim)
         entry(R.string.scr_action_bubble_colour, onBubbleColour)
         entry(R.string.scr_action_text_size, onFontSize)

@@ -52,6 +52,18 @@ data class AccountTypeOverrideRow(
 )
 
 /**
+ * A ledger account the user removed from the Passbook ("not relevant": a relative's card that shows up in shared
+ * alerts, a closed account, a promotional mask). Hiding is display-only: the account stays in the ledger, so scam
+ * detection still knows it, and it comes back from the "Hidden accounts" list. [accountId] is the canonical id.
+ * User data: survives ledger recomputation and index rebuilds.
+ */
+@Entity(tableName = Tables.ACCOUNT_HIDDEN)
+data class AccountHiddenRow(
+    @PrimaryKey val accountId: String,
+    val hiddenAt: Long,
+)
+
+/**
  * A user decision about two ledger account ids (from an `AliasSuggestion` card or a manual merge):
  * [same] = true merges [aliasId] into [canonicalId] (the ledger then posts the alias's messages to the canonical
  * account); false records "different accounts" so the pair is never suggested again. User data: survives ledger

@@ -17,8 +17,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Checks that the migration chain from every older version (1, 2, 3, 4, 5) produces exactly the schema Room generates
- * for the current version 6 (the same comparison Room makes when it opens a migrated database). Older versions are
+ * Checks that the migration chain from every older version (1, 2, 3, 4, 5, 6) produces exactly the schema Room generates
+ * for the current version 7 (the same comparison Room makes when it opens a migrated database). Older versions are
  * reconstructed from Room's current DDL minus what the migrations add (newest first), so the test needs no exported
  * schema file.
  */
@@ -82,35 +82,43 @@ class IndexMigrationSchemaTest {
         ),
     )
 
+    private val delta67 = Delta(
+        tables = setOf(Tables.ACCOUNT_HIDDEN),
+        columns = mapOf(Tables.PREFS to listOf(", `incognitoSince` INTEGER")),
+    )
+
     @Test
-    fun migratedVersion1MatchesRoomVersion6() = assertMigrates(
-        listOf(delta12, delta23, delta34, delta45, delta56),
+    fun migratedVersion1MatchesRoomVersion7() = assertMigrates(
+        listOf(delta12, delta23, delta34, delta45, delta56, delta67),
         listOf(
             IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5,
-            IndexMigrations.MIGRATION_5_6,
+            IndexMigrations.MIGRATION_5_6, IndexMigrations.MIGRATION_6_7,
         ),
     )
 
     @Test
-    fun migratedVersion2MatchesRoomVersion6() = assertMigrates(
-        listOf(delta23, delta34, delta45, delta56),
-        listOf(IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6),
+    fun migratedVersion2MatchesRoomVersion7() = assertMigrates(
+        listOf(delta23, delta34, delta45, delta56, delta67),
+        listOf(IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6, IndexMigrations.MIGRATION_6_7),
     )
 
     @Test
-    fun migratedVersion3MatchesRoomVersion6() = assertMigrates(
-        listOf(delta34, delta45, delta56),
-        listOf(IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6),
+    fun migratedVersion3MatchesRoomVersion7() = assertMigrates(
+        listOf(delta34, delta45, delta56, delta67),
+        listOf(IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6, IndexMigrations.MIGRATION_6_7),
     )
 
     @Test
-    fun migratedVersion4MatchesRoomVersion6() = assertMigrates(
-        listOf(delta45, delta56),
-        listOf(IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6),
+    fun migratedVersion4MatchesRoomVersion7() = assertMigrates(
+        listOf(delta45, delta56, delta67),
+        listOf(IndexMigrations.MIGRATION_4_5, IndexMigrations.MIGRATION_5_6, IndexMigrations.MIGRATION_6_7),
     )
 
     @Test
-    fun migratedVersion5MatchesRoomVersion6() = assertMigrates(listOf(delta56), listOf(IndexMigrations.MIGRATION_5_6))
+    fun migratedVersion5MatchesRoomVersion7() = assertMigrates(listOf(delta56, delta67), listOf(IndexMigrations.MIGRATION_5_6, IndexMigrations.MIGRATION_6_7))
+
+    @Test
+    fun migratedVersion6MatchesRoomVersion7() = assertMigrates(listOf(delta67), listOf(IndexMigrations.MIGRATION_6_7))
 
     private fun assertMigrates(deltas: List<Delta>, migrations: List<androidx.room.migration.Migration>) {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -170,19 +178,22 @@ class IndexMigrationSchemaTest {
     // --- Data preservation -----------------------------------------------------------------------------------
 
     @Test
-    fun rowsWrittenAtVersion1SurviveTheUpgradeToVersion6() = assertPreservesData(1, listOf(delta12, delta23, delta34, delta45, delta56))
+    fun rowsWrittenAtVersion1SurviveTheUpgradeToVersion7() = assertPreservesData(1, listOf(delta12, delta23, delta34, delta45, delta56, delta67))
 
     @Test
-    fun rowsWrittenAtVersion2SurviveTheUpgradeToVersion6() = assertPreservesData(2, listOf(delta23, delta34, delta45, delta56))
+    fun rowsWrittenAtVersion2SurviveTheUpgradeToVersion7() = assertPreservesData(2, listOf(delta23, delta34, delta45, delta56, delta67))
 
     @Test
-    fun rowsWrittenAtVersion3SurviveTheUpgradeToVersion6() = assertPreservesData(3, listOf(delta34, delta45, delta56))
+    fun rowsWrittenAtVersion3SurviveTheUpgradeToVersion7() = assertPreservesData(3, listOf(delta34, delta45, delta56, delta67))
 
     @Test
-    fun rowsWrittenAtVersion4SurviveTheUpgradeToVersion6() = assertPreservesData(4, listOf(delta45, delta56))
+    fun rowsWrittenAtVersion4SurviveTheUpgradeToVersion7() = assertPreservesData(4, listOf(delta45, delta56, delta67))
 
     @Test
-    fun rowsWrittenAtVersion5SurviveTheUpgradeToVersion6() = assertPreservesData(5, listOf(delta56))
+    fun rowsWrittenAtVersion5SurviveTheUpgradeToVersion7() = assertPreservesData(5, listOf(delta56, delta67))
+
+    @Test
+    fun rowsWrittenAtVersion6SurviveTheUpgradeToVersion7() = assertPreservesData(6, listOf(delta67))
 
     /**
      * Fills every table of an old-version database with two rows of distinct values, lets Room open it through the
@@ -221,7 +232,7 @@ class IndexMigrationSchemaTest {
             .allowMainThreadQueries()
             .build()
         val migrated = room.openHelper.writableDatabase // runs the migrations and Room's schema validation
-        assertEquals(6, migrated.version)
+        assertEquals(7, migrated.version)
         val dropped = deltas.flatMap { it.replacedTables.keys }.toSet()
         assertTrue(dropped.all { it == Tables.LEDGER_ENTRY }, "only derived ledger entries may be dropped: $dropped")
 

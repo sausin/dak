@@ -90,6 +90,11 @@ class AndroidContactLookup @Inject constructor(@ApplicationContext private val c
 
     private fun escapeLike(s: String): String = s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
+    /** Drops the cached answer for [address] (after the user saved or edited that contact). */
+    fun forget(address: String) {
+        cache.remove(address)
+    }
+
     /** Drop cached answers (e.g. after the contacts permission is granted). */
     fun invalidate() = cache.evictAll()
 

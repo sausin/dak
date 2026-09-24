@@ -45,6 +45,14 @@ class NotifierIndexLookups @Inject constructor(
             db.get().conversationPrefsDao().getAll(ids).any { it.muted }
         } ?: false
 
+    /** True when that conversation is an incognito chat: its notifications never show the message text. */
+    suspend fun isIncognito(address: String, threadId: Long): Boolean =
+        bounded("incognito lookup") {
+            val grouped = SenderGrouping.resolve(address, threadId, folds.get().rules()).conversationId
+            val ids = listOf(grouped, ConversationIds.forThread(threadId)).distinct()
+            db.get().conversationPrefsDao().getAll(ids).any { it.incognitoSince != null }
+        } ?: false
+
     private suspend fun <T> bounded(what: String, block: suspend () -> T): T? = withContext(Dispatchers.IO) {
         try {
             withTimeoutOrNull(TIMEOUT_MILLIS) { block() }

@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import app.dak.index.db.entity.AccountRow
+import app.dak.index.db.entity.AccountHiddenRow
 import app.dak.index.db.entity.AccountTypeOverrideRow
 import app.dak.index.db.entity.LedgerEntryRow
 import kotlinx.coroutines.flow.Flow
@@ -75,6 +76,17 @@ interface LedgerDao {
 
     @Query("DELETE FROM account_type_override WHERE accountId = :accountId")
     suspend fun deleteTypeOverride(accountId: String): Int
+
+    // ---- accounts removed from the Passbook (user data) ----
+
+    @Query("SELECT * FROM account_hidden")
+    fun observeHidden(): Flow<List<AccountHiddenRow>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putHidden(row: AccountHiddenRow)
+
+    @Query("DELETE FROM account_hidden WHERE accountId = :accountId")
+    suspend fun deleteHidden(accountId: String): Int
 }
 
 /** One `(account, currency)` total of [LedgerDao.observeDebitsSince]. */

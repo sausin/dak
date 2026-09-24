@@ -19,6 +19,7 @@ import app.dak.mms.pdu.ResponseStatus
 import app.dak.mms.pdu.SendConf
 import app.dak.telephony.OutgoingMmsPart
 import app.dak.telephony.SendResult
+import app.dak.telephony.SentDispatcher
 import app.dak.telephony.TelephonySettings
 import app.dak.telephony.carrier.CarrierConfigRepository
 import app.dak.telephony.carrier.ReportPolicy
@@ -51,6 +52,7 @@ class MmsSendManager @Inject constructor(
     private val failures: SendFailureStore,
     private val scheduler: SendScheduler,
     private val carrierConfig: CarrierConfigRepository,
+    private val sent: SentDispatcher,
 ) {
 
     suspend fun send(
@@ -110,6 +112,7 @@ class MmsSendManager @Inject constructor(
             if (conf == null || conf.isOk) {
                 persister.markSent(id, conf?.messageId, conf?.responseStatus)
                 failures.clear(key)
+                sent.dispatch(key)
             } else {
                 handleFailure(
                     id, attempt, ResponseStatus.describe(conf.responseStatus),

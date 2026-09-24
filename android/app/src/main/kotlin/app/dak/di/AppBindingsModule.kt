@@ -1,10 +1,12 @@
 package app.dak.di
 
+import app.dak.incognito.IncognitoVanisher
 import app.dak.index.BinPolicy
 import app.dak.index.ContactLookup
 import app.dak.index.OtpPolicy
 import app.dak.notifications.MessageNotifier
 import app.dak.telephony.IncomingMessageHandler
+import app.dak.telephony.OutgoingSentListener
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -30,4 +32,7 @@ abstract class AppBindingsModule {
 
     @Binds @IntoSet
     abstract fun notificationHandler(impl: MessageNotifier): IncomingMessageHandler
+
+    @Binds @IntoSet
+    abstract fun incognitoSentListener(impl: IncognitoVanisher): OutgoingSentListener
 }

@@ -35,10 +35,12 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContactPage
+import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -156,7 +158,8 @@ interface ComposerActions {
 /**
  * One composer for text and media: attachment tray (camera, gallery, files, contact card, location as a maps
  * link), automatic SMS→MMS switch shown as an "MMS" chip on the send button, segment counter when it matters,
- * one-tap reply-SIM switcher, roaming chip and the "sent as +91…" hint. Long-press send to send later.
+ * one-tap reply-SIM switcher, roaming chip and the "sent as +91…" hint. Send later: "Schedule" in the tray or a
+ * long-press on Send (in an hour, tomorrow morning, or any date and time).
  * With [enterToSend] the keyboard's action key sends (and shows a send icon) instead of adding a new line.
  * [focusRequester] lets the screen focus the field (swipe-to-reply). Back closes an open attachment tray first.
  */
@@ -172,6 +175,7 @@ fun Composer(
 ) {
     var trayOpen by rememberSaveable { mutableStateOf(false) }
     var laterMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     BackHandler(enabled = trayOpen) { trayOpen = false }
     val canSend = ui.enabled && !ui.sending && (text.isNotBlank() || ui.attachments.isNotEmpty())
     ui.costPrompt?.let { prompt ->
@@ -186,7 +190,18 @@ fun Composer(
                 ComposerStatusRow(ui, actions)
                 ui.carrierNotice?.let { CarrierNoticeText(it, ui.recipientLimit) }
                 if (ui.attachments.isNotEmpty()) AttachmentStrip(ui.attachments, actions::onRemoveAttachment)
-                if (trayOpen) AttachmentTray(onAttachment = actions::onAddAttachment, onText = { actions.onTextChange(joinText(text, it)) }, onDone = { trayOpen = false })
+                if (trayOpen) {
+                    AttachmentTray(
+                        onAttachment = actions::onAddAttachment,
+                        onText = { actions.onTextChange(joinText(text, it)) },
+                        onDone = { trayOpen = false },
+                        onSchedule = {
+                            trayOpen = false
+                            // Scheduling sends the typed text later; with nothing typed there is nothing to schedule.
+                            if (canSend) laterMenu = true else Toast.makeText(context, R.string.sch_write_first, Toast.LENGTH_SHORT).show()
+                        },
+                    )
+                }
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     IconButton(onClick = { trayOpen = !trayOpen }, enabled = ui.enabled) {
                         Icon(if (trayOpen) Icons.Outlined.Close else Icons.Outlined.Add, contentDescription = stringResource(R.string.scr_composer_attach))
@@ -213,6 +228,12 @@ fun Composer(
                             onLongClick = { laterMenu = true },
                         )
                         DropdownMenu(expanded = laterMenu, onDismissRequest = { laterMenu = false }) {
+                            Text(
+                                stringResource(R.string.sch_send_later),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.scr_composer_send_in_hour)) },
                                 onClick = { laterMenu = false; actions.onScheduleSend(System.currentTimeMillis() + 60 * 60_000L) },
@@ -220,6 +241,14 @@ fun Composer(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.scr_composer_send_tomorrow)) },
                                 onClick = { laterMenu = false; actions.onScheduleSend(tomorrowAtNine()) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.sch_pick_date_time)) },
+                                leadingIcon = { Icon(Icons.Outlined.EditCalendar, contentDescription = null) },
+                                onClick = {
+                                    laterMenu = false
+                                    pickFutureDateTime(context) { at -> actions.onScheduleSend(at) }
+                                },
                             )
                         }
                     }
@@ -361,9 +390,12 @@ private fun AttachmentStrip(attachments: List<ComposerAttachment>, onRemove: (Co
     }
 }
 
-/** The attachment tray: every source is a system picker, so Dak needs no storage permission. */
+/**
+ * The attachment tray: every source is a system picker, so Dak needs no storage permission. It also holds
+ * "Schedule" ([onSchedule]), the visible way to send later (long-pressing Send does the same).
+ */
 @Composable
-private fun AttachmentTray(onAttachment: (ComposerAttachment) -> Unit, onText: (String) -> Unit, onDone: () -> Unit) {
+private fun AttachmentTray(onAttachment: (ComposerAttachment) -> Unit, onText: (String) -> Unit, onDone: () -> Unit, onSchedule: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -438,6 +470,7 @@ private fun AttachmentTray(onAttachment: (ComposerAttachment) -> Unit, onText: (
         }
         TrayButton(Icons.AutoMirrored.Outlined.InsertDriveFile, stringResource(R.string.scr_tray_file)) { files.launch(arrayOf("*/*")) }
         TrayButton(Icons.Outlined.ContactPage, stringResource(R.string.scr_tray_contact)) { contact.launch(null) }
+        TrayButton(Icons.Outlined.Schedule, stringResource(R.string.sch_tray_schedule), onClick = onSchedule)
         TrayButton(Icons.Outlined.LocationOn, stringResource(R.string.scr_tray_location)) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 val link = lastKnownMapsLink(context)

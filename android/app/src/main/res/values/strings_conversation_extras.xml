@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Conversation extras: contact details from the thread header (prefix cd_), send-later from the composer (sch_),
+  incognito / vanishing chats (inc_).
+-->
+<resources>
+    <!-- Contact details sheet (tap the thread header) -->
+    <string name="cd_open_details">View contact details</string>
+    <string name="cd_not_saved">Not in your contacts</string>
+    <!-- %1$s = the contact's name -->
+    <string name="cd_saved_as">Saved as %1$s</string>
+    <string name="cd_business_sender">Business sender · can\'t be called or saved</string>
+    <string name="cd_no_contacts_permission">Dak can\'t read your contacts, so saved names aren\'t shown. Allow contacts access in Settings to see them.</string>
+    <string name="cd_call">Call</string>
+    <string name="cd_copy_number">Copy number</string>
+    <string name="cd_number_copied">Number copied</string>
+    <string name="cd_view_contact">View contact</string>
+    <string name="cd_save_contact">Save as new contact</string>
+    <string name="cd_add_to_existing">Add to existing</string>
+
+    <!-- Send later -->
+    <string name="sch_send_later">Send later</string>
+    <string name="sch_tray_schedule">Schedule</string>
+    <string name="sch_pick_date_time">Pick date &amp; time…</string>
+    <string name="sch_write_first">Write your message first, then choose when it goes</string>
+    <string name="sch_pick_future">Pick a time at least a minute from now</string>
+    <!-- %1$s = when it will be sent, e.g. "Tomorrow, 9:00 am" -->
+    <string name="sch_strip_when">Scheduled · %1$s</string>
+    <string name="sch_cancel">Cancel scheduled message</string>
+    <plurals name="sch_strip_more">
+        <item quantity="one">%1$d more scheduled message</item>
+        <item quantity="other">%1$d more scheduled messages</item>
+    </plurals>
+
+    <!-- Incognito (vanishing) chats -->
+    <string name="inc_label">Incognito chat</string>
+    <string name="inc_action_on">Turn on incognito</string>
+    <string name="inc_action_off">Turn off incognito</string>
+    <string name="inc_turn_off">Turn off</string>
+    <string name="inc_dialog_title">Turn on incognito chat?</string>
+    <string name="inc_dialog_body">• Messages you send vanish from this phone as soon as they\'re sent.\n• Messages you receive are hidden in notifications and vanish after you read them here.\n• Vanished messages skip the recycle bin and can\'t be restored.\n• Only your copy vanishes: SMS can\'t delete the other person\'s copy.\n• Earlier messages in this chat stay as they are.</string>
+    <string name="inc_dialog_confirm">Turn on</string>
+    <string name="inc_banner_title">Incognito chat</string>
+    <string name="inc_banner_body">Messages vanish once they\'re sent or read</string>
+    <string name="inc_inbox_snippet">Incognito chat · open to read</string>
+    <string name="inc_notification_body">New incognito message · open Dak to read</string>
+    <string name="inc_vanishing">Message vanishing</string>
+    <string name="inc_countdown">This message vanishes in a few seconds</string>
+</resources>

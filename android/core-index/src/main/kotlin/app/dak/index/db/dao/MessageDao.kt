@@ -78,6 +78,10 @@ interface MessageDao {
     @Query("SELECT * FROM indexed_message WHERE kind = :kind AND providerId = :providerId")
     fun observe(kind: String, providerId: Long): Flow<IndexedMessage?>
 
+    /** Keys of the conversation's messages that have left the phone (box SENT) since [sinceMillis] (incognito sweep). */
+    @Query("SELECT kind, providerId FROM indexed_message WHERE conversationId = :conversationId AND box = 'SENT' AND dateMillis >= :sinceMillis")
+    suspend fun sentSince(conversationId: String, sinceMillis: Long): List<MessageKeyRow>
+
     @Query("SELECT * FROM indexed_message WHERE kind = :kind AND providerId IN (:providerIds)")
     suspend fun getAll(kind: String, providerIds: List<Long>): List<IndexedMessage>
 
@@ -355,3 +359,6 @@ interface MessageDao {
     @Query("DELETE FROM message_flag WHERE kind = :kind AND providerId IN (:providerIds)")
     suspend fun deleteFlags(kind: String, providerIds: List<Long>): Int
 }
+
+/** A message's key columns (see [MessageDao.sentSince]). */
+data class MessageKeyRow(val kind: MessageKind, val providerId: Long)

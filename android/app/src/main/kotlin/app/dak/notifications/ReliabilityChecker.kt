@@ -60,7 +60,8 @@ class ReliabilityChecker @Inject constructor(@ApplicationContext private val con
                     channelId = blocked,
                 ),
             )
-            add(ReliabilityCheck(ReliabilityCheckId.BATTERY_OPTIMIZATION, BatteryOptimization.isIgnoring(context), ReliabilityFix.RequestBatteryExemption))
+            // The default SMS app counts as exempt (see BatteryOptimization.isExempt): Settings locks its option anyway.
+            add(ReliabilityCheck(ReliabilityCheckId.BATTERY_OPTIMIZATION, BatteryOptimization.isExempt(context), ReliabilityFix.RequestBatteryExemption))
             add(ReliabilityCheck(ReliabilityCheckId.BACKGROUND_RESTRICTED, !BatteryOptimization.isBackgroundRestricted(context), ReliabilityFix.OpenAppDetails))
         }
         return ReliabilityReport(checks)

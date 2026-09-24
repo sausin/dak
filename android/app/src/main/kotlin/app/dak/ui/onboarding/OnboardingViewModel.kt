@@ -72,7 +72,7 @@ class OnboardingViewModel @Inject constructor(
                 notificationsGranted = RuntimePermissions.notificationsGranted(context),
                 contactsGranted = RuntimePermissions.allGranted(context, RuntimePermissions.contacts),
                 phoneGranted = RuntimePermissions.allGranted(context, RuntimePermissions.phone),
-                batteryOptimizationIgnored = BatteryOptimization.isIgnoring(context),
+                batteryOptimizationIgnored = BatteryOptimization.isExempt(context),
                 backgroundRestricted = BatteryOptimization.isBackgroundRestricted(context),
             )
         }

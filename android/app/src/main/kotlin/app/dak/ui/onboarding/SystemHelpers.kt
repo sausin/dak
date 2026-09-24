@@ -69,6 +69,17 @@ object BatteryOptimization {
     }
 
     /**
+     * True when battery optimisation cannot delay Dak: the user exempted it, or it is the default SMS app. The system
+     * treats the default SMS app as a default active app (exempt from app standby and briefly allowlisted for every
+     * incoming SMS / MMS), and Settings then shows its battery option as allowed and cannot be changed, while
+     * [PowerManager.isIgnoringBatteryOptimizations] still reports false. Warning about it would be unfixable.
+     */
+    fun isExempt(context: Context): Boolean = exempt(isIgnoring(context), SmsRole.isDefault(context))
+
+    /** The rule of [isExempt], pure for tests. */
+    fun exempt(ignoringOptimizations: Boolean, defaultSmsApp: Boolean): Boolean = ignoringOptimizations || defaultSmsApp
+
+    /**
      * The system list of apps and their battery-optimisation state, where the user finds Dak and chooses
      * "Don't optimise" / "Unrestricted" (the UI explains this first). No special permission needed.
      *

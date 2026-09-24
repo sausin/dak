@@ -27,6 +27,14 @@ android {
     // Release signing comes from CI secrets when present; otherwise release builds are left unsigned.
     val keystorePath = System.getenv("DAK_KEYSTORE_PATH")
     signingConfigs {
+        // One shared debug key for every machine and CI run (a public, throwaway key: debug builds only). Without it
+        // each CI runner signs with its own random key and a newer debug APK cannot be installed over an older one.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (keystorePath != null) {
             create("release") {
                 storeFile = file(keystorePath)

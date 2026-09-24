@@ -98,6 +98,15 @@ header-shaped names such as `BT-MOBILE`).
 | Birthdays & occasions: anniversaries and other contact dates ("Other" / custom label, one per contact) on one screen, one chip row; "Add a date" opens the contact in Contacts | Built |
 | Remove an account from the Passbook (display only; ledger and scam detection keep it), "Hidden accounts" to restore | Built (index v7 `account_hidden`) |
 
+## Language, performance and scam hardening
+
+| Item | State |
+| --- | --- |
+| App language picker (Settings → Appearance → Language; per-app language on 13+, own override on 8–12), translatable settings / failure / battery text, pseudo-locales in debug, `scripts/check-i18n.py` in CI | Built ([i18n.md](i18n.md)). English is the only shipped language |
+| Adversarial corpus (`shared/adversarial/`) run by `AdversarialCorpusTest`; template bundle 5 closes 38 of the first 40 known gaps | Built. Two "wrong number" openers stay documented as out of scope |
+| Normalised analysis text (bidi overrides resolved, invisible characters dropped, combining-mark runs capped) before every detector and parser | Built (`AnalysisText` in `:classify`, copied in `:finance`) |
+| Backfill ledger rebuild deferral, ledger diff-writes, covering inbox index (index v8), reconciler binary search, per-session sender suggestions | Built, pinned by equivalence tests that landed first ([performance.md](performance.md)) |
+
 ## Known gaps / follow-ups
 
 - Room schema JSON is generated in CI but not yet committed (`core-index/schemas`); commit it

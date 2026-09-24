@@ -34,8 +34,8 @@ It is built as the successor to Microsoft SMS Organizer, India first and usable 
 | **What** | A full default-SMS/MMS app for Android 8.0+ (`minSdk 26`, `targetSdk 36`) in Kotlin and Jetpack Compose |
 | **Free tier** | Works entirely on the phone and offline, with no ads, analytics or crash reporting. A CI script fails the build if free code reaches for the network ([`check-offline-baseline.sh`](android/scripts/check-offline-baseline.sh)) |
 | **Premium** | Same codebase and data model. Optional server features are consent-gated seams; none is implemented yet ([status](#status--roadmap)) |
-| **Codebase** | 12 Gradle modules (9 pure-Kotlin JVM, 3 Android), about 71k lines of production Kotlin and 30k lines of tests |
-| **Tests** | About 1,800 JUnit/Robolectric `@Test`s in 217 files, plus a 360+ message [adversarial SMS corpus](shared/adversarial/) and seeded MMS fuzzers |
+| **Codebase** | 12 Gradle modules (9 pure-Kotlin JVM, 3 Android), about 73k lines of production Kotlin and 31k lines of tests |
+| **Tests** | About 1,850 JUnit/Robolectric `@Test`s in 230 files, plus a 400+ message [adversarial SMS corpus](shared/adversarial/) and seeded MMS fuzzers |
 | **Gates** | Offline guard, tests, per-module coverage floors, R8 release builds and a mapping check, on every pull request and push to `main` that touches the app ([workflow](.github/workflows/android.yml)) |
 | **Status** | The maintainers have tested it extensively. It is not on the Play Store yet ([details](#status--roadmap)) |
 
@@ -74,7 +74,7 @@ Everything below is in the tree and runs on the phone. Server-backed premium fea
 | **Verbatim first write** | Each `SMS_DELIVER` is journalled (fsync'd) and written to the system Telephony provider before any Dak logic runs, so OTP autofill and banking apps' SMS Retriever keep working whatever Dak does next |
 | **Crash-safe receive** | The `SmsJournal` replays any message whose inbox write failed or timed out, at the next receive, at boot and at app start. Handler crashes, including `StackOverflowError`, are contained |
 | **MMS that works** | Per-SIM APN download with retry and backoff, a visible "tap to retry" failure reason, carrier config read per SIM, group MMS, SMIL and read reports |
-| **Self-test and OEM guidance** | Settings → Notifications → Self-test, a restriction banner for Xiaomi, Oppo, Vivo and Realme battery killers, and `ContentObserver` plus periodic reconcile so a thread never needs reopening to show new messages |
+| **Self-test and OEM guidance** | Settings → Notifications → Self-test, a restriction banner for Xiaomi, Oppo, Vivo and Realme battery killers, and `ContentObserver` plus periodic reconcile so a thread never needs reopening to show new messages. The default SMS app counts as battery-exempt, so the banner never asks for a fix Android won't allow |
 | **Delivery ticks** | Clock, then ✓ sent, then ✓✓ delivered, or a failed state with retry |
 | **Emergency texts never wait** | Texts to 112/911 and the region's emergency numbers skip the send rate limiter and cannot be scheduled |
 
@@ -90,6 +90,9 @@ Everything below is in the tree and runs on the phone. Server-backed premium fea
 - **Amounts are normalised**: `5,00,000`, `500,000.00`, `500000` and `5 lakh` are the same amount everywhere.
 - **Typed, tappable entities** in message text: phone, OTP, amount, masked account, UPI id, UTR, PNR and courier
   tracking number, each with the action that fits it.
+- **App language**: Settings → Appearance → Language uses the per-app language on Android 13+ and Dak's own
+  override on 8–12. Money uses the locale's digits, keeping lakh/crore grouping. The UI ships in English today, and
+  every screen, setting and failure reason is a translatable resource ([`docs/i18n.md`](docs/i18n.md)).
 - **Themes**: light, dark, AMOLED and high contrast, following the system and switching live. Typography scales
   with the screen size.
 
@@ -122,9 +125,10 @@ Everything below is in the tree and runs on the phone. Server-backed premium fea
 | Defence | What it does |
 | --- | --- |
 | **Fake-credit-alert detector** | Scores messages against 20 weighted signals (`ScamReason`): a bank-style credit from a phone number, a promotional-route "transaction", brand/sender mismatch, "sent by mistake, please return" wording in English, Hindi and Hinglish (including follow-ups from the same sender), UPI collect requests and "enter PIN to receive" bait. Write-up: [`fake-credit-scams.md`](docs/security/fake-credit-scams.md) |
+| **Scam families beyond fake credits** | Template rules (bundle 5) for callback scams with no link, "Hi Mum, new number", requests to send back a code, APK links, release fees, loan extortion, arrest threats and police "safe account" scams, in English, Hindi, Arabic, Dutch, Spanish and French wording. Each new rule was written against benign look-alikes that must stay clean |
 | **Consistent everywhere** | The notification, the thread banner, the inbox chip and the entity sheet all get the same context (parsed amount, known accounts, recent messages from the sender), so they agree. Turning warnings off only hides them: automations still refuse to forward a likely fake |
-| **Link safety** | Confusable Cyrillic, Greek, Armenian and fullwidth letters are folded (UTS #39), so `hdfcbаnk.com` is caught. Userinfo and backslash tricks (`https://bank.com@evil.xyz`) are flagged. An official domain used as a prefix (`sbi.co.in.verify.example`) counts as a look-alike. Links always need a second tap, with a reason shown |
-| **Spoofed senders** | Mixed-script and look-alike sender names are flagged. Bidi and invisible characters are stripped (UAX #9) |
+| **Link safety** | Confusable Cyrillic, Greek, Armenian and fullwidth letters are folded (UTS #39), so `hdfcbаnk.com` is caught. Userinfo and backslash tricks (`https://bank.com@evil.xyz`) are flagged. An official domain used as a prefix (`sbi.co.in.verify.example`) counts as a look-alike, as do bare-IP hosts and government words on non-government domains (`gov-uk-support-payment.com`). Links always need a second tap, with a reason shown |
+| **Spoofed senders and hidden text** | Mixed-script and look-alike sender names are flagged. Detection reads a normalised copy of each message: right-to-left overrides are applied as displayed, invisible characters are dropped and combining-mark floods are capped. A bidi-reversed amount or a `K\u200BYC` cannot slip past, and the text you see is untouched |
 | **Report fraud** | 1930 (cybercrime helpline) first, then TRAI 1909 (built from the receiving SIM), Chakshu and cybercrime.gov.in with details pre-filled, RBI, and your own bank's card-block number. Numbers come from a signed [helplines bundle](shared/formats/README.md) sourced from each authority's own site |
 | **Cost guards** | Warnings before a send leaves your normal plan or rate, and a premium-rate check on unattended sends |
 
@@ -263,7 +267,7 @@ Residual risks are listed openly.
 
 ### The adversarial SMS corpus
 
-[`shared/adversarial/`](shared/adversarial/) holds **360+ hostile and tricky messages** in plain-text TSV,
+[`shared/adversarial/`](shared/adversarial/) holds **400+ hostile and tricky messages** in plain-text TSV,
 organised so that anyone can read, review and extend them:
 
 - **7 regional files**: [`in`](shared/adversarial/in.tsv), [`us`](shared/adversarial/us.tsv),
@@ -286,9 +290,14 @@ carry non-http schemes or invisible characters, parsed amounts stay positive and
 the safe grammar.
 
 Real misses are tagged **`known-gap`**. The test prints them instead of failing, and **fails as soon as a gap starts
-passing**, so the tag cannot outlive the fix. The corpus has already caught and pinned real fixes: a parser that
-took seconds on a huge MMS text part, a look-alike that used an official domain as a prefix, and Hindi plural
-forms of "sent by mistake".
+passing**, so the tag cannot outlive the fix. **38 of the first 40 gaps are closed.** The two that remain are
+"wrong number" openers that read exactly like a genuine misdirected text, so on-device rules leave them alone, with
+the reason documented beside them. The corpus has caught and pinned real fixes, including:
+
+- a parser that took seconds on a huge MMS text part;
+- a 3,000-mark "zalgo" body that took about 1.6 s and now takes a few milliseconds;
+- look-alikes that used an official domain as a prefix;
+- Hindi plural forms of "sent by mistake".
 
 ### Contribute an adversarial message
 
@@ -329,24 +338,26 @@ safety rules and a PR checklist.
 
 | Module | `@Test`s | Module | `@Test`s |
 | --- | ---: | --- | ---: |
-| finance | 319 | core-index | 129 |
-| classify | 292 | mms-pdu | 119 |
-| app | 226 | search | 86 |
-| automations | 220 | settings-registry | 54 |
-| core-telephony | 168 | premium-api | 38 |
-| backup | 130 | core-model | 15 |
+| finance | 329 | core-index | 134 |
+| classify | 300 | backup | 130 |
+| app | 241 | mms-pdu | 119 |
+| automations | 228 | search | 86 |
+| core-telephony | 172 | settings-registry | 63 |
+| premium-api | 39 | core-model | 15 |
 
-That is 1,796 in total at commit `004ad89`, and the number keeps growing. On top of those, 25 pytest tests check the
-[`sms-pdu.py`](android/scripts/sms-pdu.py) emulator fixture builder against two independent PDU libraries.
+That is 1,856 in total at commit `5591204`, and the number keeps growing. On top of those, 36 pytest tests cover the
+[`sms-pdu.py`](android/scripts/sms-pdu.py) emulator fixture builder (checked against two independent PDU libraries)
+and the [`check-i18n.py`](android/scripts/check-i18n.py) translation checker.
 
 Beyond plain unit tests, the suite includes golden-format tests for exports and rules, migration tests for every
-index schema step (v1 → v7), equivalence tests that pin ledger, inbox and search results against independent reference
-implementations, and correctness proofs showing that the performance work changed no result.
+index schema step (v1 → v8), equivalence tests that pin ledger, inbox and search results against independent reference
+implementations (written and green before the optimisations they guard), query-plan and cost guards, locale-independence
+tests, and correctness proofs showing that the performance work changed no result.
 
 ### CI gates, on every pull request and push to `main`
 
 1. **Offline baseline guard**: free code has no network or AI dependencies.
-2. **Test tooling**: pytest for the SMS PDU builder.
+2. **Test tooling**: pytest for the SMS PDU builder and the i18n checker (locale config, completeness, placeholder parity).
 3. **All unit tests** (JVM and Robolectric) with Kover coverage.
 4. **Coverage floors**: CI fails if any module, or the merged total, drops below its floor in
    [`coverage-floors.json`](android/coverage-floors.json). Floors only ratchet upwards.
@@ -368,15 +379,35 @@ count. Details: [`docs/testing.md`](docs/testing.md).
 
 ### Performance and battery, measured
 
-- **Indexing**: the per-message enrichment path (classify, parse, scam checks, links, FTS normalisation) was
-  profiled and made about **2× faster per thread and 5× faster as the indexer runs it**. JVM tests prove the
-  results are identical, so no re-index is needed ([`docs/performance.md`](docs/performance.md)):
+Three measured passes, each with the old and new results proven identical by tests (full method and caveats in
+[`docs/performance.md`](docs/performance.md)). Each pass has its own baseline, so compare within a row only.
 
-  | msgs/s, 50k synthetic messages, JVM 21 | Before | After |
+- **Indexing** (JVM 21, 50k synthetic messages): a keyword prefilter, shared per-message analysis and 3 enrichment
+  threads.
+
+  | msgs/s | Before | After |
   | --- | ---: | ---: |
   | Classification only, 1 thread | 27,300 | 113,000 |
   | Full enrichment, 1 thread | 7,000 | 14,200 |
   | Full enrichment, 3 threads (as the indexer runs it) | 7,000 | 35,800 |
+
+- **Parser and adversarial hardening**: literal gates in the finance parsers and a cheaper look-alike check. This
+  was measured after template bundle 5 added its new scam rules.
+
+  | | Before | After |
+  | --- | ---: | ---: |
+  | `TransactionParser.parse`, per message | 174 µs | 59 µs |
+  | Full enrichment, 1 thread | 5,229 msgs/s | 8,569 msgs/s |
+  | Full enrichment, 3 threads | 9,223 msgs/s | 16,250 msgs/s |
+
+- **Ledger and inbox** (index v8): the backfill defers ledger rebuilds, a covering index serves the inbox, ledger
+  entries are diff-written, and the FX reconciler uses a binary search.
+
+  | | Before | After |
+  | --- | ---: | ---: |
+  | 50k-message backfill: index rows read for ledger rebuilds (modelled) | 1.14M | 70k |
+  | Inbox first page, All tab, 20k rows (SQLite 3.45) | 24 ms | 6.5 ms |
+  | FX reconcile, 1,000 foreign spends × 10,000 settlements | 900 ms | 18 ms |
 
 - **Battery**: Dak owns no wakeup alarms (user-scheduled sends excepted) and holds no wake locks across work.
   Work is batched as one job per purpose, and heavy initialisation is lazy. For a 300-SMS/day user, the jobs Dak
@@ -501,7 +532,8 @@ The premium relay server will live in a separate repository. By design, it only 
 ## Getting started
 
 **Try it**: every green CI run uploads `dak-debug-apks-<run>`. Install the free debug APK (`dak-build<run>-free-debug.apk`,
-application id `app.dak.debug`, which installs next to your current SMS app), then follow the
+application id `app.dak.debug`, which installs next to your current SMS app; all CI debug builds share one debug key,
+so a newer one installs over an older one), then follow the
 [device test plan](docs/device-test-plan.md).
 
 **Build it**: you need JDK 17 and the Android SDK (`compileSdk 37`).
@@ -538,8 +570,9 @@ Contributions are welcome. Pick whichever fits you:
 | You are… | Good first contribution |
 | --- | --- |
 | Anyone who gets SMS | [Add an adversarial message](#contribute-an-adversarial-message): a scam, its genuine look-alike, or a message that breaks SMS apps |
-| A Kotlin developer | Close a `known-gap` line in the corpus, add bank formats in `finance`, or raise a coverage floor |
+| A Kotlin developer | Add benign look-alikes and new scam lines to the corpus, add bank formats in `finance`, or raise a coverage floor |
 | An Android developer | Pick a gap from [`status.md`](docs/status.md#known-gaps--follow-ups) or a device check from the [test plan](docs/device-test-plan.md) |
+| A translator | Add a `values-<lang>/` translation following [`docs/i18n.md`](docs/i18n.md) |
 | A security researcher | Read the [threat model](docs/security/threat-model.md) and try to break a surface. Add the payload to [`pwn/`](shared/adversarial/pwn/) |
 
 Ground rules that keep the project honest:
@@ -558,7 +591,7 @@ Ground rules that keep the project honest:
 **The app has been tested extensively by the maintainers.** It is not published: there is **no Play Store listing**
 yet. The git history records fixes that came out of that testing (for example, misclassified courier updates and
 carrier call alerts, in the change that added forwarding). The automated evidence is in the repository: CI on every
-pull request, about 1,800 unit tests, coverage floors, fuzzers and the adversarial corpus. The step-by-step phone checklist is
+pull request, about 1,850 unit tests, coverage floors, fuzzers and the adversarial corpus. The step-by-step phone checklist is
 [`docs/device-test-plan.md`](docs/device-test-plan.md).
 
 | Phase | Scope | State |
@@ -570,11 +603,11 @@ pull request, about 1,800 unit tests, coverage floors, fuzzers and the adversari
 
 **Next up and known gaps:**
 
-- [ ] **More performance work** on the ledger, inbox and search. Behaviour-pinning equivalence tests landed first,
-      so the speedups must prove they change nothing.
-- [ ] **Close the corpus's `known-gap` lines**: real scams and edge cases today's detectors miss.
-- [ ] **App translations and a per-app language picker.** Messages in Hindi and other scripts are already handled.
-      The UI ships in English today, with per-app language selection and translation checks in place ([i18n](docs/i18n.md)).
+- [ ] **Translations.** The app is ready for them: a language picker, translatable resources, pseudo-locales in
+      debug builds and a CI completeness check. No language besides English ships yet. Contributions are welcome
+      ([`docs/i18n.md`](docs/i18n.md)).
+- [ ] The last two corpus `known-gap` lines ("wrong number" openers), and `MoneyParser`'s pattern, which is now
+      the largest remaining parser cost ([`performance.md`](docs/performance.md#next)).
 - [ ] OTA template-bundle fetching (signature verification already exists), Safe Browsing lookups, crowd spam
       reports, a TRAI 1909 flow beyond a forward, and schedule-triggered rules.
 - [ ] Commit the Room schema JSON and write real migrations from then on, and use one stable recovery secret

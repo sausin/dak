@@ -1,6 +1,7 @@
 package app.dak.automations.safety
 
 import app.dak.automations.MessageEvent
+import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.rule.ActionSpec
 import app.dak.automations.rule.RelayChannel
 
@@ -9,8 +10,10 @@ import app.dak.automations.rule.RelayChannel
  * [ActionSpec.ForwardSms] (and SMS [ActionSpec.RelayRule]) before it is planned:
  * - never forward a message *from* the forward's recipient (A forwards to B, B's reply would bounce back);
  * - never forward a message that already looks like a forward made by Dak, i.e. whose body starts with the literal
- *   prefix of the action's own template (`"Fwd from"` for the default) — this breaks A→B→A chains when both ends
- *   run forwarding rules.
+ *   prefix of the action's own template (`"Fwd from"` for the default), of the English default template (rules
+ *   stored before the prefix was translated, and Dak users in English), or of the default template in any language
+ *   the app ships ([registerDefaultTemplates]) — this breaks A→B→A chains when both ends run forwarding rules, even
+ *   when the two phones run Dak in different languages.
  *
  * Messages we send ourselves never reach the engine at all (only inbox messages are evaluated).
  */
@@ -18,6 +21,28 @@ public object ForwardLoopGuard {
 
     /** Minimum length of a template's literal prefix for it to count as a "this was forwarded" marker. */
     private const val MIN_PREFIX_LENGTH = 3
+
+    /** The English default template's marker ("Fwd from"): always recognised, whatever the rule's own template. */
+    public val DEFAULT_MARKER: String = checkNotNull(templatePrefix(ForwardingSpec.DEFAULT_TEMPLATE))
+
+    @Volatile
+    private var registeredMarkers: Set<String> = emptySet()
+
+    /**
+     * Registers the default forward template of every language the app ships (the app calls this at start and on a
+     * language change), so a forward made by Dak in another language is recognised too. Replaces the previous set.
+     */
+    public fun registerDefaultTemplates(templates: Collection<String>) {
+        registeredMarkers = templates.mapNotNull(::templatePrefix).toSet()
+    }
+
+    /** Every marker a body is checked against for a rule whose template is [template]. */
+    public fun markersFor(template: String): Set<String> =
+        buildSet {
+            templatePrefix(template)?.let(::add)
+            add(DEFAULT_MARKER)
+            addAll(registeredMarkers)
+        }
 
     /** True when [action] must not run for [event]. Non-forwarding actions are never skipped. */
     public fun shouldSkip(action: ActionSpec, event: MessageEvent): Boolean = when (action) {
@@ -28,8 +53,8 @@ public object ForwardLoopGuard {
 
     private fun isLoop(recipient: String, template: String, event: MessageEvent): Boolean {
         if (Addresses.same(event.address, recipient)) return true
-        val prefix = templatePrefix(template) ?: return false
-        return event.body.trimStart().startsWith(prefix, ignoreCase = true)
+        val body = event.body.trimStart()
+        return markersFor(template).any { body.startsWith(it, ignoreCase = true) }
     }
 
     /**

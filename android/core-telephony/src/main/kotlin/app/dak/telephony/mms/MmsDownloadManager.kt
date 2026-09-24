@@ -26,6 +26,8 @@ import app.dak.mms.pdu.NotificationInd
 import app.dak.mms.pdu.PduDecodeResult
 import app.dak.mms.pdu.RetrieveConf
 import app.dak.mms.pdu.RetrieveStatus
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.IncomingDispatcher
 import app.dak.telephony.MmsDownloadState
 import app.dak.telephony.SimRepository
@@ -39,6 +41,7 @@ import app.dak.telephony.role.SmsRoleMonitor
 import app.dak.telephony.send.RetryPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -108,7 +111,7 @@ class MmsDownloadManager @Inject constructor(
         }
         // A major MMS version we do not implement (e.g. 2.0): answer Unrecognised and fetch nothing (MMS-ENC).
         MmsClientTransactions.forUnsupportedVersion(n, reportAllowed())?.let { answer ->
-            Log.w(TAG, "MMS notification of unsupported version 0x%02X: answered Unrecognised".format(n.mmsVersion))
+            Log.w(TAG, "MMS notification of unsupported version 0x%02X: answered Unrecognised".format(Locale.ROOT, n.mmsVersion))
             if (existing == null) sendClientPdu(answer, subId, n.contentLocation)
             return
         }
@@ -122,10 +125,10 @@ class MmsDownloadManager @Inject constructor(
         if (!settings.autoDownloadMms || (roaming && !settings.autoDownloadMmsWhenRoaming) || tooLarge || throttled) {
             if (existing == null) {
                 val reason = when {
-                    tooLarge -> "Very large message: tap to download"
-                    roaming -> "Roaming: tap to download"
-                    throttled -> "Many messages at once: tap to download"
-                    else -> "Tap to download"
+                    tooLarge -> FailureReasons.encode(Failure.MMS_TAP_TO_DOWNLOAD_LARGE)
+                    roaming -> FailureReasons.encode(Failure.MMS_TAP_TO_DOWNLOAD_ROAMING)
+                    throttled -> FailureReasons.encode(Failure.MMS_TAP_TO_DOWNLOAD_MANY)
+                    else -> FailureReasons.encode(Failure.MMS_TAP_TO_DOWNLOAD)
                 }
                 states.set(id, MmsDownloadState.Failed(reason, 0))
                 // Deferred retrieval: tell the MMSC to keep the message (m-notifyresp-ind Deferred); the later
@@ -194,12 +197,12 @@ class MmsDownloadManager @Inject constructor(
         val attempt = previousAttempts + 1
         val nowSeconds = System.currentTimeMillis() / 1000
         if (info.expirySeconds in 1 until nowSeconds) {
-            states.set(id, MmsDownloadState.Failed("Expired on the carrier's server", attempt))
+            states.set(id, MmsDownloadState.Failed(FailureReasons.encode(Failure.MMS_EXPIRED), attempt))
             notifyHandlers(id)
             return DownloadAttemptResult.FAILURE
         }
         if (!MmsSafety.isDownloadableContentLocation(contentLocation)) {
-            states.set(id, MmsDownloadState.Failed("Invalid download link", attempt))
+            states.set(id, MmsDownloadState.Failed(FailureReasons.encode(Failure.MMS_INVALID_LINK), attempt))
             notifyHandlers(id)
             return DownloadAttemptResult.FAILURE
         }
@@ -209,10 +212,10 @@ class MmsDownloadManager @Inject constructor(
         val outcome = try {
             val started = withContext(Dispatchers.IO) { startDownload(id, contentLocation, subId, attempt) }
             if (!started) {
-                DownloadOutcome.Failed(MmsResultCodes.describe(MmsResultCodes.UNSPECIFIED), retryable = true)
+                DownloadOutcome.Failed(MmsResultCodes.reason(MmsResultCodes.UNSPECIFIED), retryable = true)
             } else {
                 withTimeoutOrNull(RESULT_TIMEOUT_MILLIS) { waiter.await() }
-                    ?: DownloadOutcome.Failed("Timed out waiting for the carrier", retryable = true)
+                    ?: DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_TIMED_OUT), retryable = true)
             }
         } finally {
             bus.unregister(id, waiter)
@@ -246,7 +249,7 @@ class MmsDownloadManager @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "storing downloaded MMS failed", e)
-                DownloadOutcome.Failed("Could not save the message", retryable = true)
+                DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_SAVE_FAILED), retryable = true)
             } finally {
                 file?.delete()
             }
@@ -258,31 +261,31 @@ class MmsDownloadManager @Inject constructor(
     private suspend fun store(id: Long, subId: Int, file: File?, resultCode: Int, intent: Intent): DownloadOutcome {
         if (resultCode != Activity.RESULT_OK) {
             val http = intent.getIntExtra(SmsManager.EXTRA_MMS_HTTP_STATUS, 0)
-            return DownloadOutcome.Failed(MmsResultCodes.describe(resultCode, http), MmsResultCodes.isRetryable(resultCode))
+            return DownloadOutcome.Failed(MmsResultCodes.reason(resultCode, http), MmsResultCodes.isRetryable(resultCode))
         }
         val info = persister.notificationInfo(id)
         if (info == null || info.messageType != MessageType.NOTIFICATION_IND) {
             return DownloadOutcome.Success(states.replacement(id)?.let { MessageKey(MessageKind.MMS, it) })
         }
         val length = withContext(Dispatchers.IO) { file?.takeIf { it.exists() }?.length() ?: 0L }
-        if (length > MmsLimits.MAX_PDU_BYTES) return DownloadOutcome.Failed("The message is too large", retryable = false)
+        if (length > MmsLimits.MAX_PDU_BYTES) return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_TOO_LARGE), retryable = false)
         val bytes = withContext(Dispatchers.IO) { file?.takeIf { length > 0 }?.readBytes() }
-            ?: return DownloadOutcome.Failed("The carrier returned an empty message", retryable = true)
+            ?: return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_EMPTY_RESPONSE), retryable = true)
         val retrieved = when (val decoded = MmsPduDecoder.decode(bytes)) {
-            is PduDecodeResult.Failure -> return DownloadOutcome.Failed("Unreadable MMS: ${decoded.error.message}", retryable = false)
+            is PduDecodeResult.Failure -> return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_UNREADABLE, decoded.error.message.toString()), retryable = false)
             is PduDecodeResult.Success -> decoded.pdu as? RetrieveConf
-                ?: return DownloadOutcome.Failed("Unexpected response from the carrier", retryable = false)
+                ?: return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_UNEXPECTED_RESPONSE), retryable = false)
         }
         if (!retrieved.isRetrieveOk) {
             val status = retrieved.retrieveStatus ?: RetrieveStatus.ERROR_PERMANENT_FAILURE
             return DownloadOutcome.Failed(
-                retrieved.retrieveText?.takeIf { it.isNotBlank() } ?: "The carrier could not deliver this message",
+                retrieved.retrieveText?.takeIf { it.isNotBlank() } ?: FailureReasons.encode(Failure.MMS_CARRIER_COULD_NOT_DELIVER),
                 retryable = RetrieveStatus.isTransient(status),
             )
         }
         val effectiveSub = if (subId >= 0) subId else info.subId
         val newId = persister.insertRetrieved(retrieved, effectiveSub)
-            ?: return DownloadOutcome.Failed("Could not save the message", retryable = true)
+            ?: return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_SAVE_FAILED), retryable = true)
         persister.delete(id)
         states.setDone(id, newId)
         val newKey = MessageKey(MessageKind.MMS, newId)

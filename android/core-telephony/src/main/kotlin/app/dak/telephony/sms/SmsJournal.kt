@@ -9,6 +9,7 @@ import java.io.IOException
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * Write-ahead journal for incoming SMS (pure JVM, file based, thread-safe).
@@ -219,7 +220,7 @@ class SmsJournal(
                 digest.update(byteArrayOf((pdu.size shr 8).toByte(), pdu.size.toByte()))
                 digest.update(pdu)
             }
-            return digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xFF) }.take(KEY_CHARS)
+            return digest.digest().joinToString("") { "%02x".format(Locale.ROOT, it.toInt() and 0xFF) }.take(KEY_CHARS)
         }
 
         private fun isKey(key: String): Boolean = key.length == KEY_CHARS && key.all { it in '0'..'9' || it in 'a'..'f' }

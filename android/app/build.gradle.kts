@@ -49,6 +49,9 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // en-XA (accented, ~30% longer) and ar-XB (mirrored RTL) pseudo-locales, selectable in Settings →
+            // Appearance → Language on debug builds (src/debug/res/xml/locales_config.xml). docs/i18n.md.
+            isPseudoLocalesEnabled = true
         }
         release {
             // R8 shrinking, optimisation and obfuscation, plus unused-resource removal (docs/release.md). Debug
@@ -84,6 +87,21 @@ android {
         buildConfig = true
     }
     testOptions { unitTests.isIncludeAndroidResources = true }
+
+    // Internationalisation checks (docs/i18n.md). Only raises severities for full lint runs
+    // (`./gradlew :app:lintFreeDebug`), which CI does not run yet. The release builds' automatic lintVital only runs
+    // FATAL-severity checks, and nothing here is fatal, so CI's assemble*Release steps are unaffected.
+    lint {
+        error += setOf(
+            "HardcodedText", // android:text="..." literals in XML
+            "SetTextI18n", // setText("literal" / concatenation)
+            "StringFormatInvalid", // placeholders that do not match the arguments, in any language
+            "DefaultLocale", // String.format / toUpperCase without a Locale in machine-facing text
+        )
+        // Warning, not error, while only English ships: Android falls back to English per string, and a language
+        // is only offered once it is complete (scripts/check-i18n.py enforces that for locales_config.xml).
+        warning += "MissingTranslation"
+    }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/versions/9/previous-compilation-data.bin")
     }

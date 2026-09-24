@@ -1,9 +1,12 @@
 package app.dak.ui.settings
 
+import android.content.Context
+import android.content.res.Resources
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.dak.di.IndexControl
+import app.dak.i18n.AppLocales
 import app.dak.navigation.Routes
 import app.dak.premium.Entitlements
 import app.dak.premium.consent.ConsentLedger
@@ -17,6 +20,7 @@ import app.dak.settings.SettingDef
 import app.dak.settings.SettingsGroup
 import app.dak.settings.SettingsSearch
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +41,7 @@ class SettingsViewModel @Inject constructor(
     private val deviceContext: DeviceContextProvider,
     private val indexControl: IndexControl,
     private val consents: ConsentLedger,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel(), SettingsCommands {
 
     /**
@@ -61,13 +66,29 @@ class SettingsViewModel @Inject constructor(
 
     private val query = MutableStateFlow("")
 
+    /**
+     * Labels in the app language. Starts from the application's resources; the screens hand over their own
+     * (activity) resources whenever the configuration changes, so a language switch relabels a retained ViewModel.
+     */
+    private val labels = MutableStateFlow<Pair<String, SettingsLabels>>(labelsFor(appContext.resources))
+
     val state: StateFlow<SettingsUiState> = combine(
         store.snapshot,
         entitlements.granted,
         deviceContext.updates,
         query,
-    ) { raw, _, device, q -> build(raw, device, q) }
+        labels,
+    ) { raw, _, device, q, (_, text) -> build(raw, device, q, text) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
+
+    /** Called by the screens with their current resources (see [labels]); a no-op unless the locale changed. */
+    fun useResources(resources: Resources) {
+        val next = labelsFor(resources)
+        if (next.first != labels.value.first) labels.value = next
+    }
+
+    private fun labelsFor(resources: Resources): Pair<String, SettingsLabels> =
+        resources.configuration.locales.toLanguageTags() to ResourceSettingsLabels(resources)
 
     fun onQueryChange(value: String) {
         query.value = value
@@ -141,32 +162,43 @@ class SettingsViewModel @Inject constructor(
         const val SOURCE = "settings"
     }
 
-    private fun build(raw: Map<String, String>, device: DeviceContext, q: String): SettingsUiState {
-        val appearanceRows = AppearanceSettings.all.filter { it.visible(device) }.map { rowState(it, raw, it.isLocked(entitlements)) }
+    private fun build(raw: Map<String, String>, device: DeviceContext, q: String, labels: SettingsLabels): SettingsUiState {
+        val appearanceRows = AppearanceSettings.all.filter { it.visible(device) }.map { def ->
+            val row = rowState(def, raw, def.isLocked(entitlements), labels)
+            // The language row shows the current app language (owned by the system, not by the settings store).
+            if (def.key == AppearanceSettings.language.key) row.copy(valueLabel = AppLocales.currentLabel(appContext)) else row
+        }
         val sections = buildList {
-            add(SectionState(APPEARANCE_SECTION, "Appearance", appearanceRows, emptyList()))
+            add(SectionState(APPEARANCE_SECTION, labels.appearance, appearanceRows, emptyList()))
             for (group in SettingsGroup.entries) {
                 val rows = DakSettings.byGroup(group)
                     .filter { it.visible(device) }
-                    .map { rowState(it, raw, it.isLocked(entitlements)) }
-                add(SectionState(group.name, group.displayName, rows.filter { !it.def.advanced }, rows.filter { it.def.advanced }))
+                    .map { rowState(it, raw, it.isLocked(entitlements), labels) }
+                add(SectionState(group.name, labels.group(group), rows.filter { !it.def.advanced }, rows.filter { it.def.advanced }))
             }
         }
-        val results = if (q.isBlank()) emptyList() else search(q, raw, device, sections)
+        val results = if (q.isBlank()) emptyList() else search(q, raw, device, sections, labels)
         return SettingsUiState(sections = sections, query = q, results = results)
     }
 
-    private fun search(q: String, raw: Map<String, String>, device: DeviceContext, sections: List<SectionState>): List<SearchHit> {
+    private fun search(
+        q: String,
+        raw: Map<String, String>,
+        device: DeviceContext,
+        sections: List<SectionState>,
+        labels: SettingsLabels,
+    ): List<SearchHit> {
         val changed = raw.filter { (key, value) ->
             DakSettings.byKey(key)?.let { value != AppSettingsStore.serializedDefault(it) } ?: false
         }.keys
         val needle = q.trim().lowercase()
         val appearance = sections.first { it.id == APPEARANCE_SECTION }
+        // Shown (localized) text, plus the English title, summary and keywords: English words work in any language.
         val appearanceHits = appearance.rows.filter { row ->
-            row.def.title.lowercase().contains(needle) || row.def.keywords.any { it.lowercase().contains(needle) } ||
-                row.def.summary.lowercase().contains(needle)
+            listOf(row.title, row.summary, row.def.title, row.def.summary).any { it.lowercase().contains(needle) } ||
+                row.def.keywords.any { it.lowercase().contains(needle) }
         }.map { SearchHit(it, APPEARANCE_SECTION, appearance.title) }
-        val registryHits = SettingsSearch.search(q, device, entitlements, changedKeys = changed).mapNotNull { hit ->
+        val registryHits = SettingsSearch.search(q, device, entitlements, changedKeys = changed, text = labels).mapNotNull { hit ->
             val section = sections.firstOrNull { it.id == hit.group.name } ?: return@mapNotNull null
             val row = (section.rows + section.advanced).firstOrNull { it.key == hit.key } ?: return@mapNotNull null
             SearchHit(row, section.id, section.title)

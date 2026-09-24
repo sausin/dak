@@ -330,7 +330,9 @@ private fun ReliabilityStep(state: OnboardingUiState, onBattery: () -> Unit, onO
             Card(colors = CardDefaults.cardColors(containerColor = DakTheme.colors.warning.container, contentColor = DakTheme.colors.warning.content)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.onboarding_oem_title, oem.brand), style = MaterialTheme.typography.titleMedium)
-                    oem.steps.forEachIndexed { i, step -> Text("${i + 1}. $step", style = MaterialTheme.typography.bodyMedium) }
+                    oem.steps.forEachIndexed { i, step ->
+                        Text(stringResource(R.string.onboarding_oem_step, i + 1, stringResource(step)), style = MaterialTheme.typography.bodyMedium)
+                    }
                     OutlinedButton(onClick = onOemSettings) { Text(stringResource(R.string.onboarding_oem_button)) }
                 }
             }

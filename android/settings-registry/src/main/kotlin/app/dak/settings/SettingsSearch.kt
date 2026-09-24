@@ -15,6 +15,10 @@ data class SettingsSearchResult(
  * keywords, as the build plan's "Search first" principle asks for. Hidden rows ([SettingDef.visible]
  * false for the given [DeviceContext]) are excluded entirely; premium rows are included with
  * [SettingsSearchResult.locked] set so they still act as the free tier's sales page.
+ *
+ * Titles and summaries are matched as shown ([SettingsText], the app language) *and* in English: the English title
+ * counts like a keyword, so "OTP" or "backup" finds its row in any language. With [SettingsText.English] the two are
+ * the same and ranking is exactly the English-only ranking.
  */
 object SettingsSearch {
 
@@ -23,6 +27,7 @@ object SettingsSearch {
     /**
      * @param changedKeys keys the user has changed from default; those rows rank higher, per the
      *   "ranks rows the user has changed before higher" requirement.
+     * @param text the text rows are shown with (the app's localized labels); English by default.
      */
     fun search(
         query: String,
@@ -30,6 +35,7 @@ object SettingsSearch {
         entitlements: Entitlements,
         changedKeys: Set<String> = emptySet(),
         settings: List<SettingDef<*>> = DakSettings.all,
+        text: SettingsText = SettingsText.English,
     ): List<SettingsSearchResult> {
         val q = query.trim().lowercase()
         val visible = settings.filter { it.visible(deviceContext) }
@@ -38,7 +44,7 @@ object SettingsSearch {
         data class Scored(val result: SettingsSearchResult, val rank: Int, val distance: Int)
 
         val scored = visible.mapNotNull { def ->
-            val (rank, distance) = matchScore(q, def) ?: return@mapNotNull null
+            val (rank, distance) = matchScore(q, def, text) ?: return@mapNotNull null
             Scored(
                 SettingsSearchResult(def, def.group, def.key, def.isLocked(entitlements)),
                 rank,
@@ -52,25 +58,29 @@ object SettingsSearch {
                     { if (it.result.key in changedKeys) 0 else 1 },
                     { it.rank },
                     { it.distance },
-                    { it.result.def.title },
+                    { text.title(it.result.def) },
                 ),
             )
             .map { it.result }
     }
 
     /** Lower rank = better match; (rank, editDistance) so callers can sort with both. */
-    private fun matchScore(q: String, def: SettingDef<*>): Pair<Int, Int>? {
-        val title = def.title.lowercase()
-        val summary = def.summary.lowercase()
+    private fun matchScore(q: String, def: SettingDef<*>, text: SettingsText): Pair<Int, Int>? {
+        // lowercase() is locale-invariant (Locale.ROOT) in Kotlin: no Turkish dotless-i surprises.
+        val title = text.title(def).lowercase()
+        val summary = text.summary(def).lowercase()
+        // The English title and summary stay searchable in every language; the English title ranks like a keyword.
+        val englishTitle = def.title.lowercase()
+        val englishSummary = def.summary.lowercase()
         val keywords = def.keywords.map { it.lowercase() }
 
         if (title.startsWith(q)) return 0 to 0
-        if (keywords.any { it.startsWith(q) }) return 1 to 0
-        if (title.contains(q) || keywords.any { it.contains(q) }) return 2 to 0
-        if (summary.contains(q)) return 3 to 0
+        if (keywords.any { it.startsWith(q) } || englishTitle.startsWith(q)) return 1 to 0
+        if (title.contains(q) || englishTitle.contains(q) || keywords.any { it.contains(q) }) return 2 to 0
+        if (summary.contains(q) || englishSummary.contains(q)) return 3 to 0
 
         // Token-based fuzzy: any word in title/keywords within edit distance of the query.
-        val tokens = (title.split(Regex("\\s+")) + keywords.flatMap { it.split(Regex("\\s+")) })
+        val tokens = (title.split(Regex("\\s+")) + englishTitle.split(Regex("\\s+")) + keywords.flatMap { it.split(Regex("\\s+")) })
             .filter { it.isNotBlank() }
         val bestDistance = tokens.minOfOrNull { damerauLevenshtein(q, it) } ?: return null
         return if (bestDistance <= MAX_FUZZY_DISTANCE) 4 to bestDistance else null

@@ -11,12 +11,12 @@ object SwipeActions {
     const val PIN = "pin"
     const val NONE = "none"
 
-    /** Choice options in the order the settings dialog lists them. */
+    /** Choice options in the order the settings dialog lists them. Shared by both swipe rows: one label resource each. */
     val options: List<ChoiceOption> = listOf(
-        ChoiceOption(ARCHIVE, "Archive"),
-        ChoiceOption(DELETE, "Delete (move to bin)"),
-        ChoiceOption(MARK_READ, "Mark as read"),
-        ChoiceOption(PIN, "Pin or unpin"),
-        ChoiceOption(NONE, "Nothing"),
+        ChoiceOption(ARCHIVE, "Archive", labelKey = "swipe_action_archive"),
+        ChoiceOption(DELETE, "Delete (move to bin)", labelKey = "swipe_action_delete"),
+        ChoiceOption(MARK_READ, "Mark as read", labelKey = "swipe_action_mark_read"),
+        ChoiceOption(PIN, "Pin or unpin", labelKey = "swipe_action_pin"),
+        ChoiceOption(NONE, "Nothing", labelKey = "swipe_action_none"),
     )
 }

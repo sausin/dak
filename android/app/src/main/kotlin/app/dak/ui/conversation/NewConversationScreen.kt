@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
 import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
+import app.dak.telephony.FailureReasonText
 import app.dak.ui.ux.UxPrefsViewModel
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.DakTopAppBar
@@ -163,12 +164,14 @@ internal class ComposerStrings(
     private val scheduled: String,
     private val textOnly: String,
     private val emergencyRefused: String,
+    /** "Not sent (reason)" with the platform's reason code in the app language (FailureReasonText). */
+    private val sendFailedBecause: (String) -> String = { "$sendFailed ($it)" },
 ) {
     fun message(event: ComposerEvent): String = when (event) {
         is ComposerEvent.SendFailed -> when (event.problem) {
             SendProblem.NO_SIM -> noSim
             SendProblem.ATTACHMENT_TOO_LARGE, SendProblem.ATTACHMENT_UNREADABLE -> tooLarge
-            else -> if (event.detail.isNullOrBlank()) sendFailed else "$sendFailed (${event.detail})"
+            else -> event.detail?.takeIf { it.isNotBlank() }?.let(sendFailedBecause) ?: sendFailed
         }
         is ComposerEvent.Scheduled -> scheduled
         ComposerEvent.ScheduleTextOnly -> textOnly
@@ -183,6 +186,9 @@ internal class ComposerStrings(
             scheduled = context.getString(R.string.scr_snack_scheduled),
             textOnly = context.getString(R.string.scr_snack_schedule_text_only),
             emergencyRefused = context.getString(R.string.sched_emergency_refused),
+            sendFailedBecause = { detail ->
+                context.getString(R.string.scr_snack_send_failed_reason, FailureReasonText.resolve(context, detail))
+            },
         )
     }
 }

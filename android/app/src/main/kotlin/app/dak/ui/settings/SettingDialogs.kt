@@ -46,11 +46,11 @@ fun SettingEditorDialog(row: RowState, onDismiss: () -> Unit, onSave: (String) -
 private fun ChoiceDialog(row: RowState, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(row.def.title) },
+        title = { Text(row.title) },
         text = {
             Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
-                Text(row.def.summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
-                row.def.choiceOptions().forEach { option ->
+                Text(row.summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
+                row.options.forEach { (option, label) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -59,7 +59,7 @@ private fun ChoiceDialog(row: RowState, onDismiss: () -> Unit, onSave: (String) 
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(selected = option.value == row.raw, onClick = null)
-                        Text(option.label, modifier = Modifier.padding(start = 12.dp))
+                        Text(label, modifier = Modifier.padding(start = 12.dp))
                     }
                 }
             }
@@ -77,10 +77,10 @@ private fun SliderDialog(row: RowState, control: ControlType.Slider, onDismiss: 
     val stepsBetween = ((range.last - range.first) / step - 1).coerceAtLeast(0)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(row.def.title) },
+        title = { Text(row.title) },
         text = {
             Column {
-                Text(row.def.summary, style = MaterialTheme.typography.bodyMedium)
+                Text(row.summary, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     value.roundToInt().toString(),
                     style = MaterialTheme.typography.headlineSmall,
@@ -112,10 +112,10 @@ private fun TextDialog(row: RowState, onDismiss: () -> Unit, onSave: (String) ->
     var text by remember { mutableStateOf(row.raw) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(row.def.title) },
+        title = { Text(row.title) },
         text = {
             Column {
-                Text(row.def.summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
+                Text(row.summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
                 OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true)
             }
         },

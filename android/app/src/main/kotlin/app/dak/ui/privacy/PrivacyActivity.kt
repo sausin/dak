@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.dak.i18n.AppLocales
 import app.dak.security.AppLockManager
 import app.dak.settings.AppSettingsStore
 import app.dak.ui.lock.AppLockOverlay
@@ -43,6 +44,12 @@ class PrivacyActivity : FragmentActivity() {
 
     /** Which screen to open first. */
     enum class Start { HUB, POLICY, SHARING, EXPORT, DELETE }
+
+    /** App language below Android 13 (13+ applies it itself): docs/i18n.md, [app.dak.i18n.AppLocales]. */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        AppLocales.applyTo(this, newBase)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

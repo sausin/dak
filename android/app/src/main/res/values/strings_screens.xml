@@ -313,6 +313,8 @@
     <string name="scr_snack_schedule_text_only">Scheduled messages can only contain text</string>
     <string name="scr_snack_scheduled">Scheduled. See Automations → Scheduled sends.</string>
     <string name="scr_snack_send_failed">Not sent</string>
+    <!-- %1$s = why, from the phone or carrier, e.g. "No mobile service" (strings_failures.xml in core-telephony) -->
+    <string name="scr_snack_send_failed_reason">Not sent (%1$s)</string>
     <string name="scr_starred">Starred</string>
     <string name="scr_status_failed">Not sent · Tap to retry</string>
     <string name="scr_status_sending">Sending…</string>

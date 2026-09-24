@@ -7,6 +7,8 @@ import android.net.Uri
 import android.util.Log
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.MessageSender
 import app.dak.telephony.OutgoingMms
 import app.dak.telephony.OutgoingSms
@@ -77,9 +79,9 @@ class TelephonyMessageSender @Inject constructor(
     private val resumeLock = Mutex()
 
     override suspend fun sendSms(sms: OutgoingSms): SendResult {
-        if (sms.body.isEmpty()) return SendResult.Failed("Message is empty")
+        if (sms.body.isEmpty()) return SendResult.Failed(FailureReasons.encode(Failure.MESSAGE_EMPTY))
         val recipients = sms.addresses.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-        if (recipients.isEmpty()) return SendResult.Failed("No recipient")
+        if (recipients.isEmpty()) return SendResult.Failed(FailureReasons.encode(Failure.NO_RECIPIENT))
         val subId = resolveSubId(sms.subId)
         // The user's choice AND the carrier's `enableSMSDeliveryReports` (ReportPolicy).
         val deliveryReport = ReportPolicy.requestSmsDeliveryReport(
@@ -112,7 +114,7 @@ class TelephonyMessageSender @Inject constructor(
         return when {
             keys.isNotEmpty() -> SendResult.Queued(keys)
             emergencySent -> SendResult.Queued(emptyList())
-            else -> SendResult.Failed("Could not save the message; is Dak the default SMS app?")
+            else -> SendResult.Failed(FailureReasons.encode(Failure.SAVE_FAILED_NOT_DEFAULT))
         }
     }
 
@@ -132,15 +134,15 @@ class TelephonyMessageSender @Inject constructor(
             if (!kept) return SendResult.Failed(NOT_DEFAULT_REASON)
             Log.i(TAG, "not the default SMS app: send held until the role is back")
         } else if (emergencyRefused) {
-            return SendResult.Failed("The phone refused to send the emergency text")
+            return SendResult.Failed(FailureReasons.encode(Failure.EMERGENCY_REFUSED))
         }
         return SendResult.Queued(emptyList())
     }
 
     override suspend fun sendMms(mms: OutgoingMms): SendResult {
         val recipients = mms.addresses.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-        if (recipients.isEmpty()) return SendResult.Failed("No recipient")
-        if (mms.text.isNullOrEmpty() && mms.parts.isEmpty()) return SendResult.Failed("Message is empty")
+        if (recipients.isEmpty()) return SendResult.Failed(FailureReasons.encode(Failure.NO_RECIPIENT))
+        if (mms.text.isNullOrEmpty() && mms.parts.isEmpty()) return SendResult.Failed(FailureReasons.encode(Failure.MESSAGE_EMPTY))
         // MMS needs a provider row (the platform service reads the PDU we file); without the role there is none.
         if (!role.isDefaultNow()) return SendResult.Failed(NOT_DEFAULT_REASON)
         val subId = resolveSubId(mms.subId)
@@ -153,7 +155,7 @@ class TelephonyMessageSender @Inject constructor(
         scheduler.cancel(key)
         return when (key.kind) {
             MessageKind.SMS -> {
-                val row = loadSms(key.providerId) ?: return SendResult.Failed("Message not found")
+                val row = loadSms(key.providerId) ?: return SendResult.Failed(FailureReasons.encode(Failure.MESSAGE_NOT_FOUND))
                 // A resend after "not delivered" (or a completed report) asks for a fresh report, so the ticks
                 // restart instead of keeping the old outcome.
                 if (row.status != SmsColumns.STATUS_NONE && row.status != SmsColumns.STATUS_PENDING) {
@@ -345,7 +347,8 @@ class TelephonyMessageSender @Inject constructor(
     }
 
     private companion object {
-        const val NOT_DEFAULT_REASON = "Dak is not the default SMS app"
-        const val WAITING_REASON = "Waiting: Dak is not the default SMS app"
+        /** Encoded reasons (FailureReasons): shown in the app language by FailureReasonText. */
+        val NOT_DEFAULT_REASON: String = FailureReasons.encode(Failure.NOT_DEFAULT_APP)
+        val WAITING_REASON: String = FailureReasons.encode(Failure.WAITING_NOT_DEFAULT_APP)
     }
 }

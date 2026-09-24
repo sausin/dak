@@ -27,6 +27,7 @@
     <!-- %1$s = when it will be sent, e.g. "Tomorrow, 9:00 am" -->
     <string name="sch_strip_when">Scheduled · %1$s</string>
     <string name="sch_cancel">Cancel scheduled message</string>
+    <!-- %1$d = number of other scheduled messages in this conversation. -->
     <plurals name="sch_strip_more">
         <item quantity="one">%1$d more scheduled message</item>
         <item quantity="other">%1$d more scheduled messages</item>
@@ -51,6 +52,7 @@
     <string name="inc_snack_on">Incognito on · only your copy vanishes</string>
     <string name="inc_failed_first">Not sent. Try again, or delete it?</string>
     <string name="inc_failed_again">Still not sent. Keep it to try later, or delete it?</string>
+    <!-- %1$d = seconds left before the message is deleted. -->
     <plurals name="inc_failed_deletes_in">
         <item quantity="one">Deleted in %1$d second if you don\'t choose</item>
         <item quantity="other">Deleted in %1$d seconds if you don\'t choose</item>
@@ -74,6 +76,8 @@
     <string name="occ_kind_anniversaries">Anniversaries</string>
     <string name="occ_kind_other">Other dates</string>
     <string name="occ_other_date">Special day</string>
+    <!-- What {occasion} reads in a wish template when a contact's date has no label ("Happy special day, Anita!"). Lower case: it sits mid-sentence. -->
+    <string name="wish_fallback_occasion">special day</string>
     <string name="occ_edit_other_template">Other-date message</string>
     <string name="occ_add_date">Add a date</string>
     <!-- %1$s = contact name -->

@@ -1,5 +1,7 @@
 package app.dak.automations.birthdays
 
+import java.util.Locale
+
 /** A ready-made wish. [language] is a BCP-47 tag, for grouping in the picker. */
 public data class WishTemplate(val id: String, val language: String, val text: String)
 
@@ -43,12 +45,38 @@ public object WishTemplates {
     }
 
     /**
-     * Fills the placeholders. A blank [firstName] falls back to the first word of [name]; a blank [occasion] reads
-     * [FALLBACK_OCCASION] ("Happy special day"), and a label is lower-cased to sit mid-sentence ("Happy graduation").
+     * The preset a new user starts with for [kind] when the app runs in [languageTag] (BCP 47, e.g. "hi-IN"): the
+     * first preset whose language matches, preferring the most specific ("hi-Latn-IN" picks the "hi-Latn" preset,
+     * "hi-IN" the "hi" one); English otherwise. Only for templates the user has not chosen: a stored template is
+     * never replaced.
      */
-    public fun render(template: String, name: String, firstName: String?, age: Int? = null, occasion: String? = null): String {
+    public fun defaultFor(kind: OccasionKind, languageTag: String?): WishTemplate {
+        val presets = defaultsFor(kind)
+        val tag = languageTag?.trim()?.replace('_', '-')?.lowercase().orEmpty()
+        if (tag.isEmpty()) return presets.first()
+        return presets
+            .filter { val lang = it.language.lowercase(); tag == lang || tag.startsWith("$lang-") }
+            .maxByOrNull { it.language.length } // ties keep list order: maxBy returns the first maximum
+            ?: presets.first()
+    }
+
+    /**
+     * Fills the placeholders. A blank [firstName] falls back to the first word of [name]; a blank [occasion] reads
+     * [fallbackOccasion] ([FALLBACK_OCCASION], "Happy special day", unless the app passes its translation), and a
+     * label is lower-cased to sit mid-sentence ("Happy graduation") using [locale]'s case rules (Turkish "İ" → "i";
+     * [Locale.ROOT] by default).
+     */
+    public fun render(
+        template: String,
+        name: String,
+        firstName: String?,
+        age: Int? = null,
+        occasion: String? = null,
+        fallbackOccasion: String = FALLBACK_OCCASION,
+        locale: Locale = Locale.ROOT,
+    ): String {
         val first = firstName?.trim()?.takeIf { it.isNotEmpty() } ?: firstWord(name)
-        val label = occasion?.trim()?.takeIf { it.isNotEmpty() }?.lowercase() ?: FALLBACK_OCCASION
+        val label = occasion?.trim()?.takeIf { it.isNotEmpty() }?.lowercase(locale) ?: fallbackOccasion
         val values = mapOf("firstName" to first, "name" to name.trim(), "age" to (age?.toString() ?: ""), "occasion" to label)
         val out = StringBuilder(template.length + 16)
         var i = 0
@@ -67,7 +95,7 @@ public object WishTemplates {
         return out.toString().replace(Regex(" {2,}"), " ").replace(" ,", ",").replace(" !", "!").trim()
     }
 
-    /** What `{occasion}` reads when a date has no label of its own. */
+    /** What `{occasion}` reads when a date has no label of its own (English; the app passes its translation). */
     public const val FALLBACK_OCCASION: String = "special day"
 
     /** First word of a display name ("Dr. Anita Rao" → "Anita": a leading title is skipped). */

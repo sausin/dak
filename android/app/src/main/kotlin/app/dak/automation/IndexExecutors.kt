@@ -21,9 +21,14 @@ class IndexArchiver(
     override suspend fun archive(messageKey: String): UndoToken {
         val key = MessageKey.parse(messageKey) ?: error("bad message key $messageKey")
         conversations.setMessageArchived(key, true)
-        val token = UndoToken(messageKey, "archive", "Archived by \"$ruleName\"", clock() + AutomationUndoCenter.UNDO_WINDOW_MILLIS)
+        // English description for logs; the snackbar shows AutomationUndo.text (app language).
+        val token = UndoToken(messageKey, ACTION_TYPE, "Archived by \"$ruleName\"", clock() + AutomationUndoCenter.UNDO_WINDOW_MILLIS)
         undoCenter.register(token, ruleName) { conversations.setMessageArchived(key, false) }
         return token
+    }
+
+    companion object {
+        const val ACTION_TYPE = "archive"
     }
 }
 
@@ -41,8 +46,12 @@ class IndexBinner(
         val key = MessageKey.parse(messageKey) ?: error("bad message key $messageKey")
         val receipt = bin.moveToBin(listOf(key), DeletedBy.AutoRule(ruleName))
         check(receipt.failed.isEmpty()) { "could not move $messageKey to the bin" }
-        val token = UndoToken(messageKey, "delete", "Moved to bin by \"$ruleName\"", clock() + AutomationUndoCenter.UNDO_WINDOW_MILLIS)
+        val token = UndoToken(messageKey, ACTION_TYPE, "Moved to bin by \"$ruleName\"", clock() + AutomationUndoCenter.UNDO_WINDOW_MILLIS)
         undoCenter.register(token, ruleName) { bin.undo(receipt) }
         return token
+    }
+
+    companion object {
+        const val ACTION_TYPE = "delete"
     }
 }

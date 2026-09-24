@@ -12,6 +12,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.di.TelephonyEntryPoints
 import app.dak.telephony.internal.TAG
 import app.dak.telephony.internal.long
@@ -58,7 +60,7 @@ class OutboxRecovery @Inject constructor(
                     val id = c.long(SmsColumns.ID)
                     val values = ContentValues().apply { put(SmsColumns.TYPE, SmsColumns.TYPE_FAILED) }
                     runCatching { resolver.update(ProviderUris.sms(id), values, null, null) }
-                    failures.set(MessageKey(MessageKind.SMS, id), "Sending was interrupted; tap to retry")
+                    failures.set(MessageKey(MessageKind.SMS, id), FailureReasons.encode(Failure.SEND_INTERRUPTED))
                 }
             }
 
@@ -78,7 +80,7 @@ class OutboxRecovery @Inject constructor(
                     val id = c.long(MmsColumns.ID)
                     val values = ContentValues().apply { put(MmsColumns.MESSAGE_BOX, MmsColumns.BOX_FAILED) }
                     runCatching { resolver.update(ProviderUris.mms(id), values, null, null) }
-                    failures.set(MessageKey(MessageKind.MMS, id), "Sending was interrupted; tap to retry")
+                    failures.set(MessageKey(MessageKind.MMS, id), FailureReasons.encode(Failure.SEND_INTERRUPTED))
                 }
             }
         }

@@ -55,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -211,6 +212,7 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             is TemplateTarget.Default -> target.kind
             is TemplateTarget.Contact -> target.item.occasion.kind
         }
+        val languageTag = LocalConfiguration.current.locales[0]?.toLanguageTag()
         ModalBottomSheet(onDismissRequest = { templateTarget = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             TemplateEditor(
                 initial = initial,
@@ -218,7 +220,7 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 canReset = target is TemplateTarget.Contact,
                 onSave = { text ->
                     when (target) {
-                        is TemplateTarget.Default -> viewModel.setDefaultTemplate(target.kind, text.ifBlank { defaultFor(target.kind) })
+                        is TemplateTarget.Default -> viewModel.setDefaultTemplate(target.kind, text.ifBlank { defaultFor(target.kind, languageTag) })
                         is TemplateTarget.Contact -> viewModel.setContactTemplate(target.item, text)
                     }
                     templateTarget = null
@@ -244,7 +246,8 @@ fun BirthdaysScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     }
 }
 
-private fun defaultFor(kind: OccasionKind): String = WishTemplates.defaultsFor(kind).first().text
+/** The preset a cleared default template goes back to: the app language's (docs/i18n.md). */
+private fun defaultFor(kind: OccasionKind, languageTag: String?): String = WishTemplates.defaultFor(kind, languageTag).text
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

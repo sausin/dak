@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import app.dak.automation.OutboundAutomationGuard
 import app.dak.automations.birthdays.BirthdayDates
 import app.dak.automations.birthdays.OccasionKind
-import app.dak.automations.birthdays.WishTemplates
 import app.dak.birthdays.BirthdayScheduler
 import app.dak.birthdays.BirthdaySettings
 import app.dak.birthdays.BirthdayState
@@ -167,7 +166,7 @@ class BirthdaysViewModel @Inject constructor(
                 val age = if (o.kind == OccasionKind.BIRTHDAY) o.date.ageIn(date.year) else null
                 val number = config?.number ?: o.numbers.firstOrNull()?.number
                 val template = config?.template ?: st.settings.templateFor(o.kind)
-                UpcomingOccasion(o, config, days, date, age, number, WishTemplates.render(template, o.name, o.firstName, age, occasion = o.label))
+                UpcomingOccasion(o, config, days, date, age, number, store.renderWish(template, o.name, o.firstName, age, occasion = o.label))
             }
             .filter { it.daysUntil <= WINDOW_DAYS || it.enabled }
             .sortedWith(compareBy({ it.daysUntil }, { it.occasion.name }))

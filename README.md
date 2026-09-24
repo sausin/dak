@@ -395,6 +395,7 @@ count. Details: [`docs/testing.md`](docs/testing.md).
 | [`testing.md`](docs/testing.md) · [`device-test-plan.md`](docs/device-test-plan.md) | Coverage method, and step-by-step phone checks |
 | [`performance.md`](docs/performance.md) · [`battery.md`](docs/battery.md) | Measurements, method and rules for new code |
 | [`release.md`](docs/release.md) · [`play-submission.md`](docs/play-submission.md) | R8 and keep-rule audit, and the store checklist |
+| [`i18n.md`](docs/i18n.md) | App language, translatable settings text, formatting rules, translation workflow and checks |
 | [`ux-review.md`](docs/ux-review.md) | Reachability, gestures and accessibility review |
 
 Each Android module also has its own README with its public API (see [Module map](#module-map)).
@@ -573,7 +574,7 @@ pull request, about 1,800 unit tests, coverage floors, fuzzers and the adversari
       so the speedups must prove they change nothing.
 - [ ] **Close the corpus's `known-gap` lines**: real scams and edge cases today's detectors miss.
 - [ ] **App translations and a per-app language picker.** Messages in Hindi and other scripts are already handled.
-      The UI is English only today.
+      The UI ships in English today, with per-app language selection and translation checks in place ([i18n](docs/i18n.md)).
 - [ ] OTA template-bundle fetching (signature verification already exists), Safe Browsing lookups, crowd spam
       reports, a TRAI 1909 flow beyond a forward, and schedule-triggered rules.
 - [ ] Commit the Room schema JSON and write real migrations from then on, and use one stable recovery secret

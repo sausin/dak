@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ import app.dak.index.sync.BackgroundActivityLog
 import app.dak.navigation.DakNavigator
 import app.dak.notifications.ReliabilityCheck
 import app.dak.notifications.ReliabilityCheckId
+import app.dak.telephony.FailureReasonText
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.WarningBanner
 import app.dak.ui.theme.DakTheme
@@ -208,7 +210,10 @@ private fun SmsStatus(sms: SmsTestState) {
             ),
             color = if (sms.notificationPosted) DakTheme.colors.success.accent else MaterialTheme.colorScheme.error,
         )
-        is SmsTestState.Failed -> Text(stringResource(R.string.selftest_sms_failed, sms.reason), color = MaterialTheme.colorScheme.error)
+        is SmsTestState.Failed -> Text(
+            stringResource(R.string.selftest_sms_failed, FailureReasonText.resolve(LocalContext.current, sms.reason).orEmpty()),
+            color = MaterialTheme.colorScheme.error,
+        )
         SmsTestState.TimedOut -> Text(stringResource(R.string.selftest_sms_timeout), color = MaterialTheme.colorScheme.error)
     }
 }

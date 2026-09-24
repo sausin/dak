@@ -3,4 +3,22 @@
     <!-- Debug-only background activity log on the self-test screen (agent G "battery"). -->
     <string name="battery_activity_title">Background activity (debug)</string>
     <string name="battery_activity_explain">Process starts, jobs and reconciles per day. A heavy day (300 SMS) should stay well under one job per message.</string>
+    <!--
+        Onboarding: how to keep a phone maker's battery manager from killing Dak (SystemHelpers.OemGuidance).
+        Translators: the quoted names and menu paths are the phone's own settings screens. Use the wording that
+        phone shows in your language (check a device or the maker's help pages); keep "Dak" as is.
+    -->
+    <string name="oem_xiaomi_autostart">Open Security → Permissions → Autostart and turn Dak on.</string>
+    <string name="oem_xiaomi_battery_saver">In App info → Battery saver, choose \"No restrictions\".</string>
+    <string name="oem_xiaomi_lock_recents">In Recents, pull Dak down to lock it so it is not cleared.</string>
+    <string name="oem_oppo_battery_usage">In App info → Battery usage, allow background activity and auto launch.</string>
+    <string name="oem_oppo_optimise">Turn off \"Optimise battery use\" for Dak.</string>
+    <string name="oem_oppo_lock_recents">In Recents, lock Dak so it is not cleared.</string>
+    <string name="oem_vivo_autostart">Open i Manager → App manager → Autostart manager and allow Dak.</string>
+    <string name="oem_vivo_background_power">In Settings → Battery → Background power consumption, allow Dak.</string>
+    <string name="oem_samsung_sleeping_apps">In Settings → Battery → Background usage limits, make sure Dak is not in Sleeping or Deep sleeping apps.</string>
+    <string name="oem_samsung_never_sleeping">Add Dak to \"Never sleeping apps\".</string>
+    <string name="oem_huawei_app_launch">Open Settings → Battery → App launch, turn off \"Manage automatically\" for Dak and allow all three options.</string>
+    <!-- One numbered step in that list. %1$d = step number (1, 2, 3), %2$s = the step text above. -->
+    <string name="onboarding_oem_step">%1$d. %2$s</string>
 </resources>

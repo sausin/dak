@@ -9,6 +9,7 @@ import app.dak.automations.rule.conditionsCanMatchOtp
 import app.dak.automations.rule.isForwardingOrRelay
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.security.MessageDigest
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -67,7 +68,7 @@ class OtpForwardConfirmations @Inject constructor(
             ?.let { "|end:${it.endMillis ?: "open"}|otp:${conditionsCanMatchOtp(rule.conditions)}" }
             .orEmpty()
         val digest = MessageDigest.getInstance("SHA-256").digest((recipients + window).toByteArray(Charsets.UTF_8))
-        return digest.joinToString("") { "%02x".format(it) }
+        return digest.joinToString("") { "%02x".format(Locale.ROOT, it) }
     }
 
     private companion object {

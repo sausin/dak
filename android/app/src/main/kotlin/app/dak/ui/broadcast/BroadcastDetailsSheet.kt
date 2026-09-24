@@ -31,6 +31,7 @@ import app.dak.R
 import app.dak.broadcast.BroadcastDetails
 import app.dak.broadcast.CopyState
 import app.dak.broadcast.RecipientView
+import app.dak.telephony.FailureReasonText
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.relativeTime
 import app.dak.ui.conversation.DeliveryTick
@@ -128,7 +129,7 @@ private fun RecipientRow(view: RecipientView, onRetry: () -> Unit, onOpen: (() -
                 view.tick?.let { DeliveryTick(it) }
                 val state = stateText(view)
                 Text(
-                    listOfNotNull(state, view.failureReason).joinToString(" · "),
+                    listOfNotNull(state, FailureReasonText.resolve(LocalContext.current, view.failureReason)).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (view.state == CopyState.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )

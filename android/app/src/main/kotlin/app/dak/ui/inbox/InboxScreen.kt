@@ -159,7 +159,7 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 is InboxEvent.MarkedRead ->
                     snackbar.showSnackbar(context.resources.getQuantityString(R.plurals.ux_snack_marked_read, event.count, event.count))
                 is InboxEvent.Automation -> {
-                    val r = snackbar.showSnackbar(event.undo.token.description, undo, duration = SnackbarDuration.Short)
+                    val r = snackbar.showSnackbar(event.undo.text(context), undo, duration = SnackbarDuration.Short)
                     if (r == SnackbarResult.ActionPerformed) viewModel.undoAutomation(event.undo)
                 }
                 is InboxEvent.Folded -> {

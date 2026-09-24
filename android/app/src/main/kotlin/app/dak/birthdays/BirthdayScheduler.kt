@@ -5,7 +5,6 @@ import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.birthdays.BirthdayDates
 import app.dak.automations.birthdays.OccasionKind
 import app.dak.automations.birthdays.WishTag
-import app.dak.automations.birthdays.WishTemplates
 import app.dak.automations.safety.Addresses
 import app.dak.index.repo.ScheduledSendStatus
 import app.dak.index.repo.ScheduledSendStore
@@ -112,7 +111,7 @@ class BirthdayScheduler @Inject constructor(
             }
             val atMillis = next.toInstant().toEpochMilli()
             val tag = WishTag(settings.wishMode == WishMode.ASK, current.contactId, current.occasionKind, next.year).encode()
-            val body = WishTemplates.render(
+            val body = store.renderWish(
                 template = current.template?.takeIf { it.isNotBlank() } ?: settings.templateFor(current.occasionKind),
                 name = current.name,
                 firstName = current.firstName,

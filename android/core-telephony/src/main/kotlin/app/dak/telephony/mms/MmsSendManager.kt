@@ -17,6 +17,8 @@ import app.dak.mms.pdu.MmsSafety
 import app.dak.mms.pdu.NotifyRespInd
 import app.dak.mms.pdu.ResponseStatus
 import app.dak.mms.pdu.SendConf
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.OutgoingMmsPart
 import app.dak.telephony.SendResult
 import app.dak.telephony.SentDispatcher
@@ -33,6 +35,7 @@ import app.dak.telephony.send.RetryPolicy
 import app.dak.telephony.send.SendFailureStore
 import app.dak.telephony.send.SendScheduler
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +68,7 @@ class MmsSendManager @Inject constructor(
         requestDeliveryReport: Boolean = true,
     ): SendResult {
         val thread = threadId?.takeIf { it > 0 } ?: writer.threadIdFor(addresses.toSet()).takeIf { it > 0 }
-            ?: return SendResult.Failed("Could not open the conversation; is Dak the default SMS app?")
+            ?: return SendResult.Failed(FailureReasons.encode(Failure.CONVERSATION_FAILED_NOT_DEFAULT))
         val config = carrierConfig.forSubscription(subId)
         val req = MmsMessageBuilder.build(
             to = addresses,
@@ -80,17 +83,17 @@ class MmsSendManager @Inject constructor(
         val bytes = MmsPduEncoder.encode(req)
         val limit = maxMessageSize(subId)
         if (bytes.size > limit) {
-            return SendResult.Failed("Too large for this carrier: ${bytes.size / 1024} KB (limit ${limit / 1024} KB)")
+            return SendResult.Failed(FailureReasons.encode(Failure.MMS_TOO_LARGE_FOR_CARRIER, bytes.size / 1024, limit / 1024))
         }
         val id = persister.insertOutgoing(req, subId, thread, bytes.size)
-            ?: return SendResult.Failed("Could not save the message; is Dak the default SMS app?")
+            ?: return SendResult.Failed(FailureReasons.encode(Failure.SAVE_FAILED_NOT_DEFAULT))
         dispatch(id, bytes, subId, attempt = 1)
         return SendResult.Queued(listOf(MessageKey(MessageKind.MMS, id)))
     }
 
     /** Re-encodes a stored outgoing MMS from the provider and sends it again. */
     suspend fun resend(id: Long, attempt: Int): SendResult {
-        val (req, subId) = persister.loadOutgoing(id) ?: return SendResult.Failed("Message not found")
+        val (req, subId) = persister.loadOutgoing(id) ?: return SendResult.Failed(FailureReasons.encode(Failure.MESSAGE_NOT_FOUND))
         failures.clear(MessageKey(MessageKind.MMS, id))
         dispatch(id, MmsPduEncoder.encode(req), subId, attempt)
         return SendResult.Queued(listOf(MessageKey(MessageKind.MMS, id)))
@@ -121,7 +124,7 @@ class MmsSendManager @Inject constructor(
             }
         } else {
             val http = intent.getIntExtra(SmsManager.EXTRA_MMS_HTTP_STATUS, 0)
-            handleFailure(id, attempt, MmsResultCodes.describe(resultCode, http), MmsResultCodes.isRetryable(resultCode), null)
+            handleFailure(id, attempt, MmsResultCodes.reason(resultCode, http), MmsResultCodes.isRetryable(resultCode), null)
         }
     }
 
@@ -147,10 +150,10 @@ class MmsSendManager @Inject constructor(
                 val pi = PendingIntent.getBroadcast(context, file.name.hashCode(), intent, PendingIntentFlags.mutableResult)
                 SmsManagers.forSubscription(context, subId)
                     .sendMultimediaMessage(context, MmsFiles.contentUri(context, file), location, null, pi)
-                val status = (pdu as? NotifyRespInd)?.status?.let { " status 0x%02X".format(it) }.orEmpty()
-                Log.i(TAG, "MMS client PDU 0x%02X%s handed to the platform".format(pdu.messageType, status))
+                val status = (pdu as? NotifyRespInd)?.status?.let { " status 0x%02X".format(Locale.ROOT, it) }.orEmpty()
+                Log.i(TAG, "MMS client PDU 0x%02X%s handed to the platform".format(Locale.ROOT, pdu.messageType, status))
             } catch (e: Exception) {
-                Log.w(TAG, "MMS client PDU 0x%02X not sent: %s".format(pdu.messageType, e.javaClass.simpleName))
+                Log.w(TAG, "MMS client PDU 0x%02X not sent: %s".format(Locale.ROOT, pdu.messageType, e.javaClass.simpleName))
             }
         }
     }
@@ -176,7 +179,7 @@ class MmsSendManager @Inject constructor(
                 false
             }
         }
-        if (!started) handleFailure(id, attempt, MmsResultCodes.describe(MmsResultCodes.UNSPECIFIED), true, null)
+        if (!started) handleFailure(id, attempt, MmsResultCodes.reason(MmsResultCodes.UNSPECIFIED), true, null)
     }
 
     private suspend fun handleFailure(id: Long, attempt: Int, reason: String, retryable: Boolean, responseStatus: Int?) {

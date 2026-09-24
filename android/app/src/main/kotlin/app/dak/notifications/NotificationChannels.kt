@@ -95,6 +95,9 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
 
     @Volatile private var created = false
 
+    /** Language tag the channel names were last written in (see [onLocaleMaybeChanged]). */
+    @Volatile private var createdLocale: String? = null
+
     /** Slot → group label last applied, so repeated notifications skip the binder calls. */
     @Volatile private var simGroupsApplied: Map<Int, String> = emptyMap()
 
@@ -108,7 +111,7 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
             if (created) return
             val nm = manager ?: return
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val locale = Locale.getDefault().toLanguageTag()
+            val locale = currentLocaleTag()
             val schema = prefs.getInt(KEY_SCHEMA, 0)
             val existing = nm.notificationChannels.mapTo(HashSet()) { it.id }
             val complete = ChannelCatalog.all.all { it.id in existing }
@@ -127,9 +130,28 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
                 refreshSimChannelNames(nm)
                 prefs.edit().putInt(KEY_SCHEMA, SCHEMA).putString(KEY_LOCALE, locale).apply()
             }
+            createdLocale = locale
             created = true
         }
     }
+
+    /**
+     * Re-applies channel and group names when the language changed since [ensureCreated] ran in this process
+     * (system language change, or the app language: `DakApplication.onConfigurationChanged` / `AppLocales.set`).
+     * Without this the names stayed in the old language until the process restarted. Cheap when nothing changed.
+     */
+    fun onLocaleMaybeChanged() {
+        if (!created || createdLocale == currentLocaleTag()) return
+        synchronized(this) {
+            created = false
+            simGroupsApplied = emptyMap()
+        }
+        ensureCreated()
+    }
+
+    /** The language channel names are resolved in: the application resources' (app language when one is set). */
+    private fun currentLocaleTag(): String =
+        (context.resources.configuration.locales[0] ?: Locale.getDefault()).toLanguageTag()
 
     /**
      * Channel to post a message of base channel [baseId] (see [forCategory]) received on [subId]: the per-SIM copy

@@ -71,10 +71,10 @@ fun SettingRow(
             ),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         overlineContent = if (sectionLabel != null) { { Text(sectionLabel) } } else null,
-        headlineContent = { Text(row.def.title, modifier = Modifier.alpha(if (row.locked) 0.6f else 1f)) },
+        headlineContent = { Text(row.title, modifier = Modifier.alpha(if (row.locked) 0.6f else 1f)) },
         supportingContent = {
             Column(Modifier.alpha(if (row.locked) 0.6f else 1f)) {
-                Text(row.lockReason ?: row.def.summary, style = MaterialTheme.typography.bodyMedium)
+                Text(row.lockReason ?: row.summary, style = MaterialTheme.typography.bodyMedium)
                 val value = row.valueLabel
                 if (!row.locked && !isToggle && value != null) {
                     Text(value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)

@@ -1,0 +1,212 @@
+group|NOTIFICATIONS|Notifications
+group|CATEGORIES_SPAM|Categories and spam
+group|FINANCE|Finance
+group|SIMS_SENDING|SIMs and sending
+group|BACKUP_DATA|Backup, data and privacy
+group|AUTOMATIONS|Automations
+group|TRANSLATION|Translation
+title|notifications.perCategoryAlerts|Alerts per category
+summary|notifications.perCategoryAlerts|Choose which categories notify you, and how loudly.
+title|notifications.channels|Notification channels
+summary|notifications.channels|Channels per category and SIM, custom conversation channels, and reset.
+title|notifications.otpDisplaySize|OTP display size
+summary|notifications.otpDisplaySize|How large the code appears on the notification and lock screen.
+option|notifications.otpDisplaySize|normal|Normal
+option|notifications.otpDisplaySize|large|Large
+title|notifications.otpAutoCopy|Copy OTPs automatically
+summary|notifications.otpAutoCopy|Put a new code on the clipboard as it arrives, hidden from clipboard previews. Off: a Copy button instead.
+title|notifications.otpAutoDelete|OTP auto-delete
+summary|notifications.otpAutoDelete|Remove OTP messages automatically after they arrive.
+option|notifications.otpAutoDelete|1h|1 hour
+option|notifications.otpAutoDelete|24h|24 hours
+option|notifications.otpAutoDelete|off|Off
+title|notifications.consumedOtpHandling|Consumed OTP handling
+summary|notifications.consumedOtpHandling|How to notify for an OTP an app already read automatically.
+option|notifications.consumedOtpHandling|silentAutoDelete|Silent, auto-delete
+option|notifications.consumedOtpHandling|silentOnly|Silent only
+option|notifications.consumedOtpHandling|normal|Treat as normal
+title|notifications.consumedOtpWindowMinutes|Consumed OTP delete window
+summary|notifications.consumedOtpWindowMinutes|Minutes to wait before deleting a consumed OTP, so a retrying app can still fetch it.
+title|notifications.quickActions|Quick actions
+summary|notifications.quickActions|Show reply, archive and delete actions on notifications.
+title|notifications.selfTest|Notification self-test
+summary|notifications.selfTest|Send a test notification to check sound, heads-up and bubbles.
+title|notifications.soundPerSim|Sound per SIM
+summary|notifications.soundPerSim|Choose a different notification sound for each SIM.
+title|notifications.bubbles|Bubbles
+summary|notifications.bubbles|Show conversations as floating bubbles over other apps.
+title|notifications.lockScreenPrivacy|Lock-screen privacy
+summary|notifications.lockScreenPrivacy|How much of a message shows on the lock screen.
+option|notifications.lockScreenPrivacy|full|Full message
+option|notifications.lockScreenPrivacy|hideContent|Sender only
+option|notifications.lockScreenPrivacy|hideAll|Hide sender and message
+title|categoriesSpam.tabSet|Inbox tabs
+summary|categoriesSpam.tabSet|Choose which category tabs appear on the inbox.
+title|categoriesSpam.swipeRight|Swipe right on a conversation
+summary|categoriesSpam.swipeRight|What swiping a conversation to the right does in the inbox.
+option|categoriesSpam.swipeRight|archive|Archive
+option|categoriesSpam.swipeRight|delete|Delete (move to bin)
+option|categoriesSpam.swipeRight|markRead|Mark as read
+option|categoriesSpam.swipeRight|pin|Pin or unpin
+option|categoriesSpam.swipeRight|none|Nothing
+title|categoriesSpam.swipeLeft|Swipe left on a conversation
+summary|categoriesSpam.swipeLeft|What swiping a conversation to the left does in the inbox. Deleting offers undo.
+option|categoriesSpam.swipeLeft|archive|Archive
+option|categoriesSpam.swipeLeft|delete|Delete (move to bin)
+option|categoriesSpam.swipeLeft|markRead|Mark as read
+option|categoriesSpam.swipeLeft|pin|Pin or unpin
+option|categoriesSpam.swipeLeft|none|Nothing
+title|categoriesSpam.inboxOtpCopy|Copy code from the inbox
+summary|categoriesSpam.inboxOtpCopy|Show a "Copy code" button on conversations with an OTP from the last 10 minutes.
+title|categoriesSpam.senderMerges|Sender merges
+summary|categoriesSpam.senderMerges|Group different sender IDs for the same brand into one.
+title|categoriesSpam.blockList|Blocked numbers
+summary|categoriesSpam.blockList|The system block list, shared with the Phone app.
+title|categoriesSpam.autoArchivePromosDays|Auto-archive promotions
+summary|categoriesSpam.autoArchivePromosDays|Move promotional messages to Archive after this many days (0 = never).
+title|categoriesSpam.fakeCreditWarnings|Warn about fake credit alerts
+summary|categoriesSpam.fakeCreditWarnings|Flag "money credited" messages that don't come from your bank, and "sent by mistake, please return" requests. Turning this off hides the warnings; likely fakes still never count toward your balances.
+title|categoriesSpam.classifierConfidenceThreshold|Classifier confidence threshold
+summary|categoriesSpam.classifierConfidenceThreshold|How sure the on-device classifier must be before it files a message automatically.
+title|categoriesSpam.jevOptIn|Jev cloud classification
+summary|categoriesSpam.jevOptIn|Send an unclear message's sender and a masked copy to the cloud for a second opinion. Asks for your consent first. Uses a small amount of data.
+title|categoriesSpam.jevMonthlyCap|Jev monthly cap
+summary|categoriesSpam.jevMonthlyCap|Maximum messages sent to cloud classification per month.
+title|finance.accounts|Accounts and cards
+summary|finance.accounts|Manage the bank accounts and cards the ledger tracks.
+title|finance.homeCurrency|Home currency
+summary|finance.homeCurrency|Default currency (ISO code, e.g. INR, USD) for accounts whose SMS don't state one. Blank: from your SIM's country.
+title|finance.hideBalancesOnLock|Hide balances on lock screen
+summary|finance.hideBalancesOnLock|Mask account balances until the phone is unlocked.
+title|finance.ratesSource|Exchange rates source
+summary|finance.ratesSource|Where daily mid-market rates for foreign transactions come from.
+option|finance.ratesSource|ecb|ECB
+option|finance.ratesSource|openSource|Open source rates
+title|finance.reconciliationToleranceMinor|Reconciliation tolerance
+summary|finance.reconciliationToleranceMinor|How far a settlement amount may differ from the estimate and still match, in paise.
+title|simsSending.sim1.name|SIM 1 name
+summary|simsSending.sim1.name|Label shown for SIM 1 across the app.
+title|simsSending.sim1.color|SIM 1 colour
+summary|simsSending.sim1.color|Accent colour used for SIM 1's bubbles and chips.
+title|simsSending.sim2.name|SIM 2 name
+summary|simsSending.sim2.name|Label shown for SIM 2 across the app.
+title|simsSending.sim2.color|SIM 2 colour
+summary|simsSending.sim2.color|Accent colour used for SIM 2's bubbles and chips.
+title|simsSending.defaultReplySim|Default reply SIM
+summary|simsSending.defaultReplySim|Which SIM sends a reply when a thread has no SIM of its own yet.
+option|simsSending.defaultReplySim|sim1|SIM 1
+option|simsSending.defaultReplySim|sim2|SIM 2
+option|simsSending.defaultReplySim|ask|Ask each time
+title|simsSending.numberNormalization|Normalise numbers when sending
+summary|simsSending.numberNormalization|Send to the full +country-code number so replies work while roaming.
+title|simsSending.roamingWarnings|Roaming warnings
+summary|simsSending.roamingWarnings|Warn before a bulk or scheduled send while roaming, since SMS is billed differently.
+title|simsSending.costWarnings|Warn before costly SMS
+summary|simsSending.costWarnings|Ask before texting premium-rate or unknown short codes, international numbers, or while roaming abroad. Automations never send to premium-rate numbers you haven't approved.
+title|simsSending.enterToSend|Enter key sends
+summary|simsSending.enterToSend|The keyboard's Enter key sends the message instead of starting a new line.
+title|simsSending.deliveryReports|Delivery reports
+summary|simsSending.deliveryReports|Ask the carrier to confirm each message was delivered (MMS only where the carrier supports it). Uses a small amount of battery.
+title|simsSending.mmsReadReceipts|Read receipts for MMS
+summary|simsSending.mmsReadReceipts|When someone asks, tell them you have read their MMS, and ask for the same on MMS you send. Never sent to businesses or short codes. Only works where the carrier supports MMS read reports.
+title|simsSending.mmsDeliveryToSenders|Let senders see MMS delivery
+summary|simsSending.mmsDeliveryToSenders|Allow the carrier to tell someone that their MMS reached you. Turn off to keep that private.
+title|simsSending.sendRateSpreading|Send-rate spreading
+summary|simsSending.sendRateSpreading|Space out a large batch of sends to avoid carrier throttling.
+title|simsSending.exactAlarmPermission|Exact alarm permission
+summary|simsSending.exactAlarmPermission|Needed for scheduled sends to fire at the exact time you set.
+title|simsSending.broadcastLists|Broadcast lists
+summary|simsSending.broadcastLists|Send one message to up to 50 people you know, as separate SMS; replies come back 1:1. Personal use only: spam breaks Dak's terms and telecom rules.
+title|backupData.destination|Backup destination
+summary|backupData.destination|Where encrypted backups are stored (your own Drive or Dropbox).
+title|backupData.schedule|Backup schedule
+summary|backupData.schedule|How often an encrypted backup runs automatically.
+option|backupData.schedule|daily|Daily
+option|backupData.schedule|weekly|Weekly
+option|backupData.schedule|manual|Manual only
+title|backupData.encryptionKeyRecovery|Encryption key and recovery code
+summary|backupData.encryptionKeyRecovery|View or regenerate the key and code that unlock your backups.
+title|backupData.export|Export
+summary|backupData.export|Save messages and settings to an open file format.
+title|backupData.import|Import
+summary|backupData.import|Restore messages and settings from a backup file.
+title|backupData.otpBinRetention|OTP bin retention
+summary|backupData.otpBinRetention|How long a deleted OTP stays in the recycle bin before it is purged for good.
+option|backupData.otpBinRetention|shorter|Shorter than a day
+option|backupData.otpBinRetention|1day|1 day
+option|backupData.otpBinRetention|longer|Longer than a day
+option|backupData.otpBinRetention|untilEmptied|Until I empty it
+title|backupData.otherBinRetentionDays|Recycle bin retention
+summary|backupData.otherBinRetentionDays|How long other deleted messages stay in the recycle bin.
+title|backupData.binBiometricLock|Lock the recycle bin
+summary|backupData.binBiometricLock|Require a fingerprint or face check to open the recycle bin.
+title|backupData.binExcludedFromBackup|Exclude bin from backup
+summary|backupData.binExcludedFromBackup|Never include the recycle bin's contents (often recent OTPs) in backups.
+title|privacy.center|Privacy
+summary|privacy.center|Privacy policy, what can leave your phone and your choices, export or delete your Dak data.
+title|privacy.policy|Privacy policy
+summary|privacy.policy|What Dak does with your data, in plain language. Works offline.
+title|privacy.dataSharing|Data that leaves your phone
+summary|privacy.dataSharing|Everything that could send data off the phone is off until you allow it. See or withdraw your choices.
+title|privacy.exportMyData|Export my Dak data
+summary|privacy.exportMyData|Save your settings, rules, run history, accounts and ledger to a file you choose.
+title|privacy.deleteMyData|Delete my Dak data
+summary|privacy.deleteMyData|Erase everything Dak stores on this phone. Your SMS stay in the phone's message store.
+title|privacy.appLock|App lock
+summary|privacy.appLock|Ask for your fingerprint, face or PIN to open Dak: your phone's screen lock or a separate app PIN.
+option|privacy.appLock|off|Off
+option|privacy.appLock|device|Phone screen lock
+option|privacy.appLock|appPin|App PIN
+title|privacy.autoLockAfter|Auto-lock
+summary|privacy.autoLockAfter|How long Dak can stay in the background before it asks again.
+option|privacy.autoLockAfter|immediately|Immediately
+option|privacy.autoLockAfter|30s|After 30 seconds
+option|privacy.autoLockAfter|1m|After 1 minute
+option|privacy.autoLockAfter|5m|After 5 minutes
+option|privacy.autoLockAfter|15m|After 15 minutes
+title|privacy.lockOnScreenOff|Lock when the screen turns off
+summary|privacy.lockOnScreenOff|Lock Dak as soon as the screen goes off, whatever the auto-lock time.
+title|privacy.hideInRecents|Hide content in Recents
+summary|privacy.hideInRecents|Blank Dak's preview in the recent-apps list. This also blocks screenshots of Dak.
+option|privacy.hideInRecents|whenLockOn|When app lock is on
+option|privacy.hideInRecents|always|Always
+option|privacy.hideInRecents|never|Never
+title|privacy.protectSensitiveScreens|Protect sensitive screens
+summary|privacy.protectSensitiveScreens|Ask to unlock before opening the recycle bin, passbook, backup, automations and forwarding, even with app lock off.
+title|backupData.indexSchedule|Index schedule
+summary|backupData.indexSchedule|When the encrypted search index rebuilds itself.
+option|backupData.indexSchedule|now|Now
+option|backupData.indexSchedule|plugged|When plugged in
+option|backupData.indexSchedule|tonight|Tonight
+title|backupData.rebuildIndex|Rebuild index now
+summary|backupData.rebuildIndex|Rebuild the search index from the Telephony provider. May take a few minutes.
+title|automations.rulesList|Rules
+summary|automations.rulesList|Automation rules that file, archive or forward messages for you.
+title|automations.scheduledSends|Scheduled sends
+summary|automations.scheduledSends|Messages queued to send at a later time.
+title|automations.scheduledHeadsUp|Heads-up before scheduled messages
+summary|automations.scheduledHeadsUp|A notification shortly before a scheduled message or automatic birthday wish goes out, with Send now, Delay and Cancel. Automatic birthday wishes sent later in the day also get a morning heads-up.
+option|automations.scheduledHeadsUp|off|Off
+option|automations.scheduledHeadsUp|5|5 minutes before
+option|automations.scheduledHeadsUp|15|15 minutes before
+option|automations.scheduledHeadsUp|60|1 hour before
+title|automations.forwarding|Auto-forwarding
+summary|automations.forwarding|Forward chosen senders to someone for a period, e.g. bank alerts to your CA. Free: sent from your own SIM.
+title|automations.birthdayWishes|Birthday wishes
+summary|automations.birthdayWishes|Birthdays from your contacts, with a wish sent or suggested on the day.
+title|automations.webhooks|Webhooks
+summary|automations.webhooks|Send a signed HTTP request when a rule fires.
+title|automations.sendApiKeys|Send API keys
+summary|automations.sendApiKeys|Keys that let your own services ask this phone to send an SMS.
+title|automations.auditLog|Automation audit log
+summary|automations.auditLog|Every automated action, with the rule that caused it.
+title|translation.languages|Languages
+summary|translation.languages|Languages you read, so anything else offers to translate.
+title|translation.autoTranslateRules|Auto-translate rules
+summary|translation.autoTranslateRules|Automatically translate messages from a chosen sender or language.
+title|translation.downloadedPacks|Downloaded language packs
+summary|translation.downloadedPacks|On-device ML Kit packs. Larger packs use more storage.
+title|translation.freeTasterPack|Try one language free
+summary|translation.freeTasterPack|Download and use one translation language pack without upgrading.
+title|translation.packStorageLocation|Pack storage location
+summary|translation.packStorageLocation|Where downloaded language packs are stored on device.

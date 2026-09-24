@@ -1,5 +1,8 @@
 package app.dak.telephony.sms
 
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReason
+
 /**
  * Result codes delivered to SMS sent PendingIntents (`SmsManager.RESULT_*`; `Activity.RESULT_OK` = -1 is
  * success). Literals keep this JVM-testable and independent of the constants' API levels.
@@ -42,29 +45,34 @@ internal object SmsResultCodes {
         else -> false
     }
 
-    fun describe(code: Int): String = when (code) {
-        RESULT_OK -> "Sent"
-        GENERIC_FAILURE -> "Sending failed"
-        RADIO_OFF -> "Mobile radio is off (airplane mode or the other SIM is busy)"
-        NULL_PDU -> "The message could not be encoded"
-        NO_SERVICE -> "No mobile service"
-        LIMIT_EXCEEDED -> "Too many messages sent; waiting before retrying"
-        FDN_CHECK_FAILURE -> "Blocked by Fixed Dialing Numbers"
-        SHORT_CODE_NOT_ALLOWED, SHORT_CODE_NEVER_ALLOWED -> "Sending to this short code is not allowed"
-        RADIO_NOT_AVAILABLE -> "Mobile radio is not available"
-        NETWORK_REJECT -> "The network rejected the message"
-        INVALID_ARGUMENTS, INVALID_SMS_FORMAT, ENCODING_ERROR -> "The message could not be sent in this format"
-        INVALID_SMSC_ADDRESS -> "The SIM's message centre number is invalid"
-        OPERATION_NOT_ALLOWED -> "Sending is not allowed right now"
-        CANCELLED -> "Sending was cancelled"
-        REQUEST_NOT_SUPPORTED -> "Sending is not supported on this SIM"
-        MODEM_ERROR, SYSTEM_ERROR, INTERNAL_ERROR, NO_MEMORY, NO_RESOURCES, INVALID_STATE -> "Temporary phone error"
-        NETWORK_ERROR -> "Network error"
-        else -> "Sending failed (code $code)"
+    /** What [code] means, for the UI (see [app.dak.telephony.FailureReasonText]). */
+    fun failureOf(code: Int): FailureReason = when (code) {
+        RESULT_OK -> FailureReason(Failure.SMS_SENT)
+        GENERIC_FAILURE -> FailureReason(Failure.SMS_FAILED)
+        RADIO_OFF -> FailureReason(Failure.SMS_RADIO_OFF)
+        NULL_PDU -> FailureReason(Failure.SMS_NOT_ENCODED)
+        NO_SERVICE -> FailureReason(Failure.SMS_NO_SERVICE)
+        LIMIT_EXCEEDED -> FailureReason(Failure.SMS_LIMIT_EXCEEDED)
+        FDN_CHECK_FAILURE -> FailureReason(Failure.SMS_FDN_BLOCKED)
+        SHORT_CODE_NOT_ALLOWED, SHORT_CODE_NEVER_ALLOWED -> FailureReason(Failure.SMS_SHORT_CODE_NOT_ALLOWED)
+        RADIO_NOT_AVAILABLE -> FailureReason(Failure.SMS_RADIO_NOT_AVAILABLE)
+        NETWORK_REJECT -> FailureReason(Failure.SMS_NETWORK_REJECT)
+        INVALID_ARGUMENTS, INVALID_SMS_FORMAT, ENCODING_ERROR -> FailureReason(Failure.SMS_BAD_FORMAT)
+        INVALID_SMSC_ADDRESS -> FailureReason(Failure.SMS_INVALID_SMSC)
+        OPERATION_NOT_ALLOWED -> FailureReason(Failure.SMS_NOT_ALLOWED)
+        CANCELLED -> FailureReason(Failure.SMS_CANCELLED)
+        REQUEST_NOT_SUPPORTED -> FailureReason(Failure.SMS_NOT_SUPPORTED)
+        MODEM_ERROR, SYSTEM_ERROR, INTERNAL_ERROR, NO_MEMORY, NO_RESOURCES, INVALID_STATE -> FailureReason(Failure.SMS_TEMPORARY_ERROR)
+        NETWORK_ERROR -> FailureReason(Failure.SMS_NETWORK_ERROR)
+        else -> FailureReason(Failure.SMS_UNKNOWN_CODE, listOf(code))
     }
 
+    /** English text for [code] (logs, tests). The stored/displayed form is [failureOf]`.encode()`. */
+    fun describe(code: Int): String = failureOf(code).english()
+
     /** Reason for a multipart SMS of which only [sentParts] of [partCount] parts went out. */
-    fun describePartial(sentParts: Int, partCount: Int): String =
-        "Only $sentParts of $partCount parts were sent. Retrying sends the whole message again, " +
-            "so the recipient may see some of it twice"
+    fun partial(sentParts: Int, partCount: Int): FailureReason = FailureReason(Failure.SMS_PARTIAL, listOf(sentParts, partCount))
+
+    /** English text of [partial]. */
+    fun describePartial(sentParts: Int, partCount: Int): String = partial(sentParts, partCount).english()
 }

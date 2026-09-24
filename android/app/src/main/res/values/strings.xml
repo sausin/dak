@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Dak</string>
+    <!-- Brand name, not translated (launcher label, notifications). -->
+    <string name="app_name" translatable="false">Dak</string>
 
     <!-- Common actions -->
     <string name="action_back">Back</string>
@@ -27,6 +28,7 @@
     <string name="category_spam">Spam</string>
     <string name="category_other">Other</string>
     <string name="premium">Premium</string>
+    <!-- Short SIM label on chips. %1$s = slot number ("1", "2"). -->
     <string name="sim_n">SIM %1$s</string>
 
     <!-- Relative time -->
@@ -68,6 +70,7 @@
     <string name="action_reply">Reply</string>
     <string name="action_reply_hint">Reply by SMS</string>
     <string name="otp_in_call_warning">You are on a call. Never share this code with the caller: banks and apps never ask for it.</string>
+    <!-- Under a one-time code another app already read. %1$s = that app's name. -->
     <string name="otp_used_by">Used by %1$s</string>
     <!-- Next to the large code on the OTP notification, once it is on the clipboard. -->
     <string name="otp_copied">Copied</string>
@@ -80,6 +83,7 @@
     <string name="notification_photo">Photo</string>
     <string name="notification_attachment">Attachment</string>
     <string name="clip_label_code">Verification code</string>
+    <!-- Toast after copying. %1$s = the copied code, or the word for "message" when it is sensitive. -->
     <string name="toast_code_copied">Copied %1$s</string>
     <string name="toast_delete_failed">Could not delete yet. Try again from the conversation.</string>
     <string name="toast_reply_failed">Reply not sent. Open the conversation to retry.</string>
@@ -117,10 +121,15 @@
     <string name="selftest_sms_explain">Sends one SMS to your own number and times how long it takes to arrive and notify. Your carrier may charge a normal SMS rate.</string>
     <string name="selftest_own_number">Your number</string>
     <string name="selftest_sms_button">Send test SMS</string>
+    <!-- Body of the test SMS sent to the user's own number. %1$s = a random code Dak looks for to recognise it: keep it. -->
+    <string name="selftest_sms_body">Dak self-test %1$s. If you see this as a notification, delivery works.</string>
     <string name="selftest_sms_sending">Sending…</string>
     <string name="selftest_sms_waiting">Sent. Waiting for it to arrive…</string>
+    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
     <string name="selftest_sms_received">Received and notified in %1$d s. Delivery works.</string>
+    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
     <string name="selftest_sms_received_no_notification">Received in %1$d s, but the notification was blocked.</string>
+    <!-- %1$s = why sending failed, from the phone or carrier (core-telephony strings_failures.xml). -->
     <string name="selftest_sms_failed">Could not send: %1$s</string>
     <string name="selftest_sms_timeout">Nothing arrived within 2 minutes. Check the number, or try the other SIM.</string>
     <string name="selftest_sms_carrier_note">Some carriers delay or drop messages sent to yourself; a timeout here does not always mean a problem with Dak.</string>
@@ -128,9 +137,11 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_search_hint">Search settings</string>
+    <!-- %1$s = what the user typed in the settings search box. -->
     <string name="settings_no_results">No settings match \"%1$s\"</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_reset_group">Reset to defaults</string>
+    <!-- %1$s = name of a settings section, e.g. "Notifications". -->
     <string name="settings_reset_title">Reset %1$s?</string>
     <string name="settings_reset_body">Every setting in this section goes back to its default. Your messages are not affected.</string>
     <string name="settings_action_unavailable">Not available in this version yet</string>
@@ -182,6 +193,7 @@
     <string name="onboarding_battery_body">Let Dak run in the background so new messages always notify. Your phone\'s battery settings will open: find Dak there and turn off battery optimisation.</string>
     <string name="onboarding_battery_done">Done: Dak is allowed to run in the background.</string>
     <string name="onboarding_battery_button">Open battery settings</string>
+    <!-- %1$s = phone brand as printed on the phone, e.g. "Xiaomi" (not translated). -->
     <string name="onboarding_oem_title">Extra step on %1$s phones</string>
     <string name="onboarding_oem_button">Open settings</string>
     <string name="onboarding_selftest_hint">You can check everything later in Settings → Notifications → Notification self-test.</string>

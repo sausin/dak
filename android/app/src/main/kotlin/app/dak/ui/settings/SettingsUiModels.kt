@@ -10,7 +10,10 @@ import app.dak.settings.SettingsGroup
 /** Id of the app-declared Appearance section (registry groups use [SettingsGroup.name]). */
 const val APPEARANCE_SECTION = "appearance"
 
-/** One rendered row. [raw] is the stored string form; [valueLabel] is what the row shows inline. */
+/**
+ * One rendered row. [raw] is the stored string form; [valueLabel] is what the row shows inline. [title], [summary]
+ * and [options] are in the app language ([SettingsLabels]); [def] keeps the English literals and the behaviour.
+ */
 data class RowState(
     val def: SettingDef<*>,
     val raw: String,
@@ -19,6 +22,10 @@ data class RowState(
     /** One-line reason shown on locked rows. */
     val lockReason: String?,
     val changed: Boolean,
+    val title: String = def.title,
+    val summary: String = def.summary,
+    /** Choice options with their display labels, in dialog order (empty for other controls). */
+    val options: List<Pair<ChoiceOption, String>> = def.choiceOptions().map { it to it.label },
 ) {
     val key: String get() = def.key
 }
@@ -35,7 +42,7 @@ data class SectionState(
         get() = rows.asSequence()
             .filter { !it.locked && it.def.control !is ControlType.Action && it.valueLabel != null }
             .take(3)
-            .joinToString(" · ") { "${it.def.title}: ${it.valueLabel}" }
+            .joinToString(" · ") { "${it.title}: ${it.valueLabel}" }
 }
 
 data class SearchHit(val row: RowState, val sectionId: String, val sectionTitle: String)
@@ -52,26 +59,34 @@ data class SettingsUiState(
 internal fun sectionIdOf(def: SettingDef<*>, isAppearance: Boolean): String =
     if (isAppearance) APPEARANCE_SECTION else def.group.name
 
-/** Inline label for a stored value. */
-internal fun valueLabel(def: SettingDef<*>, raw: String): String? = when (val control = def.control) {
-    is ControlType.Toggle -> if (raw.toBooleanStrictOrNull() == true) "On" else "Off"
-    is ControlType.SingleChoice -> control.options.firstOrNull { it.value == raw }?.label ?: raw
+/** Inline label for a stored value, in the language of [labels]. */
+internal fun valueLabel(def: SettingDef<*>, raw: String, labels: SettingsLabels = SettingsLabels.English): String? = when (val control = def.control) {
+    is ControlType.Toggle -> labels.onOff(raw.toBooleanStrictOrNull() == true)
+    is ControlType.SingleChoice -> control.options.firstOrNull { it.value == raw }?.let { labels.option(def, it) } ?: raw
     is ControlType.Slider -> raw
     is ControlType.Text -> raw.ifBlank { null }
     is ControlType.Action -> null
 }
 
-internal fun rowState(def: SettingDef<*>, raw: Map<String, String>, locked: Boolean): RowState {
+internal fun rowState(
+    def: SettingDef<*>,
+    raw: Map<String, String>,
+    locked: Boolean,
+    labels: SettingsLabels = SettingsLabels.English,
+): RowState {
     val default = AppSettingsStore.serializedDefault(def)
     val value = raw[def.key] ?: default
     val tier = def.tier
     return RowState(
         def = def,
         raw = value,
-        valueLabel = valueLabel(def, value),
+        valueLabel = valueLabel(def, value, labels),
         locked = locked,
-        lockReason = if (locked && tier is SettingTier.Premium) tier.feature.summary else null,
+        lockReason = if (locked && tier is SettingTier.Premium) labels.feature(tier.feature) else null,
         changed = raw[def.key] != null && raw[def.key] != default,
+        title = labels.title(def),
+        summary = labels.summary(def),
+        options = def.choiceOptions().map { it to labels.option(def, it) },
     )
 }
 

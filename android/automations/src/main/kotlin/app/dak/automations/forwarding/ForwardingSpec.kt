@@ -6,6 +6,7 @@ import app.dak.automations.rule.Rule
 import app.dak.automations.rule.Trigger
 import app.dak.automations.rule.otpExclusion
 import app.dak.automations.rule.topLevelConjuncts
+import app.dak.automations.safety.ForwardLoopGuard
 import app.dak.core.model.Category
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -150,7 +151,23 @@ public data class ForwardingSpec(
     }
 
     public companion object {
+        /**
+         * The English default ("Fwd from {sender}: {body}"). Rules store their template, so existing rules keep it;
+         * new rules get the app language's translation via [defaultTemplate]. Never change this text: the loop
+         * guard recognises forwards made with it ([app.dak.automations.safety.ForwardLoopGuard.DEFAULT_MARKER]).
+         */
         public const val DEFAULT_TEMPLATE: String = "Fwd from {sender}: {body}"
+
+        /**
+         * The default template for new rules given the app's [translated] one: used when it still carries `{body}`
+         * and a literal lead long enough to mark a forward (so the loop guard can recognise it), else the English
+         * [DEFAULT_TEMPLATE]. A broken translation can therefore never forward an empty or unmarked message.
+         */
+        public fun defaultTemplate(translated: String?): String {
+            val t = translated?.trim().orEmpty()
+            val ok = "{body}" in t && ForwardLoopGuard.templatePrefix(t) != null
+            return if (ok) t else DEFAULT_TEMPLATE
+        }
         public const val META_KIND: String = "kind"
         public const val KIND_FORWARDING: String = "forwarding"
         private const val META_SOURCES = "forwarding.sources"

@@ -41,6 +41,12 @@ public class LookalikeDomainChecker(
             return LinkVerdict(link, LinkRisk.OFFICIAL, matchedBrand = domainToBrand[host])
         }
 
+        // "sbi.co.in.account-verify.example", "irctc.co.in-refund.example": an official domain spelled out at the start
+        // of (or inside) another host, which the reader takes for the real one.
+        embeddedOfficialBrand(host)?.let { brand ->
+            return LinkVerdict(link, LinkRisk.LOOKALIKE, matchedBrand = brand)
+        }
+
         lookalikeBrand(host)?.let { brand ->
             return LinkVerdict(link, LinkRisk.LOOKALIKE, matchedBrand = brand)
         }
@@ -89,6 +95,11 @@ public class LookalikeDomainChecker(
     private val skeletonOfficialLabels: List<Pair<String, String>> by lazy {
         officialLabels.map { (label, brand) -> Confusables.looseSkeleton(label) to brand }
     }
+
+    /** The brand of an official domain that starts [host] or one of its labels and is followed by `.` or `-`. */
+    private fun embeddedOfficialBrand(host: String): String? = domainToBrand.entries.firstOrNull { (domain, _) ->
+        host.startsWith("$domain.") || host.startsWith("$domain-") || host.contains(".$domain.") || host.contains(".$domain-")
+    }?.value
 
     private fun isOfficial(host: String): Boolean =
         domainToBrand.containsKey(host) || domainToBrand.keys.any { host.endsWith(".$it") }

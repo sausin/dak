@@ -1,0 +1,39 @@
+# United States: toll and DMV smishing, USPS / UPS / FedEx fees, IRS refunds, bank "fraud alert" callbacks, Zelle
+# and Cash App bait, job and wrong-number openers; and genuine short-code bank alerts, OTPs and carrier updates.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=US
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- toll / DMV / fines
+us-toll-01	+12025550111	scam,link-warning	toll,ezpass	E-ZPass: You have an unpaid toll balance of $6.99. To avoid a late fee of $50.00 please settle by 09/28: https://ezpass-ny-toll.xyz/pay
+us-toll-02	+13105550112	scam,link-warning	toll	The Toll Roads: FINAL NOTICE. Unpaid toll $4.15. Pay now to avoid a DMV registration hold: https://thetollroads-payment.com/ca
+us-toll-03	+17135550113	scam,link-warning	toll,txtag	TxTag: Our records show your vehicle has an outstanding toll of $3.75. Pay within 12 hours to avoid penalties: https://txtag-billing.top
+us-dmv-01	+19175550114	scam	dmv	NY DMV: Your driver's license will be suspended on 09/30 due to unpaid traffic violations. Resolve now at https://dmv-ny-gov.us-services.com
+
+# ---------------------------------------------------------------- parcels
+us-pkg-01	+14155550115	scam,link-warning	usps,parcel	USPS: Your package is on hold due to an incomplete address. Please update within 24 hours: https://usps-redelivery.top/us
+us-pkg-02	+14155550116	scam	usps,parcel	USPS: The package arrived at the warehouse but could not be delivered due to incomplete address information. Please confirm your address in the link: https://usps.com-trackrd.vip/us
+us-pkg-03	+16465550117	scam,link-warning	ups,parcel,fee	UPS: Your parcel 1Z77A0 requires a $1.99 redelivery fee. Pay now or it will be returned to sender: https://ups-redeliver.info/fee
+
+# ---------------------------------------------------------------- IRS / benefits
+us-irs-01	+12025550118	scam	irs,tax-refund	IRS: You are eligible for a tax refund of $1,284.50. Submit your details to claim it: https://irs-gov-refund.info/claim
+us-irs-02	+12025550119	scam	irs,threat,known-gap	IRS Notice: A lawsuit has been filed against you for unpaid taxes. Call the IRS officer at +1 202 555 0120 today to avoid arrest.
+
+# ---------------------------------------------------------------- banks / P2P
+us-bank-01	+18005550121	scam,link-warning	bank,fraud-alert	Chase Fraud Alert: Did you attempt a purchase of $1,249.99 at Walmart? If NO, secure your account at https://chase-secure-verify.xyz
+us-bank-02	+13125550122	scam	bank,callback,known-gap	Wells Fargo: Your debit card has been temporarily locked due to suspicious activity. Call us at 312-555-0123 to unlock it.
+us-p2p-01	+13125550124	fake-credit,scam	zelle,collect	Zelle: You have received $500.00 from Mark T. Tap the link to accept the payment into your bank account: https://zelle-accept.top/r
+us-p2p-02	+13125550125	scam	cashapp,advance-fee,known-gap	Cash App: $750 has been sent to you but is pending. To release the funds, upgrade to a business account for $50 first.
+
+# ---------------------------------------------------------------- jobs / wrong number
+us-job-01	+15125550126	scam	job	Hi, this is Emily from Indeed recruiting. We have a remote part-time job, $300-$500 a day, 60-90 minutes. Reply YES for details.
+us-wrong-01	+15125550127	scam	wrong-number,pig-butchering,known-gap	Hey Jessica, are we still on for golf this Sunday? Let me know soon 🙂
+
+# ---------------------------------------------------------------- BENIGN look-alikes
+us-ok-01	24273	not-scam,no-fake-credit	benign,bank-alert,short-code	Chase: A $42.17 debit card transaction to STARBUCKS on 09/23/2026 was approved. Reply STOP to cancel alerts.
+us-ok-02	24273	not-scam,otp:402918	benign,otp	Chase: Your one-time code is 402918. Don't share it. We'll never call you to ask for it.
+us-ok-03	Chase	not-scam,no-fake-credit	benign,deposit	Chase: A direct deposit of $2,350.00 was credited to your account ending in 1234 on 09/23.
+us-ok-04	28777	not-scam,no-link-warning	benign,usps	USPS: Your item was delivered in or at the mailbox at 2:14 pm on September 23 in AUSTIN, TX 78701.
+us-ok-05	+15125550128	not-scam	benign,personal,contact	I sent you $40 on Venmo for the pizza, thanks!
+us-ok-06	69525	not-scam	benign,ups	UPS: Your package 1Z999AA10123456784 is out for delivery today. Track at https://www.ups.com/track
+us-ok-07	+15125550129	not-scam	benign,personal	Can you send me the $20 for the tickets when you get a chance? No rush

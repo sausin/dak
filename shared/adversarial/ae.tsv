@@ -1,0 +1,28 @@
+# United Arab Emirates (English and Arabic): bank card suspension, Emirates Post parcels, Salik / RTA / police fines,
+# ICP visa and Emirates ID, prize and job scams; and genuine bank alerts and OTPs, including Arabic-Indic digits.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=AE
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- bank / card
+ae-bank-01	+971500000301	scam,link-warning	bank,arabic	عميلنا العزيز، تم تعليق بطاقتك المصرفية بسبب عدم تحديث البيانات. يرجى التحديث عبر الرابط: https://enbd-card-update.xyz/ae
+ae-bank-02	+971500000302	scam,link-warning	bank	Emirates NBD: Your debit card has been blocked. To reactivate please update your Emirates ID at https://emiratesnbd-kyc.top
+ae-bank-03	+971500000303	scam	bank,callback,arabic,known-gap	تم إيقاف حسابك البنكي مؤقتاً. للتفعيل يرجى الاتصال بخدمة العملاء على الرقم 0500000304 فوراً
+
+# ---------------------------------------------------------------- parcels / fines / government
+ae-pkg-01	+971500000305	scam,link-warning	emirates-post,parcel	Emirates Post: Your package is held at our warehouse due to incomplete address. Pay AED 12.50 to reschedule: https://emiratespost-track.top/ae
+ae-pkg-02	+971500000306	scam,link-warning	emirates-post,parcel,arabic	بريد الإمارات: شحنتك معلقة بسبب عنوان غير مكتمل. يرجى تحديث العنوان ودفع 5 درهم: https://epost-ae.xyz
+ae-fine-01	+971500000307	scam,link-warning	salik,toll	Salik: You have an unpaid toll of AED 50. Pay within 24 hours to avoid a fine of AED 400: https://salik-pay.info/ae
+ae-fine-02	+971500000308	scam	rta,fine,known-gap	Dubai Police: A traffic fine of AED 600 is registered on your vehicle. Pay now for 50% discount: https://dubaipolice-fines.ae-gov.com
+ae-icp-01	+971500000309	scam	icp,visa	ICP: Your residence visa has been cancelled due to incomplete Emirates ID data. Update within 24 hours at https://icp-gov-ae.services-update.com
+ae-prize-01	+971500000310	scam	lottery,arabic,known-gap	مبروك! لقد فاز رقم هاتفك بجائزة قدرها 50,000 درهم في السحب الشهري. للمطالبة بالجائزة أرسل اسمك الكامل ورقم الهوية
+ae-job-01	+971500000311	scam	job	Hiring now: part-time online job, earn AED 500-1500 daily from home. Contact HR on WhatsApp +971500000312
+
+# ---------------------------------------------------------------- BENIGN look-alikes
+ae-ok-01	ADCB	not-scam,otp:348201	benign,otp,arabic	رمز التحقق الخاص بك هو 348201. لا تشارك هذا الرمز مع أي شخص.
+ae-ok-02	ADCB	not-scam,otp:348201	benign,otp,arabic,arabic-indic-digits	رمز التحقق الخاص بك هو ٣٤٨٢٠١. لا تشارك هذا الرمز مع أي شخص.
+ae-ok-03	EmiratesNBD	not-scam,no-fake-credit	benign,bank-alert	Purchase of AED 125.00 with Debit Card ending 1234 at CARREFOUR DUBAI on 23-Sep-2026. Avl Balance AED 5,410.00
+ae-ok-04	ENBD	not-scam,no-fake-credit	benign,salary	Your salary of AED 12,500.00 has been credited to your account XXXX4321 on 23/09/2026.
+ae-ok-05	AD-Salik	not-scam	benign,toll	Salik: AED 4 has been deducted from your Salik account for a toll crossing at Al Garhoud Bridge on 23/09/2026 08:14.
+ae-ok-06	+971500000313	not-scam	benign,personal,arabic,contact	وصلت البيت، شكراً على التوصيلة 🌙
+ae-ok-07	EmiratesPost	not-scam	benign,parcel	Emirates Post: Your shipment RR123456789AE is out for delivery today.

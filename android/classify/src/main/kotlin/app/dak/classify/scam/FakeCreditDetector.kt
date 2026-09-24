@@ -363,9 +363,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         /** Words that make a collect request look like incoming money. */
         private val RECEIVE_BAIT = GatedRegex("""receiv|credit|cashback|refund|\bwon\b|reward|prize|\bjeet|जीत|प्राप्त""", O)
 
-        /** A personal message talking about a transfer ("I sent 5000", "bheja", "transfer kiya"). */
+        /** A personal message talking about a transfer ("I sent 5000", "bheja", "bhej diye", "transfer kiya", "भेज दिए"). */
         private val TRANSFER_MENTION = GatedRegex(
-            """\b(?:sent|transferred|transfer\s+(?:kiya|kar\s+diya|ho\s+gaya)|bheja|bhej\s+diya|dal\s+diya|daal\s+diya|credited)\b|भेजा|भेज\s+दिया""",
+            """\b(?:sent|transferred|transfer\s+(?:kiya|kar\s+diya|ho\s+gaya)|bheja|bhej\s+diy[ae]|dal\s+diya|daal\s+diya|credited)\b|भेजा|भेजे|भेज\s+दिया|भेज\s+दिए""",
             O,
         )
 

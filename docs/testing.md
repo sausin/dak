@@ -23,6 +23,10 @@ python3 scripts/coverage-summary.py --jvm-only \
 
 (`DAK_JVM_HARNESS_DIR` moves the harness out of `build/jvm-harness`; pass the matching `--root-report`.)
 
+The adversarial SMS corpus ([`shared/adversarial/`](../shared/adversarial/README.md): scams per region with their
+benign look-alikes, and robustness payloads aimed at the app) runs as part of `:classify:test`. To run it alone:
+`./gradlew :classify:test --tests '*Adversarial*'` (or `scripts/jvm-test.sh :classify:test --tests '*Adversarial*'`).
+
 ## How coverage is measured
 
 [Kover](https://github.com/Kotlin/kotlinx-kover) (Gradle plugin `org.jetbrains.kotlinx.kover`, version in

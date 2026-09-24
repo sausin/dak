@@ -1,0 +1,23 @@
+# Singapore: DBS / OCBC / UOB phishing, SingPost fees, Singpass, government and police impersonation, job scams;
+# and genuine PayNow credits, OTPs and delivery updates.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=SG
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- banks / Singpass
+sg-bank-01	+6580000401	scam,link-warning	dbs	DBS: Your digibank account has been suspended due to unusual activity. Log in to reactivate: https://dbs-sg-secure.top/login
+sg-bank-02	+6580000402	scam	ocbc,known-gap	OCBC: Your card has been used for a transaction of SGD 2,980.00 at LAZADA. If this was not you, reply NO or call 8000 0403.
+sg-spass-01	+6580000404	scam,link-warning	singpass	Singpass: Your account will expire today. To continue using government e-services, verify at https://singpass-renew.xyz
+
+# ---------------------------------------------------------------- parcels / government / jobs
+sg-pkg-01	+6580000405	scam,link-warning	singpost,parcel	SingPost: Your parcel is held due to unpaid postage of S$2.30. Pay now to avoid return: https://singpost-fees.top/sg
+sg-gov-01	+6580000406	scam	police,impersonation,known-gap	This is the Singapore Police Force. Your bank account is linked to a money laundering case. Transfer your savings to the safe account provided by the officer for investigation.
+sg-gov-02	+6580000407	scam	mom	MOM: Your work pass is under review due to missing documents. Submit them within 24 hours at https://mom-gov-sg.workpass-check.com
+sg-job-01	+6580000408	scam	job	Part-time job: earn SGD 150-400 daily by rating hotels online. Flexible hours, work from home. WhatsApp HR: wa.me/6580000409
+
+# ---------------------------------------------------------------- BENIGN look-alikes
+sg-ok-01	OCBC	not-scam,no-fake-credit	benign,paynow	OCBC: You have received SGD 1,000.00 via PayNow from JOHN TAN to your account ending 1234 on 23 Sep 2026.
+sg-ok-02	DBS	not-scam,otp:519302	benign,otp	DBS: Your OTP is 519302 for a funds transfer of SGD 80.00. Do not share this OTP with anyone. If you did not request this, call 1800 111 1111.
+sg-ok-03	Singpass	not-scam,otp:204817	benign,otp	Your Singpass OTP is 204817. It will expire in 3 minutes. Never share your OTP.
+sg-ok-04	SingPost	not-scam	benign,parcel	SingPost: Your item SG123456789 will be delivered today between 2pm and 6pm.
+sg-ok-05	+6580000410	not-scam	benign,personal	Paid you back via PayNow for dinner, check ah

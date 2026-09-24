@@ -1,0 +1,30 @@
+# Global: scams and genuine messages that look the same in every country, evaluated with the region unknown
+# (generic rules only: no DLT trust, no "banks never use mobile numbers" rule).
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=none
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- account lock / payment failure phishing
+global-acct-01	+15550100101	scam,link-warning	apple-id	Apple: Your Apple ID has been locked for security reasons. Verify your identity within 24 hours: https://appleid-verify-secure.top/login
+global-acct-02	+447700900101	scam,link-warning	netflix,payment	Netflix: Your payment was declined and your membership will be suspended. Update your card details: https://netflix-billing-update.xyz
+global-acct-03	+15550100102	scam,link-warning	microsoft	Microsoft 365: Your mailbox storage is full and incoming mail will be deleted. Click here to upgrade for free: https://ms365-mailbox.info/upgrade
+global-acct-04	+15550100103	scam,lookalike	paypal,homograph	PayPal: A payment of $749.99 to Coinbase is pending. If this was not you, cancel it at https://paypa\u04CF-resolution.com/cancel
+global-acct-05	+15550100104	scam	amazon,callback,known-gap	Amazon: Your order of an iPhone 16 Pro ($1,199.00) has been placed. If you did not make this purchase, call our support at +1 555 010 0199.
+
+# ---------------------------------------------------------------- family / friend-in-need, account takeover, crypto
+global-fam-01	+447700900102	scam	hi-mum,known-gap	Hi Mum, I dropped my phone in the toilet 🙈 this is my new number. Can you text me on WhatsApp when you get this? x
+global-ato-01	+15550100105	scam	otp-sharing,known-gap	Hey! I sent you a 6-digit code by mistake, can you send it back to me please? It's for my Instagram.
+global-crypto-01	+15550100106	scam	crypto	Your Coinbase account has a pending withdrawal of 0.52 BTC to wallet bc1q-example. If this wasn't you, call +1 (555) 010-0107 immediately.
+global-crypto-02	+447700900103	scam,link-warning	crypto,giveaway	Elon's official BTC giveaway: send 0.1 BTC and receive 0.2 BTC back instantly! Only today: https://x-btc-giveaway.top
+global-prize-01	+15550100108	scam	lottery	Congratulations! Your mobile number has won $500,000 in the International Lottery. To claim your prize send your full name and address.
+global-job-01	+447700900104	scam	job	Hello, we are hiring for work from home. Daily salary $200-$500. Simple tasks on your phone. Contact on Telegram @quickjobs_hr
+
+# ---------------------------------------------------------------- BENIGN look-alikes
+global-ok-01	22000	not-scam,otp:123456	benign,otp,google	G-123456 is your Google verification code.
+global-ok-02	32665	not-scam,otp:123456	benign,otp,hyphenated-code,known-gap	Your WhatsApp code: 123-456. Don't share this code with others.
+global-ok-03	Microsoft	not-scam,otp:8841	benign,otp	Use 8841 as Microsoft account security code
+global-ok-04	Apple	not-scam,otp:482019	benign,otp,webotp	Your Apple Account code is: 482019. Don't share it with anyone.\n\n@apple.com #482019
+global-ok-05	Uber	not-scam,otp:5521	benign,otp,retriever-hash	<#> Your Uber code: 5521. Never share this code. qW3rT9yU1iO
+global-ok-06	+15550100110	not-scam,no-link-warning	benign,personal	Running 10 min late, grab a table for us? Order me the usual 😄
+global-ok-07	Netflix	not-scam	benign,account	Netflix: A new device signed in to your account from Chrome on Windows. If this was you, no action needed.
+global-ok-08	+447700900105	not-scam,no-otp	benign,personal,numbers	Locker number is 4821 and the wifi password is on the fridge. Flight lands 22:15, gate B12.

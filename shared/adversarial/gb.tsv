@@ -1,0 +1,30 @@
+# United Kingdom: Royal Mail / Evri fees, HMRC refunds, DVLA and Dart Charge fines, NHS and cost-of-living payments,
+# "Hi Mum", safe-account bank callbacks; and genuine bank, NHS, GOV.UK and courier messages.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=GB
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- parcels
+gb-pkg-01	+447700900201	scam,link-warning	royal-mail,fee	RoyalMail: Your parcel has a £1.99 unpaid shipping fee, to pay this now visit https://royalmail-redelivery.top/uk. Your parcel will be returned to sender if not paid.
+gb-pkg-02	+447700900202	scam,link-warning	evri,parcel	EVRI: We missed you today. Your parcel is held at our depot. Reschedule delivery here: https://evri-reschedule.info/gb
+gb-pkg-03	+447700900203	scam,link-warning	dpd,parcel	DPD: Your parcel could not be delivered. Please pay the £1.45 fee to rearrange: https://dpd-parcel-uk.xyz
+
+# ---------------------------------------------------------------- HMRC / DVLA / fines / benefits
+gb-hmrc-01	+447700900204	scam,link-warning	hmrc,tax-refund	HMRC: You are due a tax refund of £464.92. Claim here before it expires: https://hmrc-gov-refund.co.uk.verify-id.xyz
+gb-dvla-01	+447700900205	scam	dvla	DVLA: Your vehicle tax payment failed. To avoid a £1,000 fine, update your payment details at https://dvla-vehicle-tax.co.uk-renew.com
+gb-dart-01	+447700900206	scam	toll,dart-charge	Dart Charge: You have an unpaid crossing charge of £2.50. Pay today to avoid a £70 penalty: https://dartcharge-payments.com
+gb-col-01	+447700900207	scam	cost-of-living,known-gap	GOV.UK: You are eligible for a £650 cost of living payment. Apply now to receive it: https://gov-uk-support-payment.com
+gb-nhs-01	+447700900208	scam,link-warning	nhs	NHS: You have been in close contact with someone who tested positive. Order your test kit for £2.99 at https://nhs-testkit.top
+
+# ---------------------------------------------------------------- banks / family
+gb-bank-01	+447700900209	scam	bank,safe-account,known-gap	Lloyds: A new payee MR J SMITH was added to your account. If this was NOT you, call our fraud team on 07700 900210 immediately.
+gb-bank-02	+447700900211	scam,link-warning	bank	Barclays: We have noticed unusual activity on your account. Please verify your identity at https://barclays-secure-login.top to avoid suspension.
+gb-fam-01	+447700900212	scam	hi-mum,known-gap	Hi Dad it's me, I've broken my phone so this is my new number. Can you help me pay a bill today? I'll pay you back tomorrow x
+
+# ---------------------------------------------------------------- BENIGN look-alikes
+gb-ok-01	Monzo	not-scam	benign,bank	Monzo: You received £250.00 from Sarah Jones. Reference: rent share
+gb-ok-02	RoyalMail	not-scam	benign,parcel	Royal Mail: Your parcel from ASOS will be delivered today between 10:15 and 11:15. Your parcel reference is QA123456789GB.
+gb-ok-03	GOVUK	not-scam,otp:482019	benign,otp	Your GOV.UK One Login security code is 482019. Do not share this code with anyone.
+gb-ok-04	NHS	not-scam	benign,appointment	NHS: Your appointment at Riverside Surgery is confirmed for Tue 30 Sep at 09:40. Reply CANCEL to cancel.
+gb-ok-05	HSBC UK	not-scam,otp:771204	benign,otp,known-gap	HSBC UK: 771204 is your code to confirm a payment of £120.00 to J SMITH. Never share this code, not even with us.
+gb-ok-06	+447700900213	not-scam	benign,personal,contact	Sent you £15 for the takeaway 👍

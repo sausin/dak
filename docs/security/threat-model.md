@@ -87,6 +87,12 @@ Tests: `SecurityFuzzTest` runs a deterministic seeded structure-aware mutation f
 | **`LinkDetector` (`has:link`) threw StackOverflowError on `a.a.a.…`** (an Error, not an Exception, inside the indexer: a crash or a stuck reindex) | **Fixed:** replaced with a linear scanner. A regression test is in `core-index`. |
 | User-written automation regexes (the user writes the pattern, the attacker writes the input) | `RegexSafety` rejects nested or ambiguous repetition (`(a+)+`, `(a\|aa)*`, `(\w+\s?)*`), backreferences, and patterns over 500 characters. The rule editor shows the problem, and the engine never runs an unsafe pattern. Input is capped at 4000 characters. Android's ICU regex cannot be interrupted, so the check is static. |
 | Transaction parser, OTP extractor, link extractor | Harness tests on 50k-character pathological bodies, plus 1M characters for the OTP extractor: all finish in under a second. |
+| **Transaction parser read the whole body** (a 1 MB MMS text part from a business sender cost 1-2 s per message on a desktop JVM) | **Fixed:** only the first `TransactionParser.MAX_PARSE_CHARS` (4000) characters are parsed, like the classifier. |
+| Long runs of combining marks (zalgo) make every `\b` quadratic: the regex engine walks back over the marks to find the base character at each position (seen on the JDK; ICU does the same walk) | **Open:** about 1.7 s on the JVM for a 3000-mark body across the pipeline, OTP, entity and masker regexes. Mitigation to evaluate: collapse long combining-mark runs before regex analysis. Tracked as `unicode-zalgo-02` in the adversarial corpus. |
+
+The adversarial corpus (`shared/adversarial/`, run by `AdversarialCorpusTest`) runs every scam and robustness payload
+through all of these defences with a per-message time budget and invariant checks. Lines tagged `known-gap` record
+misses that are still open.
 | WhatsApp relay URI built from message text (`&phone=` / `#` injection) | **Fixed:** both values are percent-encoded. |
 
 ### 4. Links (`:classify` LinkExtractor / LookalikeDomainChecker)
@@ -103,6 +109,8 @@ Tests: `SecurityFuzzTest` runs a deterministic seeded structure-aware mutation f
   `java.net.IDN` (IDNA2003) is no longer used: it turned `faß.de` into `fass.de`, a different domain. A host a
   browser would refuse (invalid Punycode, a Bidi or CONTEXTJ violation, `evil.example／hdfcbank.com` whose fullwidth
   solidus maps to `/`) gets no `asciiHost` and is flagged.
+- An official domain spelled out at the start of another host (`sbi.co.in.account-verify.example`,
+  `irctc.co.in-refund.example`) is flagged as a look-alike of that brand.
 - Look-alike hosts are reduced to their UTS #39 skeleton, generated from Unicode's `confusables.txt` (17.0.0) for
   Latin, Cyrillic, Greek, Armenian, Cherokee, Devanagari, Bengali and Common characters, and compared with the
   official domains' skeletons, so `hdfcbаnk.com`, `ｈｄｆｃｂａｎｋ.ｃｏｍ` and `𝐡𝐝𝐟𝐜𝐛𝐚𝐧𝐤.com` all name "HDFC Bank". Any other IDN host

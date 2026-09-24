@@ -45,6 +45,9 @@ data class BillReminder(
  */
 object TransactionParser {
 
+    /** Only this many leading characters of a body are parsed (the classifier reads as many). */
+    const val MAX_PARSE_CHARS: Int = 4_000
+
     private val promoPattern = Regex(
         """cashback up ?to|get flat|avail (?:the )?offer|%\s?off|use code|\bwin\s|assured cashback|limited period|click here|exclusive offer|download (?:the )?app|hurry|t&c appl|\bup\s?to\s+(?:rs\.?|inr|₹)|\bapply\s+now\b|\bpre-?approved\b|\beligible\s+for\b""",
         RegexOption.IGNORE_CASE,
@@ -105,8 +108,10 @@ object TransactionParser {
     ): ExtractedTransaction? {
         // Normalise non-ASCII decimal digits (Devanagari, Bengali, Arabic-Indic, full-width, ...)
         // once up front so every `\d` regex below (last4, reference, amounts) matches regardless
-        // of the digit script the SMS was written in.
-        val body = DigitNormalizer.normalizeDigits(rawBody)
+        // of the digit script the SMS was written in. Only the head of the body is read, like the classifier: a
+        // transaction SMS is a few hundred characters, and an MMS text part can be megabytes of sender-chosen text
+        // that every regex below would otherwise scan (seconds per message; shared/adversarial/pwn/redos.tsv).
+        val body = DigitNormalizer.normalizeDigits(if (rawBody.length > MAX_PARSE_CHARS) rawBody.substring(0, MAX_PARSE_CHARS) else rawBody)
         if (DirectionCues.isOtp(body)) return null
         // A mutual-fund folio's or demat account's own message (allotment, redemption, trade, valuation, alert).
         InvestmentParser.parse(sender, body, symbolMap)?.let { return it.transaction }
@@ -150,6 +155,8 @@ object TransactionParser {
         val txnAmount = pickAmount(amounts, mainCue, direction)
             ?: bareAmount(sender, body, amounts)
             ?: return null
+        // "Rs 0.00 credited" moves no money: nothing for the passbook.
+        if (txnAmount.money.amountMinor <= 0L) return null
         val balance = amounts.firstOrNull { it.role == AmountRole.BALANCE && it.occurrence !== txnAmount }?.occurrence
             ?: if (instrument == InstrumentType.LOAN && detected.linkedMaskedNumber == null) {
                 amounts.firstOrNull { it.role == AmountRole.DUE && "outstanding" in it.beforeWords }?.occurrence

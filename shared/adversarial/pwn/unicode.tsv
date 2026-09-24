@@ -1,0 +1,61 @@
+# pwn/unicode: bidi overrides and isolates, zero-width and invisible characters, homograph / confusable hosts and
+# senders, combining-character floods, emoji ZWJ sequences, RTL scripts, digits from other scripts, broken surrogates
+# and control characters. Every line must survive every defence; many also pin the expected verdict.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=IN
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- bidi controls (RLO / LRO / isolates) in bodies
+unicode-bidi-01	+919876513001	links:1,link-host:evil.example,scam	rlo,link	Your KYC is pending, account will be blocked today. Update: https://evil.example/\u202Emoc.knabcfdh//:sptth
+unicode-bidi-02	+919876513002	no-crash,links:0	rlo,filename	Your e-invoice is attached: invoice_2026\u202Efdp.apk - open it to see the amount
+unicode-bidi-03	+919876513003	no-crash	isolates,unbalanced	Hello \u2069\u2069\u2069 world \u2066\u2067\u2068 no terminator \u202A\u202B
+unicode-bidi-04	+919876513004	likely-scam	rlo,amount,fake-credit,known-gap	Rs \u202E00.000,05\u202C credited to your A/c XX4321 by IMPS. -SBI
+unicode-bidi-05	+919876513005	no-crash	bidi-flood	{repeat:"\u202E\u202D":3000}OTP 1234
+unicode-bidi-06	+919876513006	no-crash,links:2,link-host:evil.example	lri,link	Pay here \u2066https://evil.example/pay\u2069\u2067hdfcbank.com\u2069
+
+# ---------------------------------------------------------------- invisible characters in senders (a verified header must stay unforgeable)
+unicode-snd-01	VM-HDFC\u200BBK-S	fake-credit	zwsp,sender	INR 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal INR 20,500.00. Not you? Call 9876513010
+unicode-snd-02	VM-HDFCBK-S\u202E	fake-credit	rlo,sender	INR 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal INR 20,500.00. Not you? Call 9876513010
+unicode-snd-03	VM-HDFC\u202EKBFDH	fake-credit	rlo,sender	INR 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal INR 20,500.00
+unicode-snd-04	\uFF28\uFF24\uFF26\uFF23\uFF22\uFF2B	likely-scam,sender-spoof	fullwidth,sender	INR 20,000.00 credited to A/c XX1234 on 23-09-26. Avl Bal INR 20,500.00
+unicode-snd-05	P\u0430yTM	sender-spoof	cyrillic,mixed-script,sender	Rs 2,000 cashback received in your Paytm wallet. Click to claim: https://paytm-cashback.top
+unicode-snd-06	\u0410\u0425\u0406\u0405\u0412\u041A	sender-spoof,fake-credit	cyrillic,whole-script,sender	Rs 15,000 credited to A/c XX9988. -Axis Bank
+unicode-snd-07	VM-SBIINB-S\u200D	fake-credit	zwj,sender	Rs 9,999 credited to A/c XX1234. If not yours please return to 9876513011
+unicode-snd-08	VM-SB\u0406INB-S	fake-credit,sender-spoof	cyrillic-i,sender	Rs 9,999 credited to A/c XX1234. Avl Bal Rs 10,400
+
+# ---------------------------------------------------------------- homograph / confusable hosts
+unicode-host-01	+919876513021	lookalike,link-warning,scam	cyrillic-a,host	Your HDFC NetBanking is locked. Unlock: https://hdfcb\u0430nk.com/login
+unicode-host-02	+919876513022	lookalike,link-warning	punycode,host	Amazon refund of Rs 4,999 approved. Claim at https://xn--mazon-3ve.in/refund
+unicode-host-03	+919876513023	lookalike,link-warning	greek-omicron,host	ICICI: verify your card at https://icicibank.c\u03BFm/verify
+unicode-host-04	+919876513024	lookalike,link-warning	fullwidth,host	Login now: https://\uFF48\uFF44\uFF46\uFF43\uFF42\uFF41\uFF4E\uFF4B.\uFF43\uFF4F\uFF4D/login
+unicode-host-05	+919876513025	lookalike,link-warning	math-bold,host	Paytm KYC: https://\u{1D429}\u{1D41A}\u{1D432}\u{1D42D}\u{1D426}.com/kyc
+unicode-host-06	+919876513026	link-warning	zwsp,host	Refund: https://hdfc\u200Bbank-refund.xyz/claim
+unicode-host-07	+919876513027	lookalike,link-warning	punycode,host	PhonePe: claim cashback at https://xn--pytm-53d.com/claim
+unicode-host-08	+919876513028	link-warning	soft-hyphen,host	Pay bill: https://bescom\u00ADpay.top/bill
+unicode-host-09	+919876513029	lookalike,link-warning	mixed-script-host	SBI YONO: https://onlines\u0431i.sbi/login
+
+# ---------------------------------------------------------------- combining floods, emoji, RTL scripts
+unicode-zalgo-01	+919876513031	no-crash	zalgo	Z{repeat:"\u0301\u0336\u0489":2000}algo OTP is 482913
+unicode-zalgo-02	+919876513032	no-crash	zalgo,digits,known-gap	4{repeat:"\u0336":3000}82913 is your OTP
+unicode-emoji-01	+919876513033	no-crash	emoji-zwj	{repeat:"\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}":2000}
+unicode-emoji-02	+919876513034	no-crash,not-scam	emoji,flags,skin-tone	Happy Diwali 🪔🎆 from all of us 👨🏽\u200D👩🏽\u200D👧🏽 🇮🇳🇮🇳 ❤\uFE0F\u200D🔥
+unicode-rtl-01	+919876513035	no-crash	hebrew	הקוד שלך הוא 482913 אל תשתף אותו
+unicode-rtl-02	+919876513036	no-crash	urdu	آپ کا بینک اکاؤنٹ بند ہو جائے گا۔ فوری طور پر کال کریں 9876513037
+unicode-rtl-03	+971500003038	no-crash	arabic,amount,rlm,region:AE	تم خصم \u200FAED 1,250.00\u200F من حسابك XXXX1234
+
+# ---------------------------------------------------------------- digits from other scripts (OTP and amounts)
+unicode-dig-01	VM-HDFCBK-T	otp:482913	fullwidth-digits,otp	OTP: \uFF14\uFF18\uFF12\uFF19\uFF11\uFF13 for your login. Do not share.
+unicode-dig-02	VM-HDFCBK-T	otp:482913	bengali-digits,otp	আপনার OTP হল ৪৮২৯১৩। কারও সাথে শেয়ার করবেন না।
+unicode-dig-03	VM-HDFCBK-T	otp:482913	mixed-digit-scripts,otp	Your OTP is 48२9१3. Do not share.
+unicode-dig-04	VM-HDFCBK-T	no-crash,no-otp	superscript-digits	Your OTP is ⁴⁸²⁹¹³. Do not share.
+unicode-dig-05	VM-HDFCBK-T	no-crash	math-digits	Your OTP is \u{1D7D2}\u{1D7D6}\u{1D7D0}\u{1D7D7}\u{1D7CF}\u{1D7D1}. Do not share.
+unicode-dig-06	VM-SBIINB-S	txn:debit,amount:1250.00	devanagari-digits,amount,known-gap	आपके खाते XX1234 से ₹१,२५०.०० डेबिट किए गए। - SBI
+unicode-dig-07	+919876513039	likely-scam	devanagari-digits,fake-credit	Rs.२५,०००.०० credited to your A/c XX४३२१ by IMPS. -SBI
+
+# ---------------------------------------------------------------- broken surrogates, NUL and control characters
+unicode-sur-01	+919876513041	no-crash	lone-surrogates	\uD800\uD800 OTP is 1234 \uDC00 end \uDBFF
+unicode-sur-02	\uD83D	no-crash	lone-surrogate-sender	Rs 500 credited to your A/c XX1111\uDE00
+unicode-nul-01	+919876513042	no-crash	nul	Your OTP is \0482913\0 do not share
+unicode-nul-02	VM-HDFCBK-S\0	no-crash	nul-sender	Rs 500 credited to A/c XX1234
+unicode-ctl-01	+919876513043	no-crash	ansi-escape,control	\u0007\u0008\u001B[31mURGENT\u001B[0m \u001B]8;;https://evil.example\u0007click\u001B]8;;\u0007 \u007F\u0085\u009B
+unicode-ctl-02	+919876513044	no-crash	bom,line-separators	\uFEFFHi\u2028there\u2029KYC\u000Bpending\u000Cnow https://kyc-now.top

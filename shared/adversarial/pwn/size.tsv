@@ -1,0 +1,39 @@
+# pwn/size: tiny, empty-looking, huge and overflowing messages, and amounts with absurd values, odd separators and
+# signs. Parsed amounts must stay positive and below 10^13 (a checked invariant); the parser may also decline.
+# By design only the head of a body is read (4,000 characters for the classifier, OTPs, the detector and the
+# transaction parser; 20,000 for links): text after that (tag beyond-scan-limit) is not analysed.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=IN
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- tiny / blank-looking bodies
+size-tiny-01	+919876517001	no-crash,no-otp,links:0	one-char	a
+size-tiny-02	+919876517002	no-crash,not-scam	space	 
+size-tiny-03	+919876517003	no-crash,not-scam	zero-width-only	\u200B\u200C\u200D\u2060\uFEFF
+size-tiny-04	+919876517004	no-crash,not-scam	rlo-only	\u202E
+size-tiny-05	+919876517005	no-crash	nul-only	\0
+size-tiny-06	+919876517006	no-crash	newlines-only	{repeat:"\n":5000}
+size-tiny-07	+919876517007	no-crash,no-otp	newline-flood-otp,beyond-scan-limit	{repeat:"\n":5000}OTP 1234
+
+# ---------------------------------------------------------------- huge bodies (concatenated SMS, MMS text parts)
+size-huge-01	+919876517008	no-crash	gsm-255-segments	{repeat:"Your KYC is pending. ":1950}
+size-huge-02	+919876517009	no-crash	mms-1m	{repeat:"upi ":250000}
+size-huge-03	VM-HDFCBK-S	no-crash	mms-1m,verified-sender	Rs 500.00 debited from A/c XX1234 on 23-09-26. {repeat:"Avl Bal Rs 1,00,000.00 ":40000}
+size-huge-04	+919876517010	no-crash	long-token	{repeat:"9":100000}
+size-huge-05	+919876517011	no-crash	max-size	Rs 25,000 credited to A/c XX1234 by IMPS -SBI {repeat:"x":1999900}
+size-huge-06	+919876517012	likely-scam	scam-after-padding	Rs.25,000.00 credited to your A/c XX4321 by IMPS. -SBI{repeat:" ":100000}
+size-huge-07	+919876517013	no-crash	scam-hidden-after-4000	Hi{repeat:" ":4000}Rs 25,000 credited to your A/c XX4321, please return by mistake
+
+# ---------------------------------------------------------------- absurd and malformed amounts
+size-amt-01	VM-SBIINB-S	no-crash	overflow	Rs 99999999999999999999 credited to A/c XX1234 on 23-09-26.
+size-amt-02	VM-SBIINB-S	no-crash	overflow,indian-grouping	INR 1,00,00,00,00,00,00,00,000.00 credited to A/c XX1234 on 23-09-26.
+size-amt-03	VM-SBIINB-S	no-crash	overflow,multiplier	Rs 99999999999 crore credited to A/c XX1234 on 23-09-26.
+size-amt-04	VM-SBIINB-S	no-crash	negative	Rs -500.00 credited to A/c XX1234 on 23-09-26.
+size-amt-05	VM-SBIINB-S	no-crash,no-txn	zero	Rs 0.00 credited to A/c XX1234 on 23-09-26.
+size-amt-06	VM-SBIINB-S	no-crash	odd-separators	Rs 1.2.3.4 debited, Rs 1,,,,000 debited, Rs ,500 debited, Rs 500.999 debited, Rs 5e3 debited from A/c XX1234
+size-amt-07	VM-SBIINB-S	no-crash	arabic-indic-digits,rupee	₹٥٠٠ debited from A/c XX1234 on 23-09-26.
+size-amt-08	VM-SBIINB-S	no-crash	many-amounts	debited from A/c XX1234 {repeat:"Rs 1 ":5000}
+size-amt-09	VM-SBIINB-S	no-crash	long-decimal	Rs 500.{repeat:"9":5000} debited from A/c XX1234
+size-amt-10	+919876517014	no-crash	overflow,fake-credit	Rs 99999999999999999999 credited to your A/c XX4321 by IMPS. Please return by mistake to 9876517015
+size-amt-11	VM-SBIINB-S	no-crash	nbsp,thin-space	Rs\u00A01\u202F000.00 debited from A/c XX1234 on 23-09-26.
+size-amt-12	VM-SBIINB-S	no-crash	superscript,fraction	Rs ½ debited from A/c XX1234; Rs ⁵⁰⁰ credited; Rs ⅕ refund

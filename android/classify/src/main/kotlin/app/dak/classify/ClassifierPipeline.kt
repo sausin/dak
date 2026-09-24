@@ -117,8 +117,9 @@ public class ClassifierPipeline(
             modelStage(address, body, senderEntry, region, dltHeader, senderClass, hasCode, entry)
         }
         // A phone number nobody saved (or a look-alike sender name), sending a look-alike, suspicious-TLD or userinfo
-        // link: phishing, whatever the wording (OTP messages excluded: the code is what the user needs to see).
-        if ((senderClass == SenderClass.UNKNOWN_NUMBER || spoofedSender) && candidate.category != Category.OTP && hasRiskyLink(links)) {
+        // link: phishing, whatever the wording (OTP messages excluded: the code is what the user needs to see). Only an
+        // OTP with a code counts: a code-less "verify your account now" the model leans towards OTP is still phishing.
+        if ((senderClass == SenderClass.UNKNOWN_NUMBER || spoofedSender) && !(candidate.category == Category.OTP && hasCode) && hasRiskyLink(links)) {
             candidate = Classification(
                 category = Category.SPAM,
                 confidence = maxOf(candidate.confidence, RISKY_LINK_CONFIDENCE),

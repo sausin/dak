@@ -299,6 +299,7 @@ There is **no Play Store listing**. This is pre-device-test software.
 | [`ios/`](ios/) | Future `ILMessageFilterExtension` + companion (no SMS API on iOS; no parity promise, ever) | Placeholder |
 | [`web/`](web/) | Future premium web/desktop client over the ciphertext relay | Placeholder |
 | [`shared/formats/`](shared/formats/) | Platform-neutral formats: open export format, template bundle, automation rule AST, helplines bundle | Specs |
+| [`shared/adversarial/`](shared/adversarial/) | Adversarial SMS corpus: regional scams, their benign look-alikes and app-robustness payloads, one message per line (anyone can contribute) | Test data |
 | [`docs/`](docs/) | Build plan, implementation status, battery budget, security threat model | |
 
 The premium relay server lives in a separate repository — by design, it only ever sees ciphertext.

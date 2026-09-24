@@ -6,13 +6,17 @@ and APIs that access sensitive information, Foreground service types, Target API
 update this file. Items marked **verify** are our reading and must be checked against the live text.
 
 Related: [privacy policy](privacy-policy.md), [privacy compliance (DPDP / GDPR)](privacy-compliance.md),
-[standards compliance §11](standards-compliance.md#11-google-play-sms-and-call-log-permissions-policy-data-safety).
+[standards compliance §11](standards-compliance.md#11-google-play-sms-and-call-log-permissions-policy-data-safety),
+[F-Droid submission](fdroid-submission.md) (first store; shares the listing and the signing decision).
 
 ## 1. Before you start
 
 - [ ] **Hosted privacy policy URL.** Publish `docs/privacy-policy.md` and put the URL in the store listing *and* in
       `HOSTED_PRIVACY_POLICY_URL` (`android/app/src/main/kotlin/app/dak/ui/privacy/PrivacyScreens.kt`), replacing the
       `https://dak.example/privacy` placeholder. Replace the `privacy@dak.example` contact in the policy too.
+- [ ] **Policy placeholders.** Also replace "effective (date of first public release)" with the date, and say who
+      "we" are (a person or company, with a postal address if Play's developer profile shows one). Play rejects a
+      policy that does not name the developer the listing shows.
 - [ ] Keep `android/app/src/main/assets/privacy-policy.md` identical to `docs/privacy-policy.md` (a unit test,
       `PrivacyPolicyTest`, fails when they differ).
 - [ ] In-app policy reachable in two taps: Settings → Privacy → Privacy policy (also from the first onboarding
@@ -22,6 +26,26 @@ Related: [privacy policy](privacy-policy.md), [privacy compliance (DPDP / GDPR)]
       orientation or resizability, so Android 16's large-screen and back changes need no code change. Before each
       submission re-test on an Android 16 device: edge-to-edge insets, predictive back on every screen, foreground-
       service start (MMS/journal replay), exact alarms for scheduled sends, and the flash-SMS notification.
+
+- [ ] **Developer account.** A personal account created after 13 November 2023 must run a **closed test with at
+      least 12 opted-in testers for 14 days in a row** before it can apply for production (**verify** the current
+      numbers). An organisation account (needs a D-U-N-S number) is exempt. Plan the F-Droid release to overlap with
+      this window.
+- [ ] **App signing decision** (before the first upload; cannot be undone): use the same release key as the GitHub
+      and F-Droid builds as Play's app signing key, with a separate upload key. See
+      [fdroid-submission.md §4](fdroid-submission.md#4-reproducible-builds-and-signing-recommended).
+- [x] **Android App Bundle.** New apps must upload an AAB. Signed CI builds produce
+      `app/build/outputs/bundle/freeRelease/app-free-release.aab` (artifact `dak-play-bundle-<run>`).
+- [x] **16 KB page size** (required for new apps and updates targeting Android 15+): the only native library,
+      SQLCipher 4.19.0, has 16 KB aligned `LOAD` segments, and AGP 9 zip-aligns it uncompressed. Re-check with
+      Play Console's App bundle explorer after the first upload.
+- [x] **Version.** `versionCode` / `versionName` are literals in `app/build.gradle.kts` and shared with F-Droid; a Play
+      upload never uses a different versionCode from the F-Droid build of the same release
+      ([release.md](release.md#versioning)).
+- [x] **Store listing text and graphics** in `fastlane/metadata/android/en-US/` (title, short and full description,
+      512×512 icon, 1024×500 feature graphic, changelogs). The listing avoids other apps' names and superlatives
+      (Metadata policy). **To do:** 2–8 phone screenshots (list in
+      [fdroid-submission.md §2](fdroid-submission.md#2-store-listing-fastlane)).
 
 ## 2. SMS and Call Log permissions declaration
 

@@ -1,0 +1,48 @@
+Dak is an open-source SMS and MMS app for the messages people actually rely on: one-time passwords, bank alerts, tickets and deliveries. It sorts them for you, keeps them safe from scams, and never uploads them. There are no ads, no analytics and no account.
+
+Everything runs on your phone. The app works fully offline; the only network use is your carrier's own MMS download.
+
+ORGANISED AUTOMATICALLY
+• Tabs for Personal, Transactions, OTP, Promotions and Spam, sorted on the device
+• Bank and business senders folded into one thread per brand
+• Powerful search: from:, amount:>500, has:otp, before:, during:"last week" and more
+• Tappable phone numbers, amounts, UPI IDs, PNRs and tracking numbers
+
+OTPS, DONE RIGHT
+• Big, clear OTP notification with the code copied on arrival
+• Codes your banking app has already read go quiet and delete themselves
+
+PASSBOOK FROM YOUR SMS
+• Transactions grouped by bank account, card, wallet, UPI, loan, mutual fund and demat account
+• Every amount kept in its original currency; balances never invented
+• Messages flagged as likely scams never reach the ledger
+
+SCAM AND FRAUD DEFENCE
+• Detects fake "money credited" messages, "sent by mistake, please return" tricks and UPI collect bait
+• Warns about look-alike links, spoofed sender names and hidden characters
+• Links always need a second tap
+• One-tap fraud reporting with details pre-filled (for example 1930 and 1909 in India)
+
+PRIVACY
+• Incognito chats that delete your copy after reading or sending
+• App lock with biometrics or a PIN, and "hide in Recents"
+• Encrypted local index; export or delete all of Dak's data from Settings
+
+RELIABLE
+• Every incoming message is written to the phone's own SMS store first, so OTP autofill in other apps keeps working
+• Notification self-test and guidance for phones that kill background apps
+• Dual SIM, group MMS, delivery ticks, scheduled sends with a heads-up before they go out
+
+AUTOMATIONS WITH GUARDRAILS
+• Time-limited auto-forwarding to saved contacts, protected by app lock and biometric confirmation
+• Birthday and anniversary wishes, "ask first" or automatic
+• Broadcast lists with spam-risk checks and daily limits
+
+YOUR DATA STAYS YOURS
+• End-to-end encrypted backups to a folder or cloud storage you choose
+• Open, documented export format
+• Import from SMS Backup & Restore and other common backup files
+
+Dak needs to be your default SMS app to read, send and store messages. It asks for SMS permissions only after you choose it as the default.
+
+Made for India first, and usable anywhere. Source code (MIT licence): https://github.com/sausin/dak

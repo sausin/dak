@@ -34,6 +34,8 @@ public object SkipReason {
     public const val POSSIBLE_SCAM: String = "possible_scam"
     /** The action needs a premium feature that is not active. */
     public const val PREMIUM_LOCKED: String = "premium_locked"
+    /** The message is in an incognito chat, whose messages are never copied off the thread. */
+    public const val INCOGNITO_CHAT: String = "incognito_chat"
 }
 
 /**

@@ -1,6 +1,7 @@
 package app.dak.ui.forwarding
 
 import android.Manifest
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -189,7 +190,7 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { issues = emptyList(); incomplete = false; original = null; editing = newSpec() },
+                onClick = { issues = emptyList(); incomplete = false; original = null; editing = newSpec(context) },
                 icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
                 text = { Text(stringResource(R.string.fw_new_rule)) },
             )
@@ -326,10 +327,17 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
 /** The scam warning to show for [risk]; [onConfirmed] runs after it and a successful biometric check. */
 private class PendingRisk(val risk: ForwardingRisk, val onConfirmed: () -> Unit)
 
-/** A new rule: now for one hour ([ForwardingPolicy.defaultWindow]), OTPs excluded, the default template. */
-private fun newSpec(): ForwardingSpec {
+/**
+ * A new rule: now for one hour ([ForwardingPolicy.defaultWindow]), OTPs excluded, the default template in the app
+ * language ([ForwardingSpec.defaultTemplate] falls back to English if the translation is unusable).
+ */
+private fun newSpec(context: Context): ForwardingSpec {
     val (start, end) = ForwardingPolicy.defaultWindow(System.currentTimeMillis())
-    return ForwardingSpec(startMillis = start, endMillis = end)
+    return ForwardingSpec(
+        startMillis = start,
+        endMillis = end,
+        template = ForwardingSpec.defaultTemplate(context.getString(R.string.fw_default_template)),
+    )
 }
 
 @Composable

@@ -1,0 +1,61 @@
+# pwn/links: URL parsing attacks on the link extractor and the "open link?" safety check: userinfo, backslashes,
+# fragments, ports, IP hosts, punycode edge cases, non-http schemes that must never become tappable, defanged URLs,
+# e-mail addresses, WebOTP spoofing and link floods.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=IN
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- userinfo / authority confusion
+links-userinfo-01	+919876514001	links:1,link-host:evil-login.example,lookalike,link-warning	userinfo	HDFC Bank: verify at https://www.hdfcbank.com@evil-login.example/netbanking
+links-userinfo-02	+919876514002	links:1,link-host:evil.example,link-warning	userinfo,port	Login: https://hdfcbank.com:443@evil.example/login
+links-userinfo-03	+919876514003	links:1,no-crash	userinfo,percent-encoded	Login: https://hdfcbank.com%40evil.example/login
+links-userinfo-04	+919876514004	links:1,link-host:evil.example,link-warning	userinfo,password	https://user:pass@evil.example/sbi/yono
+links-backslash-01	+919876514005	links:1,link-host:evil.example	backslash	Open https://evil.example\\@hdfcbank.com/login
+links-backslash-02	+919876514006	links:1,link-host:hdfcbank.com	backslash	Open https://hdfcbank.com\\.evil.example/login
+links-backslash-03	+919876514007	no-crash,links:0	backslash,no-scheme-slashes	Open https:\\\\evil.example\\login
+links-fragment-01	+919876514008	links:1,link-host:evil.example	fragment	https://evil.example#@hdfcbank.com/login
+links-query-01	+919876514009	links:1,link-host:evil.example	query	https://evil.example?next=https://hdfcbank.com
+links-subdomain-01	+919876514010	lookalike,link-warning,scam	brand-subdomain	Your SBI account is blocked. Unblock: https://sbi.co.in.account-verify.example/unblock
+links-typo-01	+919876514011	lookalike,link-warning	typosquat	ICICI reward points expiring: https://icicibamk.com/redeem
+
+# ---------------------------------------------------------------- IP hosts and odd hosts
+links-ip-01	+919876514012	link-warning,scam	ipv4	SBI NetBanking will be blocked today, verify now: http://192.0.2.44/sbi/login.php
+links-ip-02	VM-HDFCBK-S	link-warning,lookalike	ipv4-decimal,verified-sender	Update KYC: http://3221225516/kyc
+links-ip-03	+919876514013	no-crash	ipv6	Open http://[::1]:8080/x and http://[2001:db8::1]/y
+links-host-01	+919876514014	no-crash	long-host	https://{repeat:"a.":150}com/x
+links-host-02	+919876514015	no-crash	long-label	https://{repeat:"a":70}.com/x
+links-host-03	+919876514016	no-crash	empty-labels	https://..../ https://.evil.example/ https://evil..example/ http:// www. https://-a-.com
+links-puny-01	+919876514017	no-crash,link-warning	punycode,invalid	https://xn--zzzzzzzzzz.com/login
+links-puny-02	+919876514018	no-crash,link-warning	punycode,overflow	https://xn--{repeat:"9":59}.com/login
+links-puny-03	+919876514019	no-crash	punycode,empty	https://xn--.com/ https://xn--a.com/ https://xn---.com
+links-idn-01	+919876514020	link-warning,link-host:hdfcbank.com	ideographic-dot	Login: https://hdfcbank。com/login
+links-idn-02	+919876514021	link-warning	fullwidth-solidus	Login: https://evil.example\uFF0Fhdfcbank.com/login
+
+# ---------------------------------------------------------------- schemes that must never become links
+links-scheme-01	+919876514022	links:0	javascript	javascript:alert(document.cookie)//hdfcbank.com
+links-scheme-02	+919876514023	links:0	intent	intent://scan/#Intent;scheme=zxing;package=com.evil.kyc;S.browser_fallback_url=evil;end
+links-scheme-03	+919876514024	links:0	content	content://com.android.providers.telephony/sms/inbox
+links-scheme-04	+919876514025	links:0	file	file:///sdcard/Download/kyc.apk
+links-scheme-05	+919876514026	links:0,scam	tel,call-forwarding	Jio KYC pending. To avoid suspension dial tel:*21*9876514027%23 now.
+links-scheme-06	+919876514028	links:0	sms	sms:+919876514029?body=STOP and smsto:56070
+links-scheme-07	+919876514030	links:0	data	data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==
+links-scheme-08	+919876514031	links:0	market	market://details?id=com.evil.kyc
+links-scheme-09	+919876514032	links:1,link-host:evil.example	mixed-case	HtTpS://EVIL.example/A
+links-defang-01	+919876514033	links:0	defanged	Do not open hxxps://evil[.]example/login
+links-email-01	VM-HDFCBK-S	links:0,not-scam	email	For queries mail us at support@hdfcbank.com. -HDFC Bank
+
+# ---------------------------------------------------------------- trailing punctuation, markdown, WebOTP
+links-trail-01	VM-HDFCBK-S	links:1,link-host:hdfcbank.com,no-link-warning	trailing-dot	Visit https://hdfcbank.com/login.
+links-md-01	+919876514034	links:2,link-host:evil.example	markdown	[hdfcbank.com](https://evil.example/login)
+links-webotp-01	+919876514035	otp:482913	webotp,spoof	Your OTP is 482913\n\n@evil.example #482913
+
+# ---------------------------------------------------------------- floods
+links-flood-01	+919876514036	no-crash	flood,beyond-scan-limit	{repeat:"https://a.example/ ":2000}
+links-flood-02	+919876514037	no-crash	flood,bare	{repeat:"a.co/x ":5000}
+links-flood-03	+919876514038	no-crash,links:1	long-url	https://evil.example/{repeat:"a":100000}
+
+# ---------------------------------------------------------------- hosts that only look like the new link signals (a "gov" word inside a name, a version number, a real gov host)
+links-benign-01	VM-GOVIND-S	no-link-warning	gov-substring	Order sweets online: https://govinda-sweets.com/menu
+links-benign-02	+919876514040	no-link-warning,not-scam	version-number	Updated to v2.10.3 today, works fine now
+links-benign-03	VM-INCTAX-G	no-link-warning	gov-in	File your return at https://www.incometax.gov.in/iec/foportal
+links-benign-04	DMV	no-link-warning	gov-us	Info at https://www.usps.com and https://www.dmv.ca.gov/portal

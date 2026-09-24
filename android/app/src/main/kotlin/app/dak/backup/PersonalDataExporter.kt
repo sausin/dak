@@ -135,6 +135,7 @@ class PersonalDataExporter @Inject constructor(
             TableExport("ledger", "Transactions Dak found in your messages.", "SELECT * FROM ${Tables.LEDGER_ENTRY}"),
             TableExport("account_links", "Accounts you merged or kept apart.", "SELECT * FROM ${Tables.ACCOUNT_ALIAS}"),
             TableExport("account_types", "Account types you set by hand.", "SELECT * FROM ${Tables.ACCOUNT_TYPE_OVERRIDE}"),
+            TableExport("hidden_accounts", "Accounts you removed from the Passbook.", "SELECT * FROM ${Tables.ACCOUNT_HIDDEN}"),
             TableExport("conversation_settings", "Per-conversation choices: pinned, muted, archived, reply SIM, colour.", "SELECT * FROM ${Tables.PREFS}"),
             TableExport("sender_names", "Sender groups and the names shown for them.", "SELECT * FROM ${Tables.MERGE_GROUP}"),
             TableExport("sender_addresses", "Which addresses belong to which sender group.", "SELECT * FROM ${Tables.SENDER_ALIAS}"),

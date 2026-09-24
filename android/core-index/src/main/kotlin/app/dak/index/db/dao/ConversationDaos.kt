@@ -20,6 +20,9 @@ interface ConversationPrefsDao {
     @Query("SELECT * FROM conversation_prefs WHERE conversationId IN (:conversationIds)")
     suspend fun getAll(conversationIds: List<String>): List<ConversationPrefs>
 
+    @Query("SELECT * FROM conversation_prefs WHERE incognitoSince IS NOT NULL")
+    suspend fun incognito(): List<ConversationPrefs>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun put(prefs: ConversationPrefs)
 

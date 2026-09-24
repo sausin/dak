@@ -35,7 +35,15 @@
     <string name="fw_period_long_note">Longer than 1 hour: saving needs your fingerprint or screen lock.</string>
     <string name="fw_date_time">%1$s, %2$s</string>
     <string name="fw_section_message">Message</string>
-    <string name="fw_template_help">Placeholders: {sender}, {body}, {time}, {amount}, {merchant}, {sim}. Default: \"Fwd from {sender}: {body}\".</string>
+    <!-- Keep the {placeholders} in English, exactly as written: the app replaces them. %1$s = the default template (fw_default_template). -->
+    <string name="fw_template_help">Placeholders: {sender}, {body}, {time}, {amount}, {merchant}, {sim}. Default: \"%1$s\".</string>
+    <!--
+        The text a new auto-forward sends. Keep {sender} and {body} exactly as written (the app fills them in), and
+        start with a few words of your own before the first {placeholder}: that lead marks the message as a Dak
+        forward so it is never forwarded back and forth (ForwardLoopGuard). A translation without {body} or without
+        that lead is ignored and the English default is used. Existing rules keep the template they were saved with.
+    -->
+    <string name="fw_default_template">Fwd from {sender}: {body}</string>
     <string name="fw_include_otp">Include OTPs</string>
     <string name="fw_include_otp_summary">Off by default. Turning it on needs your fingerprint, face or screen lock.</string>
     <string name="fw_include_otp_warning">Anyone who receives your OTPs can log in to your accounts or approve payments. Only forward OTPs to someone you fully trust.</string>
@@ -94,25 +102,24 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_status_otp_suffix">" · includes OTPs"</string>
 
     <!-- Birthday wishes -->
-    <string name="fw_bd_title">Birthday wishes</string>
-    <string name="fw_bd_shortcut_summary">Birthdays from your contacts, with a wish ready to send on the day.</string>
-    <string name="fw_bd_enable">Send birthday wishes</string>
+    <string name="fw_bd_title">Birthdays &amp; occasions</string>
+    <string name="fw_bd_shortcut_summary">Birthdays, anniversaries and other dates from your contacts, with a wish ready to send on the day.</string>
+    <string name="fw_bd_enable">Send wishes</string>
     <string name="fw_bd_enable_summary">Nothing is sent until you also turn on \"Auto-send\" for a contact.</string>
     <string name="fw_bd_mode_ask">Ask me first</string>
     <string name="fw_bd_mode_auto">Send automatically</string>
     <string name="fw_bd_mode_ask_summary">On the day you get a notification with Send, Edit and Skip.</string>
     <string name="fw_bd_mode_auto_summary">The wish is sent at the chosen time without asking. Needs app lock: without it, or past the daily limit on automatic messages, you get the Send notification instead.</string>
     <string name="fw_bd_send_time">Send time</string>
-    <string name="fw_bd_anniversaries">Include anniversaries</string>
     <string name="fw_bd_edit_birthday_template">Birthday message</string>
     <string name="fw_bd_edit_anniversary_template">Anniversary message</string>
     <string name="fw_bd_permission_title">Allow access to contacts</string>
-    <string name="fw_bd_permission_body">Dak reads birthdays and anniversaries from your contacts on this phone. They are never uploaded.</string>
+    <string name="fw_bd_permission_body">Dak reads birthdays, anniversaries and other dates from your contacts on this phone. They are never uploaded.</string>
     <string name="fw_bd_allow">Allow</string>
     <string name="fw_bd_open_settings">Open settings</string>
     <string name="fw_bd_upcoming">Next 60 days</string>
-    <string name="fw_bd_none_title">No birthdays coming up</string>
-    <string name="fw_bd_none_body">Add birthdays to your contacts and they will show up here.</string>
+    <string name="fw_bd_none_title">Nothing coming up</string>
+    <string name="fw_bd_none_body">Tap \"Add a date\" to add a birthday, anniversary or any other date to a contact.</string>
     <string name="fw_bd_today">Today</string>
     <string name="fw_bd_tomorrow">Tomorrow</string>
     <string name="fw_bd_in_days">In %1$d days</string>
@@ -121,10 +128,10 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_bd_choose_number">Choose number</string>
     <string name="fw_bd_no_number">No phone number</string>
     <string name="fw_bd_auto_send">Auto-send</string>
-    <string name="fw_bd_feature_off_hint">Turn on \"Send birthday wishes\" above to send this.</string>
+    <string name="fw_bd_feature_off_hint">Turn on \"Send wishes\" above to send this.</string>
     <string name="fw_bd_template_title">Message</string>
     <string name="fw_bd_template_field">Your message</string>
-    <string name="fw_bd_template_help">Placeholders: {firstName}, {name}, {age} (only when the birth year is known).</string>
+    <string name="fw_bd_template_help">Placeholders: {firstName}, {name}, {age} (only when the birth year is known), {occasion} (the date\'s label, for other dates).</string>
     <string name="fw_bd_template_reset">Use default</string>
     <string name="fw_bd_prompt_title">%1$s\'s birthday today</string>
     <string name="fw_bd_prompt_title_anniversary">%1$s\'s anniversary today</string>
@@ -134,7 +141,7 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
 
     <!-- Inbox overflow -->
     <string name="fw_menu_forwarding">Auto-forwarding</string>
-    <string name="fw_menu_birthdays">Birthday wishes</string>
+    <string name="fw_menu_birthdays">Birthdays &amp; occasions</string>
 
     <!-- Automations that send messages off the phone need app lock (OutboundAutomationGuard) -->
     <string name="fw_lock_needed_title">Set up app lock first</string>
@@ -215,6 +222,12 @@ If someone on a call or chat asked you to set this up, stop now and hang up.</st
     <string name="fw_skip_no_contacts_access">Not sent: Dak couldn\'t check your contacts</string>
     <string name="fw_skip_possible_scam">Not sent: the message looked like a scam</string>
     <string name="fw_skip_premium">Not sent: needs a premium feature</string>
+    <string name="fw_skip_incognito">Not sent: the message is in an incognito chat, which is never forwarded</string>
     <string name="fw_limit_title">Automatic sending paused for today</string>
     <string name="fw_limit_text">Your automations sent %1$d messages today, the daily limit, so further forwards and auto-replies were skipped. Check your automations if this was unexpected.</string>
+
+    <!-- Snackbar after an automation rule acted on a new message, with Undo. %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_archived">Archived by \"%1$s\"</string>
+    <!-- %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_binned">Moved to bin by \"%1$s\"</string>
 </resources>

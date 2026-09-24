@@ -271,7 +271,7 @@ internal fun ForwardingEditor(
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.scr_auto_field_template)) },
         )
-        Text(stringResource(R.string.fw_template_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.fw_template_help, ForwardingSpec.defaultTemplate(stringResource(R.string.fw_default_template))), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onChange(spec.copy(includeOtp = !spec.includeOtp)) }) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.fw_include_otp))

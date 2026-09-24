@@ -136,8 +136,30 @@ class ConversationRepository @Inject constructor(
     suspend fun setStarred(conversationId: String, starred: Boolean) = updatePrefs(conversationId) { it.copy(starred = starred) }
     suspend fun setBubbleColor(conversationId: String, argb: Int?) = updatePrefs(conversationId) { it.copy(bubbleColor = argb) }
     suspend fun setFontScale(conversationId: String, scale: Float?) = updatePrefs(conversationId) { it.copy(fontScale = scale) }
+    /** Turns incognito on (from now: earlier messages are kept) or off; turning it on again restarts the clock. */
+    suspend fun setIncognito(conversationId: String, incognito: Boolean) =
+        updatePrefs(conversationId) { it.copy(incognitoSince = if (incognito) it.incognitoSince ?: System.currentTimeMillis() else null) }
     suspend fun setAlwaysTranslate(conversationId: String, enabled: Boolean) =
         updatePrefs(conversationId) { it.copy(alwaysTranslate = enabled) }
+
+    /** The incognito state of a conversation (after fold mapping), or null when incognito is off. */
+    suspend fun incognitoScope(requestedId: String): IncognitoScope? = withContext(Dispatchers.IO) {
+        val conversationId = folds.resolve(requestedId)
+        prefsDao.get(conversationId)?.incognitoSince?.let { IncognitoScope(conversationId, it) }
+    }
+
+    /** The incognito state of the conversation [key] belongs to; null when it is off or the message is not indexed. */
+    suspend fun incognitoScopeOf(key: MessageKey): IncognitoScope? = conversationIdOf(key)?.let { incognitoScope(it) }
+
+    /** Every conversation with incognito on (daily sweep). */
+    suspend fun incognitoScopes(): List<IncognitoScope> = withContext(Dispatchers.IO) {
+        prefsDao.incognito().mapNotNull { p -> p.incognitoSince?.let { IncognitoScope(p.conversationId, it) } }
+    }
+
+    /** Messages of an incognito conversation that were sent (radio confirmed) since it went incognito. */
+    suspend fun sentSince(scope: IncognitoScope): List<MessageKey> = withContext(Dispatchers.IO) {
+        messageDao.sentSince(scope.conversationId, scope.sinceMillis).map { MessageKey(it.kind, it.providerId) }
+    }
 
     /** Sets the conversation's reply SIM; null returns to the default (SIM of the last incoming message). */
     suspend fun setReplySim(conversationId: String, subId: Int?) = updatePrefs(conversationId) { it.copy(replySubId = subId) }
@@ -296,3 +318,6 @@ class ConversationRepository @Inject constructor(
         }
     }
 }
+
+/** A conversation in incognito mode: [conversationId] (fold-resolved) and when incognito was turned on. */
+data class IncognitoScope(val conversationId: String, val sinceMillis: Long)

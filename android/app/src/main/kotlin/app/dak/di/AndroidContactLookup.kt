@@ -9,6 +9,8 @@ import android.util.LruCache
 import androidx.core.content.ContextCompat
 import app.dak.index.ContactLookup
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.text.Collator
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -65,7 +67,10 @@ class AndroidContactLookup @Inject constructor(@ApplicationContext private val c
             limit = limit * 4,
         ) { it.getString(0) }.filterNotNull().distinct()
         // Prefix matches first, then word-start and substring matches.
-        return names.sortedWith(compareBy({ !it.startsWith(q, ignoreCase = true) }, { it.lowercase() })).take(limit)
+        // Prefix matches first, then in the app language's alphabetical order (Collator, not code units).
+        val collator = Collator.getInstance(context.resources.configuration.locales[0] ?: Locale.getDefault())
+            .apply { strength = Collator.SECONDARY }
+        return names.sortedWith(compareBy<String> { !it.startsWith(q, ignoreCase = true) }.then(collator)).take(limit)
     }
 
     private fun <T> queryPhones(projection: Array<String>, nameLike: String, limit: Int, read: (android.database.Cursor) -> T): List<T> {
@@ -89,6 +94,11 @@ class AndroidContactLookup @Inject constructor(@ApplicationContext private val c
     }
 
     private fun escapeLike(s: String): String = s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    /** Drops the cached answer for [address] (after the user saved or edited that contact). */
+    fun forget(address: String) {
+        cache.remove(address)
+    }
 
     /** Drop cached answers (e.g. after the contacts permission is granted). */
     fun invalidate() = cache.evictAll()

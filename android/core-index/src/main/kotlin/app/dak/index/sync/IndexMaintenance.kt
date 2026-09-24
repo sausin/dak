@@ -16,6 +16,7 @@ import app.dak.index.repo.LedgerRepository
 import app.dak.telephony.ProviderReader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -179,7 +180,10 @@ class IndexMaintenance @Inject constructor(
             )
             stateDao.put(base)
             val recent = reader.recentMessages(now - STAGE1_WINDOW_MILLIS, STAGE1_MIN_COUNT)
-            for (chunk in recent.chunked(STAGE1_CHUNK)) ingestor.ingest(chunk)
+            // The ledger is rebuilt once for the whole stage, not once per chunk.
+            val touched = HashSet<String>()
+            for (chunk in recent.chunked(STAGE1_CHUNK)) ingestor.ingest(chunk, deferLedger = touched)
+            ledger.recompute(touched)
             val total = runCatching { reader.totalMessageCount() }.getOrDefault(recent.size)
             val oldest = recent.minOfOrNull { it.dateMillis }
             val finished = System.currentTimeMillis()
@@ -209,27 +213,51 @@ class IndexMaintenance @Inject constructor(
             stateDao.put(state)
             var cursor = state.cursorMillis
             var outcome: StageTwoOutcome? = null
-            while (outcome == null) {
-                if (schedule == IndexSchedule.TONIGHT && !scheduler.insideNightWindow(ZonedDateTime.now())) {
-                    outcome = StageTwoOutcome.WINDOW_CLOSED
-                    continue
+            // Ledger accounts touched by batches whose rebuild is still due (docs/performance.md, "Ledger and inbox").
+            // Rebuilding them after every batch re-read each busy account's whole, growing history hundreds of times;
+            // now they are rebuilt every LEDGER_FLUSH_BATCHES batches (so a long pass still shows progress in the
+            // Passbook), when the night window closes, and once for everything when the pass is done.
+            val pending = HashSet<String>()
+            var sinceFlush = 0
+            try {
+                while (outcome == null) {
+                    if (schedule == IndexSchedule.TONIGHT && !scheduler.insideNightWindow(ZonedDateTime.now())) {
+                        ledger.recompute(pending)
+                        pending.clear()
+                        outcome = StageTwoOutcome.WINDOW_CLOSED
+                        continue
+                    }
+                    val batch = reader.messagesBefore(cursor, STAGE2_BATCH)
+                    if (batch.isEmpty()) {
+                        val now = System.currentTimeMillis()
+                        stateDao.put(state.copy(stage = BackfillStage.DONE.name, cursorMillis = cursor, updatedAt = now, finishedAt = now))
+                        // Every reason ends with one full rebuild: it covers the pending accounts, and also those of
+                        // an earlier run of this pass that was stopped before it could rebuild them.
+                        pending.clear()
+                        ledger.recomputeAll()
+                        // One segment merge after the bulk load, instead of paying for many segments on every search.
+                        FtsMaintenance.optimize(db)
+                        audit.log("index", "index.backfill.done", detail = state.reason)
+                        outcome = StageTwoOutcome.DONE
+                        continue
+                    }
+                    ingestor.ingest(batch, deferLedger = pending)
+                    if (++sinceFlush >= LEDGER_FLUSH_BATCHES) {
+                        ledger.recompute(pending)
+                        pending.clear()
+                        sinceFlush = 0
+                    }
+                    cursor = BackfillCursor.next(cursor, batch.minOf { it.dateMillis })
+                    state = state.copy(cursorMillis = cursor, updatedAt = System.currentTimeMillis())
+                    stateDao.put(state)
+                    onProgress(messageDao.countAtVersion(state.enricherVersion), total)
                 }
-                val batch = reader.messagesBefore(cursor, STAGE2_BATCH)
-                if (batch.isEmpty()) {
-                    val now = System.currentTimeMillis()
-                    stateDao.put(state.copy(stage = BackfillStage.DONE.name, cursorMillis = cursor, updatedAt = now, finishedAt = now))
-                    if (state.reason != BackfillReason.INITIAL.name) ledger.recomputeAll()
-                    // One segment merge after the bulk load, instead of paying for many segments on every search.
-                    FtsMaintenance.optimize(db)
-                    audit.log("index", "index.backfill.done", detail = state.reason)
-                    outcome = StageTwoOutcome.DONE
-                    continue
+            } finally {
+                // Stopped part-way (worker cancelled, provider error): rebuild what was indexed so far, best effort.
+                // The pass resumes later and its end rebuilds everything anyway.
+                if (pending.isNotEmpty()) {
+                    withContext(NonCancellable) { runCatching { ledger.recompute(pending) } }
                 }
-                ingestor.ingest(batch)
-                cursor = BackfillCursor.next(cursor, batch.minOf { it.dateMillis })
-                state = state.copy(cursorMillis = cursor, updatedAt = System.currentTimeMillis())
-                stateDao.put(state)
-                onProgress(messageDao.countAtVersion(state.enricherVersion), total)
             }
             outcome
         }
@@ -261,5 +289,8 @@ class IndexMaintenance @Inject constructor(
         const val STAGE1_MIN_COUNT = 1000
         const val STAGE1_CHUNK = 200
         const val STAGE2_BATCH = 500
+
+        /** Stage-2 batches between two ledger rebuilds of the accounts they touched (10,000 messages). */
+        const val LEDGER_FLUSH_BATCHES = 20
     }
 }

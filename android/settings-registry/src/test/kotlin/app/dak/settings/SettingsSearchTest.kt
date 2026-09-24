@@ -96,4 +96,49 @@ class SettingsSearchTest {
         assertFalse("privacy.center" in exported)
         assertTrue("categoriesSpam.jevOptIn" in exported)
     }
+
+    /** Stand-in for the app's resource-backed text in another language (Hindi here). */
+    private val hindi = object : SettingsText {
+        override fun title(def: SettingDef<*>): String =
+            if (def.key == DakSettings.otpAutoDelete.key) "ओटीपी अपने-आप हटाएँ" else def.title
+        override fun summary(def: SettingDef<*>): String =
+            if (def.key == DakSettings.otpAutoDelete.key) "आने के बाद ओटीपी संदेश अपने-आप हटाएँ।" else def.summary
+    }
+
+    @Test
+    fun `localized titles and summaries are searchable`() {
+        assertEquals(DakSettings.otpAutoDelete.key, SettingsSearch.search("ओटीपी", context, FreeEntitlements, text = hindi).first().key)
+        assertTrue(SettingsSearch.search("संदेश", context, FreeEntitlements, text = hindi).any { it.key == DakSettings.otpAutoDelete.key })
+    }
+
+    @Test
+    fun `english titles and keywords still match in another language`() {
+        val results = SettingsSearch.search("otp auto", context, FreeEntitlements, text = hindi)
+        assertEquals(DakSettings.otpAutoDelete.key, results.first().key)
+        assertTrue(SettingsSearch.search("one time password", context, FreeEntitlements, text = hindi).any { it.key == DakSettings.otpAutoDelete.key })
+        assertTrue(SettingsSearch.search("expire", context, FreeEntitlements, text = hindi).any { it.key == DakSettings.otpAutoDelete.key })
+    }
+
+    @Test
+    fun `english text resolver ranks exactly like the default`() {
+        for (q in listOf("otp", "sim", "lock", "backup", "balanc")) {
+            assertEquals(
+                SettingsSearch.search(q, context, FreeEntitlements).map { it.key },
+                SettingsSearch.search(q, context, FreeEntitlements, text = SettingsText.English).map { it.key },
+            )
+        }
+    }
+
+    @Test
+    fun `string keys are stable, valid resource names`() {
+        assertEquals("setting_notifications_otpAutoDelete_title", SettingsStringKeys.title(DakSettings.otpAutoDelete))
+        assertEquals("setting_simsSending_sim1_name_summary", SettingsStringKeys.summary(DakSettings.sim1Name))
+        val opt = (DakSettings.otpAutoDelete.control as ControlType.SingleChoice).options.first()
+        assertEquals("setting_notifications_otpAutoDelete_opt_1h", SettingsStringKeys.option(DakSettings.otpAutoDelete, opt))
+        val swipe = SwipeActions.options.first()
+        assertEquals("swipe_action_archive", SettingsStringKeys.option(DakSettings.swipeLeft, swipe))
+        assertEquals(SettingsStringKeys.option(DakSettings.swipeLeft, swipe), SettingsStringKeys.option(DakSettings.swipeRight, swipe))
+        assertEquals("settings_group_categories_spam", SettingsStringKeys.group(SettingsGroup.CATEGORIES_SPAM))
+        assertEquals(SettingsStringKeys.all().size, SettingsStringKeys.all().toSet().size)
+    }
 }

@@ -248,6 +248,7 @@
     <string name="scr_inbox_index_waiting">%1$s older messages will be organised when your chosen time comes</string>
     <string name="scr_inbox_new_message">New message</string>
     <string name="scr_link_lookalike">This address imitates %1$s but is not its official site.</string>
+    <string name="scr_link_lookalike_unbranded">This address only looks official: it is a bare number or pretends to be a government or bank site. Real ones use their own domain.</string>
     <string name="scr_link_never_share">This message comes from an unknown number. Banks never ask for OTPs, PINs or card details by link.</string>
     <string name="scr_link_open_anyway">Open anyway</string>
     <string name="scr_link_shortened">This is a shortened link: its real destination is hidden.</string>
@@ -313,6 +314,8 @@
     <string name="scr_snack_schedule_text_only">Scheduled messages can only contain text</string>
     <string name="scr_snack_scheduled">Scheduled. See Automations → Scheduled sends.</string>
     <string name="scr_snack_send_failed">Not sent</string>
+    <!-- %1$s = why, from the phone or carrier, e.g. "No mobile service" (strings_failures.xml in core-telephony) -->
+    <string name="scr_snack_send_failed_reason">Not sent (%1$s)</string>
     <string name="scr_starred">Starred</string>
     <string name="scr_status_failed">Not sent · Tap to retry</string>
     <string name="scr_status_sending">Sending…</string>

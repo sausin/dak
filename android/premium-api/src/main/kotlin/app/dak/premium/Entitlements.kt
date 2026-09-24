@@ -4,7 +4,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/** Everything that is gated. Free tier: server-backed features plus a few value gates. */
+/**
+ * Everything that is gated. Free tier: server-backed features plus a few value gates.
+ *
+ * [summary] is the English text (fallback and tests); the app shows the string resource named [stringKey]
+ * (`feature_<name>_summary` in strings_settings.xml, see docs/i18n.md).
+ */
 enum class Feature(val summary: String) {
     ADJUSTABLE_OTP_BIN_RETENTION("Keep deleted OTPs in the bin for longer than 1 day"),
     WEBHOOKS("Send signed webhooks from automations"),
@@ -14,6 +19,10 @@ enum class Feature(val summary: String) {
     WEB_CLIENT("Read and reply from your computer"),
     SEND_API("Send SMS from your own services"),
     CLOUD_CLASSIFICATION_HIGHER_CAP("Higher monthly cap for cloud classification"),
+    ;
+
+    /** Android string-resource name of [summary]; stable because enum names are persisted and never renamed. */
+    val stringKey: String get() = "feature_${name.lowercase()}_summary"
 }
 
 /**

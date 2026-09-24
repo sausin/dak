@@ -36,7 +36,9 @@ object Reconciler {
         maxDateDeltaMillis: Long = DEFAULT_MAX_DATE_DELTA_MILLIS,
     ): ReconciliationResult {
         val sorted = entries.sortedBy { it.dateMillis }
-        val settlementCandidates = sorted.filter { it.settled }.toMutableList()
+        // Date-ordered (a stable filter of a stable sort), so each estimate scans only the settlements dated inside its
+        // window, in the same order a full scan would visit them (docs/performance.md, "Ledger and inbox").
+        val settlementCandidates = sorted.filter { it.settled }
         val consumed = mutableSetOf<String>()
         val updates = mutableMapOf<String, LedgerEntry>()
         val matches = mutableListOf<ReconciliationMatch>()
@@ -48,19 +50,30 @@ object Reconciler {
             val estimateAmount = BigDecimal.valueOf(estimateHome.amountMinor)
             val toleranceAbs = estimateAmount.abs().multiply(toleranceFraction)
 
-            val candidates = settlementCandidates.filter { candidate ->
-                candidate.messageKey !in consumed &&
-                    candidate.direction == estimate.direction &&
-                    candidate.original.currencyUpper == estimateHome.currencyUpper &&
-                    candidate.dateMillis >= estimate.dateMillis &&
-                    (candidate.dateMillis - estimate.dateMillis) <= maxDateDeltaMillis &&
-                    BigDecimal.valueOf(abs(candidate.original.amountMinor - estimateHome.amountMinor)) <= toleranceAbs
+            // Closest amount, then closest date; on a full tie the first in date order wins (as minWithOrNull did).
+            var best: LedgerEntry? = null
+            var bestDistance = 0L
+            var bestDelta = 0L
+            var i = firstOnOrAfter(settlementCandidates, estimate.dateMillis)
+            while (i < settlementCandidates.size) {
+                val candidate = settlementCandidates[i++]
+                val delta = candidate.dateMillis - estimate.dateMillis
+                if (delta > maxDateDeltaMillis) break
+                if (candidate.messageKey in consumed ||
+                    candidate.direction != estimate.direction ||
+                    candidate.original.currencyUpper != estimateHome.currencyUpper
+                ) {
+                    continue
+                }
+                val distance = abs(candidate.original.amountMinor - estimateHome.amountMinor)
+                if (BigDecimal.valueOf(distance) > toleranceAbs) continue
+                if (best == null || distance < bestDistance || (distance == bestDistance && delta < bestDelta)) {
+                    best = candidate
+                    bestDistance = distance
+                    bestDelta = delta
+                }
             }
-
-            val best = candidates.minWithOrNull(
-                compareBy<LedgerEntry> { abs(it.original.amountMinor - estimateHome.amountMinor) }
-                    .thenBy { it.dateMillis - estimate.dateMillis },
-            ) ?: continue
+            if (best == null) continue
 
             consumed += best.messageKey
             val markup = if (estimateAmount.signum() != 0) {
@@ -96,5 +109,16 @@ object Reconciler {
         }
 
         return ReconciliationResult(resultEntries, matches)
+    }
+
+    /** Index of the first entry of the date-sorted [entries] dated on or after [dateMillis] ([entries].size if none). */
+    private fun firstOnOrAfter(entries: List<LedgerEntry>, dateMillis: Long): Int {
+        var lo = 0
+        var hi = entries.size
+        while (lo < hi) {
+            val mid = (lo + hi) ushr 1
+            if (entries[mid].dateMillis < dateMillis) lo = mid + 1 else hi = mid
+        }
+        return lo
     }
 }

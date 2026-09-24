@@ -13,31 +13,46 @@ import app.dak.index.InboxTab
  *
  * Result columns (see `ConversationRow`): conversationId, dateMillis, kind, providerId, threadId, address,
  * mergeKey, canonicalSender, snippet, category, box, hasAttachment, unreadCount, messageCount, subIds, threadIds,
- * pinned, muted, archived, starred, groupName, repeatGroup, deliveryStatus.
+ * pinned, muted, archived, starred, incognito, groupName, repeatGroup, deliveryStatus.
  */
 internal object ConversationSqlBuilder {
 
+    /**
+     * One page of conversations, in two steps within one statement (docs/performance.md, "Ledger and inbox"):
+     *
+     * 1. `c`: filter and aggregate per conversation, sort and cut the page. It reads only columns of the covering
+     *    index `(conversationId, dateMillis, category, subId, archived, starred, read, box, threadId)`, never the
+     *    rows themselves (bodies, FTS text, JSON), and carries the rowid of each conversation's newest matching
+     *    message: with exactly one MAX() aggregate, SQLite takes the bare `m.rowid` from the row holding the maximum.
+     * 2. Only the page's newest messages (at most [limit] rows) are then read for their display columns.
+     */
     fun page(tab: InboxTab, subId: Int?, limit: Int, offset: Int): SqlQuery {
         val (where, args) = where(tab, subId)
-        // Exactly one MAX() aggregate, so the bare message columns come from each conversation's newest message.
         val sql = buildString {
-            append("SELECT m.conversationId AS conversationId, MAX(m.dateMillis) AS dateMillis, ")
-            append("m.kind AS kind, m.providerId AS providerId, m.threadId AS threadId, m.address AS address, ")
-            append("m.mergeKey AS mergeKey, m.canonicalSender AS canonicalSender, m.bodyPreview AS snippet, ")
-            append("m.category AS category, m.box AS box, m.hasAttachment AS hasAttachment, m.repeatGroup AS repeatGroup, ")
-            append("m.deliveryStatus AS deliveryStatus, ")
-            append("SUM(CASE WHEN m.read = 0 AND m.box = '${MessageBox.INBOX.name}' THEN 1 ELSE 0 END) AS unreadCount, ")
-            append("COUNT(*) AS messageCount, ")
-            append("GROUP_CONCAT(DISTINCT m.subId) AS subIds, ")
-            append("GROUP_CONCAT(DISTINCT m.threadId) AS threadIds, ")
-            append("COALESCE(p.pinned, 0) AS pinned, COALESCE(p.muted, 0) AS muted, ")
-            append("COALESCE(p.archived, 0) AS archived, COALESCE(p.starred, 0) AS starred, ")
+            append("SELECT c.cid AS conversationId, c.newest AS dateMillis, ")
+            append("n.kind AS kind, n.providerId AS providerId, n.threadId AS threadId, n.address AS address, ")
+            append("n.mergeKey AS mergeKey, n.canonicalSender AS canonicalSender, n.bodyPreview AS snippet, ")
+            append("n.category AS category, n.box AS box, n.hasAttachment AS hasAttachment, n.repeatGroup AS repeatGroup, ")
+            append("n.deliveryStatus AS deliveryStatus, ")
+            append("c.unread AS unreadCount, c.total AS messageCount, c.subs AS subIds, c.threads AS threadIds, ")
+            append("c.pin AS pinned, c.mute AS muted, c.arch AS archived, c.star AS starred, c.incog AS incognito, ")
             append("g.displayName AS groupName ")
+            append("FROM (")
+            // Exactly one MAX() aggregate, so the bare m.rowid comes from each conversation's newest matching message.
+            append("SELECT m.conversationId AS cid, MAX(m.dateMillis) AS newest, m.rowid AS rid, ")
+            append("SUM(CASE WHEN m.read = 0 AND m.box = '${MessageBox.INBOX.name}' THEN 1 ELSE 0 END) AS unread, ")
+            append("COUNT(*) AS total, GROUP_CONCAT(DISTINCT m.subId) AS subs, GROUP_CONCAT(DISTINCT m.threadId) AS threads, ")
+            append("COALESCE(p.pinned, 0) AS pin, COALESCE(p.muted, 0) AS mute, COALESCE(p.archived, 0) AS arch, ")
+            append("COALESCE(p.starred, 0) AS star, (p.incognitoSince IS NOT NULL) AS incog ")
             append(FROM)
             append("WHERE ").append(where).append(' ')
             append("GROUP BY m.conversationId ")
-            append("ORDER BY pinned DESC, dateMillis DESC, conversationId ASC ")
+            append("ORDER BY pin DESC, newest DESC, cid ASC ")
             append("LIMIT ? OFFSET ?")
+            append(") c ")
+            append("JOIN ${Tables.MESSAGE} n ON n.rowid = c.rid ")
+            append("LEFT JOIN ${Tables.MERGE_GROUP} g ON g.mergeKey = n.mergeKey AND n.conversationId = ('m:' || n.mergeKey) ")
+            append("ORDER BY pinned DESC, dateMillis DESC, conversationId ASC")
         }
         return SqlQuery(sql, args + listOf(limit.toLong(), offset.toLong()))
     }
@@ -51,10 +66,10 @@ internal object ConversationSqlBuilder {
         )
     }
 
+    /** The messages and their conversation prefs (the only tables the filters read). */
     private const val FROM =
         "FROM ${Tables.MESSAGE} m " +
-            "LEFT JOIN ${Tables.PREFS} p ON p.conversationId = m.conversationId " +
-            "LEFT JOIN ${Tables.MERGE_GROUP} g ON g.mergeKey = m.mergeKey AND m.conversationId = ('m:' || m.mergeKey) "
+            "LEFT JOIN ${Tables.PREFS} p ON p.conversationId = m.conversationId "
 
     private const val NOT_ARCHIVED = "COALESCE(p.archived, 0) = 0 AND m.archived = 0"
 

@@ -5,6 +5,7 @@ import android.util.Log
 import app.dak.automations.rule.Rule
 import app.dak.automations.rule.isExpired
 import app.dak.birthdays.BirthdayScheduler
+import app.dak.incognito.IncognitoVanisher
 import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.AutomationRunStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,7 +23,8 @@ import javax.inject.Singleton
  *   ([OutboundAutomationGuard.enforce], e.g. the phone's screen lock was removed while Dak was not running);
  * - refreshes the "Forwarding active" notification;
  * - trims the automation run log to its retention ([AutomationRunStore.trim]: a year, or the newest 5,000 runs);
- * - re-scans contacts for birthdays and re-arms the next wish per enabled contact.
+ * - re-scans contacts for birthdays and re-arms the next wish per enabled contact;
+ * - deletes sent messages an incognito chat still holds (a missed "sent" callback, [IncognitoVanisher.sweep]).
  */
 @Singleton
 class DailyHousekeeping @Inject constructor(
@@ -33,6 +35,7 @@ class DailyHousekeeping @Inject constructor(
     private val birthdays: BirthdayScheduler,
     private val outboundGuard: OutboundAutomationGuard,
     private val runLog: AutomationRunStore,
+    private val incognito: IncognitoVanisher,
 ) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val mutex = Mutex()
@@ -56,6 +59,7 @@ class DailyHousekeeping @Inject constructor(
         runCatching { forwardingStatus.refresh(nowMillis) }.onFailure { Log.w(TAG, "status refresh failed", it) }
         runCatching { runLog.trim(nowMillis) }.onFailure { Log.w(TAG, "run log trim failed", it) }
         runCatching { birthdays.syncFromContacts(nowMillis) }.onFailure { Log.w(TAG, "birthday sync failed", it) }
+        runCatching { incognito.sweepAll() }.onFailure { Log.w(TAG, "incognito sweep failed", it) }
     }
 
     /**

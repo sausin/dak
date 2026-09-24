@@ -17,6 +17,8 @@ import app.dak.navigation.IntentRoutes
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.Collator
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -126,8 +128,12 @@ class ConversationChannels @Inject constructor(
         return nm.notificationChannels.mapNotNull { channel ->
             val id = conversationIdOf(channel.id) ?: return@mapNotNull null
             Custom(id, channel.id, channel.name?.toString().orEmpty(), channel.importance == NotificationManager.IMPORTANCE_NONE)
-        }.sortedBy { it.title.lowercase() }
+        }.sortedWith(compareBy(nameCollator()) { it.title })
     }
+
+    /** Sorts names the way the app language does (accents, scripts, case), not by UTF-16 code unit. */
+    private fun nameCollator(): Collator =
+        Collator.getInstance(context.resources.configuration.locales[0] ?: Locale.getDefault()).apply { strength = Collator.SECONDARY }
 
     fun isEnabled(conversationId: String): Boolean = manager?.getNotificationChannel(channelIdFor(conversationId)) != null
 

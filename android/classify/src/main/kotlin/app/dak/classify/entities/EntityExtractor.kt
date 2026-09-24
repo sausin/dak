@@ -3,6 +3,7 @@ package app.dak.classify.entities
 import app.dak.classify.DigitNormalizer
 import app.dak.classify.LinkExtractor
 import app.dak.classify.OtpExtractor
+import app.dak.classify.text.AnalysisText
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.Leniency
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
@@ -53,7 +54,8 @@ public object EntityExtractor {
         otpCode: String? = null,
     ): List<EntitySpan> {
         if (body.isEmpty()) return emptyList()
-        val text = if (body.length > MAX_CHARS) body.substring(0, MAX_CHARS) else body
+        // Combining-mark floods capped without moving any offset (every `\b` would otherwise rescan the run).
+        val text = AnalysisText.capMarksKeepingOffsets(if (body.length > MAX_CHARS) body.substring(0, MAX_CHARS) else body)
         // Non-ASCII digits (Devanagari, Arabic-Indic...) fold 1:1 to ASCII, so ranges stay valid in the original.
         val digits = DigitNormalizer.normalizeDigits(text)
         val candidates = ArrayList<EntitySpan>()
@@ -78,15 +80,23 @@ public object EntityExtractor {
 
     private fun otp(text: String, digits: String, known: String?): EntitySpan? {
         val code = known ?: OtpExtractor.extract(text)?.code ?: return null
-        var from = 0
-        while (from < digits.length) {
-            val at = digits.indexOf(code, from)
-            if (at < 0) return null
-            val end = at + code.length
-            val before = if (at > 0) digits[at - 1] else ' '
-            val after = if (end < digits.length) digits[end] else ' '
-            if (!before.isLetterOrDigit() && !after.isLetterOrDigit()) return span(text, EntityType.OTP, at, end, code)
-            from = at + 1
+        // A six-digit code may be written in two halves ("123-456", "123 456"); the span covers what is written.
+        val forms = if (code.length == 6 && code.all { it in '0'..'9' }) {
+            listOf(code, code.substring(0, 3) + "-" + code.substring(3), code.substring(0, 3) + " " + code.substring(3))
+        } else {
+            listOf(code)
+        }
+        for (form in forms) {
+            var from = 0
+            while (from < digits.length) {
+                val at = digits.indexOf(form, from)
+                if (at < 0) break
+                val end = at + form.length
+                val before = if (at > 0) digits[at - 1] else ' '
+                val after = if (end < digits.length) digits[end] else ' '
+                if (!before.isLetterOrDigit() && !after.isLetterOrDigit()) return span(text, EntityType.OTP, at, end, code)
+                from = at + 1
+            }
         }
         return null
     }

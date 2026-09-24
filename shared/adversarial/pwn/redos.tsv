@@ -1,0 +1,70 @@
+# pwn/redos: inputs built to make specific regexes backtrack (catastrophic backtracking / ReDoS). Each comment names the
+# regex it aims at. The expectation is survival within the time budget (plus the usual invariants). Bodies are written
+# as generators; the pipeline and detector read only the first 4,000 characters, the link extractor 20,000, but the
+# transaction parser reads the whole body, so the biggest payloads aim at it.
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=IN
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- FakeCreditDetector (first 4,000 chars)
+
+# PIN_TO_RECEIVE, both branches, with no terminating verb
+redos-fc-01	+919876515001	no-crash	pin-to-receive	{repeat:"enter your upi pin ":250}
+redos-fc-02	+919876515002	no-crash	pin-to-receive	Rs 500 {repeat:"receive get claim credited ":150}
+
+# RETURN_REQUEST / TRANSFER_MENTION / BARE_AMOUNT
+redos-fc-03	+919876515003	no-crash	return-request	Rs 500 {repeat:"please send the money ":200}
+redos-fc-04	+919876515004	no-crash	bare-amount	bheja {repeat:"1,234,":700}
+
+# MOBILE / AMOUNT_BEFORE / MASK / COUNTERPARTY_ACCOUNT / VPA
+redos-fc-05	+919876515005	no-crash	mobile	credited to a/c {repeat:"9":4000}
+redos-fc-06	+919876515006	no-crash	amount	rs{repeat:"1,":3000} credited to a/c XX1234
+redos-fc-07	+919876515007	no-crash	mask	Rs 500 credited to a/c {repeat:"x":4000}1
+redos-fc-08	+919876515008	no-crash	counterparty	Rs 500 credited {repeat:"beneficiary a/c no ":200}
+redos-fc-09	+919876515009	no-crash	vpa	Rs 500 please return {repeat:"a.":1500}@{repeat:"b":40}
+
+# ---------------------------------------------------------------- template rules (pipeline, first 4,000 chars)
+redos-rule-01	+919876515010	no-crash	spam-kyc	Rs 5 {repeat:"kyc pan aadhaar ":250}
+redos-rule-02	+919876515011	no-crash	spam-click-link	{repeat:"click here aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ":55}
+redos-rule-03	+919876515012	no-crash	spam-account-threat	{repeat:"account card sim wallet net banking ":110}
+redos-rule-04	+919876515013	no-crash	spam-parcel-fee	{repeat:"parcel package shipment consignment ":110}
+redos-rule-05	VM-ABCDEF-S	no-crash	txn-upi	{repeat:"upi imps neft ":300}
+redos-rule-06	VM-ABCDEF-S	no-crash	txn-card-spend	{repeat:"card xx12 ending 34 ":200}
+redos-rule-07	+919876515014	no-crash	spam-disconnection	{repeat:"electricity power bijli cut ":150}
+redos-rule-08	+919876515015	no-crash	spam-lottery	{repeat:"you your mobile number ":180}
+
+# ---------------------------------------------------------------- OtpExtractor (first 4,000 chars)
+redos-otp-01	+919876515016	no-crash	code-before-keyword	{repeat:"1234 is the a b c ":220} otp
+redos-otp-02	+919876515017	no-crash	code-after-keyword	{repeat:"otp ":1000}
+redos-otp-03	+919876515018	no-crash	code-after-keyword	otp {repeat:"-":40}{repeat:"a":4000}
+redos-otp-04	+919876515019	no-crash	retriever-hash	{repeat:"abcdefghijk ":350}
+redos-otp-05	+919876515020	no-crash	retriever-hash	{repeat:"a":3999}{repeat:" ":5000}x
+redos-otp-06	+919876515021	no-crash	date,phone	{repeat:"12/":1500} {repeat:"1 ":2000}
+redos-otp-07	+919876515022	no-crash	code-as-keyword	{repeat:"use 1234 as your ":250}
+
+# ---------------------------------------------------------------- Masker (cloud stage) and LinkExtractor
+redos-mask-01	+919876515023	no-crash	masker-names	Dear {repeat:"Aa ":1300}
+redos-mask-02	+919876515024	no-crash	masker-names	{repeat:"to Ab ":800}
+redos-mask-03	+919876515025	no-crash	masker-email	{repeat:"x.":2000}@
+redos-link-01	+919876515026	no-crash	bare-links	{repeat:"a.":10000}
+redos-link-02	+919876515027	no-crash	bare-links	{repeat:"a-":10000}
+redos-link-03	+919876515028	no-crash	www	{repeat:"www.":5000}
+redos-link-04	+919876515029	no-crash	title-case-labels	{repeat:"A.":10000}
+
+# ---------------------------------------------------------------- TransactionParser (reads the WHOLE body)
+redos-txn-01	VM-HDFCBK-S	no-crash	merchant-at	Rs 500 debited from A/c XX1234 {repeat:"at AAAA ":60000}
+redos-txn-02	VM-HDFCBK-S	no-crash	money-parser	debited {repeat:"Rs 1,":100000}
+redos-txn-03	VM-HDFCBK-S	no-crash	amount-mentions	debited by {repeat:"1,000,":80000}
+redos-txn-04	VM-HDFCBK-S	no-crash	reference	Rs 500 credited to A/c XX1234 {repeat:"ref no ":80000}
+redos-txn-05	VM-HDFCBK-S	no-crash	direction-cues	Rs 500 {repeat:"debited credited ":30000}
+redos-txn-06	VM-HDFCBK-S	no-crash	merchant-to	Rs 500 debited from A/c XX1234 {repeat:"to A ":100000}
+redos-txn-07	VM-CAMSMF-S	no-crash	investment-scheme-name	Units allotted {repeat:"ABC ":100000}Fund
+redos-txn-08	VM-HDFCBK-S	no-crash	instrument	Rs 500 debited {repeat:"card a/c loan ":30000}
+
+# ---------------------------------------------------------------- entities, search, unicode tables
+redos-ent-01	+919876515030	no-crash	libphonenumber	{repeat:"+91 98765 43210 ":250}
+redos-search-01	+919876515031	no-crash	query-parser	{repeat:"\"":10000}
+redos-search-02	+919876515032	no-crash	query-parser	{repeat:"from:a -OR \"x ":2000}
+redos-nfkc-01	+919876515033	no-crash	nfkc-expansion	{repeat:"ﷺ":5000}
+redos-idna-01	+919876515034	no-crash	uts46	https://xn--{repeat:"a":59}.{repeat:"xn--b.":40}com
+redos-sender-01	{repeat:"\u0430":10000}	no-crash	confusables-sender	Rs 500 credited to A/c XX1234

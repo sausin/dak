@@ -1,0 +1,119 @@
+# India: fake credit alerts and "return it" follow-ups, UPI PIN / collect bait, KYC / PAN / Aadhaar scares,
+# electricity, parcels, tax refunds, jobs, loans, lotteries, digital arrest, sextortion, look-alike links; and the
+# genuine DLT-header alerts, OTPs and updates they imitate (which must NOT be flagged).
+# Format and expectations: README.md in this folder. Columns are TAB-separated.
+#! region=IN
+# id	sender	expect	tags	body
+
+# ---------------------------------------------------------------- fake credit alerts from mobile numbers (detector)
+in-fc-01	+919876512301	likely-scam,reason:phone-credit-alert,scam	fake-credit	Rs.25,000.00 credited to your A/c XX4321 on 23-09-26 by IMPS Ref 623451789012. Avl Bal Rs.25,340.50 -SBI
+in-fc-02	+919876512301	likely-scam,reason:return-request,reason:follow-up	fake-credit,follow-up,hinglish,after:in-fc-01	Bhaiya maine galti se aapke account me 25000 bhej diye, please wapas kar do. Mera beta hospital me hai 🙏 isi number pe GPay kar do
+in-fc-03	9876512303	likely-scam,scam,reason:phone-claims-bank	fake-credit,hindi	प्रिय ग्राहक, आपके खाते XX7788 में ₹15,000.00 जमा किए गए हैं। संदर्भ 624512345678 - पंजाब नेशनल बैंक
+in-fc-04	9876512303	likely-scam,reason:return-request	fake-credit,follow-up,hindi,after:in-fc-03	भाई साहब मैंने गलती से आपके खाते में 15000 भेज दिए, कृपया वापस कर दीजिए। बहुत जरूरी है।
+in-fc-05	+919876512305	likely-scam	fake-credit	Dear Customer, INR 49,500.00 has been credited to your HDFC Bank a/c **9012 by NEFT from ANIL TRADERS. If not yours, please return to 9876512305. -HDFC Bank
+in-fc-06	+919876512306	likely-scam,reason:phone-debit-alert	fake-debit,callback	Your SBI A/c XX2210 is debited Rs 49,999.00 on 23-09-26 for online purchase. If not done by you call 8765432109 immediately to block your card.
+in-fc-07	+919876512307	suspicious,reason:return-request	return-request	Sir I sent Rs 3000 to your number by mistake on Paytm, please return it. I am a poor student.
+in-fc-08	+919876512308	fake-credit,reason:payment-handle	return-request,hinglish,vpa	Sir galti se 5000 rupaye aapke UPI me chale gaye. Please ravi.k2291@ybl pe wapas bhej do, aapki badi meherbani hogi
+in-fc-09	+919876512309	fake-credit,scam	fake-credit,screenshot	Rs 10,000 transferred to your a/c XX5566 successfully. Payment screenshot sent on WhatsApp. Kindly check and send the balance Rs 2,000 back to me.
+in-fc-10	+919876512310	likely-scam	fake-credit	Rs 8,000.00 credited to your A/c XX6612 by UPI Ref 626512347777. Avl Bal Rs 8,450.00 -Canara Bank
+in-fc-11	+919876512310	likely-scam,reason:follow-up,reason:return-request	fake-credit,follow-up,hinglish,after:in-fc-10	Sir galti se 8000 bhej diye aapko, wapas kar do plz. Urgent hai
+
+# ---------------------------------------------------------------- fake credit alerts from spoofed / wrong-route headers
+in-hdr-01	HDFC-BANK	likely-scam,reason:lookalike-sender	fake-credit,lookalike-header	Rs 20,000.00 credited to a/c XX1188 on 23-09-26 via IMPS. Avl bal Rs 20,410.00. Not you? Call 9876512311
+in-hdr-02	VK-HDFCBK-P	fake-credit,reason:promotional-route	fake-credit,promo-route	INR 12,500.00 credited to A/c XX3321 on 23-SEP-26. Info: IMPS/P2A/626612345678. Avl Bal INR 13,020.55
+in-hdr-03	VM-\u041DDFCBK-S	likely-scam,sender-spoof,reason:lookalike-sender	fake-credit,homograph-sender,cyrillic	Rs 30,000.00 credited to A/c XX4411 on 23-09-26. Ref 626699887766. Avl Bal Rs 31,200.00
+in-hdr-04	HDFCBK	fake-credit	fake-credit,unprefixed-header	INR 49,500.00 credited to A/c XX9012 on 23-09-26. Info: IMPS/P2A/626612345678/RAHUL. Avl bal INR 50,112.00. Wrongly credited? Please return to 9876512314
+in-hdr-05	AD-QUIKPY-S	fake-credit	fake-credit,unknown-header	Dear Customer, Rs 7,500 credited to your ICICI Bank A/c XX2020 as cashback. Call 9876512315 if not received.
+
+# ---------------------------------------------------------------- UPI PIN / collect bait (a PIN is only ever needed to PAY)
+in-upi-01	+919876512321	likely-scam,reason:pin-to-receive,scam	pin-to-receive	Congratulations! You have received Rs 2,000 cashback from PhonePe. Enter your UPI PIN to receive the amount in your bank account.
+in-upi-02	+919876512322	likely-scam,reason:pin-to-receive	pin-to-receive,olx	Hi, I am interested in your sofa on OLX. I have sent you a QR code on WhatsApp, scan it and enter UPI PIN to receive Rs 18,500 advance.
+in-upi-03	+919876512323	fake-credit,reason:collect-request,scam	collect,upi-link,hinglish	Aapko Rs 5,000 ka refund mila hai. Payment request approve karein to receive money: upi://pay?pa=refund.desk@ybl&am=5000
+in-upi-04	+919876512324	fake-credit,scam	collect	You have won Rs 1,500 Google Pay reward! Tap Accept on the payment request in your GPay app to get it credited instantly.
+in-upi-05	+919876512325	scam	pin-to-receive,hindi	बधाई हो! आपको ₹5,000 का कैशबैक मिला है। राशि पाने के लिए अपना यूपीआई पिन डालें।
+
+# ---------------------------------------------------------------- KYC / PAN / Aadhaar / SIM
+in-kyc-01	+919876512331	scam,link-warning	kyc	Dear SBI customer, your YONO account will be blocked today. Update your PAN immediately: https://sbi-yono-kyc.xyz/update
+in-kyc-02	9876512332	scam,link-warning	kyc,hinglish	Aapka bank khata aaj band ho jayega. Turant KYC update karein: bit.ly/kyc-upd8
+in-kyc-03	+919876512333	scam,link-warning	aadhaar	UIDAI: Your Aadhaar-linked mobile number will be deactivated in 24 hrs. Re-verify now at http://uidai-verify.top/a
+in-kyc-04	AB-KYCUPD	scam,lookalike,link-warning	kyc,lookalike-domain	HDFC Bank: Your NetBanking is suspended as PAN is not linked. Reactivate: https://hdfcbank.com.kyc-verify.in/login
+in-kyc-05	+919876512335	scam	sim-swap,esim	Airtel: Your SIM will be blocked in 2 hours due to KYC failure. To keep your number active, call 9876512399 and share the eSIM activation code sent to you.
+in-kyc-06	+919876512336	scam,link-warning	fastag,kyc	FASTag KYC expired. Your tag will be blacklisted today and toll will be charged double. Update KYC: bit.ly/fastag-kyc9
+in-kyc-07	+919876512337	scam,link-warning	govt-scheme,hinglish	PM Kisan: Rs 6,000 ki agli kist aapke khate me jama hogi. Pehle e-KYC karein: https://pmkisan-ekyc.top/in
+
+# ---------------------------------------------------------------- electricity / utilities
+in-elec-01	9876512341	scam	electricity	Dear Consumer your electricity power will be disconnected tonight at 9.30 pm because your previous month bill was not updated. Please immediately contact our electricity officer 9876512342
+in-elec-02	9876512343	scam	electricity,hindi	प्रिय उपभोक्ता, आपका बिजली कनेक्शन आज रात 9:30 बजे काट दिया जाएगा क्योंकि पिछले महीने का बिल अपडेट नहीं है। तुरंत बिजली अधिकारी से संपर्क करें 9876512344
+in-elec-03	+919876512345	scam	gas	Dear customer, your gas connection will be disconnected today due to pending KYC and bill payment. Contact gas officer on 9876512346.
+
+# ---------------------------------------------------------------- parcels / customs / delivery reschedule
+in-pkg-01	+919876512351	scam,lookalike,link-warning	parcel,indiapost	India Post: Your parcel is held at our warehouse due to incomplete address. Update within 12 hours: https://indiapost-redelivery.top/in
+in-pkg-02	+919876512352	scam,link-warning	customs	FedEx: Your international shipment is on hold at customs. Pay customs duty Rs 1,450 to release: fedex-in-customs.info/pay
+in-pkg-03	+919876512353	scam,lookalike	delivery-reschedule	Delhivery: We missed you! Reschedule your delivery for Rs 5 at https://delhivery-resched.top/r
+
+# ---------------------------------------------------------------- tax refund / challan / reward points
+in-tax-01	+919876512361	scam	tax-refund	Income Tax Dept: You are eligible for a refund of Rs 15,490. Submit your bank account details to receive it: https://incometax-refund.in.net/verify
+in-tax-02	+919876512362	scam,link-warning	challan	Parivahan: Your vehicle challan of Rs 500 is pending. Pay within 24 hrs to avoid court action: https://echallan-parivahan.xyz
+in-tax-03	+919876512363	scam,link-warning	reward-points	Dear SBI Card holder, your reward points worth Rs 7,250 expire today. Redeem now: bit.ly/sbi-rwd7
+
+# ---------------------------------------------------------------- jobs / tasks / loans / investments
+in-job-01	+919876512371	scam	job	Hi, I'm Priya from Amazon HR. Part-time job: earn Rs 5000-8000/day liking YouTube videos. Contact on WhatsApp: wa.me/919876512372
+in-job-02	+919876512373	scam	task-scam	Your task commission Rs 12,450 is frozen. Deposit Rs 5,000 to unlock and withdraw. Contact your mentor on Telegram @taskmentor_22
+in-loan-01	+919876512374	scam	loan-app	Instant loan of Rs 50,000 approved without CIBIL check! Download app: https://quickcash-loan.app/apk
+in-loan-02	+919876512375	scam	loan-extortion	You have not repaid your loan. Pay Rs 8,400 today or we will send your morphed photos to all your contacts.
+in-inv-01	+919876512376	scam	investment,stock-tips	Join our VIP stock tips group. 300% returns guaranteed in 30 days. WhatsApp: wa.me/919876512377
+in-inv-02	+919876512378	scam	crypto	Your USDT wallet has 1,250 USDT pending withdrawal. Pay 10% tax (Rs 9,800) to release funds to your bank account today.
+
+# ---------------------------------------------------------------- lottery / KBC
+in-lot-01	+919876512381	scam	lottery,kbc	KBC Lottery: Your SIM no. has won Rs 25,00,000 in the KBC lucky draw. Call Rana Pratap Singh on WhatsApp +923001234567 to claim.
+in-lot-02	+919876512382	scam	lottery,hinglish	Badhai ho! Aapka mobile number lucky draw me select hua hai. Rs 12 lakh jeetne ke liye processing fee Rs 4,500 bhejein.
+
+# ---------------------------------------------------------------- digital arrest / sextortion / OTP sharing / wrong number
+in-arrest-01	+919876512391	scam	digital-arrest	This is CBI Cyber Cell. A parcel in your name with 200g MDMA was seized at Mumbai airport. A case is registered against you. Call Inspector on 9876512392 immediately or you will be arrested.
+in-sext-01	+919876512393	scam	sextortion	I have your private video. Pay Rs 20,000 to UPI babu.x77@ybl within 2 hours or it goes to all your Facebook friends.
+in-otp-share-01	+919876512394	scam	otp-sharing,account-takeover	Hi, I accidentally sent my WhatsApp verification code to your number. Can you please forward the 6 digit code to me? It's urgent.
+in-otp-share-02	+919876512395	scam	otp-sharing,call-forwarding	Jio customer care: to avoid SIM deactivation dial *401*9876512396 now and restart your phone.
+# known-gap (out of scope for on-device rules): a "wrong number" opener reads exactly like a genuine misdirected
+# text; only the conversation that follows (investment talk, a move to WhatsApp or Telegram) gives it away.
+in-wrong-01	+919876512397	scam	wrong-number,pig-butchering,known-gap	Hi, is this Mr. Sharma? This is Anjali, we met at the Pune conference last month 😊 are you still in the stock market group?
+in-apk-01	+919876512398	scam,link-warning,spam	apk,wedding-invite,hinglish	Shaadi ka card bheja hai, zaroor aana 🙏 dekh lo: https://wedding-card.example/invite.apk
+
+# ---------------------------------------------------------------- BENIGN look-alikes: genuine alerts from verified DLT headers
+in-ok-01	VM-HDFCBK-S	not-scam,no-link-warning,category:transaction,txn:debit,amount:2450.00	benign,bank-alert	Rs.2,450.00 debited from A/c **1234 on 23-09-26 to VPA swiggy@icici (UPI Ref No 626512345678). Not you? Call 18000000000 or SMS BLOCK 1234 to 9000000000
+in-ok-02	AD-SBIINB-T	not-scam,category:transaction,txn:credit,amount:25000.00	benign,bank-alert	Dear Customer, Your A/c X5678 is credited by Rs.25,000.00 on 22Sep26 transfer from RAHUL KUMAR Ref No 426612345678 -SBI
+in-ok-03	JD-ICICIT-S	not-scam,txn:credit,amount:1500.00	benign,refund	ICICI Bank Acct XX901 credited with Rs 1,500.00 on 23-Sep-26; refund from AMAZON. Wrongly credited? Never return money directly, contact your bank.
+in-ok-04	VM-HDFCBK-T	not-scam,category:otp,otp:482913,no-txn	benign,otp	482913 is OTP for txn of INR 2,499.00 at AMAZON on HDFC Bank card ending 4411. Valid till 10:42. Do not share OTP for security reasons
+in-ok-05	VM-AXISBK-T	not-scam,otp:482913	benign,otp,hindi,devanagari-digits	आपका ओटीपी ४८२९१३ है। इसे किसी के साथ साझा न करें। - Axis Bank
+in-ok-06	VM-PAYTM-T	not-scam,otp:7702	benign,otp	Paytm never asks for OTP. 7702 is your login OTP. Do not share it with anyone including Paytm staff.
+in-ok-07	VM-HDFCBK-S	not-scam,no-otp	benign,otp-lookalike	Your cheque no. 004512 for Rs 12,000.00 presented in A/c XX1234 has been cleared on 23-09-26.
+in-ok-08	AX-AMAZON-S	not-scam	benign,refund	Refund of Rs 1,299 for your order 403-1234567-1234567 has been processed and will be credited to your ICICI Bank card in 3-5 days.
+in-ok-09	VM-HDFCBK-S	not-scam	benign,kyc-genuine	Dear Customer, as per RBI guidelines please update your KYC at your nearest branch by 30-Sep-26 to avoid restrictions on your account. Ignore if already done. -HDFC Bank
+in-ok-10	JM-JIOSVC-S	not-scam,no-otp	benign,call-alert	Dear Customer, +919999999999 is now available to take calls.
+in-ok-11	+919876500111	not-scam	benign,personal,contact,hinglish	Bhai kal 500 bheja tha na, mil gaya? Party ke paise the
+in-ok-12	VM-IRCTC-T	not-scam,no-otp	benign,booking	PNR 4512367890, Train 12951, 25-09-26, 3A, CNF B2 34. Chart prepared. Happy journey - IRCTC
+in-ok-13	VM-DELHVR-S	not-scam,otp:5521	benign,delivery	Your Delhivery shipment AWB 1234567890123 is out for delivery today. Share OTP 5521 with the delivery agent only at your doorstep.
+in-ok-14	BZ-SWIGGY-T	not-scam,no-link-warning	benign,delivery,link	Your Swiggy order #4521 is out for delivery. Track live: https://www.swiggy.com/track/4521
+in-ok-15	VK-FLPKRT-P	not-scam,category:promotion	benign,promotion	Big Billion Days are LIVE! Flat 80% off on mobiles. Shop now on the Flipkart app. T&C apply
+in-ok-16	VM-SBIINB-S	not-scam,txn:credit	benign,reversal	Dear Customer, Rs 500.00 reversed and credited back to your A/c XX5678 on 23-09-26 for failed UPI txn Ref 626512349999. -SBI
+in-ok-17	TX-GOVPOR-G	not-scam	benign,government	Your application for PAN-Aadhaar linking has been processed successfully. No further action is needed.
+in-ok-18	+919876500112	not-scam	benign,personal,contact	Rent ke 15000 transfer kar diye hain, check kar lena. Thanks!
+in-ok-19	VM-KOTAKB-S	not-scam,txn:debit,amount:1180.00	benign,bank-alert	Sent Rs.1180.00 from Kotak Bank AC X8821 to zomato@kotak on 23-09-26. UPI Ref 626512341111. Not you, https://kotak.com/KBANKT/Fraud
+in-ok-21	+919876500113	not-scam	benign,personal,contact,hinglish	Maine 2000 bhej diye, mil gaye? Kal wapas milte hain
+in-ok-22	VM-HDFCBK-S	not-scam,no-link-warning,link-host:netbanking.hdfcbank.com	benign,official-subdomain	Log in to NetBanking at https://netbanking.hdfcbank.com to view your statement. Never share your password.
+in-ok-20	VM-SBICRD-T	not-scam,no-otp,txn:debit	benign,card	Rs.3,499.00 spent on your SBI Credit Card ending 5678 at MYNTRA on 23/09/26. Avbl Lmt: Rs.96,501. If not you, call 18001801290
+
+# ---------------------------------------------------------------- BENIGN counterparts of the rules added for the known gaps (callback, APK, release fee, threats, Hindi, senders)
+in-ok-23	+919876500124	not-scam	benign,personal,hinglish,callback-lookalike	Mera phone band ho gaya tha, ab chalu hai. Free ho to call karna 9876500124
+in-ok-24	VM-HDFCBK-T	not-scam,otp:584213	benign,otp,code-by-mistake	584213 is your OTP for NetBanking login. Do not share this OTP with anyone. If you received it by mistake, please ignore.
+in-ok-25	VM-SBIINB-S	not-scam,no-link-warning	benign,app-download	Download the YONO SBI app from Google Play: https://play.google.com/store/apps/details?id=com.sbi.lotusintouch
+in-ok-26	+919876500125	not-scam	benign,personal,hinglish,withdraw	Bro ATM se withdraw karke 500 de dena, kal pay kar dunga
+in-ok-27	+919876500126	not-scam	benign,personal,hinglish,photos	Shaadi ki photos sabko bhej dunga, relatives ko bhi, tension mat lo
+in-ok-28	VM-BSESRJ-S	not-scam	benign,electricity,hindi,planned-outage	प्रिय उपभोक्ता, रखरखाव कार्य के कारण कल सुबह 10 से दोपहर 2 बजे तक आपके क्षेत्र की बिजली बंद रहेगी। असुविधा के लिए खेद है।
+in-ok-29	VM-SBIINB-S	not-scam,no-txn	benign,hindi,future-debit	आपके खाते XX1234 से ₹१,२५०.०० कल डेबिट किए जाएंगे। कृपया पर्याप्त शेष राशि रखें। - SBI
+in-ok-30	+919876500127	not-scam	benign,personal,contact,ip-link	Router ka admin page http://192.168.1.1 hai, password fridge pe likha hai
+in-ok-31	+91 98765 00129	not-scam	benign,personal,contact,formatted-number	Kal milte hain, 11 baje station pe
+in-ok-32	AMAZON	not-scam,no-link-warning	benign,non-dlt-alphanumeric,official-link	Track your package at https://www.amazon.in/gp/your-account/order-history
+in-ok-33	VM-PUNBNK-S	not-scam	benign,hindi,bank-alert	प्रिय ग्राहक, आपके खाते XX7788 में ₹15,000.00 जमा किए गए हैं। संदर्भ 624512345678 - पंजाब नेशनल बैंक
+in-ok-34	VM-UIDAIG-G	not-scam,no-link-warning	benign,government-link	Download your e-Aadhaar at https://myaadhaar.uidai.gov.in. Never share your Aadhaar OTP.
+in-ok-35	+919876500130	not-scam	benign,personal,hinglish,court	Bhai kal court mein hearing hai, case jeetne ke baad party. Call karna shaam ko
+in-ok-36	+919876500131	not-scam	benign,personal,apk-word	Tumhare phone mein woh app ka apk file hai kya? Play Store pe nahi mil raha

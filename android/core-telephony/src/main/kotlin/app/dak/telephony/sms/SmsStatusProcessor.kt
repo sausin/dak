@@ -6,7 +6,10 @@ import android.telephony.SmsMessage
 import android.util.Log
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.OutgoingStatus
+import app.dak.telephony.SentDispatcher
 import app.dak.telephony.internal.TAG
 import app.dak.telephony.provider.SmsColumns
 import app.dak.telephony.provider.TelephonyProviderWriter
@@ -29,6 +32,7 @@ class SmsStatusProcessor @Inject constructor(
     private val progress: SendProgressStore,
     private val failures: SendFailureStore,
     private val scheduler: SendScheduler,
+    private val sent: SentDispatcher,
 ) {
     suspend fun onSent(intent: Intent, resultCode: Int) {
         val id = intent.getLongExtra(SmsStatusReceiver.EXTRA_MESSAGE_ID, -1L)
@@ -52,6 +56,7 @@ class SmsStatusProcessor @Inject constructor(
                 writer.markSmsStatus(key, OutgoingStatus.SENT)
                 failures.clear(key)
                 if (!deliveryRequested) progress.clear(id)
+                sent.dispatch(key)
             }
             SendAttemptOutcome.ALL_FAILED -> handleFailure(key, attempt, settled.failureCode)
             SendAttemptOutcome.PARTIAL -> markPartlySent(key, settled)
@@ -67,7 +72,7 @@ class SmsStatusProcessor @Inject constructor(
      * The progress record is kept so late delivery reports cannot flip the message to delivered.
      */
     private suspend fun markPartlySent(key: MessageKey, settled: PartProgress) {
-        failures.set(key, SmsResultCodes.describePartial(settled.sentParts.size, settled.partCount))
+        failures.set(key, SmsResultCodes.partial(settled.sentParts.size, settled.partCount).encode())
         writer.markSmsFailed(key.providerId, settled.failureCode)
         scheduler.cancel(key)
     }
@@ -77,7 +82,7 @@ class SmsStatusProcessor @Inject constructor(
      * kept for the "tap to retry" bubble). Also used by the sender when the platform call itself throws.
      */
     suspend fun handleFailure(key: MessageKey, attempt: Int, resultCode: Int) {
-        failures.set(key, SmsResultCodes.describe(resultCode))
+        failures.set(key, SmsResultCodes.failureOf(resultCode).encode())
         if (RetryPolicy.shouldRetry(attempt, RetryPolicy.MAX_SMS_ATTEMPTS, SmsResultCodes.isRetryable(resultCode))) {
             writer.markSmsStatus(key, OutgoingStatus.QUEUED)
             scheduler.enqueue(key, attempt + 1, RetryPolicy.delayMillis(attempt), slotReserved = false)
@@ -108,7 +113,7 @@ class SmsStatusProcessor @Inject constructor(
             DeliveryOutcome.PENDING -> writer.setSmsDeliveryStatus(id, SmsColumns.STATUS_PENDING)
             DeliveryOutcome.FAILED -> {
                 writer.setSmsDeliveryStatus(id, SmsColumns.STATUS_FAILED)
-                failures.set(key, "Not delivered")
+                failures.set(key, FailureReasons.encode(Failure.SMS_NOT_DELIVERED))
                 progress.clear(id)
             }
         }

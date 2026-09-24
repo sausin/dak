@@ -41,6 +41,14 @@ public enum class SenderScope {
      * ([SenderRegion.dltSenderIds]): a bank alert from such a number is a scam, not a transaction.
      */
     PRIVATE_NUMBER,
+
+    /**
+     * Full-length phone numbers that are not saved contacts, in every region: for wording that is a scam only from a
+     * stranger's number ("your card is locked, call 312-555-0123", "Hi Mum, this is my new number"), where banks and
+     * services would use a registered sender name, short code or toll-free line. (Added in bundle 5; an older app
+     * rejects a bundle using it, keeping its current one.)
+     */
+    UNKNOWN_NUMBER,
 }
 
 /** A single deterministic classification rule. */

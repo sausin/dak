@@ -46,6 +46,10 @@ internal object SeedCorpus {
         Category.TRANSACTION to "IndiGo: Your flight 6E-2145 booking is confirmed, PNR ABCDEF, departs 09:30 on 20-Sep.",
         Category.TRANSACTION to "Jio: Rs 249 recharge successful for your number, valid till 15-Oct-25.",
         Category.TRANSACTION to "Zomato order delivered! Hope you enjoyed your meal from Pizza Hub.",
+        // Security advisories from banks and services: account notices, not spam (their scam words are warnings).
+        Category.TRANSACTION to "We will never ask you to transfer your money to a safe account. Beware of scams and report suspicious calls.",
+        Category.TRANSACTION to "Bank never asks for your PIN, password or card details. Beware of fraudsters and stay alert.",
+        Category.TRANSACTION to "Scam alert: never share your login details with anyone who calls you, even if they say they are from the bank.",
         // Courier / order / invoice updates: their "rate us" / "feedback" links are not marketing.
         Category.TRANSACTION to "Your shipment AWB 51234567 was delivered to RAHUL. Please rate our service on the link.",
         Category.TRANSACTION to "Ecom Express: Your parcel with AWB 998877 is in transit and will be delivered tomorrow. Track your shipment on the app.",

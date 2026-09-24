@@ -5,7 +5,8 @@ import app.dak.premium.Feature
 
 /**
  * The seven top-level Settings groups, in the order the build plan's "Proposed groups" table
- * lists them (ordered by how often people touch them).
+ * lists them (ordered by how often people touch them). [displayName] is the English name; the app shows the
+ * string resource named by [SettingsStringKeys.group].
  */
 enum class SettingsGroup(val displayName: String) {
     NOTIFICATIONS("Notifications"),
@@ -23,8 +24,12 @@ sealed class SettingTier {
     data class Premium(val feature: Feature) : SettingTier()
 }
 
-/** One selectable value for [ControlType.SingleChoice]. */
-data class ChoiceOption(val value: String, val label: String)
+/**
+ * One selectable value for [ControlType.SingleChoice]. [label] is the English text; the app shows the string
+ * resource named by [SettingsStringKeys.option]. [labelKey] overrides that resource name for option lists shared by
+ * several rows (e.g. [SwipeActions.options]), so translators see each label once.
+ */
+data class ChoiceOption(val value: String, val label: String, val labelKey: String? = null)
 
 /** The kind of control a row renders as. */
 sealed class ControlType {
@@ -55,8 +60,12 @@ data class DeviceContext(
  *
  * @param T the value type this row stores (Boolean, String, Int, ...).
  * @param key stable, storage/deep-link key, dotted by group e.g. `"notifications.otpAutoDelete"`.
- * @param summary one plain-language line; mentions battery/data/roaming cost where relevant.
- * @param keywords synonyms the search box should also match (e.g. "one time password", "code").
+ * @param title English title. Also always searchable, whatever the app language. The app renders the string
+ *   resource named by [SettingsStringKeys.title] (docs/i18n.md).
+ * @param summary one plain-language line; mentions battery/data/roaming cost where relevant. English, rendered via
+ *   [SettingsStringKeys.summary] like [title].
+ * @param keywords synonyms the search box should also match (e.g. "one time password", "code"). English, never
+ *   translated: they keep English search working in every app language.
  * @param advanced true if this row lives in the group's collapsed "Advanced" block.
  * @param visible hides the row entirely when it cannot apply on this device.
  * @param serialize / deserialize round-trip [T] to the string form [SettingsStore] persists and

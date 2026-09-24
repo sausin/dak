@@ -7,6 +7,7 @@ import app.dak.classify.SenderKind
 import app.dak.classify.SenderNameCheck
 import app.dak.classify.TemplateBundle
 import app.dak.classify.TrafficType
+import app.dak.classify.text.AnalysisText
 import app.dak.classify.text.GatedRegex
 import java.math.BigDecimal
 
@@ -287,8 +288,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         return Analysis(body, normalize(body)).also { lastAnalysis.set(it) }
     }
 
+    /** The head of [body] in its analysis form (see [AnalysisText]: what a screen shows, zalgo capped), digits in ASCII. */
     private fun normalize(body: String): String =
-        DigitNormalizer.normalizeDigits(if (body.length > MAX_SCAN_CHARS) body.substring(0, MAX_SCAN_CHARS) else body)
+        DigitNormalizer.normalizeDigits(AnalysisText.of(if (body.length > MAX_SCAN_CHARS) body.substring(0, MAX_SCAN_CHARS) else body))
 
     public companion object {
         /** Only this many leading characters of a body are examined. */
@@ -363,9 +365,9 @@ public class FakeCreditDetector(private val templates: TemplateBundle) {
         /** Words that make a collect request look like incoming money. */
         private val RECEIVE_BAIT = GatedRegex("""receiv|credit|cashback|refund|\bwon\b|reward|prize|\bjeet|जीत|प्राप्त""", O)
 
-        /** A personal message talking about a transfer ("I sent 5000", "bheja", "transfer kiya"). */
+        /** A personal message talking about a transfer ("I sent 5000", "bheja", "bhej diye", "transfer kiya", "भेज दिए"). */
         private val TRANSFER_MENTION = GatedRegex(
-            """\b(?:sent|transferred|transfer\s+(?:kiya|kar\s+diya|ho\s+gaya)|bheja|bhej\s+diya|dal\s+diya|daal\s+diya|credited)\b|भेजा|भेज\s+दिया""",
+            """\b(?:sent|transferred|transfer\s+(?:kiya|kar\s+diya|ho\s+gaya)|bheja|bhej\s+diy[ae]|dal\s+diya|daal\s+diya|credited)\b|भेजा|भेजे|भेज\s+दिया|भेज\s+दिए""",
             O,
         )
 

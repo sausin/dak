@@ -28,6 +28,7 @@ import app.dak.finance.reconcile.Reconciler
 import app.dak.index.db.DakIndexDatabase
 import app.dak.index.db.entity.AccountAliasRow
 import app.dak.index.db.entity.AccountRow
+import app.dak.index.db.entity.AccountHiddenRow
 import app.dak.index.db.entity.AccountTypeOverrideRow
 import app.dak.index.db.entity.LedgerEntryRow
 import app.dak.index.sync.IndexRowMapper
@@ -115,7 +116,9 @@ class LedgerRepository @Inject constructor(
      * SMS named one.
      */
     fun accountGroups(nowMillis: Long = System.currentTimeMillis()): Flow<List<AccountGroup<AccountGroupItem>>> =
-        combine(accounts(), ledgerDao.observeDebitsSince(AccountGroups.monthStartUtc(nowMillis))) { summaries, debits -> summaries to debits }
+        combine(accounts(), hiddenIds(), ledgerDao.observeDebitsSince(AccountGroups.monthStartUtc(nowMillis))) { all, hidden, debits ->
+            all.filterNot { it.account.id in hidden } to debits
+        }
             .map { (summaries, debits) ->
                 val spend = debits.groupBy { it.accountId }
                     .mapValues { (_, rows) -> AccountGroups.sum(rows.map { Money(it.totalMinor, it.currency) }) }
@@ -123,7 +126,11 @@ class LedgerRepository @Inject constructor(
                 val items = summaries.map { s ->
                     val day = s.account.statementDay
                     val outstanding = if (s.account.type == AccountType.CREDIT_CARD && day != null) {
-                        AccountLedger(s.account, ledgerDao.entries(s.account.id).map { toEntry(it) }).cardOutstanding(nowMillis, BillingCycle(day))
+                        // Only the current cycle's entries count toward the outstanding, so only those are read.
+                        val cycle = BillingCycle(day)
+                        val range = cycle.cycleRange(nowMillis)
+                        val inCycle = ledgerDao.entriesBetween(s.account.id, range.first, range.last + 1)
+                        AccountLedger(s.account, inCycle.map { toEntry(it) }).cardOutstanding(nowMillis, cycle)
                     } else {
                         null
                     }
@@ -136,6 +143,26 @@ class LedgerRepository @Inject constructor(
                 )
             }
             .flowOn(Dispatchers.IO)
+
+    /**
+     * Ids (canonical) of the accounts the user removed from the Passbook. Hiding is display-only: [accounts] still
+     * lists them, so scam detection, entity sheets and merges keep seeing every account.
+     */
+    fun hiddenIds(): Flow<Set<String>> =
+        ledgerDao.observeHidden().map { rows -> rows.mapTo(HashSet()) { it.accountId } }.distinctUntilChanged()
+
+    /** The accounts removed from the Passbook, most recently active first (to bring one back). */
+    fun hiddenAccounts(): Flow<List<AccountSummary>> =
+        combine(accounts(), hiddenIds()) { all, hidden -> all.filter { it.account.id in hidden } }
+
+    /**
+     * Removes [accountId] from the Passbook ([hidden] = true) or brings it back. Stored against the canonical id, so a
+     * merged account hides as a whole; nothing is recomputed or deleted.
+     */
+    suspend fun setAccountHidden(accountId: String, hidden: Boolean) {
+        val id = loadAliases().resolve(accountId)
+        if (hidden) ledgerDao.putHidden(AccountHiddenRow(id, System.currentTimeMillis())) else ledgerDao.deleteHidden(id)
+    }
 
     /**
      * Sets [accountId]'s type by hand ("This is a credit card"), or clears it with null (back to the type detected
@@ -258,7 +285,7 @@ class LedgerRepository @Inject constructor(
         val rows = if (linkers.isEmpty()) ownRows else ownRows + linkers.chunked(CHUNK).flatMap { messageDao.byAccounts(it) }
         // Likely fake credit alerts never create entries or move balances (docs/security/fake-credit-scams.md).
         val inputs = rows.filterNot { ScamLabels.excludedFromLedger(it.labels) }.mapNotNull { row ->
-            IndexRowMapper.transaction(row)?.let { LedgerInput(IndexRowMapper.key(row).toString(), row.dateMillis, it) }
+            IndexRowMapper.transaction(row.transactionJson)?.let { LedgerInput(MessageKey(row.kind, row.providerId).toString(), row.dateMillis, it) }
         }
         val previous = ledgerDao.account(accountId)
         val previousLinked = listOfNotNull(previous?.linkedAccountId)
@@ -282,10 +309,17 @@ class LedgerRepository @Inject constructor(
         val reconciled = AccountLedger(built.account, Reconciler.reconcile(built.entries).entries)
         val now = System.currentTimeMillis()
         val accountRow = toAccountRow(reconciled, previous?.statementDay, now)
-        val entryRows = reconciled.entries.map { toEntryRow(accountId, it) }
+        // Keyed like the table ((accountId, messageKey), REPLACE): a later row for the same key wins, as it did when
+        // every row was inserted in turn.
+        val entryRows = reconciled.entries.map { toEntryRow(accountId, it) }.associateBy { it.messageKey }
         db.withTransaction {
-            ledgerDao.deleteEntries(accountId)
-            entryRows.chunked(CHUNK).forEach { ledgerDao.putEntries(it) }
+            // Diff write: an incoming SMS changes one or a few entries of an account, so rewriting all of them (a busy
+            // account has thousands) is replaced by deleting the gone ones and writing only the new or changed ones.
+            val stored = ledgerDao.entries(accountId).associateBy { it.messageKey }
+            val gone = stored.keys.filter { it !in entryRows }
+            val changed = entryRows.values.filter { stored[it.messageKey] != it }
+            gone.chunked(CHUNK).forEach { ledgerDao.deleteEntriesOf(accountId, it) }
+            changed.chunked(CHUNK).forEach { ledgerDao.putEntries(it) }
             ledgerDao.putAccount(accountRow)
         }
         return (previousLinked + listOfNotNull(reconciled.account.linkedAccountId)).distinct()
@@ -309,7 +343,10 @@ class LedgerRepository @Inject constructor(
      * Recomputed whenever accounts or decisions change; pairs already answered are never suggested again.
      */
     fun aliasSuggestions(): Flow<List<AccountAliasSuggestion>> =
-        combine(ledgerDao.observeAccounts(), aliasDao.observeAll()) { accounts, decisions -> accounts to decisions }
+        combine(ledgerDao.observeAccounts(), aliasDao.observeAll(), hiddenIds()) { accounts, decisions, hidden ->
+            // A hidden account is one the user said is not relevant: never ask about it.
+            accounts.filterNot { it.id in hidden } to decisions
+        }
             .map { (accounts, decisions) -> computeSuggestions(accounts, decisions) }
             .flowOn(Dispatchers.IO)
 

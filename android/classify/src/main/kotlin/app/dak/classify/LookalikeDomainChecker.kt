@@ -1,6 +1,7 @@
 package app.dak.classify
 
 import app.dak.classify.unicode.Confusables
+import kotlin.math.abs
 
 /** Why a link was flagged. */
 public enum class LinkRisk {
@@ -31,6 +32,9 @@ public class LookalikeDomainChecker(
     private val domainToBrand: Map<String, String> = officialDomains
     private val brandNames: List<Pair<String, String>> = officialDomains.values.distinct().map { it.lowercase() to it }
 
+    /** Each brand's words of 3+ letters ("hdfc", "bank"), split once here rather than on every check. */
+    private val brandWords: List<Pair<List<String>, String>> = brandNames.map { (lower, name) -> wordsOf(lower) to name }
+
     public fun check(link: ExtractedLink): LinkVerdict {
         val host = link.host ?: return LinkVerdict(link, LinkRisk.UNKNOWN)
 
@@ -39,6 +43,12 @@ public class LookalikeDomainChecker(
         }
         if (isOfficial(host)) {
             return LinkVerdict(link, LinkRisk.OFFICIAL, matchedBrand = domainToBrand[host])
+        }
+
+        // "sbi.co.in.account-verify.example", "irctc.co.in-refund.example": an official domain spelled out at the start
+        // of (or inside) another host, which the reader takes for the real one.
+        embeddedOfficialBrand(host)?.let { brand ->
+            return LinkVerdict(link, LinkRisk.LOOKALIKE, matchedBrand = brand)
         }
 
         lookalikeBrand(host)?.let { brand ->
@@ -64,6 +74,18 @@ public class LookalikeDomainChecker(
             return LinkVerdict(link, LinkRisk.LOOKALIKE)
         }
 
+        // A bare IP address ("http://192.0.2.44/sbi", "http://3221225516/kyc", which browsers read as 192.0.2.44):
+        // no real bank, courier or government sends one, and it hides who runs the site.
+        if (isIpHost(link.asciiHost ?: host)) {
+            return LinkVerdict(link, LinkRisk.LOOKALIKE)
+        }
+
+        // "gov-uk-support-payment.com", "fines.ae-gov.com", "antai-gouv-paiement.com": a government word in a host that
+        // is not under a government domain (`.gov`, `gov.uk`, `gouv.fr`, `gov.in`, ...).
+        if (imitatesGovernment(host)) {
+            return LinkVerdict(link, LinkRisk.LOOKALIKE)
+        }
+
         val tld = host.substringAfterLast('.', missingDelimiterValue = "")
         if (tld.isNotEmpty() && tld in suspiciousTlds) {
             return LinkVerdict(link, LinkRisk.SUSPICIOUS_TLD)
@@ -83,12 +105,33 @@ public class LookalikeDomainChecker(
     }
 
     /** [brandNames] and [officialLabels] in skeleton form, for [lookalikeBrand] on a skeleton. */
-    private val skeletonBrandNames: List<Pair<String, String>> by lazy {
-        brandNames.map { (lower, name) -> Confusables.looseSkeleton(lower) to name }
+    private val skeletonBrandWords: List<Pair<List<String>, String>> by lazy {
+        brandNames.map { (lower, name) -> wordsOf(Confusables.looseSkeleton(lower)) to name }
     }
     private val skeletonOfficialLabels: List<Pair<String, String>> by lazy {
         officialLabels.map { (label, brand) -> Confusables.looseSkeleton(label) to brand }
     }
+
+    private fun isIpHost(host: String): Boolean {
+        if (host.startsWith("[")) return true
+        val last = host.trimEnd('.').substringAfterLast('.')
+        if (last.isEmpty()) return false
+        return last.all { it in '0'..'9' } || (last.startsWith("0x") && last.length > 2 && last.drop(2).all { it in '0'..'9' || it in 'a'..'f' })
+    }
+
+    private fun imitatesGovernment(host: String): Boolean {
+        val labels = host.trimEnd('.').split('.')
+        if (labels.none { label -> label.split('-').any { it in GOVERNMENT_WORDS } }) return false
+        val last = labels.last()
+        val official = last in GOVERNMENT_TLDS ||
+            (labels.size >= 2 && last.length == 2 && labels[labels.size - 2] in GOVERNMENT_SECOND_LEVEL)
+        return !official
+    }
+
+    /** The brand of an official domain that starts [host] or one of its labels and is followed by `.` or `-`. */
+    private fun embeddedOfficialBrand(host: String): String? = domainToBrand.entries.firstOrNull { (domain, _) ->
+        host.startsWith("$domain.") || host.startsWith("$domain-") || host.contains(".$domain.") || host.contains(".$domain-")
+    }?.value
 
     private fun isOfficial(host: String): Boolean =
         domainToBrand.containsKey(host) || domainToBrand.keys.any { host.endsWith(".$it") }
@@ -100,9 +143,8 @@ public class LookalikeDomainChecker(
      */
     private fun lookalikeBrand(host: String, skeletons: Boolean = false): String? {
         val labels = host.split('.', '-')
-        for ((brandLower, brandName) in if (skeletons) skeletonBrandNames else brandNames) {
-            val brandWords = brandLower.split(Regex("[\\s.]+")).filter { it.length >= 3 }
-            if (brandWords.isNotEmpty() && brandWords.all { w -> labels.any { it.contains(w) } }) {
+        for ((words, brandName) in if (skeletons) skeletonBrandWords else brandWords) {
+            if (words.isNotEmpty() && words.all { w -> labels.any { it.contains(w) } }) {
                 // Brand words present, but host is not itself the official domain: lookalike.
                 return brandName
             }
@@ -111,25 +153,46 @@ public class LookalikeDomainChecker(
             if (parts.size >= 2) parts[parts.size - 2] else host
         }
         for ((officialLabel, brand) in if (skeletons) skeletonOfficialLabels else officialLabels) {
-            if (officialLabel.length >= 4 && levenshtein(registrable, officialLabel) in 1..2) return brand
+            if (officialLabel.length >= 4 && abs(registrable.length - officialLabel.length) <= 2 &&
+                levenshtein(registrable, officialLabel) in 1..2
+            ) {
+                return brand
+            }
         }
         return null
     }
 
+    /** Edit distance, two rows at a time. */
     private fun levenshtein(a: String, b: String): Int {
-        val dp = Array(a.length + 1) { IntArray(b.length + 1) }
-        for (i in 0..a.length) dp[i][0] = i
-        for (j in 0..b.length) dp[0][j] = j
+        var prev = IntArray(b.length + 1) { it }
+        var cur = IntArray(b.length + 1)
         for (i in 1..a.length) {
+            cur[0] = i
             for (j in 1..b.length) {
                 val cost = if (a[i - 1] == b[j - 1]) 0 else 1
-                dp[i][j] = minOf(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
+                cur[j] = minOf(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
             }
+            val t = prev
+            prev = cur
+            cur = t
         }
-        return dp[a.length][b.length]
+        return prev[b.length]
     }
 
+    private fun wordsOf(lowerBrand: String): List<String> = lowerBrand.split(WORD_SPLIT).filter { it.length >= 3 }
+
     public companion object {
+        private val WORD_SPLIT = Regex("[\\s.]+")
+
+        /** Host words that name a government ("gov-uk-...", "...-gouv-..."). */
+        private val GOVERNMENT_WORDS = setOf("gov", "gouv", "gob", "govt")
+
+        /** Top-level domains only governments hold. */
+        private val GOVERNMENT_TLDS = setOf("gov", "mil")
+
+        /** Second-level labels of government domains under a country code (`gov.uk`, `gouv.fr`, `gob.es`, `nic.in`...). */
+        private val GOVERNMENT_SECOND_LEVEL = setOf("gov", "gouv", "gob", "govt", "go", "gc", "nic", "mil", "gv")
+
         /** Bundled official domain -> brand name. Not exhaustive; a starting set for v1. */
         public fun defaultOfficialDomains(): Map<String, String> = mapOf(
             "hdfcbank.com" to "HDFC Bank",

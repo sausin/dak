@@ -54,6 +54,7 @@ import app.dak.ui.common.DakTopAppBar
 @Composable
 fun SettingsScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    FollowAppLanguage(viewModel)
     val snackbar = remember { SnackbarHostState() }
     var handledFocus by rememberSaveable { mutableStateOf(false) }
 

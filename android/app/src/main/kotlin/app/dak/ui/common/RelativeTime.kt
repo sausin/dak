@@ -25,14 +25,25 @@ class RelativeTimeFormatter(
     private val zone: ZoneId,
     is24Hour: Boolean,
     private val labels: Labels,
+    /** Best pattern for a skeleton in [locale] (CLDR); a parameter only so JVM tests can supply one. */
+    private val bestPattern: (Locale, String) -> String = DateFormat::getBestDateTimePattern,
 ) {
     /** Localised words the formatter needs. */
     data class Labels(val now: String, val minutesFormat: String, val yesterday: String)
 
-    private val time = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm"), locale)
-    private val weekday = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "EEE"), locale)
-    private val dayMonth = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "dMMM"), locale)
-    private val dayMonthYear = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "dMMMy"), locale)
+    private fun formatter(skeleton: String) = DateTimeFormatter.ofPattern(bestPattern(locale, skeleton), locale)
+
+    private val hourSkeleton = if (is24Hour) "Hm" else "hm"
+    private val time = formatter(hourSkeleton)
+    private val weekday = formatter("EEE")
+    private val dayMonth = formatter("dMMM")
+    private val dayMonthYear = formatter("dMMMy")
+
+    /**
+     * Date and time from one skeleton, so the locale decides their order and the joiner ("12 Sep 2025, 14:32",
+     * "Sep 12, 2025, 2:32 PM", "12 سبتمبر 2025، 2:32 م") instead of a hard-coded "date, time".
+     */
+    private val dateTime = formatter("dMMMy$hourSkeleton")
 
     /** Formats [epochMillis] relative to [nowMillis]. Future times (clock skew) are treated as "now". */
     fun format(epochMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
@@ -52,10 +63,7 @@ class RelativeTimeFormatter(
     }
 
     /** Absolute time for accessibility / detail sheets, e.g. "12 Sep 2025, 14:32". */
-    fun formatAbsolute(epochMillis: Long): String {
-        val then = Instant.ofEpochMilli(epochMillis).atZone(zone)
-        return "${dayMonthYear.format(then)}, ${time.format(then)}"
-    }
+    fun formatAbsolute(epochMillis: Long): String = dateTime.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
 
     companion object {
         /** Formatter for the device's current locale, zone and 12/24 h preference. */

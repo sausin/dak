@@ -81,6 +81,20 @@ class RecycleBin @Inject constructor(
         BinReceipt(binned, failed)
     }
 
+    /**
+     * Deletes messages for good, skipping the bin (incognito chats: nothing may be left behind to restore). Returns the
+     * keys actually deleted from the provider; their index rows (and full-text entries) are dropped too. The audit
+     * log records only the key and [reason], never content.
+     */
+    suspend fun deleteWithoutBin(keys: Collection<MessageKey>, reason: String): List<MessageKey> = withContext(Dispatchers.IO) {
+        val deleted = keys.distinct().filter { key -> runCatching { writer.delete(key) }.getOrDefault(false) }
+        if (deleted.isNotEmpty()) {
+            ingestor.remove(deleted)
+            for (key in deleted) audit.log("incognito", "message.vanish", key.toString(), reason)
+        }
+        deleted
+    }
+
     /** Restores everything a [moveToBin] call binned. Returns the number restored. */
     suspend fun undo(receipt: BinReceipt): Int = receipt.binIds.count { restore(it) != null }
 

@@ -7,13 +7,17 @@
 
     <!-- Heads-up notification. %1$s = recipient(s), %2$s = time -->
     <string name="sched_hu_title">To %1$s · %2$s</string>
+    <!-- Heads-up notification. %1$s = recipient(s), %2$s = time -->
     <string name="sched_hu_title_birthday">Birthday wish to %1$s · %2$s</string>
+    <!-- Heads-up notification. %1$s = broadcast list name, %2$s = time -->
     <string name="sched_hu_title_broadcast">Broadcast to %1$s · %2$s</string>
+    <!-- %1$s = broadcast list name, %2$d = number of people on it -->
     <plurals name="sched_hu_broadcast_recipients">
         <item quantity="one">%1$s (%2$d person)</item>
         <item quantity="other">%1$s (%2$d people)</item>
     </plurals>
     <string name="sched_hu_public_text">A scheduled message goes out soon</string>
+    <!-- Lock-screen text. %1$s = time the message goes out, e.g. "14:30" -->
     <string name="sched_hu_public_text_at">Goes out at %1$s</string>
     <string name="sched_hu_delay_prompt">Delay until when?</string>
     <string name="sched_hu_action_send_now">Send now</string>
@@ -28,7 +32,8 @@
         <item quantity="one">%d scheduled message goes out soon</item>
         <item quantity="other">%d scheduled messages go out soon</item>
     </plurals>
-    <string name="sched_hu_summary_line">%1$s · %2$s</string>
+    <!-- Joiner only: %1$s = recipient, %2$s = time. Not translated. -->
+    <string name="sched_hu_summary_line" translatable="false">%1$s · %2$s</string>
     <plurals name="sched_hu_summary_more">
         <item quantity="one">+%d more</item>
         <item quantity="other">+%d more</item>
@@ -36,6 +41,7 @@
 
     <!-- Emergency numbers -->
     <string name="sched_emergency_refused">Emergency services need to hear from you now — send it instead of scheduling.</string>
+    <!-- %1$s = the emergency number the scheduled text was for. -->
     <string name="sched_emergency_cancelled_title">Scheduled text to %1$s not sent</string>
     <string name="sched_emergency_cancelled_text">Texts to emergency numbers can’t be scheduled, so this one was cancelled. If you still need help, contact emergency services now.</string>
 
@@ -44,5 +50,6 @@
     <string name="sched_focus_gone">This message has already been sent or cancelled.</string>
     <string name="sched_action_change_time">Change time</string>
     <string name="sched_time_in_past">Pick a time in the future.</string>
+    <!-- Snackbar. %1$s = new date and time of the scheduled message. -->
     <string name="sched_moved">Moved to %1$s</string>
 </resources>

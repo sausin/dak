@@ -13,6 +13,7 @@ import app.dak.R
 import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
 import app.dak.premium.Feature
+import app.dak.settings.AppearanceSettings
 import app.dak.settings.ControlType
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingTier
@@ -38,6 +39,7 @@ fun SettingsInteractionHost(
     var editing by remember { mutableStateOf<RowState?>(null) }
     var upgradeFor by remember { mutableStateOf<Feature?>(null) }
     var showUpgrade by remember { mutableStateOf(false) }
+    var showLanguage by remember { mutableStateOf(false) }
     val unavailable = stringResource(R.string.settings_action_unavailable)
 
     val onRowClick: (RowState) -> Unit = { row ->
@@ -49,6 +51,7 @@ fun SettingsInteractionHost(
             }
             // The app lock needs verification (system prompt / PIN setup), never a plain value editor.
             row.key == DakSettings.appLock.key -> navigator.navigate(Routes.APP_LOCK)
+            row.key == AppearanceSettings.language.key -> showLanguage = true
             row.def.control is ControlType.Action -> {
                 if (!SettingsActions.perform(row.key, context, navigator, viewModel)) {
                     scope.launch { snackbar.showSnackbar(unavailable) }
@@ -83,5 +86,8 @@ fun SettingsInteractionHost(
     }
     if (showUpgrade) {
         UpgradeSheet(feature = upgradeFor, onDismiss = { showUpgrade = false })
+    }
+    if (showLanguage) {
+        LanguageDialog(onDismiss = { showLanguage = false })
     }
 }

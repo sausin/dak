@@ -21,6 +21,10 @@ import java.util.Locale
  *   most exactly when travelling and seeing a foreign-currency card alert.
  * - [indicative] prefixes "≈" for values that are an approximate/derived conversion rather than
  *   the amount actually charged.
+ * - Digits, grouping and decimal separators all come from the locale's [DecimalFormatSymbols], so
+ *   a locale with native digits (Arabic-Indic for `ar-EG`, Devanagari for `hi-IN-u-nu-deva`) never
+ *   shows ASCII digits between native separators; the grouping pattern (lakh/crore or thousands)
+ *   is Dak's own and stays as above.
  */
 object MoneyDisplay {
 
@@ -64,13 +68,17 @@ object MoneyDisplay {
             sb.append(currency)
             sb.append(' ')
         }
-        sb.append(groupedWhole)
+        sb.append(localizeDigits(groupedWhole, symbols.zeroDigit))
         if (exponent > 0) {
             sb.append(symbols.decimalSeparator)
-            sb.append(fraction.toString().padStart(exponent, '0'))
+            sb.append(localizeDigits(fraction.toString().padStart(exponent, '0'), symbols.zeroDigit))
         }
         return sb.toString()
     }
+
+    /** ASCII digits → the locale's digits ([zero] is its digit zero; the ten digits are consecutive code points). */
+    private fun localizeDigits(text: String, zero: Char): String =
+        if (zero == '0') text else String(CharArray(text.length) { i -> text[i].let { c -> if (c in '0'..'9') zero + (c - '0') else c } })
 
     /** [format] with `indicative = true`, for derived/approximate home-currency conversions. */
     fun formatIndicative(money: Money, locale: Locale = Locale.getDefault(), homeCurrency: String? = null): String =

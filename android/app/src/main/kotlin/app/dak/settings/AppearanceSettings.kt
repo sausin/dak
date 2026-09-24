@@ -65,8 +65,26 @@ object AppearanceSettings {
         deserialize = { it.toBooleanStrictOrNull() },
     )
 
+    /**
+     * App language (per-app language, Android 13+ system setting, or Dak's own on older versions: see
+     * [app.dak.i18n.AppLocales]). An action row: the choice lives with the system, not in this store, so it is never
+     * exported or reset; tapping it opens the language picker.
+     */
+    val language = SettingDef(
+        key = "appearance.language",
+        group = placeholderGroup,
+        title = "Language",
+        summary = "The language Dak uses. System default follows your phone's language.",
+        control = ControlType.Action,
+        default = "",
+        keywords = listOf("language", "app language", "locale", "translation", "hindi", "english", "भाषा"),
+        serialize = { it },
+        // Never stored: an imported settings file cannot set it (the system owns the app language).
+        deserialize = { _: String -> null },
+    )
+
     /** Rows in display order. */
-    val all: List<SettingDef<*>> = listOf(themeMode, amoled, contrast, dynamicColor)
+    val all: List<SettingDef<*>> = listOf(language, themeMode, amoled, contrast, dynamicColor)
 
     fun byKey(key: String): SettingDef<*>? = all.firstOrNull { it.key == key }
 

@@ -24,8 +24,11 @@ class RunHistoryGoldenTest {
         assertEquals(RunOutcome.FAILED, RunOutcome.fromName(null))
         assertEquals(RunOutcome.FAILED, RunOutcome.fromName("sent"), "names are case-sensitive; unknown reads as failed")
         assertEquals(
-            listOf("not_confirmed", "no_app_lock", "contact_removed", "no_contacts_access", "possible_scam", "premium_locked"),
-            listOf(SkipReason.NOT_CONFIRMED, SkipReason.NO_APP_LOCK, SkipReason.CONTACT_REMOVED, SkipReason.NO_CONTACTS_ACCESS, SkipReason.POSSIBLE_SCAM, SkipReason.PREMIUM_LOCKED),
+            listOf("not_confirmed", "no_app_lock", "contact_removed", "no_contacts_access", "possible_scam", "premium_locked", "incognito_chat"),
+            listOf(
+                SkipReason.NOT_CONFIRMED, SkipReason.NO_APP_LOCK, SkipReason.CONTACT_REMOVED, SkipReason.NO_CONTACTS_ACCESS, SkipReason.POSSIBLE_SCAM,
+                SkipReason.PREMIUM_LOCKED, SkipReason.INCOGNITO_CHAT,
+            ),
         )
     }
 

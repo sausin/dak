@@ -82,6 +82,12 @@ table counts. Genuine alerts routinely name other banks ("from HDFC Bank a/c"), 
 announce reversals of amounts "wrongly credited". Scoring those would cause false positives, and a registered
 header can't be sent domestically by anyone else.
 
+**What the detector reads.** Only the first 4,000 characters, in their analysis form (`AnalysisText`): a
+right-to-left override is applied as a bidi-unaware screen displays it (`Rs <RLO>00.000,05<PDF>` reads as
+`Rs 50,000.00`), bidi controls and invisible characters are dropped, and floods of combining marks are capped. Bank
+names are recognised in Devanagari too ("पंजाब नेशनल बैंक", "एसबीआई", "बैंक ऑफ बड़ौदा"...), and a sender written as a
+formatted phone number ("+91 98765 43210") is a phone number, not an alphanumeric name.
+
 **Region.** India's DLT rules apply only when the receiving SIM's region is `IN`, which is the default until the
 region profile is wired in. Elsewhere, banks legitimately use long codes, short codes and bare alphanumeric names.
 There only the generic signals apply: an unknown sender plus a credit plus return urgency, payment handles,
@@ -123,6 +129,33 @@ PIN or collect bait, a known non-bank brand claiming a bank, and follow-ups.
   hides the notification style, banner and chip. Labels are still stored, and likely fakes still never count
   toward balances.
 
+## Related scams handled by the classifier, not this detector
+
+The detector is only about money that did not arrive. Other scam shapes are template rules in the bundle
+(`default-templates.json`, bundle 5, all labelled `fraud-risk`, so the message is classified as spam and gets the
+usual warning), or per-message checks in `ClassifierPipeline`. Every rule has scam and benign look-alike lines in
+`shared/adversarial/` (see its README), which were written before the rule:
+
+| Shape | Where | Scope | Benign look-alikes pinned |
+| --- | --- | --- | --- |
+| Callback: "your card is locked / if this was not you, call 312-555-0123" (English, Arabic) | `CallbackCheck` (needs digits to exempt toll-free 1800/1860, 800/888/…, 0800/0808, UAE 800/600 lines) | unknown phone numbers, any region | toll-free callbacks, "call me on …", appointment reschedules, business senders |
+| "Hi Mum / Hallo Mama, this is my new number / my phone broke" | `spam-new-number` | unknown phone numbers | "Hi Mum, running late", "it's Sam, my new number" |
+| "I sent you a code by mistake, send it back" (account takeover) | `spam-code-share` (above the OTP rules) | any sender, contacts included (hijacked accounts) | genuine OTPs that say "if you received it by mistake, ignore", "gate code by mistake" |
+| APK links (wedding-card / challan malware) | `spam-apk-link` | any | Play Store links, "apk" without a link |
+| Task / crypto "deposit to unlock / pay tax to release funds" | `spam-release-fee` | any | "withdraw karke de dena", exchange withdrawal confirmations |
+| Loan-app extortion ("pay or we send your morphed photos to your contacts") | `spam-extortion` | any | jokes about photos, sharing wedding photos with relatives |
+| Arrest threats ("case registered … avoid arrest") | `spam-arrest-threat` | any | jokes, court date reminders |
+| "Transfer your savings to a safe account" | `spam-safe-account` (not after "never") | any | the banks' own "we will never ask you to move money to a safe account" |
+| Account / card threats with a link in Dutch, Spanish, French (incl. CPF), German, Italian | `spam-threat-link-intl` | unknown phone numbers | the same wording without a link, from the bank's sender name |
+| Hindi electricity disconnection, Arabic prize | `spam-disconnection`, `spam-lottery` (extended) | any | planned-outage notices, "our team won an award" |
+| Look-alike hosts: bare IP addresses, government words outside government domains | `LookalikeDomainChecker` (risky link from an unknown number is spam) | links | `gov.uk`, `gouv.fr`, `gov.in`, `ca.gov`, "govinda-sweets.com" |
+| A risky link from a non-DLT sender name on an Indian SIM | `ClassifierPipeline` | India | official links from such names |
+| Spam verdicts of the model on a registered DLT route without a risky link (a bank's KYC reminder on `-S`) | `ClassifierPipeline` (route check now also bounds the model) | India | |
+
+Out of scope for on-device rules (left as `known-gap` in the corpus): "wrong number" openers of pig-butchering scams
+(`in-wrong-01`, `us-wrong-01`), which read exactly like genuine misdirected texts until the conversation turns to
+investments.
+
 ## Limitations and residual risk
 
 - **Spoofed headers.** International SMS gateways and SIM-box routes can sometimes deliver a message with a real
@@ -144,7 +177,7 @@ PIN or collect bait, a known non-bank brand claiming a bank, and follow-ups.
   notification.
 - **Voice calls and WhatsApp** are out of scope. The banner's advice is written to cover them: verify in the bank
   app, and send nothing back.
-- **Language coverage.** English, Hinglish and Hindi (Devanagari) phrasing. Other Indian languages are covered
-  only by the sender and structure signals.
+- **Language coverage.** English, Hinglish and Hindi (Devanagari) phrasing, and Devanagari names of the most imitated
+  banks. Other Indian languages are covered only by the sender and structure signals.
 - **Automations** receive the raw incoming message and are not yet told about the verdict. A rule like "forward
   bank credits" could forward a fake one.

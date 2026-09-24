@@ -1,5 +1,6 @@
 package app.dak
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -24,6 +25,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import app.dak.i18n.AppLocales
 import app.dak.navigation.DakNavHost
 import app.dak.navigation.IntentRoutes
 import app.dak.navigation.PendingShare
@@ -59,6 +61,12 @@ class MainActivity : FragmentActivity() {
 
     /** Routes requested by intents, consumed by the NavHost once it exists. */
     private val routeRequests = Channel<String>(Channel.CONFLATED)
+
+    /** App language below Android 13 (13+ applies it itself): docs/i18n.md, [app.dak.i18n.AppLocales]. */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        AppLocales.applyTo(this, newBase)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

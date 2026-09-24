@@ -43,6 +43,21 @@ data class ChannelRow(
 /** Size of one repeat group. */
 data class RepeatCountRow(val repeatGroup: String, val n: Int)
 
+/**
+ * The columns of an index row the ledger reads (`LedgerRepository`): its key, date, labels (fake-credit exclusion) and
+ * transaction. Loading only these instead of whole rows (body, FTS text, attachments...) keeps an account rebuild from
+ * reading the bodies of every one of its messages.
+ */
+data class LedgerSourceRow(
+    val kind: MessageKind,
+    val providerId: Long,
+    val dateMillis: Long,
+    val labels: Set<String>,
+    val transactionJson: String?,
+)
+
+private const val LEDGER_SOURCE_COLUMNS = "kind, providerId, dateMillis, labels, transactionJson"
+
 /** First/last activity of one ledger account id in the index. */
 data class AccountSpanRow(val accountId: String, val firstSeen: Long, val lastSeen: Long, val n: Int)
 
@@ -77,6 +92,10 @@ interface MessageDao {
 
     @Query("SELECT * FROM indexed_message WHERE kind = :kind AND providerId = :providerId")
     fun observe(kind: String, providerId: Long): Flow<IndexedMessage?>
+
+    /** Keys of the conversation's messages that have left the phone (box SENT) since [sinceMillis] (incognito sweep). */
+    @Query("SELECT kind, providerId FROM indexed_message WHERE conversationId = :conversationId AND box = 'SENT' AND dateMillis >= :sinceMillis")
+    suspend fun sentSince(conversationId: String, sinceMillis: Long): List<MessageKeyRow>
 
     @Query("SELECT * FROM indexed_message WHERE kind = :kind AND providerId IN (:providerIds)")
     suspend fun getAll(kind: String, providerIds: List<Long>): List<IndexedMessage>
@@ -215,8 +234,9 @@ interface MessageDao {
 
     // ---- ledger ----
 
-    @Query("SELECT * FROM indexed_message WHERE accountId IN (:accountIds) ORDER BY dateMillis ASC")
-    suspend fun byAccounts(accountIds: List<String>): List<IndexedMessage>
+    /** The ledger's inputs of every row of [accountIds], oldest first (see [LedgerSourceRow]). */
+    @Query("SELECT " + LEDGER_SOURCE_COLUMNS + " FROM indexed_message WHERE accountId IN (:accountIds) ORDER BY dateMillis ASC")
+    suspend fun byAccounts(accountIds: List<String>): List<LedgerSourceRow>
 
     @Query(
         "SELECT accountId, MIN(dateMillis) AS firstSeen, MAX(dateMillis) AS lastSeen, COUNT(*) AS n " +
@@ -297,8 +317,9 @@ interface MessageDao {
     @Query("SELECT * FROM indexed_message WHERE UPPER(TRIM(address)) = :addressUpper LIMIT 1")
     suspend fun anyFromAddress(addressUpper: String): IndexedMessage?
 
-    @Query("SELECT * FROM indexed_message WHERE accountId = :accountId ORDER BY dateMillis ASC")
-    suspend fun byAccount(accountId: String): List<IndexedMessage>
+    /** The ledger's inputs of every row of [accountId], oldest first (see [LedgerSourceRow]). */
+    @Query("SELECT " + LEDGER_SOURCE_COLUMNS + " FROM indexed_message WHERE accountId = :accountId ORDER BY dateMillis ASC")
+    suspend fun byAccount(accountId: String): List<LedgerSourceRow>
 
     @Query("SELECT DISTINCT accountId FROM indexed_message WHERE accountId IS NOT NULL")
     suspend fun accountIds(): List<String>
@@ -336,7 +357,7 @@ interface MessageDao {
 
     /** Conversations with a message since [sinceMillis] whose labels match [likely] or [suspicious]. */
     @Query(
-        "SELECT DISTINCT conversationId FROM indexed_message WHERE dateMillis >= :sinceMillis " +
+        "SELECT DISTINCT conversationId FROM indexed_message WHERE dateMillis >= :sinceMillis AND box = 'INBOX' " +
             "AND (labels LIKE :likely OR labels LIKE :suspicious)",
     )
     fun observeScamFlaggedConversations(sinceMillis: Long, likely: String, suspicious: String): Flow<List<String>>
@@ -355,3 +376,6 @@ interface MessageDao {
     @Query("DELETE FROM message_flag WHERE kind = :kind AND providerId IN (:providerIds)")
     suspend fun deleteFlags(kind: String, providerIds: List<Long>): Int
 }
+
+/** A message's key columns (see [MessageDao.sentSince]). */
+data class MessageKeyRow(val kind: MessageKind, val providerId: Long)

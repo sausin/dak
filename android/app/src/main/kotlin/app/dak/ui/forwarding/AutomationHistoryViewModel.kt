@@ -60,6 +60,7 @@ class AutomationHistoryViewModel @Inject constructor(
             SkipReason.NO_CONTACTS_ACCESS -> R.string.fw_skip_no_contacts_access
             SkipReason.POSSIBLE_SCAM -> R.string.fw_skip_possible_scam
             SkipReason.PREMIUM_LOCKED -> R.string.fw_skip_premium
+            SkipReason.INCOGNITO_CHAT -> R.string.fw_skip_incognito
             else -> null
         }
     }

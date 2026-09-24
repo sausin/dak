@@ -31,6 +31,7 @@ data class ConversationRow(
     val muted: Boolean,
     val archived: Boolean,
     val starred: Boolean,
+    val incognito: Boolean = false,
     val groupName: String?,
     /** Repeat group of the newest message (to show "×3" on the snippet), if any. */
     val repeatGroup: String? = null,

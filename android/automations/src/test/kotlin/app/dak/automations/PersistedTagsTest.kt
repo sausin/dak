@@ -22,7 +22,7 @@ class PersistedTagsTest {
         assertEquals("birthday:ask:42:BIRTHDAY:2026", WishTag(ask = true, contactId = 42, kind = OccasionKind.BIRTHDAY, year = 2026).encode())
         assertEquals("birthday:auto:7:ANNIVERSARY:2027", WishTag(ask = false, contactId = 7, kind = OccasionKind.ANNIVERSARY, year = 2027).encode())
         assertEquals("birthday:sent:7:BIRTHDAY:2027", WishTag(ask = false, contactId = 7, kind = OccasionKind.BIRTHDAY, year = 2027, confirmed = true).encode())
-        assertEquals(listOf("BIRTHDAY", "ANNIVERSARY"), OccasionKind.entries.map { it.name })
+        assertEquals(listOf("BIRTHDAY", "ANNIVERSARY", "OTHER"), OccasionKind.entries.map { it.name })
         assertEquals("7:ANNIVERSARY:2027", WishTag(false, 7, OccasionKind.ANNIVERSARY, 2027).dedupeKey)
     }
 

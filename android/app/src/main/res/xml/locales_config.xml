@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Languages Dak ships, for per-app language (Android 13+ Settings → Apps → Dak → Language) and Dak's own
+    Settings → Appearance → Language (AppLocales reads this file on every Android version).
+
+    Add a line here in the same change that adds res/values-<tag>/ with a reviewed translation (docs/i18n.md);
+    scripts/check-i18n.py fails when the two disagree. Tags are BCP 47 ("hi", "ta", "pt-BR"), not resource
+    qualifiers ("b+pt+BR"). The first entry is the default (unqualified res/values) language.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+</locale-config>

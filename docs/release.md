@@ -10,7 +10,7 @@ steps are in [play-submission.md](play-submission.md).
 | R8 (shrink, optimise, obfuscate) | Off | On (`isMinifyEnabled = true`) |
 | Resource shrinking | Off | On (`isShrinkResources = true`) |
 | Application id | `app.dak.debug` / `app.dak.premium.debug` | `app.dak` / `app.dak.premium` |
-| Signing | Debug key | CI secrets (`DAK_KEYSTORE_*`); unsigned when they are absent |
+| Signing | Shared debug key (`android/app/debug.keystore`, committed on purpose so every CI/local debug APK installs over the previous one) | CI secrets (`DAK_KEYSTORE_*`); unsigned when they are absent |
 
 Both are set in `android/app/build.gradle.kts`. Rules: `proguard-android-optimize.txt` (AGP default),
 `android/app/proguard-rules.pro`, and each library's consumer rules.

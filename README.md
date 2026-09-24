@@ -1,386 +1,627 @@
+<div align="center">
+
 # Dak (डाक)
 
 **The messages that matter, organised, backed up, and never uploaded without your say-so.**
 
-The Android default-SMS app for the OTPs, bank alerts and tickets that Microsoft SMS Organizer's
-1M+ users lost when it shut down in May 2026 with no maintained successor. Free tier: 100%
-on-device, fully offline, nothing to trust us with. Premium: the same app, plus opt-in server-backed
-extras — relay and sync only ever see ciphertext; the few that must read text (cloud categorisation of a
-masked message, AI search of your typed query) ask for explicit consent first and can be withdrawn any time
-(see the [privacy policy](docs/privacy-policy.md)).
+An open-source Android default-SMS app for the OTPs, bank alerts and tickets that people actually live by.
+It is built as the successor to Microsoft SMS Organizer, India first and usable anywhere.
 
 [![CI](https://github.com/sausin/dak/actions/workflows/android.yml/badge.svg)](https://github.com/sausin/dak/actions/workflows/android.yml)
 [![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/sausin/dak/badges/coverage.json)](docs/testing.md)
 ![offline-first](https://img.shields.io/badge/free%20tier-offline--first-brightgreen)
 ![minSdk](https://img.shields.io/badge/minSdk-26-blue)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-Full product spec: [`docs/build-plan.md`](docs/build-plan.md) · Build status: [`docs/status.md`](docs/status.md)
+[Features](#features) · [Privacy](#security--privacy-by-architecture) · [Hardened against attack](#hardened-against-attack) ·
+[Engineering](#engineering-quality) · [Architecture](#architecture) · [Get started](#getting-started) ·
+[**Contribute a scam message**](#contribute-an-adversarial-message) · [Roadmap](#status--roadmap)
+
+</div>
 
 ---
 
+> [!TIP]
+> **You can help without writing Kotlin.** Got a scam SMS, a phishing link or a message that trips up SMS apps?
+> Add it to the [adversarial corpus](shared/adversarial/): it is plain text, one message per line, and CI runs every
+> line through Dak's defences. [How to contribute a message ↓](#contribute-an-adversarial-message)
+
+## At a glance
+
+| | |
+| --- | --- |
+| **What** | A full default-SMS/MMS app for Android 8.0+ (`minSdk 26`, `targetSdk 36`) in Kotlin and Jetpack Compose |
+| **Free tier** | Works entirely on the phone and offline, with no ads, analytics or crash reporting. A CI script fails the build if free code reaches for the network ([`check-offline-baseline.sh`](android/scripts/check-offline-baseline.sh)) |
+| **Premium** | Same codebase and data model. Optional server features are consent-gated seams; none is implemented yet ([status](#status--roadmap)) |
+| **Codebase** | 12 Gradle modules (9 pure-Kotlin JVM, 3 Android), about 73k lines of production Kotlin and 31k lines of tests |
+| **Tests** | About 1,850 JUnit/Robolectric `@Test`s in 230 files, plus a 400+ message [adversarial SMS corpus](shared/adversarial/) and seeded MMS fuzzers |
+| **Gates** | Offline guard, tests, per-module coverage floors, R8 release builds and a mapping check, on every pull request and push to `main` that touches the app ([workflow](.github/workflows/android.yml)) |
+| **Status** | The maintainers have tested it extensively. It is not on the Play Store yet ([details](#status--roadmap)) |
+
 ## Why Dak
 
-SMS Organizer didn't lose to a better competitor — it [died of a notification bug](docs/build-plan.md#lessons-from-sms-organizer-and-mezo):
-its Play rating fell to 3.1 across 51.7K reviews, and the top complaints were weeks without
-notifications and missed OTPs. Nobody has shipped a real successor. The nearest FOSS alternatives
-(QUIK, Fossify Messages, Deku SMS) are all GPLv3, 2015-era XML-view codebases with no
-categorisation, no finance parsing, and no data layer worth keeping.
+Microsoft SMS Organizer began shutting down in May 2026. It had 1M+ installs and left no maintained successor.
+It did not lose to a better competitor. It [died of a notification bug](docs/build-plan.md#lessons-from-sms-organizer-and-mezo):
+its Play rating fell to 3.1 across 51.7K reviews, and the top complaints were weeks without notifications and
+missed OTPs. The closest open-source alternatives (QUIK, Fossify Messages, Deku SMS) are GPLv3 XML-view
+codebases with no categorisation, no finance parsing and no data layer worth keeping.
 
-Dak is a ground-up rebuild in Kotlin + Jetpack Compose that starts from the one thing the
-incumbents got right — **the messages that matter are OTPs, bank alerts, and tickets, not chats**
-— and takes reliability, privacy and India-specific fraud defence as seriously as any feature.
+Dak is a ground-up rebuild that keeps the one thing SMS Organizer got right: **the messages that matter are
+OTPs, bank alerts and tickets, not chats.** It treats reliability, privacy and fraud defence as features in their
+own right:
 
-## What sets Dak apart
+- **Reliability comes first.** Notifications, the bug class that killed the last app in this space, get a
+  self-test, OEM battery-killer guidance, a crash-safe receive journal and a P0 checklist that ships before any
+  smart feature.
+- **Privacy is part of the architecture.** The free tier cannot phone home, and CI checks this on every build.
+- **Scam defence is built for how Indian SMS fraud works.** It is not a generic spam filter. The adversarial
+  corpus lets anyone add the next scam as a test.
+- **Your data stays open.** A documented export format is available from day one, so nobody is ever trapped the
+  way SMS Organizer's users were.
 
-- **Privacy by architecture, not by policy.** The free tier cannot phone home even if it wanted
-  to — this is enforced in CI (see [Security & privacy](#security--privacy)), not just promised.
-- **Reliability first.** The exact class of bug that killed the last app in this space —
-  notifications — gets a dedicated self-test, OEM-killer guidance, and a P0 checklist that ships
-  before any smart feature.
-- **Real scam defence for India**, not a generic spam filter: a fake bank-credit-alert detector,
-  homograph link warnings, and one-tap access to 1930/1909/Chakshu.
-- **Honest engineering status.** Nothing here has touched a real device yet. This README says so
-  plainly — see [Status & roadmap](#status--roadmap).
+---
 
-## India first, useful anywhere
+## Features
 
-Dak launches for India, where its data is richest: TRAI DLT sender headers, Indian bank and
-wallet formats, Hindi/Hinglish phrasing, the fake-credit-alert scam playbook, and verified
-helplines (1930, 1909, Chakshu). Nothing is hard-wired to India, though. A region profile is
-resolved per SIM (SIM home country → network → device locale, never assumed), and everywhere
-else Dak falls back to generic behaviour:
-
-| | India (launch profile) | Other countries (today) |
-| --- | --- | --- |
-| Sender trust | DLT header rules (`XX-HDFCBK-S`), brand folding from the bundled table | Generic sender handling; DLT rules off |
-| OTPs, search, themes, backup, multi-SIM | ✓ | ✓ (tested with US/UK/EU/UAE/SG-style OTPs, Arabic-Indic digits) |
-| Finance | Indian banks/wallets, lakh/crore grouping, INR | Home currency from the SIM's country; `$`, `£`, `€`… resolved per region; ISO codes shown for foreign amounts |
-| Scam defence | DLT-aware fake-credit detection + generic signals | Generic signals (unknown sender + "credited" + return/refund urgency, payment links) |
-| Fraud help | 1930 / 1909 / Chakshu / RBI | Verified emergency numbers + "add your bank's fraud line" |
-
-Country-specific data for other markets comes later; the region seam is already in place.
-
-## Feature highlights
+Everything below is in the tree and runs on the phone. Server-backed premium features are listed only in the
+[roadmap](#status--roadmap).
 
 ### Reliable by construction
-- Verbatim `SMS_DELIVER` → `Telephony.Sms` write happens before anything else — OTP autofill and
-  banking-app SMS Retriever listeners keep working no matter what Dak's own code does.
-- MMS download with per-SIM APN, retry/backoff, and a visible "tap to retry" failure reason —
-  the exact gap SMS Organizer never closed.
-- In-app self-test, a restriction banner for OEM battery killers (Xiaomi/Oppo/Vivo/Realme), and
-  `ContentObserver` + periodic reconcile so new messages never require leaving and re-entering a
-  thread.
-- Big, bold OTP notification, copied to the clipboard on arrival (flagged sensitive, "Copied" shown
-  beside the code; a Copy button if auto-copy is off) with Mark read and Delete; **consumed-OTP detection** via the
-  same SMS Retriever app-signature hashes Google publishes, so an OTP already read by your banking
-  app goes silent and auto-deletes instead of nagging you.
-- Sender merge groups fold `VM-HDFCBK` / `JD-HDFCBK` / `AX-HDFCBK` into one "HDFC Bank" thread —
-  a feature users explicitly asked for on Samsung's forums.
 
-### Scam defence built for the Indian SMS ecosystem
-- **Fake-credit-alert detector** (`android/classify/.../scam`): scores messages against 17
-  distinct signals — a bank-style credit from a 10-digit phone number, a promotional-route
-  transactional message, brand/sender mismatches, "sent by mistake, please return" wording (in
-  English and Hindi/Hinglish), UPI collect-request and "PIN to receive" tricks (a PIN is only ever
-  needed to *pay*), and same-sender follow-up "return it" messages. Anything flagged `LIKELY_SCAM`
-  is kept out of the finance ledger entirely, never silently trusted.
-- **Lookalike/homograph link warnings**: confusable Cyrillic/Greek/Armenian/fullwidth letters are
-  folded to a Latin skeleton so `hdfcbаnk.com` is caught as impersonating HDFC Bank; userinfo
-  tricks (`https://bank.com@evil.xyz`) are stripped and flagged; links only open after a second,
-  explicit tap.
-- **Fraud helpline screen**: 1930 (cybercrime helpline) first, then 1909 TRAI SMS spam report
-  (built from the composer), Chakshu / cybercrime.gov.in with details pre-filled, and the user's
-  own bank card-block number — all from a signed helpline bundle sourced only from each
-  authority's own site, never a forum or search result.
-- **SMS cost warnings** before a send that would leave the user's normal plan/rate.
-- **Red-teamed input surfaces**: a seeded structure-aware MMS PDU fuzzer (120k iterations), zip-slip
-  and zip-bomb hardening on every import/restore path, ReDoS-safe regexes with a static safety
-  checker for user-authored automation patterns, and JSON/XML nesting-bomb guards. Full surface-by-
-  surface writeup in [`docs/security/threat-model.md`](docs/security/threat-model.md).
+| | |
+| --- | --- |
+| **Verbatim first write** | Each `SMS_DELIVER` is journalled (fsync'd) and written to the system Telephony provider before any Dak logic runs, so OTP autofill and banking apps' SMS Retriever keep working whatever Dak does next |
+| **Crash-safe receive** | The `SmsJournal` replays any message whose inbox write failed or timed out, at the next receive, at boot and at app start. Handler crashes, including `StackOverflowError`, are contained |
+| **MMS that works** | Per-SIM APN download with retry and backoff, a visible "tap to retry" failure reason, carrier config read per SIM, group MMS, SMIL and read reports |
+| **Self-test and OEM guidance** | Settings → Notifications → Self-test, a restriction banner for Xiaomi, Oppo, Vivo and Realme battery killers, and `ContentObserver` plus periodic reconcile so a thread never needs reopening to show new messages. The default SMS app counts as battery-exempt, so the banner never asks for a fix Android won't allow |
+| **Delivery ticks** | Clock, then ✓ sent, then ✓✓ delivered, or a failed state with retry |
+| **Emergency texts never wait** | Texts to 112/911 and the region's emergency numbers skip the send rate limiter and cannot be scheduled |
 
-### Fast to use, one-handed
-- **Inbox built for the thumb**: a bottom bar (places, search, compose FAB) instead of top-bar
-  search/overflow, configurable swipe actions (archive/delete/read/pin, with haptics, Undo and a
-  TalkBack alternative for every gesture), long-press multi-select with a bottom action bar, and an
-  inline **"Copy code" chip** on fresh OTP rows — the code without opening the thread.
-  In conversation: long-press multi-select (copy, forward, delete with confirmation, and the per-message
-  action sheet for a single selection), double-tap a bubble to copy its code or amount (codes under a day old),
-  swipe-to-reply with any OTP in the quote masked, and a jump-to-latest FAB. Full review and what
-  shipped vs. deferred: [`docs/ux-review.md`](docs/ux-review.md).
-- **Delivery ticks** on outgoing messages (clock → single ✓ sent → double ✓✓ delivered, or a
-  failed/retry state), refreshed from a coalesced provider re-check rather than a new wakeup.
-- **Typed tappable entities** inside message text — phone, OTP, amount, masked account, UPI id,
-  reference/UTR, PNR, courier tracking — each with the action that makes sense for it (call/save a
-  number, copy a code); a scam-flagged message's phone number and UPI id warn before acting on them.
-- **App lock**: device lock (fingerprint/face/PIN via the system prompt) or an app PIN (PBKDF2,
-  salted hash only, escalating lockout on wrong tries), auto-lock timeout, "hide in Recents"
-  (`FLAG_SECURE`), and per-screen sensitive gating (bin, passbook, backup, automations, forwarding)
-  even with the lock off.
+### Organised automatically, entirely on the device
 
-### Smart, but entirely local
-- DLT sender-header parsing (`VM-HDFCBK-S` → bank, traffic type) and brand folding/unfolding.
-- On-device classifier (deterministic template rules + a pure-Kotlin model) sorting messages into
-  Personal / Transactions / OTP / Promotions / Spam — no network round trip.
-- Gmail-style search (`from:`, `category:`, `sim:`, `amount:>500`, `during:"last week"`, …) over a
-  SQLCipher-backed FTS index, with saved searches and a preserved back stack.
-- **Amount normalisation**: `500,000.00`, `5,00,000`, `500000` and `5 lakh` are all the same amount
-  in search and the ledger (`amount:>50k`, `amount:1L..1cr` work too).
-- **Passbook grouped by instrument** — bank accounts, credit cards, debit cards, wallets, UPI,
-  prepaid/forex cards, loans — that keeps every transaction in its **original currency**, shows
-  balances as `"unknown since <date>"` rather than inventing a number after a foreign spend, and
-  reconciles the indicative FX estimate against the bank's own settlement message days later. A
-  debit-card or loan spend also reduces the linked bank account when the SMS names it explicitly.
-- **Investments in the Passbook** — mutual-fund folios and demat accounts, read from fund, registrar,
-  broker and depository SMS by structure alone (folio, units, NAV, SIP, IDCW, BO / DP / client ID,
-  contract note, qty @ price; never a fund-house or broker name): SIP and lumpsum purchases,
-  redemptions, switches, dividends and trades with units and NAV, and the current value from
-  valuation / holdings / CAS messages. A SIP is one own-account transfer seen from both sides (the
-  bank's debit and the fund's allotment), so it never counts as spending. Demat security alerts
-  (shares debited, pledge, e-DIS) never touch the ledger but always notify on Alerts; routine fund
-  updates notify quietly on General.
-- Masked-account alias confirmation, so a passbook account is only linked to a bank once the
-  masked digits actually match something the user confirmed.
-- **Broadcast lists with guardrails**: one message to up to 50 people, sent as individual SMS
-  (replies come back 1:1), hard caps of 50/broadcast and 100/day, a versioned acceptable-use
-  agreement on first use, an on-device spam-risk check with an extra confirmation, and a TRAI/1909
-  note — see [`docs/terms-acceptable-use.md`](docs/terms-acceptable-use.md).
-- **Scheduled messages with a heads-up**: shortly before a scheduled text, broadcast or automatic
-  birthday wish goes out (15 minutes by default; off / 5 / 15 / 60 in Settings → Automations, plus a
-  morning heads-up for a wish sent later that day), a notification offers **Send now**, **Delay**
-  (+1 hour, tomorrow same time, or pick a time) and **Cancel**. Several are grouped under one summary;
-  Send now goes through the same checks as the scheduled send (app lock, premium-rate guard, daily
-  cap). Texts to emergency numbers cannot be scheduled — send them straight away instead.
-- Time-boxed auto-forwarding rules ("forward my HDFC transactions to my CA until 5:30 pm") to
-  saved contacts only (re-checked before every forward; a deleted contact pauses the rule), one
-  hour by default; longer or open-ended periods, extensions, OTPs and risky-looking recipients
-  (recently added contact, no SMS history, unusual number) need a scam warning plus biometric
-  confirmation. A persistent visible warning shows while any forwarding rule is active, and cost
-  warnings appear before a send that would leave the user's plan/rate. Anything that sends messages
-  off the phone automatically (forwarding, auto-replies, webhooks, relays) needs app lock: without it
-  such rules cannot be turned on, and switching app lock off (or removing the phone's screen lock)
-  turns them off, with a clear notice first. Three hours after one is turned on, and daily while it
-  stays on, a "Was this you?" security alert (with a one-tap "Turn off") makes sure the owner notices
-  a rule someone else set up. Ended rules stay saved and can be used again for the same length of
-  time, and every rule has a history of exactly which messages it sent, where, and what was skipped.
-  Notification channels per kind (Messages, OTP codes, Alerts, Promotions, General, Spam) can be
-  split per SIM and per conversation.
-- Birthday/anniversary wishes from Contacts, opt-in, "ask first" or "send automatically", with
-  English/Hindi templates.
-- Fake-credit scam detection flags a message before it ever reaches the passbook, with one-tap
-  access to fraud helplines (1930/1909/Chakshu/RBI).
-- Multi-SIM as a first-class dimension everywhere: SIM chips on every thread and bubble, per-SIM
-  reply, roaming-aware E.164 number normalisation, roaming send warnings.
-- Unicode/Indic digits (Devanagari, Arabic-Indic) handled in masking and parsing; 30+ ISO 4217
-  currencies with correct minor-unit exponents (0 for JPY, 3 for KWD); RTL-safe rendering.
+- **Tabs**: Personal, Transactions, OTP, Promotions and Spam. Messages are sorted by deterministic template rules
+  plus a bundled pure-Kotlin model, with no network round trip.
+- **DLT sender parsing** (`VM-HDFCBK-S` → bank, traffic type) and **sender merge groups** that fold
+  `VM-`/`JD-`/`AX-HDFCBK` into one "HDFC Bank" thread. You can unfold them.
+- **Gmail-style search** over an encrypted FTS index: `from:`, `category:`, `sim:`, `has:otp|link|attachment`,
+  `amount:>500`, `amount:1L..1cr`, `before:`/`after:`, `during:"last week"`, `in:`, `is:`, with chips, saved
+  searches and a preserved back stack ([`android/search`](android/search/README.md)).
+- **Amounts are normalised**: `5,00,000`, `500,000.00`, `500000` and `5 lakh` are the same amount everywhere.
+- **Typed, tappable entities** in message text: phone, OTP, amount, masked account, UPI id, UTR, PNR and courier
+  tracking number, each with the action that fits it.
+- **App language**: Settings → Appearance → Language uses the per-app language on Android 13+ and Dak's own
+  override on 8–12. Money uses the locale's digits, keeping lakh/crore grouping. The UI ships in English today, and
+  every screen, setting and failure reason is a translatable resource ([`docs/i18n.md`](docs/i18n.md)).
+- **Themes**: light, dark, AMOLED and high contrast, following the system and switching live. Typography scales
+  with the screen size.
+
+### OTPs, done right
+
+- A big, bold OTP notification. The code is **copied on arrival** (flagged sensitive, with "Copied" shown next to
+  it) and there are Mark read and Delete actions.
+- **Consumed-OTP detection**: Dak uses the SMS Retriever app-signature hashes Google publishes, so an OTP your
+  banking app already read goes quiet and auto-deletes.
+- A "Copy code" chip on fresh OTP rows in the inbox, and double-tap to copy in a thread. Both work only for codes
+  less than a day old.
+- The recycle bin keeps OTPs for one day. Duplicate OTPs collapse.
+
+### Passbook: your money, read from your SMS
+
+- **Grouped by instrument**: bank accounts, credit and debit cards, wallets, UPI, prepaid and forex cards, loans,
+  **mutual-fund folios and demat accounts**.
+- **Honest balances**: every transaction is kept in its **original currency**. A balance shows
+  `"unknown since <date>"` instead of an invented number after a foreign spend. The indicative FX estimate is
+  later reconciled against the bank's own settlement SMS.
+- **SIPs are own-account transfers**, so they are never counted as spending. Demat security alerts (shares debited,
+  pledge, e-DIS) always notify you.
+- **Masked-account aliases** link to a bank only after you confirm the digits match.
+- **Remove an account from the Passbook** with a long-press and Undo. A collapsed "Hidden accounts" section brings
+  it back. Hiding only changes the display: the ledger and scam detection still see the account.
+- Anything flagged as a likely scam **never reaches the ledger**.
+
+### Scam and fraud defence
+
+| Defence | What it does |
+| --- | --- |
+| **Fake-credit-alert detector** | Scores messages against 20 weighted signals (`ScamReason`): a bank-style credit from a phone number, a promotional-route "transaction", brand/sender mismatch, "sent by mistake, please return" wording in English, Hindi and Hinglish (including follow-ups from the same sender), UPI collect requests and "enter PIN to receive" bait. Write-up: [`fake-credit-scams.md`](docs/security/fake-credit-scams.md) |
+| **Scam families beyond fake credits** | Template rules (bundle 5) for callback scams with no link, "Hi Mum, new number", requests to send back a code, APK links, release fees, loan extortion, arrest threats and police "safe account" scams, in English, Hindi, Arabic, Dutch, Spanish and French wording. Each new rule was written against benign look-alikes that must stay clean |
+| **Consistent everywhere** | The notification, the thread banner, the inbox chip and the entity sheet all get the same context (parsed amount, known accounts, recent messages from the sender), so they agree. Turning warnings off only hides them: automations still refuse to forward a likely fake |
+| **Link safety** | Confusable Cyrillic, Greek, Armenian and fullwidth letters are folded (UTS #39), so `hdfcbаnk.com` is caught. Userinfo and backslash tricks (`https://bank.com@evil.xyz`) are flagged. An official domain used as a prefix (`sbi.co.in.verify.example`) counts as a look-alike, as do bare-IP hosts and government words on non-government domains (`gov-uk-support-payment.com`). Links always need a second tap, with a reason shown |
+| **Spoofed senders and hidden text** | Mixed-script and look-alike sender names are flagged. Detection reads a normalised copy of each message: right-to-left overrides are applied as displayed, invisible characters are dropped and combining-mark floods are capped. A bidi-reversed amount or a `K\u200BYC` cannot slip past, and the text you see is untouched |
+| **Report fraud** | 1930 (cybercrime helpline) first, then TRAI 1909 (built from the receiving SIM), Chakshu and cybercrime.gov.in with details pre-filled, RBI, and your own bank's card-block number. Numbers come from a signed [helplines bundle](shared/formats/README.md) sourced from each authority's own site |
+| **Cost guards** | Warnings before a send leaves your normal plan or rate, and a premium-rate check on unattended sends |
+
+### Privacy and incognito chats
+
+- **Incognito chats**, per conversation, from the moment you turn them on:
+  - Sent messages are deleted once the radio confirms them. Received ones are deleted after a 10-second reading
+    window in the thread, or when you leave it.
+  - Notification and inbox previews never show the text. Deletions skip the recycle bin. Bubbles **dissolve** on
+    screen.
+  - A failed send is never silently dropped or kept. The thread shows **Retry / Delete** with a visible 30-second
+    countdown. If the retry also fails, you choose **Keep / Delete**.
+  - The first time you turn it on, a one-time **"Only your copy vanishes"** notice explains that the other phone
+    keeps what it received.
+  - **Automations never forward, relay or webhook an incognito chat's messages.** The run log records why they
+    were skipped.
+- **App lock**: device biometrics or credential, or an app PIN (PBKDF2, salted hash, escalating lockout). Also
+  auto-lock, "hide in Recents" (`FLAG_SECURE`) and per-screen gating for the bin, Passbook, backup, automations and
+  forwarding.
+- **Your data rights in the app**: Settings → Privacy → *Export my Dak data* and *Delete my Dak data*, and an
+  append-only consent ledger ([`privacy-compliance.md`](docs/privacy-compliance.md)).
+
+### Conversations and composer
+
+- **Contact details from the thread header**: tap it to call, copy, view the contact, or **save an unsaved number**
+  as a new or existing contact.
+- **Send later from the composer**: use "Schedule" in the attachment tray or long-press Send. Choose in an hour,
+  tomorrow, or any date and time. Pending messages sit in a strip above the composer, where you can cancel them.
+- **Heads-up before scheduled sends**: a notification offers Send now, Delay or Cancel. It runs 15 minutes before
+  by default (configurable).
+- One composer with attachments, automatic SMS→MMS switching, a segment counter and group MMS.
+- **Built for one hand**: a bottom bar, configurable swipe actions with Undo and TalkBack alternatives,
+  multi-select in the inbox and in threads, swipe-to-reply with OTPs masked in the quote, and a jump-to-latest
+  button ([UX review](docs/ux-review.md)).
+
+### Automations and forwarding, with guardrails
+
+- **A rule engine**: versioned JSON rules, on-device actions, and a `RegexSafety` static check that refuses
+  catastrophically backtracking patterns.
+- **Forward messages**: select messages in a thread and forward them through the composer.
+- **Time-boxed auto-forwarding** ("forward my HDFC transactions to my CA for an hour"):
+  - Recipients come from **saved contacts only** and are re-checked before every forward. A deleted contact pauses
+    the rule.
+  - Periods longer than an hour, open-ended rules, OTPs and risky-looking recipients (recently edited contact, no
+    SMS history, unusual number) need a scam warning plus biometric confirmation.
+  - **Anything that sends off the phone needs app lock.** Turning the lock off turns those rules off.
+  - A **"Was this you?"** alert fires 3 hours after a rule is turned on and daily after that, with one-tap Turn off.
+  - Every rule has a history of what it sent, where, and what it skipped.
+- **Broadcast lists**: individual SMS to up to 50 people, capped at 100 a day, paced within Android's limits. They
+  come with an on-device spam-risk check and a first-use [acceptable-use](docs/terms-acceptable-use.md) agreement.
+
+### Birthdays and occasions
+
+- Birthdays, **anniversaries and other contact dates** ("Other" or a custom label) appear on one screen, filtered
+  by one chip row.
+- Wishes can be "ask first" or "send automatically", with English and Hindi templates, an `{occasion}`
+  placeholder and presets.
+- **Add a date** opens the contact in your Contacts app.
+
+### Backup, export and import
+
+- **End-to-end encrypted backup** to storage you pick (Drive, Dropbox or a local folder through SAF). It uses a
+  passphrase or a device key plus a recovery code, so no plaintext leaves the phone.
+- **An open export format** ([`dak-export-v1`](shared/formats/dak-export-v1.md) with a JSON Schema): a ZIP of a
+  manifest, JSONL message chunks and attachments, optionally wrapped in the `DAKENC1` envelope.
+- **Importers** for SMS Backup & Restore XML, Fossify and SMS Organizer. The SMS Organizer importer is heuristic
+  until it is checked against a real backup.
+
+### Multi-SIM and worldwide
+
+Multi-SIM is a first-class dimension: SIM chips on every thread and bubble, reply SIM per conversation,
+notification channels split per SIM, roaming-aware E.164 normalisation and roaming send warnings.
+
+A **region profile is resolved per SIM** (SIM home country, then network, then device locale; never assumed), so
+Dak is India-first but not India-only:
+
+| | India (launch profile) | Everywhere else (today) |
+| --- | --- | --- |
+| Sender trust | TRAI DLT header rules, registered-header trust, brand folding | Generic sender handling |
+| OTPs | English and Hindi | English (US/UK/EU/UAE/SG-style), Arabic phrasing, digits in any Unicode script |
+| Money | INR, lakh/crore grouping | Home currency from bank SMS or the SIM region; ISO codes for foreign amounts; 30+ currencies with correct minor units |
+| Scam defence | DLT-aware fake-credit detection plus generic signals | Generic signals (unknown sender + credit wording, return urgency, links, payment handles) |
+| Fraud help | 1930 / 1909 / Chakshu / RBI / 112 | "Call your bank's fraud line" plus the region's emergency numbers; no invented national lines |
+
+The full per-area table is in [`docs/status.md`](docs/status.md#works-worldwide-india-first-launch).
+
+---
+
+## Security & privacy by architecture
+
+The free tier's offline promise is a build guarantee, not a policy statement.
+
+- **CI-enforced offline baseline.** [`android/scripts/check-offline-baseline.sh`](android/scripts/check-offline-baseline.sh)
+  runs first in every CI build. It fails if code outside `src/premium` references a network client (OkHttp,
+  Retrofit, Ktor, `HttpURLConnection`, `java.net.http`, WebSocket) or an AI or Firebase SDK, or binds a cloud
+  classifier. The only network path in the free tier is the platform's own MMS download over the carrier APN.
+- **No runtime AI dependency.** Cloud classification, AI search and translation are interfaces with no-op defaults
+  (`NoCloudClassifier`, `NoOpQueryUnderstanding`, `NoOpTranslator`).
+- **Encrypted index.** Room over SQLCipher, with the key wrapped in the Android Keystore. You can rebuild it from
+  the Telephony provider at any time, because the provider remains the source of truth.
+- **Network security config**: cleartext is refused for every host and only system CAs are trusted
+  ([`docs/release.md`](docs/release.md#network-security-config)).
+- **No WebView anywhere.** Links open in your own browser, only after the link-safety check and a second tap.
+- **Minimal exported surface.** Only `MainActivity` and the platform-permission-guarded telephony components are exported.
+  PendingIntents are explicit and `allowBackup=false`.
+- **Logs never contain message bodies, codes or addresses.**
+- **Premium, when it exists**, keeps the same rules. The relay and sync only ever see ciphertext. The few features
+  that must read text (cloud categorisation of a *masked* message, AI search of your typed query) ask for explicit
+  consent first, and you can withdraw it at any time ([privacy policy](docs/privacy-policy.md)).
+
+Compliance work: [DPDP Act 2023 and GDPR mapping](docs/privacy-compliance.md), and a
+[standards and platform compliance matrix](docs/standards-compliance.md) covering 3GPP SMS, OMA MMS, RFC 5724,
+TRAI TCCCPR, Play policy, Unicode text safety and OWASP MASVS. It has 155 rows: 110 compliant, 24 partial,
+2 missing and 19 not applicable, with a prioritised backlog.
+
+---
+
+## Hardened against attack
+
+The default SMS app parses more attacker-controlled input than almost anything else on a phone, and SMS and MMS
+parsers have a long history of zero-click bugs. Dak treats every byte of a message as hostile.
+
+**The [threat model](docs/security/threat-model.md)** lists every input surface and its mitigations: the MMS PDU
+decoder, receivers and provider I/O, regexes on message bodies, links, sender names, backup files, index SQL and
+IPC. It covers three red-team waves, including a **zero-click pass with 11 findings, all fixed**: SSRF spellings
+in MMS URLs, Binder-size MMS text, a restore path that could send texts, WAP-push floods, `StackOverflowError`
+crashes, notification bidi spoofing, SMS loss on a failed insert, and emergency texts stuck behind a rate limiter.
+Residual risks are listed openly.
+
+| Layer | Evidence |
+| --- | --- |
+| MMS decoder | A clean-room codec with bounds-checked lengths and `MAX_PDU_BYTES` / `MAX_PARTS` / `MAX_ADDRESSES` caps. `SecurityFuzzTest` (120,000 seeded mutations) and `HostileInputFuzzTest` (60,000 grammar-aware inputs per generator, with time and allocation bounds) |
+| Backup and import | Zip-slip and zip-bomb caps, XML billion-laughs and DTD protection, PBKDF2 iteration bounds. Restored "queued" messages become failed, so they are never auto-sent |
+| Regexes | ReDoS-safe patterns, a static checker for user-authored rules, and a per-message time budget in the corpus test |
+| Everything, end to end | The **adversarial SMS corpus**, below |
+
+### The adversarial SMS corpus
+
+[`shared/adversarial/`](shared/adversarial/) holds **400+ hostile and tricky messages** in plain-text TSV,
+organised so that anyone can read, review and extend them:
+
+- **7 regional files**: [`in`](shared/adversarial/in.tsv), [`us`](shared/adversarial/us.tsv),
+  [`gb`](shared/adversarial/gb.tsv), [`ae`](shared/adversarial/ae.tsv), [`sg`](shared/adversarial/sg.tsv),
+  [`eu`](shared/adversarial/eu.tsv) and [`global`](shared/adversarial/global.tsv). They hold fake credit alerts,
+  KYC and PAN scares, parcel fees, toll and fine smishing, "Hi Mum", and job and loan scams, in English, Hindi,
+  Hinglish, Arabic, German, French, Dutch, Spanish and Italian.
+- **Each scam sits next to its benign look-alike**, such as the genuine bank alert, OTP or delivery update. A false
+  alarm on a real bank alert costs as much trust as a missed scam.
+- **5 "pwn" files aimed at the app itself** ([`pwn/`](shared/adversarial/pwn/)): bidi overrides, zero-width
+  characters and homographs; punycode, userinfo, `intent:` and `javascript:` links; ReDoS bait written against
+  Dak's own regexes; huge bodies and overflowing amounts; format-string, SQL and FTS injection; and spoofed
+  "Dak system" text.
+
+[`AdversarialCorpusTest`](android/classify/src/test/kotlin/app/dak/classify/adversarial/AdversarialCorpusTest.kt)
+runs every line through the classifier (for that line's region), the transaction parser, the fake-credit detector,
+link and look-alike checks, OTP and entity extraction, the sanitisers, the cloud masker and the search query
+builder. It enforces a time budget per message (500 ms by default) plus invariants: nothing throws, links never
+carry non-http schemes or invisible characters, parsed amounts stay positive and bounded, and FTS strings stay in
+the safe grammar.
+
+Real misses are tagged **`known-gap`**. The test prints them instead of failing, and **fails as soon as a gap starts
+passing**, so the tag cannot outlive the fix. **38 of the first 40 gaps are closed.** The two that remain are
+"wrong number" openers that read exactly like a genuine misdirected text, so on-device rules leave them alone, with
+the reason documented beside them. The corpus has caught and pinned real fixes, including:
+
+- a parser that took seconds on a huge MMS text part;
+- a 3,000-mark "zalgo" body that took about 1.6 s and now takes a few milliseconds;
+- look-alikes that used an official domain as a prefix;
+- Hindi plural forms of "sent by mistake".
+
+### Contribute an adversarial message
+
+**This is the easiest high-impact contribution to Dak. You need no Kotlin, Android SDK or build setup.**
+
+1. Pick the file for the region where the message was received (or [`global.tsv`](shared/adversarial/global.tsv)),
+   or a [`pwn/`](shared/adversarial/pwn/) file for attacks on the app itself.
+2. Add one line with five tab-separated columns: `id`, `sender`, `expect`, `tags`, `body`.
+
+   ```
+   in-kyc-03	+919876512320	scam,link-warning	kyc,hinglish	Aapka SBI account aaj block ho jayega. KYC update karein: https://sbi-kyc-update.xyz
+   ```
+
+3. **Anonymise it**: use made-up names and numbers (India `98765xxxxx`, US `555-01xx`, UK `07700 900xxx`), and
+   defang live URLs.
+4. Add the genuine look-alike next to it if one exists, and open a pull request. If Dak misses your scam today,
+   tag it `known-gap`, which is still a valuable contribution.
+
+The [corpus README](shared/adversarial/README.md) documents the full expectation vocabulary (`otp:`, `amount:`,
+`reason:`, `link-host:`...), escapes for invisible characters, the `{repeat:...}` generator for huge payloads,
+safety rules and a PR checklist.
+
+---
+
+## Engineering quality
+
+### Testing pyramid
+
+```
+                 ┌───────────────────────────────┐
+                 │ Manual device passes          │  docs/device-test-plan.md (P0 / P1 / P2 steps)
+                 ├───────────────────────────────┤
+                 │ Robolectric (Android modules) │  core-telephony · core-index · app
+             ┌───┴───────────────────────────────┴───┐
+             │ JVM unit tests, fuzzers and corpus    │  9 pure-Kotlin modules, no emulator needed
+             └───────────────────────────────────────┘
+```
+
+| Module | `@Test`s | Module | `@Test`s |
+| --- | ---: | --- | ---: |
+| finance | 329 | core-index | 134 |
+| classify | 300 | backup | 130 |
+| app | 241 | mms-pdu | 119 |
+| automations | 228 | search | 86 |
+| core-telephony | 172 | settings-registry | 63 |
+| premium-api | 39 | core-model | 15 |
+
+That is 1,856 in total at commit `5591204`, and the number keeps growing. On top of those, 36 pytest tests cover the
+[`sms-pdu.py`](android/scripts/sms-pdu.py) emulator fixture builder (checked against two independent PDU libraries)
+and the [`check-i18n.py`](android/scripts/check-i18n.py) translation checker.
+
+Beyond plain unit tests, the suite includes golden-format tests for exports and rules, migration tests for every
+index schema step (v1 → v8), equivalence tests that pin ledger, inbox and search results against independent reference
+implementations (written and green before the optimisations they guard), query-plan and cost guards, locale-independence
+tests, and correctness proofs showing that the performance work changed no result.
+
+### CI gates, on every pull request and push to `main`
+
+1. **Offline baseline guard**: free code has no network or AI dependencies.
+2. **Test tooling**: pytest for the SMS PDU builder and the i18n checker (locale config, completeness, placeholder parity).
+3. **All unit tests** (JVM and Robolectric) with Kover coverage.
+4. **Coverage floors**: CI fails if any module, or the merged total, drops below its floor in
+   [`coverage-floors.json`](android/coverage-floors.json). Floors only ratchet upwards.
+5. **Debug and release builds of both flavours**, with R8 shrinking, obfuscation and resource shrinking on release.
+6. **Release smoke check** ([`check-release-mapping.sh`](android/scripts/check-release-mapping.sh)): R8 really ran,
+   and class names that Dak persists survived.
+7. **Artifacts**: versioned debug APKs, R8 mapping files, coverage reports, and signed release APKs when the
+   keystore secrets are set. `v*` tags attach APKs to a GitHub release.
+
+Current line-coverage floors (measured in CI run #53, floors = measured − 1):
+
+| settings-registry | core-model | premium-api | classify | finance | search | automations | backup | mms-pdu | core-telephony | core-index | app | **total** |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 98 | 99 | 99 | 96 | 96 | 96 | 96 | 95 | 95 | 25 | 24 | 9 | **46** |
+
+The Android modules' floors are low because most of their code is platform glue (receivers, ViewModels,
+notifications) with no unit tests yet. `@Composable` UI and generated code are excluded, and ViewModels still
+count. Details: [`docs/testing.md`](docs/testing.md).
+
+### Performance and battery, measured
+
+Three measured passes, each with the old and new results proven identical by tests (full method and caveats in
+[`docs/performance.md`](docs/performance.md)). Each pass has its own baseline, so compare within a row only.
+
+- **Indexing** (JVM 21, 50k synthetic messages): a keyword prefilter, shared per-message analysis and 3 enrichment
+  threads.
+
+  | msgs/s | Before | After |
+  | --- | ---: | ---: |
+  | Classification only, 1 thread | 27,300 | 113,000 |
+  | Full enrichment, 1 thread | 7,000 | 14,200 |
+  | Full enrichment, 3 threads (as the indexer runs it) | 7,000 | 35,800 |
+
+- **Parser and adversarial hardening**: literal gates in the finance parsers and a cheaper look-alike check. This
+  was measured after template bundle 5 added its new scam rules.
+
+  | | Before | After |
+  | --- | ---: | ---: |
+  | `TransactionParser.parse`, per message | 174 µs | 59 µs |
+  | Full enrichment, 1 thread | 5,229 msgs/s | 8,569 msgs/s |
+  | Full enrichment, 3 threads | 9,223 msgs/s | 16,250 msgs/s |
+
+- **Ledger and inbox** (index v8): the backfill defers ledger rebuilds, a covering index serves the inbox, ledger
+  entries are diff-written, and the FX reconciler uses a binary search.
+
+  | | Before | After |
+  | --- | ---: | ---: |
+  | 50k-message backfill: index rows read for ledger rebuilds (modelled) | 1.14M | 70k |
+  | Inbox first page, All tab, 20k rows (SQLite 3.45) | 24 ms | 6.5 ms |
+  | FX reconcile, 1,000 foreign spends × 10,000 settlements | 900 ms | 18 ms |
+
+- **Battery**: Dak owns no wakeup alarms (user-scheduled sends excepted) and holds no wake locks across work.
+  Work is batched as one job per purpose, and heavy initialisation is lazy. For a 300-SMS/day user, the jobs Dak
+  schedules itself went from about 66–126 to about 37–47 a day ([`docs/battery.md`](docs/battery.md)).
+
+### Documentation
+
+| Doc | What's in it |
+| --- | --- |
+| [`build-plan.md`](docs/build-plan.md) | Product thesis, architecture, full feature spec, free vs premium, phased roadmap |
+| [`status.md`](docs/status.md) | What is built, module by module, and known gaps |
+| [`security/threat-model.md`](docs/security/threat-model.md) | Every input surface, the red-team findings and residual risks |
+| [`security/fake-credit-scams.md`](docs/security/fake-credit-scams.md) | The scam flow, reliable signals and scoring |
+| [`standards-compliance.md`](docs/standards-compliance.md) | 3GPP / OMA / RFC / TRAI / Play / Unicode / MASVS matrix |
+| [`privacy-policy.md`](docs/privacy-policy.md) · [`privacy-compliance.md`](docs/privacy-compliance.md) | Policy text shown in the app, and the DPDP/GDPR mapping |
+| [`testing.md`](docs/testing.md) · [`device-test-plan.md`](docs/device-test-plan.md) | Coverage method, and step-by-step phone checks |
+| [`performance.md`](docs/performance.md) · [`battery.md`](docs/battery.md) | Measurements, method and rules for new code |
+| [`release.md`](docs/release.md) · [`play-submission.md`](docs/play-submission.md) | R8 and keep-rule audit, and the store checklist |
+| [`i18n.md`](docs/i18n.md) | App language, translatable settings text, formatting rules, translation workflow and checks |
+| [`ux-review.md`](docs/ux-review.md) | Reachability, gestures and accessibility review |
+
+Each Android module also has its own README with its public API (see [Module map](#module-map)).
+
+---
 
 ## Architecture
 
-One Android app. The system Telephony provider stays raw and canonical; every smart feature reads
-from Dak's own encrypted index, never from the provider directly, and the premium gateway is a
-real interface with a no-op implementation in the free build — so free and premium are one
-codebase, not a fork.
+One Android app. The system Telephony provider stays raw and canonical. Every smart feature reads from Dak's own
+encrypted index, and the premium gateway is a real interface with a no-op implementation in the free build. Free
+and premium are one codebase, not a fork.
 
 ```mermaid
 flowchart TD
-    R[Radio / carrier] -->|SMS_DELIVER, WAP_PUSH_DELIVER| RX[Receivers<br/>core-telephony]
-    RX -->|verbatim, immediate| TP[(Telephony provider<br/>canonical, raw)]
-    RX --> N[Notification path<br/>OTP highlight, consumed-OTP detection]
-    TP -->|ContentObserver| IDX[(Encrypted index<br/>Room + SQLCipher, Keystore key)]
+    R[Radio / carrier] -->|SMS_DELIVER, WAP_PUSH_DELIVER| RX[Receivers + SMS journal<br/>core-telephony]
+    RX -->|verbatim, first| TP[(Telephony provider<br/>canonical, raw)]
+    RX --> N[Notifications<br/>OTP copy, consumed-OTP, scam check]
+    TP -->|ContentObserver + reconcile| IDX[(Encrypted index<br/>Room + SQLCipher, Keystore key)]
     IDX --> CL[Classifier<br/>templates + on-device model + scam detector]
     IDX --> UI[Compose UI]
-    IDX --> FIN[Finance ledger<br/>honest balances, FX reconciliation]
+    IDX --> FIN[Passbook ledger<br/>honest balances, FX reconciliation]
     IDX --> SRCH[Gmail-style search<br/>FTS4]
-    IDX --> RULES[Automation engine<br/>versioned JSON rule AST]
-    IDX --> BK[E2E backup<br/>user's own storage]
+    IDX --> RULES[Automation engine<br/>versioned JSON rules]
+    IDX --> BK[E2E backup + open export<br/>your own storage]
     RULES --> PX{{Premium gateway<br/>interface, no-op in free}}
     PX -.premium build only.-> SRV[Relay server<br/>ciphertext only]
 ```
 
-## Security & privacy
+### Module map
 
-The free tier's offline promise is a build guarantee, not a policy statement:
+These are the dependencies as declared in each module's `build.gradle.kts`. Pure-Kotlin modules have no Android
+dependency, so they test in seconds and can be reused by a future iOS or web client.
 
-- **CI-enforced offline baseline.** [`android/scripts/check-offline-baseline.sh`](android/scripts/check-offline-baseline.sh)
-  runs on every push ([`.github/workflows/android.yml`](.github/workflows/android.yml)) and fails
-  the build if any code outside `src/premium` references a network client (OkHttp, Retrofit, Ktor,
-  raw `HttpURLConnection`, WebSocket), an AI/Firebase SDK, or binds a real cloud classifier. The
-  only network path anywhere in the free tier is the platform's own MMS download over the carrier
-  APN — Dak never fetches a URL itself.
-- **Encrypted index**: Room over SQLCipher, key wrapped in the Android Keystore. Rebuildable from
-  the Telephony provider at any time; the provider is always the source of truth.
-- **End-to-end encrypted backup** to the user's own storage (Drive/Dropbox/local via SAF) —
-  passphrase or device key plus recovery code, never plaintext leaves the device.
-- **Open export format from day one** (`shared/formats/dak-export-v1.md` + JSON Schema): a ZIP of
-  a manifest, JSONL message chunks, and attachments, optionally wrapped in the `DAKENC1`
-  encryption envelope. Nothing is ever trapped in a proprietary format — the exact complaint that
-  made SMS Organizer's shutdown so painful for its users.
-- **No WebView anywhere.** Links open only in the user's own browser, only after an explicit
-  second tap past the link-safety check.
-- **Red-team hardened input surfaces**, tracked in [`docs/security/threat-model.md`](docs/security/threat-model.md):
-  a clean-room MMS PDU decoder with bounds-checked length fields, a `MAX_PARTS`/`MAX_ADDRESSES`/
-  size-truncation ceiling on every PDU, zip-slip-proof attachment names (64-hex-only), zip-bomb
-  caps on every decompression path, XML billion-laughs and DTD-entity protection, PBKDF2
-  iteration-count bounds, and a static safety checker (`RegexSafety`) that refuses catastrophically
-  backtracking patterns before a user-authored automation rule ever runs.
-- **Exported surface kept minimal**: only `MainActivity` and the three platform-guarded telephony
-  receivers are exported; every result/boot/notification receiver is not; `allowBackup=false`;
-  PendingIntents are explicit.
-- The threat model also lists open app-UI findings from the wave-2a red-team pass (intent-route
-  injection, a confused-deputy `EXTRA_STREAM` path, MIME-type trust on attachment open) that are
-  reported but not yet fixed — see the document for the full, honest list.
-
-## Performance
-
-Every message runs through classification, transaction parsing, fake-credit checks, link detection
-and FTS text normalisation. That path was profiled and cut roughly in half per message, with the
-old and new code proven to give **identical results** (same categories, confidences, OTPs and
-transactions — no re-index needed). Measured on a 50,000-message synthetic corpus, JVM 21:
-
-| Path (msgs/s, higher is better) | Before | After |
-| --- | ---: | ---: |
-| Classification only, 1 thread | 27,300 | 113,000 |
-| Full enrichment path, 1 thread | 7,000 | 14,200 |
-| Full enrichment path, 3 threads (as the indexer runs it) | 7,000 | 35,800 |
-
-A single-pass Aho-Corasick keyword prefilter skips regexes that cannot match, shared per-message
-analysis is computed once instead of three times, and the index writer now enriches on up to 3
-background threads with a single writer. A baseline profile (`app/src/main/baseline-prof.txt`)
-covers the hot classify/finance/index packages for AOT compilation. Full method, correctness proof
-and per-stage breakdown: [`docs/performance.md`](docs/performance.md).
-
-## Battery
-
-The default-SMS role means the platform wakes Dak for every message; everything *on top of that*
-has to be close to free. Full breakdown of every background trigger, before/after numbers, and the
-rules that keep new work from regressing this is in [`docs/battery.md`](docs/battery.md). Headline
-numbers for the reference "heavy user" (300 SMS/day, 60 OTPs):
-
-| | Before hardening | After hardening |
-| --- | --- | --- |
-| Jobs Dak schedules itself, per day | ~66–126 | ~37–47 |
-| OTP-delete jobs (was one per OTP) | 60 (up to 120 with churn) | ~35–45 batched sweeps |
-| App-signature package scans | ~150 (every process start) | at most 1/day |
-| Wakeup alarms Dak owns | 0 | 0 (unchanged — user-scheduled sends excepted) |
-
-Hard rules behind those numbers: no wakeup alarms of Dak's own, no wake locks held across work,
-no foreground service beyond the one the platform requires for MMS download, one shared job per
-purpose rather than one job per message, and all heavy init (Keystore unwrap, SQLCipher open,
-classifier JSON parse) deferred and lazy.
-
-## Status & roadmap
-
-**Nothing has run on a real device yet.** Everything below compiles and is unit-tested in CI; the
-Phase 0 device pass (a Pixel and a Xiaomi, two SIMs, OTP autofill in Chrome and two banking apps,
-self-test with battery optimisation on) is the next gate before any of this is a real claim about
-a working app. Full detail: [`docs/status.md`](docs/status.md); the step-by-step first-phone
-checklist is [`docs/device-test-plan.md`](docs/device-test-plan.md).
-
-| Phase | Scope | State |
-| --- | --- | --- |
-| 0 — Spike | Default-SMS role, verbatim provider write, MMS download, multi-SIM send/receive, thread UI, premium seams | Built in CI; **device pass not yet run** |
-| 1 — MVP (free) | Encrypted index, classifier, search, composer, themes, OTP lifecycle, recycle bin, backup/export, importers, reliability tooling | Built in CI |
-| 2 — Finance + automations | Passbook, FX reconciliation, automation engine, link safety, scam detector, duplicate-OTP collapse | Built. OTA template fetching, Safe Browsing lookups, crowd spam reports, and the full TRAI 1909 flow are not yet implemented |
-| 3 — Premium | Play Billing, translation, AI-assisted search, web/desktop relay client, webhooks, send API | **Seams and locked UI only** — `PremiumGateway`, `Entitlements`, `Translator`, `QueryUnderstanding` all exist as interfaces with no-op free bindings; no real implementation exists yet |
-
-Known gaps worth knowing about before you rely on any of this: Room schema JSON isn't committed
-yet (write real migrations once it is), delivered-message state isn't surfaced in the UI, and R8
-is disabled on release builds until keep rules are verified on a device. Full list in
-[`docs/status.md`](docs/status.md#known-gaps--follow-ups).
-
-There is **no Play Store listing**. This is pre-device-test software.
-
-## Repository layout
-
-| Path | What | Status |
-| --- | --- | --- |
-| [`android/`](android/) | The app: Kotlin + Jetpack Compose, Gradle multi-module, `free` / `premium` flavours | Active |
-| [`ios/`](ios/) | Future `ILMessageFilterExtension` + companion (no SMS API on iOS; no parity promise, ever) | Placeholder |
-| [`web/`](web/) | Future premium web/desktop client over the ciphertext relay | Placeholder |
-| [`shared/formats/`](shared/formats/) | Platform-neutral formats: open export format, template bundle, automation rule AST, helplines bundle | Specs |
-| [`docs/`](docs/) | Build plan, implementation status, battery budget, security threat model | |
-
-The premium relay server lives in a separate repository — by design, it only ever sees ciphertext.
-
-### Android modules
-
-```
-android/
-  core-model/        shared types (Message, Category, SimInfo, ExtractedTransaction…)      [JVM]
-  premium-api/       tier seams: Entitlements, PremiumGateway, Translator, QueryUnderstanding [JVM]
-  classify/          DLT sender parsing, templates, OTP extraction, scam detector, model    [JVM]
-  finance/           transaction parser, ledger, honest balances, FX + reconciliation       [JVM]
-  automations/       rule AST (versioned JSON), pure engine, action registry, send limiter  [JVM]
-  search/            Gmail-style query language → AST → FTS                                [JVM]
-  backup/            open export format, E2E encryption, SMS Backup & Restore / Fossify     [JVM]
-  settings-registry/ declarative settings registry + search                                [JVM]
-  mms-pdu/           clean-room MMS PDU codec                                               [JVM]
-  core-telephony/    receivers, provider I/O, SMS/MMS send + download, SIMs                 [Android]
-  core-index/        encrypted index (Room + SQLCipher), backfill, sync, recycle bin        [Android]
-  app/               Compose UI; `free`/`premium` flavours differ only in Hilt bindings     [Android]
+```mermaid
+flowchart BT
+    subgraph JVM["Pure Kotlin (JVM)"]
+        model[core-model]
+        pdu[mms-pdu]
+        papi[premium-api]
+        classify[classify]
+        finance[finance]
+        search[search]
+        automations[automations]
+        backup[backup]
+        settings[settings-registry]
+    end
+    subgraph ANDROID["Android"]
+        tel[core-telephony]
+        index[core-index]
+        app[app<br/>free / premium flavours]
+    end
+    papi --> model
+    classify --> model
+    finance --> model
+    search --> model
+    backup --> model
+    automations --> model
+    automations --> papi
+    settings --> model
+    settings --> papi
+    tel --> model
+    tel --> classify
+    tel --> pdu
+    index --> model
+    index --> classify
+    index --> finance
+    index --> search
+    index --> tel
+    app -->|depends on every module| JVM
+    app --> tel
+    app --> index
 ```
 
-JVM modules have no Android dependency, so their logic is unit-tested fast (no emulator, no
-instrumentation) and can be reused by a future iOS or web client. Each module has its own README
-with its public API — start there for module-level detail: [`android/app`](android/app/README.md),
-[`android/automations`](android/automations/README.md), [`android/backup`](android/backup/README.md),
-[`android/classify`](android/classify/README.md), [`android/core-index`](android/core-index/README.md),
-[`android/core-telephony`](android/core-telephony/README.md), [`android/finance`](android/finance/README.md),
-[`android/mms-pdu`](android/mms-pdu/README.md), [`android/search`](android/search/README.md),
-[`android/settings-registry`](android/settings-registry/README.md).
+| Module | Responsibility | README |
+| --- | --- | --- |
+| `core-model` | Shared types: `Message`, `Category`, `SimInfo`, `ExtractedTransaction`… | – |
+| `premium-api` | Tier seams: `Entitlements`, `PremiumGateway`, `Translator`, `QueryUnderstanding` | – |
+| `mms-pdu` | Clean-room MMS PDU codec, limits, flood guard | [↗](android/mms-pdu/README.md) |
+| `classify` | DLT parsing, templates, on-device model, OTPs, entities, links, scam detector | [↗](android/classify/README.md) |
+| `finance` | Transaction and investment parser, ledger, honest balances, FX reconciliation | [↗](android/finance/README.md) |
+| `search` | Query language → AST → FTS | [↗](android/search/README.md) |
+| `automations` | Rule AST, engine, forwarding policy, broadcasts, rate limits, regex safety | [↗](android/automations/README.md) |
+| `backup` | Open export format, E2E encryption, importers | [↗](android/backup/README.md) |
+| `settings-registry` | Declarative settings with search and tier badges | [↗](android/settings-registry/README.md) |
+| `core-telephony` | Receivers, SMS journal, provider I/O, SMS/MMS send and download, SIMs, region | [↗](android/core-telephony/README.md) |
+| `core-index` | Encrypted index, backfill, sync, recycle bin, migrations | [↗](android/core-index/README.md) |
+| `app` | Compose UI, Hilt wiring; `free`/`premium` differ only in bindings | [↗](android/app/README.md) |
 
-As of this writing the test suite carries roughly **929 `@Test`s across 116 files**, concentrated
-in the JVM modules where logic can be checked without a device or emulator.
+### Repository layout
 
-## Build
+| Path | What |
+| --- | --- |
+| [`android/`](android/) | The app: Gradle multi-module project, `free` / `premium` flavours, CI scripts in [`android/scripts/`](android/scripts/) |
+| [`shared/formats/`](shared/formats/) | Platform-neutral formats: open export format, helplines bundle, with JSON Schemas |
+| [`shared/adversarial/`](shared/adversarial/) | Adversarial SMS corpus ([contribute!](#contribute-an-adversarial-message)) |
+| [`docs/`](docs/) | Plan, status, security, privacy, testing, performance, release |
+| [`ios/`](ios/) · [`web/`](web/) | Placeholders: a future `ILMessageFilterExtension` companion (iOS has no SMS API) and a premium web client |
 
-Requires JDK 17 and the Android SDK (`compileSdk 37`, `targetSdk 36`, `minSdk 26`).
+The premium relay server will live in a separate repository. By design, it only ever sees ciphertext.
+
+---
+
+## Getting started
+
+**Try it**: every green CI run uploads `dak-debug-apks-<run>`. Install the free debug APK (`dak-build<run>-free-debug.apk`,
+application id `app.dak.debug`, which installs next to your current SMS app; all CI debug builds share one debug key,
+so a newer one installs over an older one), then follow the
+[device test plan](docs/device-test-plan.md).
+
+**Build it**: you need JDK 17 and the Android SDK (`compileSdk 37`).
 
 ```sh
 cd android
-./gradlew test                                    # all unit tests
-./gradlew assembleFreeDebug assemblePremiumDebug   # debug APKs, both flavours
+./gradlew test                                       # every unit test, every module
+./gradlew assembleFreeDebug assemblePremiumDebug     # debug APKs, both flavours
+./gradlew test koverHtmlReportCoverage               # tests + coverage report
 ```
 
-Without the Android SDK, the JVM modules still build and test on their own:
-`android/scripts/jvm-test.sh`.
+**No Android SDK?** The nine pure-Kotlin modules build and test on their own:
 
-### CI
+```sh
+cd android
+scripts/jvm-test.sh                                               # JVM modules' tests
+scripts/jvm-test.sh koverXmlReportCoverage                        # ... with coverage
+scripts/jvm-test.sh :classify:test --tests '*Adversarial*'        # just the adversarial corpus
+```
 
-[`.github/workflows/android.yml`](.github/workflows/android.yml) runs on every push and pull
-request: the offline-baseline guard, the full unit-test suite, and debug APK builds for both
-flavours (uploaded as workflow artifacts, `dak-debug-apks-<run>`). Tags matching `v*` attach APKs
-to a GitHub release. Signed release APKs build automatically when the repository secrets
-`DAK_KEYSTORE_BASE64`, `DAK_KEYSTORE_PASSWORD`, `DAK_KEY_ALIAS` and `DAK_KEY_PASSWORD` are set.
-Play Store `.aab` publishing is a later step.
+**Emulator fixtures**: [`android/scripts/sms-pdu.py`](android/scripts/sms-pdu.py) builds SMS-DELIVER PDUs for
+`adb emu sms pdu`, so DLT headers such as `VM-HDFCBK-S` can be tested on an emulator.
 
-### Testing & coverage
+**Free vs premium**: there is one Gradle project with two product flavours that differ only in which
+`PremiumGateway` and `Entitlements` implementations Hilt binds. The data model is identical, so a future purchase
+unlocks features in place, with no reinstall ([free vs premium](docs/build-plan.md#free-vs-premium)).
 
-Unit tests run on the JVM (JUnit, Robolectric for the Android modules). CI measures line coverage with
-[Kover](https://github.com/Kotlin/kotlinx-kover), posts a per-module line/branch table to the job summary,
-uploads the HTML report, and fails if any module drops below its floor in
-[`android/coverage-floors.json`](android/coverage-floors.json). The badge above is the merged line coverage from
-the latest `main` build. Generated code (Hilt/Dagger, Room, `BuildConfig`/`R`, serializers) and `@Composable` UI
-functions are excluded, since Compose UI is not unit-tested; ViewModels and other UI-package logic still count.
-Locally: `./gradlew test koverHtmlReportCoverage`, or `scripts/jvm-test.sh koverXmlReportCoverage` without the
-Android SDK. Details: [`docs/testing.md`](docs/testing.md).
+---
 
-### Free vs. premium seam
+## Contributing
 
-One Gradle project, two product flavours differing only in which `PremiumGateway` and
-`Entitlements` implementations Hilt binds. Free binds no-ops for everything server-backed
-(translation, AI-assisted search, webhooks, the web relay client, the inbound send API); premium
-binds the real thing. The data model is identical across both — premium never adds a column to the
-index — so a purchase unlocks rows in place, with no reinstall and no fork to keep in sync. Full
-capability table in [`docs/build-plan.md`](docs/build-plan.md#free-vs-premium).
+Contributions are welcome. Pick whichever fits you:
 
-## Contributing & decisions
+| You are… | Good first contribution |
+| --- | --- |
+| Anyone who gets SMS | [Add an adversarial message](#contribute-an-adversarial-message): a scam, its genuine look-alike, or a message that breaks SMS apps |
+| A Kotlin developer | Add benign look-alikes and new scam lines to the corpus, add bank formats in `finance`, or raise a coverage floor |
+| An Android developer | Pick a gap from [`status.md`](docs/status.md#known-gaps--follow-ups) or a device check from the [test plan](docs/device-test-plan.md) |
+| A translator | Add a `values-<lang>/` translation following [`docs/i18n.md`](docs/i18n.md) |
+| A security researcher | Read the [threat model](docs/security/threat-model.md) and try to break a surface. Add the payload to [`pwn/`](shared/adversarial/pwn/) |
 
-- Product thesis, phased roadmap, and the full feature spec: [`docs/build-plan.md`](docs/build-plan.md)
-- What's actually built vs. planned, module by module: [`docs/status.md`](docs/status.md)
-- Background-work budget and the rules new code must follow: [`docs/battery.md`](docs/battery.md)
-- Threat model and open security findings: [`docs/security/threat-model.md`](docs/security/threat-model.md)
-- Open decisions still on the table — package id (`app.dak`) and the name "Dak" are working
-  choices, along with the Jev free-tier cap, backup destinations at launch, open-source posture,
-  and beta-cohort recruiting — are listed at the end of the build plan.
+Ground rules that keep the project honest:
+
+- **Free code must stay offline.** Never add a network or AI dependency outside `src/premium`; CI will reject it.
+- **Battery rules apply to new background work**: no own wakeup alarms, one job per purpose, and lazy
+  initialisation ([`battery.md`](docs/battery.md)).
+- **Tests come with logic.** Pure logic belongs in a JVM module where it can be tested fast. Coverage floors only
+  go up.
+- **No real personal data**, in the corpus or in test fixtures.
+
+---
+
+## Status & roadmap
+
+**The app has been tested extensively by the maintainers.** It is not published: there is **no Play Store listing**
+yet. The git history records fixes that came out of that testing (for example, misclassified courier updates and
+carrier call alerts, in the change that added forwarding). The automated evidence is in the repository: CI on every
+pull request, about 1,850 unit tests, coverage floors, fuzzers and the adversarial corpus. The step-by-step phone checklist is
+[`docs/device-test-plan.md`](docs/device-test-plan.md).
+
+| Phase | Scope | State |
+| --- | --- | --- |
+| 0 — Spike | Default-SMS role, verbatim provider write, MMS, multi-SIM, thread UI, premium seams | Built |
+| 1 — MVP (free) | Encrypted index, classifier, search, composer, themes, OTP lifecycle, recycle bin, backup/export, importers, reliability tooling | Built |
+| 2 — Finance + automations | Passbook with investments, FX reconciliation, automation engine, forwarding, broadcasts, link safety, scam detector | Built, apart from the items below |
+| 3 — Premium | Play Billing, translation, AI search, web/desktop relay, webhooks, send API | **Seams and locked UI only**; no server-backed feature is implemented |
+
+**Next up and known gaps:**
+
+- [ ] **Translations.** The app is ready for them: a language picker, translatable resources, pseudo-locales in
+      debug builds and a CI completeness check. No language besides English ships yet. Contributions are welcome
+      ([`docs/i18n.md`](docs/i18n.md)).
+- [ ] The last two corpus `known-gap` lines ("wrong number" openers), and `MoneyParser`'s pattern, which is now
+      the largest remaining parser cost ([`performance.md`](docs/performance.md#next)).
+- [ ] OTA template-bundle fetching (signature verification already exists), Safe Browsing lookups, crowd spam
+      reports, a TRAI 1909 flow beyond a forward, and schedule-triggered rules.
+- [ ] Commit the Room schema JSON and write real migrations from then on, and use one stable recovery secret
+      across incremental backups.
+- [ ] Drop the unused network permissions from `core-telephony` once MMS is confirmed on a Pixel and an OEM phone.
+- [ ] Play `.aab` publishing ([`play-submission.md`](docs/play-submission.md)), then Phase 3 premium.
+
+Full detail: [`docs/status.md`](docs/status.md) and the [phased roadmap](docs/build-plan.md#phased-roadmap).
+Open decisions (the final name and package id `app.dak`, backup destinations at launch, beta recruiting) are
+listed at the end of the build plan.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Saurabh. Dak is not affiliated with Microsoft. "SMS Organizer" is mentioned only to describe
+the gap Dak fills.

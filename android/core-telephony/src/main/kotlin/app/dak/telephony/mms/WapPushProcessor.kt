@@ -12,6 +12,7 @@ import app.dak.mms.pdu.ReadStatus
 import app.dak.telephony.internal.SubscriptionExtras
 import app.dak.telephony.internal.TAG
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,7 +39,7 @@ class WapPushProcessor @Inject constructor(
                 is NotificationInd -> downloads.onNotification(pdu, subId)
                 is DeliveryInd -> persister.applyDeliveryReport(pdu.messageId, pdu.status, pdu.to)
                 is ReadOrigInd -> pdu.messageId?.let { persister.applyReadReport(it, pdu.readStatus ?: ReadStatus.READ, pdu.from) }
-                else -> Log.i(TAG, "ignoring WAP push of type 0x%02X".format(pdu.messageType))
+                else -> Log.i(TAG, "ignoring WAP push of type 0x%02X".format(Locale.ROOT, pdu.messageType))
             }
         }
     }

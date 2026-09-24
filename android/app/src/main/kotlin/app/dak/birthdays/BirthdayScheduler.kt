@@ -5,7 +5,6 @@ import app.dak.automation.ScheduledSendScheduler
 import app.dak.automations.birthdays.BirthdayDates
 import app.dak.automations.birthdays.OccasionKind
 import app.dak.automations.birthdays.WishTag
-import app.dak.automations.birthdays.WishTemplates
 import app.dak.automations.safety.Addresses
 import app.dak.index.repo.ScheduledSendStatus
 import app.dak.index.repo.ScheduledSendStore
@@ -40,7 +39,7 @@ class BirthdayScheduler @Inject constructor(
             reconcile(null, nowMillis)
             return emptyList()
         }
-        val occasions = reader.read(includeAnniversaries = true)
+        val occasions = reader.read(includeAnniversaries = true, includeOtherDates = true)
         reconcile(occasions, nowMillis)
         return occasions
     }
@@ -69,13 +68,14 @@ class BirthdayScheduler @Inject constructor(
                         day = occasion.date.day,
                         year = occasion.date.year,
                         number = number,
+                        label = occasion.label,
                     )
                 }
             }
             val date = current.date
             val wanted = settings.enabled && current.enabled && !contactGone && date != null &&
                 !current.number.isNullOrBlank() &&
-                (current.occasionKind != OccasionKind.ANNIVERSARY || settings.includeAnniversaries)
+                settings.includes(current.occasionKind)
             if (!wanted) {
                 current = cancelPending(current)
                 if (current != config) store.replaceConfig(current)
@@ -111,11 +111,12 @@ class BirthdayScheduler @Inject constructor(
             }
             val atMillis = next.toInstant().toEpochMilli()
             val tag = WishTag(settings.wishMode == WishMode.ASK, current.contactId, current.occasionKind, next.year).encode()
-            val body = WishTemplates.render(
+            val body = store.renderWish(
                 template = current.template?.takeIf { it.isNotBlank() } ?: settings.templateFor(current.occasionKind),
                 name = current.name,
                 firstName = current.firstName,
                 age = if (current.occasionKind == OccasionKind.BIRTHDAY) date.ageIn(next.year) else null,
+                occasion = current.label,
             )
             val number = current.number
             val existing = current.scheduledSendId?.let { sends.get(it) }

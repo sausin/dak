@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import app.dak.automation.OutboundAutomationGuard
 import app.dak.automations.birthdays.BirthdayDates
 import app.dak.automations.birthdays.OccasionKind
-import app.dak.automations.birthdays.WishTemplates
 import app.dak.birthdays.BirthdayScheduler
 import app.dak.birthdays.BirthdaySettings
 import app.dak.birthdays.BirthdayState
@@ -28,7 +27,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 
-/** One upcoming birthday/anniversary row. */
+/** One upcoming birthday / anniversary / other-date row. */
 data class UpcomingOccasion(
     val occasion: ContactOccasion,
     val config: OccasionConfig?,
@@ -105,9 +104,14 @@ class BirthdaysViewModel @Inject constructor(
     fun setTime(hour: Int, minute: Int) = updateSettings { it.copy(hour = hour, minute = minute) }
     fun setSim(subId: Int?) = updateSettings { it.copy(subId = subId) }
     fun setIncludeAnniversaries(include: Boolean) = updateSettings { it.copy(includeAnniversaries = include) }
+    fun setIncludeOtherDates(include: Boolean) = updateSettings { it.copy(includeOtherDates = include) }
 
     fun setDefaultTemplate(kind: OccasionKind, text: String) = updateSettings {
-        if (kind == OccasionKind.ANNIVERSARY) it.copy(anniversaryTemplate = text) else it.copy(birthdayTemplate = text)
+        when (kind) {
+            OccasionKind.BIRTHDAY -> it.copy(birthdayTemplate = text)
+            OccasionKind.ANNIVERSARY -> it.copy(anniversaryTemplate = text)
+            OccasionKind.OTHER -> it.copy(otherTemplate = text)
+        }
     }
 
     /** Turns "auto-send wish" on/off for one contact occasion. */
@@ -138,6 +142,7 @@ class BirthdaysViewModel @Inject constructor(
                     month = o.date.month,
                     day = o.date.day,
                     year = o.date.year,
+                    label = o.label,
                 )
             },
             change = change,
@@ -153,7 +158,7 @@ class BirthdaysViewModel @Inject constructor(
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         return list.asSequence()
-            .filter { it.kind == OccasionKind.BIRTHDAY || st.settings.includeAnniversaries }
+            .filter { st.settings.includes(it.kind) }
             .map { o ->
                 val config = st.configs[OccasionConfig.keyOf(o.contactId, o.kind)]
                 val days = BirthdayDates.daysUntil(o.date, today)
@@ -161,7 +166,7 @@ class BirthdaysViewModel @Inject constructor(
                 val age = if (o.kind == OccasionKind.BIRTHDAY) o.date.ageIn(date.year) else null
                 val number = config?.number ?: o.numbers.firstOrNull()?.number
                 val template = config?.template ?: st.settings.templateFor(o.kind)
-                UpcomingOccasion(o, config, days, date, age, number, WishTemplates.render(template, o.name, o.firstName, age))
+                UpcomingOccasion(o, config, days, date, age, number, store.renderWish(template, o.name, o.firstName, age, occasion = o.label))
             }
             .filter { it.daysUntil <= WINDOW_DAYS || it.enabled }
             .sortedWith(compareBy({ it.daysUntil }, { it.occasion.name }))

@@ -77,10 +77,37 @@ class IndexMigrationsTest {
             ),
             IndexMigrations.SQL_5_6,
         )
+    }
+
+    @Test
+    fun migration6To7AddsIncognitoAndHiddenAccountsOnly() {
+        assertEquals(6, IndexMigrations.MIGRATION_6_7.startVersion)
+        assertEquals(7, IndexMigrations.MIGRATION_6_7.endVersion)
+        assertEquals(
+            listOf(
+                "ALTER TABLE `conversation_prefs` ADD COLUMN `incognitoSince` INTEGER",
+                "CREATE TABLE IF NOT EXISTS `account_hidden` (`accountId` TEXT NOT NULL, `hiddenAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountId`))",
+            ),
+            IndexMigrations.SQL_6_7,
+        )
+    }
+
+    @Test
+    fun migration7To8AddsTheInboxCoveringIndexOnly() {
+        assertEquals(7, IndexMigrations.MIGRATION_7_8.startVersion)
+        assertEquals(8, IndexMigrations.MIGRATION_7_8.endVersion)
+        assertEquals(
+            listOf(
+                "CREATE INDEX IF NOT EXISTS `index_indexed_message_conversationId_dateMillis_category_subId_archived_starred_read_box_threadId` " +
+                    "ON `indexed_message` (`conversationId`, `dateMillis`, `category`, `subId`, `archived`, `starred`, `read`, `box`, `threadId`)",
+            ),
+            IndexMigrations.SQL_7_8,
+        )
         assertEquals(
             listOf(
                 IndexMigrations.MIGRATION_1_2, IndexMigrations.MIGRATION_2_3, IndexMigrations.MIGRATION_3_4, IndexMigrations.MIGRATION_4_5,
-                IndexMigrations.MIGRATION_5_6,
+                IndexMigrations.MIGRATION_5_6, IndexMigrations.MIGRATION_6_7, IndexMigrations.MIGRATION_7_8,
             ),
             IndexMigrations.ALL.toList(),
         )

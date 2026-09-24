@@ -51,6 +51,7 @@ import app.dak.ui.common.DakTopAppBar
 @Composable
 fun SettingsGroupScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    FollowAppLanguage(viewModel)
     val sectionId = viewModel.sectionId.orEmpty()
     val section = state.section(sectionId)
     val focus = viewModel.focusKey
@@ -127,7 +128,7 @@ fun SettingsGroupScreen(navigator: DakNavigator, modifier: Modifier = Modifier, 
                                     Text(stringResource(R.string.settings_advanced), style = MaterialTheme.typography.titleSmall)
                                 },
                                 supportingContent = {
-                                    if (!advancedOpen) Text(section.advanced.joinToString(", ") { it.def.title })
+                                    if (!advancedOpen) Text(section.advanced.joinToString(", ") { it.title })
                                 },
                                 trailingContent = {
                                     Icon(

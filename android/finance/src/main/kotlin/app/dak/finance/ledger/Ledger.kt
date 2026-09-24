@@ -14,8 +14,11 @@ data class LedgerInput(val messageKey: String, val dateMillis: Long, val transac
 /** The built ledger for one [Account]: its posted entries and the balance/outstanding derived from them. */
 data class AccountLedger(val account: Account, val entries: List<LedgerEntry>) {
 
-    /** Entries sorted oldest-first, as [Ledger.apply] always produces them, but re-asserted for callers that reorder. */
-    private val sortedEntries: List<LedgerEntry> get() = entries.sortedBy { it.dateMillis }
+    /**
+     * Entries sorted oldest-first, as [Ledger.apply] always produces them, but re-asserted for callers that reorder.
+     * Sorted once (a stable sort of an immutable snapshot), not on every [cardOutstanding] call.
+     */
+    private val sortedEntries: List<LedgerEntry> by lazy { entries.sortedBy { it.dateMillis } }
 
     /**
      * The account's balance, honestly: the value from the latest balance-bearing SMS, or

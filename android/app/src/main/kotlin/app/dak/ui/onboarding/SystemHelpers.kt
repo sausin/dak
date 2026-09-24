@@ -14,6 +14,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.provider.Telephony
 import androidx.core.content.ContextCompat
+import app.dak.R
 
 /** Default-SMS role checks and the request intent (RoleManager on Android 10+, ACTION_CHANGE_DEFAULT before). */
 object SmsRole {
@@ -69,6 +70,17 @@ object BatteryOptimization {
     }
 
     /**
+     * True when battery optimisation cannot delay Dak: the user exempted it, or it is the default SMS app. The system
+     * treats the default SMS app as a default active app (exempt from app standby and briefly allowlisted for every
+     * incoming SMS / MMS), and Settings then shows its battery option as allowed and cannot be changed, while
+     * [PowerManager.isIgnoringBatteryOptimizations] still reports false. Warning about it would be unfixable.
+     */
+    fun isExempt(context: Context): Boolean = exempt(isIgnoring(context), SmsRole.isDefault(context))
+
+    /** The rule of [isExempt], pure for tests. */
+    fun exempt(ignoringOptimizations: Boolean, defaultSmsApp: Boolean): Boolean = ignoringOptimizations || defaultSmsApp
+
+    /**
      * The system list of apps and their battery-optimisation state, where the user finds Dak and chooses
      * "Don't optimise" / "Unrestricted" (the UI explains this first). No special permission needed.
      *
@@ -106,7 +118,13 @@ fun Context.startSafely(intent: Intent): Boolean = try {
  * Manufacturer-specific background-killer guidance ("dontkillmyapp"-style). [settingsComponents] are tried in order;
  * the app details page is the fallback.
  */
-data class OemGuidance(val brand: String, val steps: List<String>, val settingsComponents: List<ComponentName>) {
+data class OemGuidance(
+    /** Brand name as printed on the phone (not translated). */
+    val brand: String,
+    /** Steps as `R.string` ids (strings_battery.xml): menu names follow the phone's own wording. */
+    val steps: List<Int>,
+    val settingsComponents: List<ComponentName>,
+) {
 
     /** Opens the most specific settings page available. */
     fun open(context: Context): Boolean {
@@ -120,13 +138,13 @@ data class OemGuidance(val brand: String, val steps: List<String>, val settingsC
         /** Guidance for this device, or null for ROMs that behave (Pixel, Motorola, Nokia...). */
         fun forThisDevice(): OemGuidance? = forManufacturer(Build.MANUFACTURER.orEmpty())
 
-        fun forManufacturer(manufacturer: String): OemGuidance? = when (manufacturer.lowercase()) {
+        fun forManufacturer(manufacturer: String): OemGuidance? = when (manufacturer.lowercase()) { // lowercase(): Locale.ROOT
             "xiaomi", "redmi", "poco" -> OemGuidance(
                 "Xiaomi",
                 listOf(
-                    "Open Security → Permissions → Autostart and turn Dak on.",
-                    "In App info → Battery saver, choose \"No restrictions\".",
-                    "In Recents, pull Dak down to lock it so it is not cleared.",
+                    R.string.oem_xiaomi_autostart,
+                    R.string.oem_xiaomi_battery_saver,
+                    R.string.oem_xiaomi_lock_recents,
                 ),
                 listOf(
                     ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"),
@@ -135,9 +153,9 @@ data class OemGuidance(val brand: String, val steps: List<String>, val settingsC
             "oppo", "realme", "oneplus" -> OemGuidance(
                 manufacturer.replaceFirstChar { it.uppercase() },
                 listOf(
-                    "In App info → Battery usage, allow background activity and auto launch.",
-                    "Turn off \"Optimise battery use\" for Dak.",
-                    "In Recents, lock Dak so it is not cleared.",
+                    R.string.oem_oppo_battery_usage,
+                    R.string.oem_oppo_optimise,
+                    R.string.oem_oppo_lock_recents,
                 ),
                 listOf(
                     ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"),
@@ -148,8 +166,8 @@ data class OemGuidance(val brand: String, val steps: List<String>, val settingsC
             "vivo", "iqoo" -> OemGuidance(
                 "Vivo",
                 listOf(
-                    "Open i Manager → App manager → Autostart manager and allow Dak.",
-                    "In Settings → Battery → Background power consumption, allow Dak.",
+                    R.string.oem_vivo_autostart,
+                    R.string.oem_vivo_background_power,
                 ),
                 listOf(
                     ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"),
@@ -159,8 +177,8 @@ data class OemGuidance(val brand: String, val steps: List<String>, val settingsC
             "samsung" -> OemGuidance(
                 "Samsung",
                 listOf(
-                    "In Settings → Battery → Background usage limits, make sure Dak is not in Sleeping or Deep sleeping apps.",
-                    "Add Dak to \"Never sleeping apps\".",
+                    R.string.oem_samsung_sleeping_apps,
+                    R.string.oem_samsung_never_sleeping,
                 ),
                 listOf(
                     ComponentName("com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity"),
@@ -170,7 +188,7 @@ data class OemGuidance(val brand: String, val steps: List<String>, val settingsC
             "huawei", "honor" -> OemGuidance(
                 manufacturer.replaceFirstChar { it.uppercase() },
                 listOf(
-                    "Open Settings → Battery → App launch, turn off \"Manage automatically\" for Dak and allow all three options.",
+                    R.string.oem_huawei_app_launch,
                 ),
                 listOf(
                     ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"),

@@ -7,12 +7,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import app.dak.automation.IndexAuditSink
+import app.dak.automation.ScheduledSendOrigin
 import app.dak.automation.ScheduledSendScheduler
 import app.dak.automation.UserLabels
+import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKey
 import app.dak.core.model.NO_SUB_ID
 import app.dak.core.model.SimInfo
 import app.dak.di.AndroidContactLookup
+import app.dak.di.ContactMatch
+import app.dak.incognito.FailedSendState
+import app.dak.incognito.FailedSendStep
+import app.dak.incognito.IncognitoVanisher
 import app.dak.index.MessageItem
 import app.dak.index.bin.BinReceipt
 import app.dak.index.bin.DeletedBy
@@ -21,6 +27,8 @@ import app.dak.index.enrich.ConversationIds
 import app.dak.index.otp.OtpLifecycle
 import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.ConversationRepository
+import app.dak.index.repo.ScheduledSend
+import app.dak.index.repo.ScheduledSendStore
 import app.dak.index.repo.SenderMergeRepository
 import app.dak.index.sync.IndexSync
 import app.dak.navigation.Routes
@@ -60,6 +68,10 @@ data class ConversationHeader(
     val photoUri: String?,
     /** Display name per raw address (contact name or the address), for group sender attribution. */
     val names: Map<String, String> = emptyMap(),
+    /** Saved contact per raw address; an address missing here is not in Contacts (or contacts are not readable). */
+    val contacts: Map<String, ContactMatch> = emptyMap(),
+    /** Contacts can be read (without it every number looks unsaved). */
+    val canReadContacts: Boolean = true,
 )
 
 /** Per-thread preferences as the screen needs them. */
@@ -71,7 +83,13 @@ data class ThreadPrefsUi(
     /** Index into the avatar palette used as the outgoing bubble colour; null = theme default. */
     val bubbleStyle: Int? = null,
     val fontScale: Float = 1f,
-)
+    /** Incognito since (null = off): messages from then on vanish once sent or read here. */
+    val incognitoSince: Long? = null,
+    /** The fold-resolved conversation id the prefs belong to. */
+    val resolvedId: String? = null,
+) {
+    val incognito: Boolean get() = incognitoSince != null
+}
 
 /** One-off messages for the snackbar host. */
 sealed interface ConversationEvent {
@@ -105,9 +123,11 @@ class ConversationViewModel @Inject constructor(
     private val labels: UserLabels,
     audit: AuditLogRepository,
     controller: MessageSendController,
-    scheduler: ScheduledSendScheduler,
+    private val scheduler: ScheduledSendScheduler,
     hints: ComposerHints,
     private val regions: RegionProvider,
+    private val vanisher: IncognitoVanisher,
+    private val scheduledSends: ScheduledSendStore,
 ) : ViewModel() {
 
     val conversationId: String = Uri.decode(savedState.get<String>(Routes.ARG_CONVERSATION_ID).orEmpty())
@@ -128,8 +148,24 @@ class ConversationViewModel @Inject constructor(
             starred = p?.starred ?: false,
             bubbleStyle = p?.bubbleColor,
             fontScale = p?.fontScale ?: 1f,
+            incognitoSince = p?.incognitoSince,
+            resolvedId = p?.conversationId,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThreadPrefsUi())
+
+    /** Incognito bubbles dissolving right now (deleted when the animation ends). */
+    val vanishing: StateFlow<Set<MessageKey>> = vanisher.vanishing
+
+    /** Decisions on failed incognito sends (Retry / Keep), so their prompts update. */
+    val failedSends: StateFlow<FailedSendState> = vanisher.failedState
+
+    /** Messages scheduled from this thread that have not gone out yet, soonest first. */
+    val scheduled: StateFlow<List<ScheduledSend>> = scheduledSends.pendingFor(conversationId)
+        .map { list -> list.filter { ScheduledSendOrigin.of(it.ruleId) == ScheduledSendOrigin.USER }.sortedBy { it.sendAtMillis } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Received incognito messages shown on screen: they vanish when their reading window ends or the thread closes. */
+    private val viewed = LinkedHashSet<MessageKey>()
 
     val simList: StateFlow<List<SimInfo>> = sims.sims
 
@@ -176,11 +212,96 @@ class ConversationViewModel @Inject constructor(
     /** Marks the conversation read and clears its notifications; called whenever the screen resumes. */
     fun onResumed(visibleThreadIds: Set<Long>) {
         viewModelScope.launch {
+            // Incognito: bubbles sent while the thread is on screen dissolve in place; anything a missed "sent"
+            // callback left behind goes now.
+            val incognito = runCatching { conversations.incognitoScope(conversationId) }.getOrNull()
+            vanisher.visibleConversation = incognito?.conversationId
+            if (incognito != null) runCatching { vanisher.sweep(conversationId) }
             runCatching { conversations.markRead(conversationId) }
             val threads = visibleThreadIds + listOfNotNull(ConversationIds.threadIdOf(conversationId))
             threads.forEach { runCatching { notifier.cancelForThread(it) } }
         }
         indexSync.requestReconcile()
+    }
+
+    /** The thread left the screen: received incognito messages that were read vanish now. */
+    fun onPaused() {
+        vanisher.visibleConversation = null
+        if (!prefs.value.incognito) return
+        val keys = synchronized(viewed) { viewed.toList().also { viewed.clear() } }
+        if (keys.isNotEmpty()) vanisher.vanish(keys, animate = false)
+        viewModelScope.launch { runCatching { vanisher.sweep(conversationId) } }
+    }
+
+    /**
+     * True when [item] vanishes once read: a received message of an incognito chat that arrived after incognito was
+     * turned on (older history is never touched).
+     */
+    fun vanishesOnRead(item: MessageItem): Boolean {
+        val since = prefs.value.incognitoSince ?: return false
+        return !item.isOutgoing && item.dateMillis >= since
+    }
+
+    /** [item] is on screen: remember it, so leaving the thread deletes it even before its reading window ends. */
+    fun onIncomingViewed(item: MessageItem) {
+        if (vanishesOnRead(item)) synchronized(viewed) { viewed += item.key }
+    }
+
+    /** [item]'s reading window ended: it dissolves and is deleted. */
+    fun vanishNow(item: MessageItem) {
+        if (!vanishesOnRead(item)) return
+        synchronized(viewed) { viewed -= item.key }
+        vanisher.vanish(listOf(item.key), animate = true)
+    }
+
+    /** True until the user has read, once, that incognito deletes only this phone's copy. */
+    fun needsIncognitoIntro(): Boolean = !vanisher.introSeen
+
+    /**
+     * The step of [item]'s failed-send prompt, or null when it needs none: only a send of an incognito chat (made
+     * since it went incognito) that failed for good gets one, and not once the user chose to keep it.
+     */
+    fun failedPromptFor(item: MessageItem, state: FailedSendState): FailedSendStep? {
+        val since = prefs.value.incognitoSince ?: return null
+        if (item.box != MessageBox.FAILED || item.dateMillis < since) return null
+        return state.stepOf(item.key.toString()).takeIf { it != FailedSendStep.KEPT }
+    }
+
+    /** Failed incognito send, "Retry": one more attempt; failing again offers Keep. */
+    fun retryIncognito(item: MessageItem) {
+        vanisher.markRetried(item.key)
+        retrySend(item.key)
+    }
+
+    /** "Tap to retry" on a failed bubble: in an incognito chat it counts as the prompt's Retry. */
+    fun onBubbleRetry(item: MessageItem) {
+        if (failedPromptFor(item, vanisher.failedState.value) != null) retryIncognito(item) else retrySend(item.key)
+    }
+
+    /** Failed incognito send, "Keep": an ordinary failed message from now on. */
+    fun keepFailed(item: MessageItem) = vanisher.keep(item.key)
+
+    /** Failed incognito send, "Delete" (or its prompt timed out). */
+    fun discardFailed(item: MessageItem) = vanisher.discardFailed(item.key)
+
+    /** Turns incognito on (from now on) or off. */
+    fun setIncognito(value: Boolean) = launchPrefs {
+        if (value) vanisher.markIntroSeen()
+        conversations.setIncognito(conversationId, value)
+        if (!value) synchronized(viewed) { viewed.clear() }
+    }
+
+    /** Cancels a message scheduled from this thread. */
+    fun cancelScheduled(id: Long) {
+        viewModelScope.launch { runCatching { scheduler.cancel(id) } }
+    }
+
+    /** Re-reads the header's contacts, e.g. after a contact was saved or edited in the Contacts app. */
+    fun refreshContacts() {
+        viewModelScope.launch {
+            headerState.value.addresses.forEach { contacts.forget(it) }
+            headerState.value = buildHeader(headerState.value.addresses)
+        }
     }
 
     fun mmsState(key: MessageKey): Flow<MmsDownloadState> =
@@ -295,6 +416,8 @@ class ConversationViewModel @Inject constructor(
             isBusiness = mergeKey != null || (first.isNotEmpty() && first.none { it.isDigit() }),
             photoUri = matches.singleOrNull()?.second?.photoUri,
             names = matches.associate { (address, match) -> address to (match?.displayName ?: address) },
+            contacts = matches.mapNotNull { (address, match) -> match?.let { address to it } }.toMap(),
+            canReadContacts = contacts.hasPermission(),
         )
     }
 

@@ -69,6 +69,12 @@ data class ConversationPrefs(
     val bubbleColor: Int? = null,
     val fontScale: Float? = null,
     val alwaysTranslate: Boolean = false,
+    /**
+     * Incognito ("vanishing") chat, on since this time (null = off): messages from then on are deleted once sent
+     * (radio confirmed) or once read in the thread, and notifications never show their text. Deletes skip the
+     * recycle bin. Older history is never touched.
+     */
+    val incognitoSince: Long? = null,
     val updatedAt: Long = 0L,
 )
 

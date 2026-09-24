@@ -61,6 +61,7 @@ import app.dak.core.model.MessageBox
 import app.dak.core.model.MessageKind
 import app.dak.core.model.SimInfo
 import app.dak.index.MessageItem
+import app.dak.telephony.FailureReasonText
 import app.dak.telephony.MmsDownloadState
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.TokenChip
@@ -355,7 +356,7 @@ private fun MmsDownloadRow(item: MessageItem, actions: BubbleActions) {
             Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
             Column {
                 Text(stringResource(R.string.scr_bubble_mms_failed), style = MaterialTheme.typography.bodyMedium)
-                Text(s.reason, style = MaterialTheme.typography.bodySmall)
+                Text(FailureReasonText.resolve(LocalContext.current, s.reason).orEmpty(), style = MaterialTheme.typography.bodySmall)
             }
         }
     }

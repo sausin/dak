@@ -1,6 +1,7 @@
 package app.dak.premium.consent
 
 import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * Every path by which Dak itself could move message content or message metadata off the phone to a server. Each one
@@ -65,7 +66,7 @@ data class Disclosure(
     /** Lower-case hex SHA-256 of [canonicalText]. */
     val textHash: String by lazy {
         MessageDigest.getInstance("SHA-256").digest(canonicalText().toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+            .joinToString("") { "%02x".format(Locale.ROOT, it) }
     }
 }
 

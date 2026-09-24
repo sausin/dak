@@ -47,7 +47,8 @@
     <string name="fold_repeat_chip_description">Received %1$d times, last at %2$s. Tap to show each.</string>
     <string name="fold_repeat_hide">Hide copies</string>
     <string name="fold_repeat_occurrence">Received %1$s</string>
-    <string name="fold_inbox_repeat">×%1$d</string>
+    <!-- Repeat count badge, e.g. "×3". Symbol and number only: not translated. -->
+    <string name="fold_inbox_repeat" translatable="false">×%1$d</string>
 
     <!-- Account alias confirmation -->
     <string name="fold_alias_question">Is %1$s the same as %2$s (%3$s)?</string>

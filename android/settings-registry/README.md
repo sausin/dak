@@ -67,6 +67,7 @@ fun search(
     entitlements: Entitlements,
     changedKeys: Set<String> = emptySet(),
     settings: List<SettingDef<*>> = DakSettings.all,
+    text: SettingsText = SettingsText.English,
 ): List<SettingsSearchResult>
 
 data class SettingsSearchResult(val def: SettingDef<*>, val group: SettingsGroup, val key: String, val locked: Boolean)
@@ -77,6 +78,16 @@ summary and `keywords` (so "one time password" finds the OTP rows). Rows a calle
 user-changed (`changedKeys`) rank above equally-scored unchanged rows. Rows hidden for the given
 `DeviceContext` are excluded entirely; premium rows are still returned with `locked = true` when
 `entitlements` does not grant their `Feature`, so they keep acting as the free tier's sales page.
+`text` is what rows are shown with (the app passes its string-resource labels): search matches it *and* the
+English title, summary and keywords, so English words work in every app language.
+
+### Labels: `SettingsStringKeys` / `SettingsText` (`SettingsStringKeys.kt`)
+
+Titles, summaries, option labels and group names are English literals here; the app shows Android string resources
+whose names `SettingsStringKeys` derives from the setting key (`setting_<key>_title`, `..._summary`,
+`..._opt_<value>`, `settings_group_<group>`, or a `ChoiceOption.labelKey` for shared option lists).
+`SettingsStringResourcesTest` checks `app/src/main/res/values/strings_settings.xml` has every name with the same
+English text. Details: [`docs/i18n.md`](../../docs/i18n.md).
 
 ### `SettingsStore` / `InMemorySettingsStore` (`SettingsStore.kt`)
 

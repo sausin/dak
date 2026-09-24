@@ -64,3 +64,15 @@ allprojects {
         }
     }
 }
+
+// ---- Test output ------------------------------------------------------------------------------------------------
+// A failing test prints its full assertion message and stack in the CI log (the test-report artifact is not always
+// at hand), e.g. the LEDGER-COST report that LedgerBackfillCostTest attaches to its assertions.
+allprojects {
+    tasks.withType<Test>().configureEach {
+        testLogging {
+            events(org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED)
+            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        }
+    }
+}

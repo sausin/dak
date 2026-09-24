@@ -21,6 +21,7 @@ import app.dak.classify.scam.ScamLevel
 import app.dak.classify.scam.ScamVerdict
 import app.dak.core.model.Category
 import app.dak.core.model.Classification
+import app.dak.core.model.ClassifierSource
 import app.dak.core.model.Message
 import app.dak.core.model.MessageBox
 import app.dak.core.model.OtpInfo
@@ -88,8 +89,9 @@ class MessageNotifier @Inject constructor(
         val otp = classification.otp
         val consumer = if (classification.category == Category.OTP && otp != null) lookups.consumerOf(otp) else null
         val muted = lookups.isMuted(message.address, message.threadId)
+        val incognito = lookups.isIncognito(message.address, message.threadId)
         val posted = try {
-            post(message, classification, consumer, muted)
+            if (incognito) postIncognito(message, muted) else post(message, classification, consumer, muted)
         } catch (e: SecurityException) {
             false // POST_NOTIFICATIONS revoked between the check and notify()
         }
@@ -102,8 +104,15 @@ class MessageNotifier @Inject constructor(
      *
      * @param otpConsumer the app that auto-read the OTP (quiet path), if any.
      * @param muted the conversation is muted: post silently (no sound, vibration or heads-up).
+     * @param incognito an incognito chat ([postIncognito]): no "Mark read" action.
      */
-    suspend fun post(message: Message, classification: Classification, otpConsumer: String? = null, muted: Boolean = false): Boolean {
+    suspend fun post(
+        message: Message,
+        classification: Classification,
+        otpConsumer: String? = null,
+        muted: Boolean = false,
+        incognito: Boolean = false,
+    ): Boolean {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return false
         channels.ensureCreated()
@@ -112,7 +121,7 @@ class MessageNotifier @Inject constructor(
         val category = classification.category
         val custom = conversationChannels.channelFor(message.address, message.threadId)
         // Likely fake credit alerts get a warning instead of a transaction/conversation notification (spam stays spam).
-        val scam = if (category != Category.OTP && category != Category.SPAM) fakeCredit.verdictFor(message) else ScamVerdict.None
+        val scam = if (!incognito && category != Category.OTP && category != Category.SPAM) fakeCredit.verdictFor(message) else ScamVerdict.None
         val built = if (scam.level == ScamLevel.LIKELY_SCAM) {
             buildScamWarning(message, sender, muted)
         } else if (category == Category.OTP && otp != null) {
@@ -127,7 +136,7 @@ class MessageNotifier @Inject constructor(
         } else if (custom != null ||
             ((category == Category.PERSONAL || category == Category.UNKNOWN) && !ChannelRouting.isInvestmentAlert(category, classification.labels))
         ) {
-            buildConversation(message, category, sender, custom, muted)
+            buildConversation(message, category, sender, custom, muted, incognito)
         } else {
             // Investment labels pick the channel: a demat security alert is loud, a routine fund / broker update quiet.
             buildInformational(message, category, sender, muted, classification.labels)
@@ -261,6 +270,7 @@ class MessageNotifier @Inject constructor(
         sender: String,
         custom: Pair<String, String>?,
         muted: Boolean,
+        incognito: Boolean = false,
     ): Built {
         val target = threadTarget(message)
         val contact = contacts.find(message.address)
@@ -331,7 +341,7 @@ class MessageNotifier @Inject constructor(
                 .build()
             builder.addAction(reply)
         }
-        builder.addAction(markReadAction(target, message))
+        if (!incognito) builder.addAction(markReadAction(target, message))
         applyLockScreenPrivacy(builder, message, sender, isOtp = false)
         if (muted) builder.setSilent(true)
         return Built(target, builder.build(), channel)
@@ -551,6 +561,16 @@ class MessageNotifier @Inject constructor(
 
     private fun activeTarget(target: NotificationActions.Target): StatusBarNotification? =
         active().firstOrNull { it.tag == target.tag && it.id == target.id }
+
+    /**
+     * An incognito chat's message: a plain conversation notification that never carries the text, a code or an
+     * attachment preview (it must be read in the thread, where it then vanishes), and no "Mark read" (reading it
+     * anywhere else would not count as viewing it).
+     */
+    private suspend fun postIncognito(message: Message, muted: Boolean): Boolean {
+        val masked = message.copy(body = context.getString(R.string.inc_notification_body), attachments = emptyList())
+        return post(masked, Classification(Category.PERSONAL, 1f, ClassifierSource.NONE), muted = muted, incognito = true)
+    }
 
     private fun threadTarget(message: Message) = NotificationActions.Target(tag = "thread:${message.threadId}", id = ID_CONVERSATION)
 

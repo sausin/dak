@@ -1,6 +1,7 @@
 package app.dak.birthdays
 
 import android.content.Context
+import app.dak.R
 import app.dak.automations.birthdays.ContactDate
 import app.dak.automations.birthdays.OccasionKind
 import app.dak.automations.birthdays.WishTemplates
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +24,8 @@ enum class WishMode { ASK, AUTO }
 data class BirthdaySettings(
     val enabled: Boolean = false,
     val includeAnniversaries: Boolean = false,
+    /** Other dates saved on contacts ("Other" or a custom label such as "Graduation"). */
+    val includeOtherDates: Boolean = false,
     val hour: Int = 9,
     val minute: Int = 0,
     val mode: String = WishMode.ASK.name,
@@ -29,11 +33,34 @@ data class BirthdaySettings(
     val subId: Int? = null,
     val birthdayTemplate: String = WishTemplates.DEFAULT_BIRTHDAY,
     val anniversaryTemplate: String = WishTemplates.DEFAULT_ANNIVERSARY,
+    val otherTemplate: String = WishTemplates.DEFAULT_OTHER,
 ) {
+    companion object {
+        /**
+         * Settings for someone who never saved any: the wish presets of the app language ([languageTag], e.g. "hi" →
+         * the Hindi presets). Stored settings always keep their own templates.
+         */
+        fun forLanguage(languageTag: String?): BirthdaySettings = BirthdaySettings(
+            birthdayTemplate = WishTemplates.defaultFor(OccasionKind.BIRTHDAY, languageTag).text,
+            anniversaryTemplate = WishTemplates.defaultFor(OccasionKind.ANNIVERSARY, languageTag).text,
+            otherTemplate = WishTemplates.defaultFor(OccasionKind.OTHER, languageTag).text,
+        )
+    }
+
     val wishMode: WishMode get() = WishMode.entries.firstOrNull { it.name == mode } ?: WishMode.ASK
 
-    fun templateFor(kind: OccasionKind): String =
-        if (kind == OccasionKind.ANNIVERSARY) anniversaryTemplate else birthdayTemplate
+    fun templateFor(kind: OccasionKind): String = when (kind) {
+        OccasionKind.BIRTHDAY -> birthdayTemplate
+        OccasionKind.ANNIVERSARY -> anniversaryTemplate
+        OccasionKind.OTHER -> otherTemplate
+    }
+
+    /** Whether occasions of [kind] are shown and wished (birthdays always are). */
+    fun includes(kind: OccasionKind): Boolean = when (kind) {
+        OccasionKind.BIRTHDAY -> true
+        OccasionKind.ANNIVERSARY -> includeAnniversaries
+        OccasionKind.OTHER -> includeOtherDates
+    }
 }
 
 /**
@@ -54,6 +81,8 @@ data class OccasionConfig(
     val month: Int = 1,
     val day: Int = 1,
     val year: Int? = null,
+    /** The date's own label from Contacts (other dates only), e.g. "Graduation". */
+    val label: String? = null,
     val scheduledSendId: Long? = null,
     val scheduledAtMillis: Long? = null,
 ) {
@@ -78,7 +107,7 @@ data class BirthdayState(
  * thread where convenient (SharedPreferences caches after the first read).
  */
 @Singleton
-class BirthdayStore @Inject constructor(@ApplicationContext context: Context) {
+class BirthdayStore @Inject constructor(@ApplicationContext private val context: Context) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val mutableState = MutableStateFlow(load())
@@ -131,6 +160,20 @@ class BirthdayStore @Inject constructor(@ApplicationContext context: Context) {
         prefs.edit().putStringSet(KEY_WISHED, kept).apply()
     }
 
+    /**
+     * [WishTemplates.render] in the app language: its word for an unlabelled date ("special day") and its case rules
+     * for a label mid-sentence.
+     */
+    fun renderWish(template: String, name: String, firstName: String?, age: Int?, occasion: String?): String =
+        WishTemplates.render(
+            template, name, firstName, age, occasion,
+            fallbackOccasion = context.getString(R.string.wish_fallback_occasion),
+            locale = appLocale(),
+        )
+
+    /** The app language (the application resources follow it, see app.dak.i18n.AppLocales). */
+    fun appLocale(): Locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+
     private fun putConfigs(configs: Map<String, OccasionConfig>) {
         prefs.edit().putString(KEY_CONFIGS, json.encodeToString(ListSerializer(OccasionConfig.serializer()), configs.values.toList())).apply()
         mutableState.value = mutableState.value.copy(configs = configs)
@@ -139,7 +182,7 @@ class BirthdayStore @Inject constructor(@ApplicationContext context: Context) {
     private fun load(): BirthdayState {
         val settings = prefs.getString(KEY_SETTINGS, null)
             ?.let { runCatching { json.decodeFromString(BirthdaySettings.serializer(), it) }.getOrNull() }
-            ?: BirthdaySettings()
+            ?: BirthdaySettings.forLanguage(appLocale().toLanguageTag())
         val configs = prefs.getString(KEY_CONFIGS, null)
             ?.let { runCatching { json.decodeFromString(ListSerializer(OccasionConfig.serializer()), it) }.getOrNull() }
             .orEmpty()

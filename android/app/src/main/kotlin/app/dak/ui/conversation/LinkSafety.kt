@@ -35,6 +35,8 @@ data class LinkWarning(
     val unknownSender: Boolean,
     /** Key of the message carrying the link, so the dialog can offer "Report" (Report fraud screen). */
     val messageKey: String? = null,
+    /** The message carrying the link is flagged as a likely / suspicious fake credit alert. */
+    val scamFlagged: Boolean = false,
 )
 
 /**
@@ -48,11 +50,18 @@ object LinkSafety {
     /** Label :classify puts on numeric, non-contact senders whose message carries a link. */
     const val UNKNOWN_SENDER_LINK_LABEL = "unknown-sender-link"
 
-    /** Null when the link can open straight away. */
-    fun warningFor(link: ExtractedLink, unknownSender: Boolean): LinkWarning? {
+    /**
+     * Null when the link can open straight away. A link in a message flagged as a fake credit alert ([scamFlagged])
+     * always needs the second tap, even to an official-looking domain: scams quote real bank sites next to their own.
+     */
+    fun warningFor(link: ExtractedLink, unknownSender: Boolean, scamFlagged: Boolean = false): LinkWarning? {
         val verdict = checker.check(link)
         val risky = verdict.risk == LinkRisk.LOOKALIKE || verdict.risk == LinkRisk.SUSPICIOUS_TLD || verdict.risk == LinkRisk.SHORTENED
-        return if (risky || (unknownSender && verdict.risk != LinkRisk.OFFICIAL)) LinkWarning(verdict, unknownSender) else null
+        return if (risky || scamFlagged || (unknownSender && verdict.risk != LinkRisk.OFFICIAL)) {
+            LinkWarning(verdict, unknownSender || scamFlagged, scamFlagged = scamFlagged)
+        } else {
+            null
+        }
     }
 
     /**
@@ -133,10 +142,13 @@ object LinkSafety {
 fun LinkWarningDialog(warning: LinkWarning, onOpen: () -> Unit, onDismiss: () -> Unit, onReport: (() -> Unit)? = null) {
     val verdict = warning.verdict
     val reason = when (verdict.risk) {
-        LinkRisk.LOOKALIKE -> stringResource(R.string.scr_link_lookalike, verdict.matchedBrand ?: BidiText.isolateLtr(verdict.link.host.orEmpty()))
+        // No brand: a bare IP address or an official-sounding host (e.g. "government" words on a non-government
+        // domain) that imitates no one site in particular.
+        LinkRisk.LOOKALIKE -> verdict.matchedBrand?.let { stringResource(R.string.scr_link_lookalike, it) }
+            ?: stringResource(R.string.scr_link_lookalike_unbranded)
         LinkRisk.SUSPICIOUS_TLD -> stringResource(R.string.scr_link_suspicious_tld)
         LinkRisk.SHORTENED -> stringResource(R.string.scr_link_shortened)
-        else -> stringResource(R.string.scr_link_unknown_sender)
+        else -> stringResource(if (warning.scamFlagged) R.string.scam_link_in_flagged else R.string.scr_link_unknown_sender)
     }
     AlertDialog(
         onDismissRequest = onDismiss,

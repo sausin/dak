@@ -118,6 +118,7 @@ internal object Mappers {
             hasAttachment = row.hasAttachment,
             enriched = true,
             snippetRepeatCount = snippetRepeatCount.coerceAtLeast(1),
+            incognito = row.incognito,
             lastDeliveryStatus = DeliveryStatus.fromCode(row.deliveryStatus),
         )
     }
@@ -141,6 +142,7 @@ internal object Mappers {
             archived = prefs?.archived ?: false,
             starred = prefs?.starred ?: false,
             lastBox = MessageBox.INBOX,
+            incognito = prefs?.incognitoSince != null,
             hasAttachment = false,
             enriched = false,
         )

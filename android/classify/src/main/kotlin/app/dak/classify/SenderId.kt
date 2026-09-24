@@ -67,6 +67,12 @@ public object SenderId {
 
     private val prefixRegex = Regex("^[A-Za-z]{2}$")
 
+    /** Characters a formatted phone number may contain besides digits. */
+    private const val PHONE_PUNCTUATION = "+ -().\u00A0"
+
+    /** Digits a formatted sender needs to be a phone number (below that, "12-34" is more likely a name or code). */
+    private const val MIN_FORMATTED_DIGITS = 8
+
     /** Length of a numeric (promotional) DLT entity header. */
     private const val NUMERIC_HEADER_LENGTH = 6
 
@@ -109,6 +115,11 @@ public object SenderId {
         if (digitsOnly) {
             val digits = trimmed.filter { it.isDigit() }
             return if (digits.length in 5..6) SenderKind.SHORT_CODE else SenderKind.PHONE_NUMBER
+        }
+        // A phone number written with spaces, dashes, dots or brackets ("+91 98765 43210", "+1 (415) 555-2671"), as some
+        // gateways and every person-to-person path deliver it: still a phone number, not a business name.
+        if (trimmed.all { it.isDigit() || it in PHONE_PUNCTUATION } && trimmed.count { it.isDigit() } >= MIN_FORMATTED_DIGITS) {
+            return SenderKind.PHONE_NUMBER
         }
         return SenderKind.ALPHANUMERIC
     }

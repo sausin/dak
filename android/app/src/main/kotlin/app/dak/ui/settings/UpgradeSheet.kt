@@ -38,9 +38,10 @@ fun UpgradeSheet(feature: Feature?, onDismiss: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            val labels = rememberSettingsLabels()
             Text(stringResource(R.string.upgrade_title), style = MaterialTheme.typography.headlineSmall)
             if (feature != null) {
-                Text(feature.summary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(labels.feature(feature), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Text(
                 stringResource(R.string.upgrade_body),
@@ -50,7 +51,7 @@ fun UpgradeSheet(feature: Feature?, onDismiss: () -> Unit) {
             (listOfNotNull(feature) + Feature.entries.filter { it != feature }).forEach { f ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    Text(f.summary, style = MaterialTheme.typography.bodyMedium)
+                    Text(labels.feature(f), style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Text(

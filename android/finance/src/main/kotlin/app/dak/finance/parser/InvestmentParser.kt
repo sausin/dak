@@ -160,6 +160,20 @@ internal object InvestmentParser {
         "allotted", "redeemed", "switched", "rs", "rs.", "inr", "sip", "nav", "folio", "dear", "investor", "a/c", "no", "no.", "is", "has",
         "been", "towards", "purchase", "redemption", "switch", "dividend", "idcw", "amount", "amt",
     )
+    /**
+     * A superset of the words [parse] needs to recognise an investment message (see there). Kept in step with
+     * [folioRef], [boRef], [clientRef], [dematRef], [unitsWord], [navWord], [idcwWord], [tradeLine], [contractNote],
+     * [casWord] and [dematWord]; `LiteralGateTest` checks it on the parser corpus.
+     */
+    internal val investmentVocabulary = GatedPattern(
+        """\b(?:folio|bo\s*[- ]?id|dp\s*[- ]?id|client\s*(?:id|code)|demat|units?|nav|idcw|dividend|income\s+distribution|""" +
+            """bought|sold|buy|sell|contract\s+note|trades?|cas|consolidated\s+account\s+statement|depository|isin)\b""",
+        listOf(
+            "folio", "bo", "dp", "client", "demat", "unit", "nav", "idcw", "dividend", "income", "bought", "sold", "buy", "sell",
+            "contract", "trade", "cas", "consolidated", "depository", "isin",
+        ),
+    )
+
     private val sharesWord = rx("""\bshares?\b""")
     private val receivableWord = rx("""\breceivable\b|\bcredited\s+to\s+(?:you|your)\b""")
     private val payableWord = rx("""\bpayable\b|\bdebited\b""")
@@ -171,7 +185,17 @@ internal object InvestmentParser {
      * The investment-side reading of [body] (already digit-normalised), or null when it is not an investment
      * account's message (then the bank-side parser reads it).
      */
-    fun parse(sender: String, body: String, symbolMap: Map<String, String>): InvestmentOutcome? {
+    fun parse(
+        sender: String,
+        body: String,
+        symbolMap: Map<String, String>,
+        folded: String = GatedPattern.fold(body),
+        gated: Boolean = true,
+    ): InvestmentOutcome? {
+        // Every branch below that makes this an investment message needs one of these words (a folio / demat / BO /
+        // client reference, units / NAV / IDCW, a trade verb or contract note, a CAS, a depository or ISIN): without
+        // any, skip the ~20 vocabulary passes (most SMS are not about investments).
+        if (gated && !investmentVocabulary.containsMatchIn(body, folded)) return null
         val refs = findRefs(body)
         val trades = if (tradeContext.containsMatchIn(body)) tradeLine.findAll(body).toList() else emptyList()
         // A contract note with both buys and sells: its net amount is recorded, not one line's quantity and price.

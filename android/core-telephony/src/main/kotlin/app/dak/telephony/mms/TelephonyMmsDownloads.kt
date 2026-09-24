@@ -3,6 +3,8 @@ package app.dak.telephony.mms
 import app.dak.core.model.MessageKey
 import app.dak.core.model.MessageKind
 import app.dak.mms.pdu.MessageType
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.MmsDownloadState
 import app.dak.telephony.MmsDownloads
 import javax.inject.Inject
@@ -41,7 +43,7 @@ class TelephonyMmsDownloads @Inject constructor(
     private suspend fun defaultState(id: Long): MmsDownloadState {
         val info = persister.notificationInfo(id)
         return if (info?.messageType == MessageType.NOTIFICATION_IND) {
-            MmsDownloadState.Failed("Not downloaded yet", 0)
+            MmsDownloadState.Failed(FailureReasons.encode(Failure.MMS_NOT_DOWNLOADED), 0)
         } else {
             MmsDownloadState.Done
         }

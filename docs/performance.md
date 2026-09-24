@@ -215,9 +215,132 @@ This follows the rules in docs/battery.md:
   sooner.
 - An incoming SMS runs inline, with no thread hop, and saves about 60 µs of CPU.
 
+## Adversarial-corpus pass (September 2026)
+
+Same benchmark (JVM 21, 4-core sandbox, 50,000 synthetic messages, median of 5 passes). "Before" is commit
+`15c1dfd`. "After" includes the parser and link-checker changes below, plus the new scam rules of template bundle 5.
+
+| Path / stage | Before | After |
+|---|---:|---:|
+| Full enrichment path, 1 thread (prefilter) | 5,229 msgs/s | 8,569 msgs/s (**1.6×**) |
+| Full enrichment path, 3 threads (prefilter) | 9,223 msgs/s | 16,250 msgs/s (**1.8×**) |
+| Full enrichment path, 1 thread (per message) | 199 µs | 120 µs |
+| `TransactionParser.parse` (every message) | 174 µs | 59 µs (**2.9×**) |
+| `TransactionParser.parseBillReminder` | 16.3 µs | 3.7 µs |
+| `LookalikeDomainChecker` on a message's links | 5.0 µs | 3.4 µs |
+| Classification only, 1 thread (prefilter) | 24,447 msgs/s | 24,665 msgs/s (9 more rules, unchanged) |
+| A 3,000-mark "zalgo" body, all defences (`unicode-zalgo-02`) | 1,580-1,700 ms | a few ms |
+
+What changed:
+
+- **Literal gates in `:finance`** (`parser/LiteralGate.kt`, `GatedPattern`). This is a small local version of
+  `GatedRegex`, because `:finance` does not depend on `:classify`. The direction cues, the OTP word, the promotion,
+  request and statement vetoes and the bill-reminder patterns now run only when one of their keywords is in the
+  case-folded body. The body is folded once per message. `InvestmentParser` checks one vocabulary pattern first and
+  skips its ~20 passes for messages that are not about investments. `LiteralGateTest` checks, on the whole parser
+  corpus in upper-case, lower-case and Unicode-case variants, that the gates never skip a match and that gated and
+  ungated results are identical. The bill reminder's due-date regex is compiled once.
+- **`LookalikeDomainChecker`** splits brand names into words once, not on every check. It skips the edit distance
+  when the lengths differ by more than 2, and computes it with two rows.
+- **Analysis text** (`AnalysisText`, in `:classify` and copied in `:finance`) caps runs of combining marks at 8
+  before any regex runs. Before that cap, every `\b` rescanned the whole run.
+
+Locale: every `lowercase()` / `uppercase()` in `:classify` and `:finance` is Kotlin's locale-invariant form, so no
+code change was needed. `LocaleIndependenceTest` pins identical results under Turkish, Azerbaijani and Lithuanian
+default locales.
+
+## Ledger and inbox (September 2026)
+
+This pass covers the database side of `:core-index` and the ledger code in `:finance`. The tests came first: they were
+committed and passed on CI against the old code before anything changed, and they pass unchanged now (only the cost
+assertions were tightened).
+
+### Before and after
+
+| Path | Before | After |
+|---|---:|---:|
+| Stage-2 backfill, 5k msgs (8 batches): account rebuilds / index rows read | 112 / 11.8k | 14 / 2.3k (one full pass) |
+| Stage-2 backfill, 20k msgs (38 batches) | 532 / 188k | 28 / 14k |
+| Stage-2 backfill, 50k msgs (98 batches) | 1,372 / 1.14M | 70 / 70k (**16×** fewer rows) |
+| Stage 1 (~1,000 msgs, 5 chunks) | ~65 rebuilds | one per touched account (14) |
+| Read / seen / delivery-report re-ingest | every touched account rebuilt | nothing rebuilt |
+| Ledger rows read per rebuild | whole index rows (body, FTS text, JSON) | 5 columns |
+| Ledger entries written per rebuild | every entry of the account, deleted and re-inserted | only new or changed entries |
+| Inbox first page, All tab, 20k rows (SQLite 3.45, in memory) | 24 ms | 6.5 ms (**3.7×**) |
+| Inbox first page, Archived tab, 20k rows | 13.8 ms | 2.1 ms |
+| Inbox, category tabs (they already used the category index) | 4.5-6.8 ms | 3.6-5.1 ms |
+| `Reconciler.reconcile`, 1,000 foreign spends x 10,000 settlements | 900 ms | 18 ms (**50×**) |
+| `AccountLedger.cardOutstanding`, 20k entries, 24 calls | 273 ms | 49 ms |
+| `Account.idFor`, 200k calls | 261 ms | 116 ms |
+
+The backfill figures count work, not time. They come from a model of the rebuild policy using the test corpus's mix
+(40% transactions over 13 accounts). `LedgerBackfillCostTest` measures the same counters on the real code with
+SQLite triggers and prints them as `LEDGER-COST` lines. The inbox figures are from the same SQL on a
+same-schema SQLite database (Python's `sqlite3`, 3.45). `InboxQuerySnapshotTest` prints the Android numbers as
+`INBOX-BENCH` and the plans as `INBOX-PLAN`. The finance figures are JVM 21 (`LedgerHotPathEquivalenceTest`,
+`ReconcilerEquivalenceTest`, printed as `*-BENCH`).
+
+### What changed
+
+1. **Backfill rebuilds the ledger once, not after every batch** (`IndexIngestor.ingest(deferLedger = ...)`,
+   `IndexMaintenance`). Every ingest ended with `ledger.recompute(affected)`, which rebuilds each touched account from
+   all of its rows. A 500-message backfill batch touches every busy account, so a 50k backfill rebuilt each of them
+   about 100 times over a growing history, with roughly N/1,000 times the work of one pass. Stage 2 now collects the touched
+   accounts and rebuilds them every 20 batches (10,000 messages), so the Passbook still fills in during a long
+   pass. It also rebuilds them when the night window closes, and as a best effort when the pass stops. Every pass ends with one
+   `recomputeAll()`. That final rebuild also repairs a pass that was stopped before it could rebuild. Stage 1 rebuilds once for the
+   whole stage. Live callers (an incoming SMS, the reconcile, restore, scam overrides) still rebuild before
+   `ingest` returns.
+   *Why it is exact.* An account's ledger is a pure function of the indexed rows, the user's merges, types and
+   statement days. It does not depend on the order or batching in which those rows arrived. `LedgerEquivalenceTest`
+   checks this: after a staged backfill, one big ingest, message-by-message ingests, odd-sized batches, a backfill
+   stopped and resumed, a re-index, live ingests and user actions, the tables must equal `ReferenceLedger`, an
+   independent from-scratch rebuild.
+2. **Only ledger inputs trigger a rebuild** (`IndexIngestor.ledgerInputsChanged`). `LedgerRepository` reads a row's
+   account id, transaction JSON, labels (the fake-credit exclusion), date and key. A refresh that changes only
+   read, seen, box, SIM, thread or delivery state leaves all of these alone, so it no longer rebuilds the account.
+   A date change still does, and the tests check that.
+3. **Narrow ledger reads** (`MessageDao.byAccount` / `byAccounts` now return `LedgerSourceRow`). They read five columns instead
+   of whole rows, with the same WHERE and ORDER BY.
+4. **Diff-written entries** (`LedgerRepository.recomputeCanonical`). The rebuilt entries are compared with the stored
+   ones. Only the entries that disappeared are deleted, and only new or changed ones are written. An incoming SMS
+   on an account with 3,000 entries used to delete and re-insert all 3,000.
+5. **Passbook sections read one billing cycle** (`LedgerDao.entriesBetween`). A card's outstanding sums only the
+   current cycle, so only that cycle's entries are loaded.
+6. **Inbox list: covering index plus a two-step query** (`ConversationSqlBuilder.page`, `MIGRATION_7_8`). The
+   filter-and-group step reads only the new index
+   `(conversationId, dateMillis, category, subId, archived, starred, read, box, threadId)`. It carries the rowid of
+   each conversation's newest matching message, and SQLite's bare-column rule for a single `MAX()` still picks that
+   message. Only the page's 30 newest messages are then read, by rowid, for their snippet and other display
+   columns. Before, every message row (body, FTS text, JSON) was read for every page. The rows returned are
+   identical, which `InboxQuerySnapshotTest` checks page by page for every tab and SIM filter. When two messages tie for newest, SQLite
+   picks one of them, as it did before, and the test checks only that. The migration is additive. The index costs
+   about 5% on bulk inserts.
+7. **Sender suggestions per search session** (`SearchRepository.senderNames()`, `suggestions(..., senders)`). The
+   sender list is one GROUP BY over the whole index, and it ran on every debounced keystroke. The search screen now loads it
+   once per session.
+8. **Reconciler** (`:finance`). Each estimate binary-searches the first settlement on or after its date and scans
+   only up to its date window. The date-sorted list keeps the full scan's order, so ties still resolve to the same
+   entry. `ReconcilerEquivalenceTest` compares it with a verbatim copy of the old code over thousands of seeded
+   ledgers, including the edge cases of the window, the tolerance and duplicate keys.
+9. **`AccountLedger` sorts once** (a lazy sorted list instead of a getter that re-sorted on every
+   `cardOutstanding` call), and **`Account.idFor` compiles its whitespace regex once**. Both are pinned against
+   copies of the old code.
+
+### Considered and not done: an FTS4 prefix index
+
+`@Fts4(prefix = "2,3")` was measured on 50,000 messages with a realistic (Zipf) vocabulary:
+
+- The FTS lookup for a two-letter prefix got 3× faster, but it was already about 0.15 ms.
+- A whole prefix search, including loading the matching rows, got only about 15% faster.
+- The FTS index grew 2.6× (3.3 MB to 8.8 MB), and bulk inserts slowed by about 55%.
+
+The FTS lookup is not what search spends its time on, so the index was not worth it. `SearchEquivalenceTest` stays as the guard if it is revisited.
+
 ## Next
 
-- **`TransactionParser` / `MoneyParser` (`:finance`)** is now the largest cost: about 47 µs per parsed message,
+- **`TransactionParser` / `MoneyParser` (`:finance`)**: the parser's gates are done (see above). `MoneyParser`'s
+  pattern remains. The notes below predate that pass. **`TransactionParser` / `MoneyParser` (`:finance`)** is now the largest cost: about 47 µs per parsed message,
   roughly half of what remains. Its negative checks (OTP, promotion and bill wording), direction words and
   `MoneyParser`'s pattern are all literal-keyed alternations that `GatedRegex` would gate. `MoneyParser`'s currency
   prefix is optional, so a 100-way alternation is tried at every digit. Two things stop this for now. `:finance`

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Conversation extras: contact details from the thread header (prefix cd_), send-later from the composer (sch_),
+  incognito / vanishing chats (inc_), accounts removed from the Passbook (pb_), other dates for wishes (occ_).
+-->
+<resources>
+    <!-- Contact details sheet (tap the thread header) -->
+    <string name="cd_open_details">View contact details</string>
+    <string name="cd_not_saved">Not in your contacts</string>
+    <!-- %1$s = the contact's name -->
+    <string name="cd_saved_as">Saved as %1$s</string>
+    <string name="cd_business_sender">Business sender · can\'t be called or saved</string>
+    <string name="cd_no_contacts_permission">Dak can\'t read your contacts, so saved names aren\'t shown. Allow contacts access in Settings to see them.</string>
+    <string name="cd_call">Call</string>
+    <string name="cd_copy_number">Copy number</string>
+    <string name="cd_number_copied">Number copied</string>
+    <string name="cd_view_contact">View contact</string>
+    <string name="cd_save_contact">Save as new contact</string>
+    <string name="cd_add_to_existing">Add to existing</string>
+
+    <!-- Send later -->
+    <string name="sch_send_later">Send later</string>
+    <string name="sch_tray_schedule">Schedule</string>
+    <string name="sch_pick_date_time">Pick date &amp; time…</string>
+    <string name="sch_write_first">Write your message first, then choose when it goes</string>
+    <string name="sch_pick_future">Pick a time at least a minute from now</string>
+    <!-- %1$s = when it will be sent, e.g. "Tomorrow, 9:00 am" -->
+    <string name="sch_strip_when">Scheduled · %1$s</string>
+    <string name="sch_cancel">Cancel scheduled message</string>
+    <!-- %1$d = number of other scheduled messages in this conversation. -->
+    <plurals name="sch_strip_more">
+        <item quantity="one">%1$d more scheduled message</item>
+        <item quantity="other">%1$d more scheduled messages</item>
+    </plurals>
+
+    <!-- Incognito (vanishing) chats -->
+    <string name="inc_label">Incognito chat</string>
+    <string name="inc_action_on">Turn on incognito</string>
+    <string name="inc_action_off">Turn off incognito</string>
+    <string name="inc_turn_off">Turn off</string>
+    <string name="inc_dialog_title">Turn on incognito chat?</string>
+    <string name="inc_dialog_body">• Messages you send vanish from this phone as soon as they\'re sent.\n• Messages you receive are hidden in notifications and vanish after you read them here.\n• If a message can\'t be sent, you choose: retry, delete, or keep it to try later.\n• Vanished messages skip the recycle bin and can\'t be restored.\n• Earlier messages in this chat stay as they are.</string>
+    <string name="inc_intro_other_side_title">Only your copy vanishes</string>
+    <string name="inc_intro_other_side_body">Dak can delete messages on this phone only. The other person\'s phone keeps everything you send them, and SMS has no way to delete it there. They may also have screenshots or backups.</string>
+    <string name="inc_dialog_confirm">I understand, turn on</string>
+    <string name="inc_banner_title">Incognito chat</string>
+    <string name="inc_banner_body">Messages vanish from this phone once sent or read. The other person keeps their copy.</string>
+    <string name="inc_inbox_snippet">Incognito chat · open to read</string>
+    <string name="inc_notification_body">New incognito message · open Dak to read</string>
+    <string name="inc_vanishing">Message vanishing</string>
+    <string name="inc_countdown">This message vanishes in a few seconds</string>
+    <string name="inc_snack_on">Incognito on · only your copy vanishes</string>
+    <string name="inc_failed_first">Not sent. Try again, or delete it?</string>
+    <string name="inc_failed_again">Still not sent. Keep it to try later, or delete it?</string>
+    <!-- %1$d = seconds left before the message is deleted. -->
+    <plurals name="inc_failed_deletes_in">
+        <item quantity="one">Deleted in %1$d second if you don\'t choose</item>
+        <item quantity="other">Deleted in %1$d seconds if you don\'t choose</item>
+    </plurals>
+    <string name="inc_failed_retry">Retry</string>
+    <string name="inc_failed_keep">Keep</string>
+    <string name="inc_failed_delete">Delete</string>
+
+    <!-- Passbook: removing accounts that are not relevant -->
+    <string name="pb_hide">Remove from Passbook</string>
+    <string name="pb_unhide">Show in Passbook</string>
+    <string name="pb_hidden_snack">Removed from Passbook</string>
+    <!-- %1$d = number of hidden accounts -->
+    <string name="pb_hidden_header">Hidden accounts (%1$d)</string>
+    <string name="pb_hidden_summary">Left out of the Passbook and its totals. Their SMS stay in your messages.</string>
+    <string name="pb_restore">Show</string>
+
+    <!-- Birthdays & occasions: anniversaries and other dates -->
+    <string name="occ_include">Include</string>
+    <string name="occ_kind_birthdays">Birthdays</string>
+    <string name="occ_kind_anniversaries">Anniversaries</string>
+    <string name="occ_kind_other">Other dates</string>
+    <string name="occ_other_date">Special day</string>
+    <!-- What {occasion} reads in a wish template when a contact's date has no label ("Happy special day, Anita!"). Lower case: it sits mid-sentence. -->
+    <string name="wish_fallback_occasion">special day</string>
+    <string name="occ_edit_other_template">Other-date message</string>
+    <string name="occ_add_date">Add a date</string>
+    <!-- %1$s = contact name -->
+    <string name="occ_prompt_title_other">A special day for %1$s today</string>
+</resources>

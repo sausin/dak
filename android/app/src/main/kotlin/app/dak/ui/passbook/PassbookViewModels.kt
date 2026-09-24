@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -53,10 +54,27 @@ class PassbookViewModel @Inject constructor(
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Accounts the user removed from the Passbook (shown in "Hidden accounts" to bring back). */
+    val hidden: StateFlow<List<AccountSummary>> = ledger.hiddenAccounts()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val eventChannel = Channel<Unit>(Channel.BUFFERED)
 
     /** Emits after a confirmed merge (for a snackbar). */
     val merged: Flow<Unit> = eventChannel.receiveAsFlow()
+
+    private val hiddenChannel = Channel<String>(Channel.BUFFERED)
+
+    /** Emits the account id after "Remove from Passbook" (for a snackbar with Undo). */
+    val hiddenEvents: Flow<String> = hiddenChannel.receiveAsFlow()
+
+    /** Removes [accountId] from the Passbook (display only: its SMS and ledger are untouched), or brings it back. */
+    fun setHidden(accountId: String, hide: Boolean) {
+        viewModelScope.launch {
+            if (runCatching { ledger.setAccountHidden(accountId, hide) }.isSuccess && hide) hiddenChannel.trySend(accountId)
+        }
+    }
 
     /** A sample SMS of a suggestion, live. */
     fun sample(key: MessageKey?): Flow<MessageItem?> = key?.let { conversations.message(it) } ?: flowOf(null)
@@ -117,6 +135,16 @@ class AccountViewModel @Inject constructor(
     /** "This is a credit card": sets the account's type by hand, or back to the detected type with null. */
     fun setType(instrument: InstrumentType?) {
         viewModelScope.launch { runCatching { ledger.setAccountType(accountId, instrument) } }
+    }
+
+    /** True when this account was removed from the Passbook. */
+    val hidden: StateFlow<Boolean> = ledger.canonicalId(accountId)
+        .flatMapLatest { id -> ledger.hiddenIds().map { id in it } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** "Remove from Passbook" / "Show in Passbook". */
+    fun setHidden(hide: Boolean) {
+        viewModelScope.launch { runCatching { ledger.setAccountHidden(accountId, hide) } }
     }
 
     fun setStatementDay(day: Int?) {

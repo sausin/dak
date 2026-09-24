@@ -1,5 +1,7 @@
 package app.dak.classify
 
+import app.dak.classify.text.AnalysisText
+
 /**
  * Tokenises an SMS body into a privacy-safe, placeholder form suitable for sending to an opt-in
  * cloud classifier. Digits, amounts, URLs, emails, card numbers and probable names are replaced
@@ -24,7 +26,8 @@ public object Masker {
 
     /** Masks [body], returning placeholder text with no leaked digits. */
     public fun mask(body: String): String {
-        var text = body
+        // Invisible characters dropped and combining-mark floods capped first (AnalysisText): linear regexes below.
+        var text = AnalysisText.of(body)
 
         // Order matters: URLs/emails/cards first (they contain digits that would otherwise be
         // caught by looser passes), then names (which rely on surrounding words still being

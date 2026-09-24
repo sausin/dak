@@ -1,6 +1,9 @@
 package app.dak.notifications
 
+import android.content.Context
+import app.dak.R
 import app.dak.core.model.Message
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
@@ -12,7 +15,7 @@ import javax.inject.Singleton
  * token comes back, the state moves to [State.Received] with the measured delay.
  */
 @Singleton
-class SelfTestMonitor @Inject constructor() {
+class SelfTestMonitor @Inject constructor(@ApplicationContext private val context: Context) {
 
     sealed interface State {
         data object Idle : State
@@ -23,10 +26,10 @@ class SelfTestMonitor @Inject constructor() {
     private val state = MutableStateFlow<State>(State.Idle)
     val status: StateFlow<State> = state
 
-    /** Starts waiting for [token]; returns the body to send. */
+    /** Starts waiting for [token]; returns the body to send (in the app language; only [token] is matched). */
     fun arm(token: String, nowMillis: Long = System.currentTimeMillis()): String {
         state.value = State.Waiting(token, nowMillis)
-        return "Dak self-test $token. If you see this as a notification, delivery works."
+        return context.getString(R.string.selftest_sms_body, token)
     }
 
     fun reset() {

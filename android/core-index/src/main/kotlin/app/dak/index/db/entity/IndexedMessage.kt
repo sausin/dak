@@ -32,6 +32,9 @@ import app.dak.index.sql.Tables
         Index(value = ["templateVersion"]),
         Index(value = ["accountId"]),
         Index(value = ["repeatGroup"]),
+        // Covers the inbox list's filter-and-group step (`ConversationSqlBuilder.page` / `count`): every column it
+        // reads is here, so paging the conversation list never loads message bodies.
+        Index(value = ["conversationId", "dateMillis", "category", "subId", "archived", "starred", "read", "box", "threadId"]),
     ],
 )
 data class IndexedMessage(

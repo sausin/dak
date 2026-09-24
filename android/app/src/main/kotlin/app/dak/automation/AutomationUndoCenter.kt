@@ -1,5 +1,7 @@
 package app.dak.automation
 
+import android.content.Context
+import app.dak.R
 import app.dak.automations.undo.UndoToken
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -10,7 +12,17 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** One undoable automation effect, announced to whichever screen is showing (the inbox shows a snackbar). */
-data class AutomationUndo(val id: Long, val token: UndoToken, val ruleName: String)
+data class AutomationUndo(val id: Long, val token: UndoToken, val ruleName: String) {
+    /**
+     * Snackbar text in the app language. [UndoToken.description] is the executor's English text (kept for logs);
+     * the known action types are shown from resources, anything else falls back to it.
+     */
+    fun text(context: Context): String = when (token.actionType) {
+        IndexArchiver.ACTION_TYPE -> context.getString(R.string.undo_rule_archived, ruleName)
+        IndexBinner.ACTION_TYPE -> context.getString(R.string.undo_rule_binned, ruleName)
+        else -> token.description
+    }
+}
 
 /**
  * Keeps the few-seconds undo for archive/delete actions run by automations. Executors [register] a reversal;

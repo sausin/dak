@@ -1,9 +1,8 @@
 # Implementation status (Android)
 
 What exists in `android/` against [the build plan](build-plan.md). "Built" means implemented and
-compiling in CI; pure-Kotlin modules are also unit-tested. Nothing has been run on a device yet —
-the Phase 0 exit criteria (Pixel + Xiaomi, 2 SIMs, OTP autofill, self-test with battery optimisation
-on) still need a real device pass.
+compiling in CI; pure-Kotlin modules are also unit-tested. The maintainers have tested the app extensively on devices
+and emulators; the step-by-step checklist is [device-test-plan.md](device-test-plan.md). There is no Play Store listing yet.
 
 ## Baseline principle: no runtime AI dependency
 
@@ -89,6 +88,25 @@ list for link lookalikes, `InstitutionTable`, the scam detector's bank-name list
 bundle, and `SenderId.mergeKey`'s DLT-prefix collapse (applied everywhere; harmless outside India except for
 header-shaped names such as `BT-MOBILE`).
 
+## Conversation and Passbook extras
+
+| Item | State |
+| --- | --- |
+| Tap the thread header: participant details, call / copy, view contact, save an unsaved number (new or existing contact) | Built (`ui/conversation/ContactDetailsSheet`) |
+| Send later from the composer: "Schedule" in the tray or long-press Send (in an hour, tomorrow, any date and time); pending ones show above the composer with cancel | Built |
+| Incognito chats per conversation (from when they are turned on): sent messages deleted once radio-confirmed, received ones after a 10 s reading window in the thread or on leaving it; notification and inbox previews never show the text; no recycle bin; dissolve animation. Only this phone's copy vanishes; never forwarded or relayed by automations | Built (`app/incognito`, `OutgoingSentListener` in `core-telephony`, index v7 `incognitoSince`) |
+| Birthdays & occasions: anniversaries and other contact dates ("Other" / custom label, one per contact) on one screen, one chip row; "Add a date" opens the contact in Contacts | Built |
+| Remove an account from the Passbook (display only; ledger and scam detection keep it), "Hidden accounts" to restore | Built (index v7 `account_hidden`) |
+
+## Language, performance and scam hardening
+
+| Item | State |
+| --- | --- |
+| App language picker (Settings → Appearance → Language; per-app language on 13+, own override on 8–12), translatable settings / failure / battery text, pseudo-locales in debug, `scripts/check-i18n.py` in CI | Built ([i18n.md](i18n.md)). English is the only shipped language |
+| Adversarial corpus (`shared/adversarial/`) run by `AdversarialCorpusTest`; template bundle 5 closes 38 of the first 40 known gaps | Built. Two "wrong number" openers stay documented as out of scope |
+| Normalised analysis text (bidi overrides resolved, invisible characters dropped, combining-mark runs capped) before every detector and parser | Built (`AnalysisText` in `:classify`, copied in `:finance`) |
+| Backfill ledger rebuild deferral, ledger diff-writes, covering inbox index (index v8), reconciler binary search, per-session sender suggestions | Built, pinned by equivalence tests that landed first ([performance.md](performance.md)) |
+
 ## Known gaps / follow-ups
 
 - Room schema JSON is generated in CI but not yet committed (`core-index/schemas`); commit it
@@ -97,7 +115,8 @@ header-shaped names such as `BT-MOBILE`).
   code unlocks the whole incremental chain.
 - Appearance settings live in the app (8th settings section) rather than the registry's 7 groups.
 - User labels from automations are stored app-side (no index API yet).
-- Release builds have R8 disabled until keep rules are verified on a device.
+- Release builds run R8 (keep-rule audit and CI mapping check in [release.md](release.md)); install a signed release
+  APK and run the device-test-plan P0 items before publishing.
 - Play `.aab` publishing and release signing (CI already signs when keystore secrets are set).
 
 ## Runtime risks to check first on a device

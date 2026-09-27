@@ -20,7 +20,6 @@
     <string name="inst_total_nothing_spent">Nada gastado este mes</string>
     <string name="inst_total_no_balance">Aún no se indicó ningún saldo</string>
     <string name="inst_total_no_outstanding">Define los días de extracto para ver lo pendiente</string>
-    <string name="inst_total_missing">%1$d desconocidos</string>
     <string name="inst_total_value">Valor actual %1$s</string>
     <string name="inst_total_no_value">Aún no se indicó ningún valor actual</string>
 

@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -77,8 +78,11 @@ import app.dak.ui.common.CategoryChip
 import app.dak.ui.common.EmptyState
 import app.dak.ui.common.ReliabilityBanner
 import app.dak.ui.common.SimChip
+import app.dak.ui.common.conversationTitle
 import app.dak.ui.common.relativeTime
+import app.dak.ui.common.simName
 import app.dak.ui.common.text.BidiText
+import app.dak.ui.common.text.rememberDisplayLocale
 import app.dak.ui.conversation.DeliveryTick
 import app.dak.ui.conversation.DeliveryTicks
 import app.dak.ui.conversation.copyToClipboard
@@ -221,7 +225,7 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             FilterChip(
                                 selected = simFilter == sim.subId,
                                 onClick = { viewModel.selectSim(if (simFilter == sim.subId) null else sim.subId) },
-                                label = { Text(sim.displayName.ifBlank { stringResource(R.string.sim_n, (sim.slotIndex + 1).toString()) }) },
+                                label = { Text(simName(sim)) },
                             )
                         }
                     }
@@ -302,8 +306,8 @@ fun InboxScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     if (foldDialog) {
         val chosen = selection
         RenameDialog(
-            initial = chosen.values.firstOrNull()?.title.orEmpty(),
-            title = stringResource(R.string.fold_name_title, chosen.size),
+            initial = chosen.values.firstOrNull()?.let { conversationTitle(it) }.orEmpty(),
+            title = pluralStringResource(R.plurals.fold_name_title, chosen.size, chosen.size),
             allowEmpty = true,
             onSave = { name ->
                 foldDialog = false
@@ -337,10 +341,11 @@ private fun tabLabel(tab: InboxTab): String = stringResource(
 @Composable
 private fun IndexProgressRow(progress: BackfillProgress) {
     if (progress.stage != BackfillStage.STAGE1 && progress.stage != BackfillStage.STAGE2) return
-    val format = remember { NumberFormat.getIntegerInstance() }
+    val locale = rememberDisplayLocale()
+    val format = remember(locale) { NumberFormat.getIntegerInstance(locale) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val text = when {
-            progress.waiting -> stringResource(R.string.scr_inbox_index_waiting, format.format(progress.remaining))
+            progress.waiting -> pluralStringResource(R.plurals.scr_inbox_index_waiting, progress.remaining, format.format(progress.remaining))
             else -> stringResource(R.string.scr_inbox_index_progress, format.format(progress.done), format.format(progress.total))
         }
         Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -402,7 +407,7 @@ private fun ConversationRow(
             }
         } else {
             Avatar(
-                name = conversation.title,
+                name = conversationTitle(conversation),
                 key = conversation.address,
                 isBusiness = conversation.isMergedSender || conversation.address.none { it.isDigit() },
             )
@@ -410,7 +415,7 @@ private fun ConversationRow(
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    BidiText.displaySafe(conversation.title),
+                    BidiText.displaySafe(conversationTitle(conversation)),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = if (unread) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 1,
@@ -466,8 +471,14 @@ private fun ConversationRow(
                         .clearAndSetSemantics { contentDescription = unreadDescription },
                     contentAlignment = Alignment.Center,
                 ) {
+                    val badgeLocale = rememberDisplayLocale()
+                    val badgeFormat = remember(badgeLocale) { NumberFormat.getIntegerInstance(badgeLocale) }
                     Text(
-                        if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),
+                        if (conversation.unreadCount > 99) {
+                            stringResource(R.string.inbox_unread_overflow, badgeFormat.format(99))
+                        } else {
+                            badgeFormat.format(conversation.unreadCount)
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="fw_status_title">
+        <item quantity="one">फ़ॉरवर्डिंग चालू है</item>
+        <item quantity="other">%1$d फ़ॉरवर्डिंग नियम चालू हैं</item>
+    </plurals>
+    <string name="fw_status_line_otp">%1$s → %2$s (%3$s) · OTP भी शामिल</string>
+    <string name="fw_status_with_period">%1$s · %2$s</string>
+    <plurals name="fw_guard_disabled_text">
+        <item quantity="one">मैसेज भेजने वाला %1$d ऑटोमेशन बंद कर दिया गया क्योंकि %2$s। इसे फिर चालू करने के लिए ऐप लॉक सेट करें। Dak को इसके लिए ऐप लॉक चाहिए, ताकि आपका फ़ोन इस्तेमाल करने वाला कोई और आपके मैसेज खुद को न भेज सके।</item>
+        <item quantity="other">मैसेज भेजने वाले %1$d ऑटोमेशन बंद कर दिए गए क्योंकि %2$s। इन्हें फिर चालू करने के लिए ऐप लॉक सेट करें। Dak को इनके लिए ऐप लॉक चाहिए, ताकि आपका फ़ोन इस्तेमाल करने वाला कोई और आपके मैसेज खुद को न भेज सके।</item>
+    </plurals>
+
+    <plurals name="fw_history_sent_between">
+        <item quantity="one">%3$s और %4$s के बीच %2$s को %1$d मैसेज भेजा गया</item>
+        <item quantity="other">%3$s और %4$s के बीच %2$s को %1$d मैसेज भेजे गए</item>
+    </plurals>
+    <string name="fw_history_sent_none_between">%1$s और %2$s के बीच कोई मैसेज नहीं भेजा गया</string>
+    <string name="fw_history_to_more">%1$s +%2$d</string>
+    <plurals name="fw_history_failed">
+        <item quantity="one">%1$d नहीं भेजा जा सका</item>
+        <item quantity="other">%1$d नहीं भेजे जा सके</item>
+    </plurals>
+    <plurals name="fw_history_skipped">
+        <item quantity="one">%1$d छोड़ा गया</item>
+        <item quantity="other">%1$d छोड़े गए</item>
+    </plurals>
+
+    <string name="scr_auto_sched_when_sim">%1$s · %2$s</string>
+    <string name="scr_auto_relay_channel_sms">SMS</string>
+    <string name="scr_auto_relay_channel_whatsapp">WhatsApp (एक टैप)</string>
+    <string name="scr_auto_relay_channel_webhook">Webhook</string>
+    <string name="scr_auto_action_web_client">वेब क्लाइंट पर भेजें</string>
+    <string name="scr_auto_action_unknown">अज्ञात कार्रवाई</string>
+
+    <string name="scr_auto_default_name_label">लेबल \"%1$s\"</string>
+    <string name="scr_auto_default_name_archive">संग्रहित करें</string>
+    <string name="scr_auto_default_name_notify">सूचना दें</string>
+    <string name="scr_auto_default_name_forward">%1$s को फ़ॉरवर्ड करें</string>
+    <string name="scr_auto_default_name_reply">अपने-आप जवाब</string>
+    <string name="scr_auto_default_name_delete">बिन में डालें</string>
+    <string name="scr_auto_default_name_open">लिंक खोलें</string>
+    <string name="scr_auto_default_name_webhook">Webhook</string>
+    <string name="scr_auto_default_name_relay">%1$s को रिले करें</string>
+
+    <string name="preset_archive_old_promotions_name">14 दिन से पुराने प्रमोशन संग्रहित करें</string>
+    <string name="preset_label_amazon_deliveries_name">Amazon डिलीवरी पर लेबल लगाएं</string>
+    <string name="preset_otp_big_notification_name">OTP के लिए तेज़, बड़ी सूचना</string>
+
+    <string name="auto_tpl_sim">SIM %1$d</string>
+    <string name="auto_tpl_sim_sub">SIM (ID %1$d)</string>
+</resources>

@@ -28,6 +28,7 @@ import app.dak.finance.ledger.Account
 import app.dak.finance.ledger.AccountType
 import app.dak.finance.ledger.BalanceState
 import app.dak.index.repo.AccountSummary
+import app.dak.ui.common.text.rememberDisplayLocale
 
 /** "Type: [Debit card] Detected from messages · Change type". */
 @Composable
@@ -105,7 +106,7 @@ internal fun AccountHeader(summary: AccountSummary, linked: AccountSummary?, onO
                 }
             }
             summary.unitsHeld?.let { units ->
-                Text(stringResource(R.string.inst_units_held, unitsText(units)), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.inst_units_held, unitsText(units, rememberDisplayLocale())), style = MaterialTheme.typography.bodyMedium)
             }
             Text(stringResource(R.string.inst_investment_note), style = MaterialTheme.typography.labelSmall, color = muted)
         }
@@ -127,7 +128,7 @@ private fun LinkedAccountCard(header: String, linked: AccountSummary, onOpen: ()
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(header, style = MaterialTheme.typography.labelLarge)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                InstitutionBadge(linked.account.institution)
+                InstitutionBadge(linked.account)
                 Column(Modifier.weight(1f)) {
                     Text(accountTitle(linked.account), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     BalanceLine(linked.balance)
@@ -175,5 +176,5 @@ internal fun viaLabel(viaAccountId: String): String {
     val instrument = InstrumentType.entries.firstOrNull { it.name == parts.second } ?: InstrumentType.UNKNOWN
     val kind = stringResource(kindRes(AccountType.of(instrument)))
     val digits = parts.third.takeIf { d -> d.any { it != '0' } && d.all { it.isDigit() } }
-    return if (digits != null) "$kind ••$digits" else kind
+    return if (digits != null) stringResource(R.string.inst_kind_digits, kind, "••$digits") else kind
 }

@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,7 @@ import app.dak.R
 import app.dak.index.ConversationSummary
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.categoryLabel
+import app.dak.ui.common.conversationTitle
 
 /**
  * Full-screen picker of source channels: every conversation, including folded sender groups ("HDFC Bank" is one
@@ -83,12 +85,12 @@ internal fun SourcePickerDialog(
                                 if (isChecked) checked.remove(summary.conversationId) else checked[summary.conversationId] = summary
                             },
                             leadingContent = {
-                                Avatar(name = summary.title, key = summary.conversationId, isBusiness = summary.isMergedSender)
+                                Avatar(name = conversationTitle(summary), key = summary.conversationId, isBusiness = summary.isMergedSender)
                             },
-                            headlineContent = { Text(summary.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            headlineContent = { Text(conversationTitle(summary), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             supportingContent = {
                                 Text(
-                                    categoryLabel(summary.category) + " · " + summary.snippet,
+                                    stringResource(R.string.text_pair_dot, categoryLabel(summary.category), summary.snippet),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -103,7 +105,7 @@ internal fun SourcePickerDialog(
                 }
                 Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        stringResource(R.string.fw_channels_selected, checked.size),
+                        pluralStringResource(R.plurals.fw_channels_selected, checked.size, checked.size),
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.weight(1f).padding(start = 8.dp),
                     )

@@ -83,5 +83,28 @@ object FailureReasonText {
         Failure.MMS_UNREADABLE -> R.string.dak_telephony_fail_mms_unreadable
         Failure.MMS_UNEXPECTED_RESPONSE -> R.string.dak_telephony_fail_mms_unexpected_response
         Failure.MMS_CARRIER_COULD_NOT_DELIVER -> R.string.dak_telephony_fail_mms_carrier_could_not_deliver
+        Failure.MMSC_SERVICE_DENIED -> R.string.dak_telephony_fail_mmsc_service_denied
+        Failure.MMSC_FORMAT_CORRUPT -> R.string.dak_telephony_fail_mmsc_format_corrupt
+        Failure.MMSC_ADDRESS_UNRESOLVED -> R.string.dak_telephony_fail_mmsc_address_unresolved
+        Failure.MMSC_MESSAGE_NOT_FOUND -> R.string.dak_telephony_fail_mmsc_message_not_found
+        Failure.MMSC_NETWORK_PROBLEM -> R.string.dak_telephony_fail_mmsc_network_problem
+        Failure.MMSC_CONTENT_NOT_ACCEPTED -> R.string.dak_telephony_fail_mmsc_content_not_accepted
+        Failure.MMSC_UNSUPPORTED_MESSAGE -> R.string.dak_telephony_fail_mmsc_unsupported_message
+        Failure.MMSC_REPLY_CHARGING_LIMITATIONS -> R.string.dak_telephony_fail_mmsc_reply_charging_limitations
+        Failure.MMSC_REPLY_CHARGING_REJECTED -> R.string.dak_telephony_fail_mmsc_reply_charging_rejected
+        Failure.MMSC_REPLY_CHARGING_FORWARDING_DENIED -> R.string.dak_telephony_fail_mmsc_reply_charging_forwarding_denied
+        Failure.MMSC_REPLY_CHARGING_NOT_SUPPORTED -> R.string.dak_telephony_fail_mmsc_reply_charging_not_supported
+        Failure.MMSC_ADDRESS_HIDING_NOT_SUPPORTED -> R.string.dak_telephony_fail_mmsc_address_hiding_not_supported
+        Failure.MMSC_LACK_OF_PREPAID_CREDIT -> R.string.dak_telephony_fail_mmsc_lack_of_prepaid_credit
+        Failure.MMSC_TEMPORARY_FAILURE -> R.string.dak_telephony_fail_mmsc_temporary_failure
+        Failure.MMSC_ERROR -> R.string.dak_telephony_fail_mmsc_error
+        Failure.BIRTHDAY_ALREADY_WISHED -> R.string.dak_telephony_fail_birthday_already_wished
+        Failure.BIRTHDAY_WISHES_OFF -> R.string.dak_telephony_fail_birthday_wishes_off
+        Failure.BIRTHDAY_ASKED -> R.string.dak_telephony_fail_birthday_asked
+        Failure.BIRTHDAY_NO_APP_LOCK -> R.string.dak_telephony_fail_birthday_no_app_lock
+        Failure.BIRTHDAY_DAILY_LIMIT -> R.string.dak_telephony_fail_birthday_daily_limit
+        Failure.SCHEDULED_PREMIUM_REFUSED -> R.string.dak_telephony_fail_scheduled_premium_refused
+        Failure.SCHEDULED_NO_APP_LOCK -> R.string.dak_telephony_fail_scheduled_no_app_lock
+        Failure.SCHEDULED_EMERGENCY_CANCELLED -> R.string.dak_telephony_fail_scheduled_emergency_cancelled
     }
 }

@@ -7,7 +7,6 @@
     <string name="fold_empty_body">एक ही ब्रांड वाले भेजने वाले अपने-आप जुड़ जाते हैं। दूसरों को जोड़ने के लिए इनबॉक्स में बातचीत को दबाकर रखें और एक साथ जोड़ें चुनें।</string>
     <string name="fold_suggestions_header">सुझाव</string>
     <string name="fold_groups_header">जोड़ी गई बातचीत</string>
-    <string name="fold_suggestion_title">ये %1$d भेजने वाले %2$s जैसे लगते हैं। इन्हें एक बातचीत में जोड़ें?</string>
     <string name="fold_suggestion_same_brand">एक ही ब्रांड</string>
     <string name="fold_suggestion_similar">मिलते-जुलते नाम</string>
     <string name="fold_action_fold">जोड़ें</string>
@@ -21,15 +20,12 @@
     <string name="fold_action_unfold_channel">भेजने वाले को अलग करें…</string>
     <string name="fold_action_manage">भेजने वालों के ग्रुप</string>
     <string name="fold_action_select">चुनें</string>
-    <string name="fold_channels_count">%1$d चैनल</string>
-    <string name="fold_channel_last_seen">आखिरी मैसेज %1$s · %2$d मैसेज</string>
     <string name="fold_channel_also">%1$s के रूप में भी</string>
     <string name="fold_channel_manual">आपने जोड़ा</string>
     <string name="fold_group_manual">आपका ग्रुप</string>
     <string name="fold_group_brand">ब्रांड के हिसाब से जोड़ा गया</string>
     <string name="fold_rename_title">ग्रुप का नाम बदलें</string>
     <string name="fold_rename_label">नाम</string>
-    <string name="fold_name_title">%1$d बातचीत जोड़ें</string>
     <string name="fold_name_hint">जोड़ी गई बातचीत का नाम रखें (वैकल्पिक)</string>
     <string name="fold_into_title">इसमें जोड़ें</string>
     <string name="fold_into_empty">जोड़ने के लिए अभी कोई दूसरी बातचीत नहीं है।</string>
@@ -38,7 +34,6 @@
     <string name="fold_snack_folded">जोड़ा गया</string>
     <string name="fold_snack_unfolded">अलग किया गया</string>
     <string name="fold_snack_failed">ये बातचीत जोड़ी नहीं जा सकीं</string>
-    <string name="fold_selected_count">%1$d चुनी गईं</string>
     <string name="fold_filter_all">सभी भेजने वाले</string>
     <string name="fold_chip_channel">%1$s से</string>
 

@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.text.format.DateFormat
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -45,7 +44,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
-import java.util.Date
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -271,7 +269,7 @@ class ScheduledSendHeadsUp @Inject constructor(
         val builder = NotificationCompat.Builder(context, NotificationChannels.SCHEDULED)
             .setSmallIcon(R.drawable.ic_stat_dak)
             .setContentTitle(title)
-            .setContentText(members.joinToString { recipientLabel(it) })
+            .setContentText(AppLocaleText.list(context, members.map { recipientLabel(it) }))
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -330,7 +328,7 @@ class ScheduledSendHeadsUp @Inject constructor(
             WishTag.decode(send.ruleId)?.let { tag -> birthdays.config(tag.contactId, tag.kind)?.name?.takeIf { it.isNotBlank() } }
                 ?.let { return it }
         }
-        return send.addresses.joinToString(", ") { nameOf(it) }
+        return AppLocaleText.list(context, send.addresses.map { nameOf(it) })
     }
 
     private fun nameOf(address: String): String =
@@ -340,8 +338,7 @@ class ScheduledSendHeadsUp @Inject constructor(
     private fun formatTime(millis: Long, nowMillis: Long): String {
         val zone = ZoneId.systemDefault()
         val sameDay = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate() == Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
-        val time = DateFormat.getTimeFormat(context).format(Date(millis))
-        return if (sameDay) time else ForwardingStatusNotifier.formatInstant(context, millis)
+        return if (sameDay) AppLocaleText.time(context, millis) else AppLocaleText.dateTime(context, millis)
     }
 
     private fun preview(body: String): String {

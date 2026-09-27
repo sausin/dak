@@ -133,7 +133,11 @@ class BroadcastStatusReader @Inject constructor(
         val send = r.scheduledSendId?.let { runCatching { sends.get(it) }.getOrNull() }
         return when (send?.status) {
             ScheduledSendStatus.FAILED -> RecipientView(index, r, CopyState.FAILED, TickState.FAILED, null, send.failureReason)
-            ScheduledSendStatus.CANCELLED -> RecipientView(index, r, CopyState.CANCELLED, null, null, send.failureReason)
+            ScheduledSendStatus.CANCELLED -> RecipientView(
+                index, r, CopyState.CANCELLED, null, null,
+                // The state already says "Cancelled"; older versions stored that again as an English reason.
+                send.failureReason?.takeUnless { it == BroadcastSendGate.LEGACY_REASON_REMOVED },
+            )
             ScheduledSendStatus.SENT -> RecipientView(index, r, CopyState.SENDING, TickState.SENDING, null, null)
             ScheduledSendStatus.PENDING, null ->
                 if (r.status == RecipientStatus.FAILED) {

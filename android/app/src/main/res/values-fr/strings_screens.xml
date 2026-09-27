@@ -105,11 +105,6 @@
     <string name="scr_backup_default_app_note">La restauration et l\'importation nécessitent que Dak soit votre application SMS par défaut. Elles ne font qu\'ajouter des messages : rien de ce qui se trouve déjà sur votre téléphone n\'est modifié ni supprimé.</string>
     <string name="scr_backup_destination">Dossier de sauvegarde</string>
     <string name="scr_backup_destination_none">Non choisi. Sélectionnez un dossier dans Drive, Dropbox ou sur ce téléphone.</string>
-    <string name="scr_backup_done_backup">%1$d messages sauvegardés</string>
-    <string name="scr_backup_done_export">%1$d messages exportés</string>
-    <string name="scr_backup_done_import">%1$d messages importés (%2$d déjà présents ou ignorés)</string>
-    <string name="scr_backup_done_restore">%1$d messages restaurés (%2$d déjà présents ou ignorés)</string>
-    <string name="scr_backup_done_restore_upto">Inclut les messages jusqu\'au %1$s.</string>
     <string name="scr_backup_explainer">Les sauvegardes sont chiffrées sur ce téléphone avec votre phrase secrète avant de le quitter. Dak ne voit jamais vos messages ni votre clé.</string>
     <string name="scr_backup_export">Exporter</string>
     <string name="scr_backup_export_dak">Exporter (format Dak ouvert)</string>
@@ -128,7 +123,6 @@
     <string name="scr_backup_import_body">SMS Backup &amp; Restore (XML), Fossify Messages ou une sauvegarde SMS Organizer.</string>
     <string name="scr_backup_last">Dernière sauvegarde</string>
     <string name="scr_backup_last_error">Échec de la dernière tentative : %1$s</string>
-    <string name="scr_backup_last_value">%1$s · %2$d messages</string>
     <string name="scr_backup_manual">Manuelle uniquement</string>
     <string name="scr_backup_never">Jamais</string>
     <string name="scr_backup_now">Sauvegarder maintenant</string>
@@ -168,7 +162,6 @@
     <string name="scr_bin_deleted_by_otp">OTP supprimé automatiquement</string>
     <string name="scr_bin_deleted_by_rule">Supprimé par la règle \"%1$s\"</string>
     <string name="scr_bin_deleted_by_you">Supprimé par vous</string>
-    <string name="scr_bin_emptied">%1$d messages supprimés définitivement</string>
     <string name="scr_bin_empty_action">Vider la corbeille</string>
     <string name="scr_bin_empty_body">Les messages supprimés restent ici un certain temps pour que vous puissiez les restaurer.</string>
     <string name="scr_bin_empty_confirm_body">Tout le contenu de la corbeille sera supprimé définitivement. Cette action est irréversible.</string>
@@ -211,14 +204,12 @@
     <string name="scr_composer_mms_chip">MMS</string>
     <string name="scr_composer_remove_attachment">Retirer la pièce jointe</string>
     <string name="scr_composer_roaming">En itinérance sur %1$s</string>
-    <string name="scr_composer_segments">%1$d SMS · %2$d caractères restants</string>
     <string name="scr_composer_send">Envoyer</string>
     <string name="scr_composer_send_in_hour">Envoyer dans 1 heure</string>
     <string name="scr_composer_send_mms">Envoyer en MMS</string>
     <string name="scr_composer_send_tomorrow">Envoyer demain à 9:00</string>
     <string name="scr_composer_sent_as">Sera envoyé en tant que %1$s pour que les réponses fonctionnent en itinérance</string>
     <string name="scr_conv_back_to_results">Retour aux résultats</string>
-    <string name="scr_conv_group_members">%1$d personnes</string>
     <string name="scr_filter_amount_500">Plus de 500</string>
     <string name="scr_filter_amount_5000">Plus de 5 000</string>
     <string name="scr_filter_archive">Archivés</string>
@@ -246,7 +237,6 @@
     <string name="scr_inbox_empty_body">Les conversations de cet onglet s\'affichent ici à l\'arrivée des messages.</string>
     <string name="scr_inbox_empty_title">Rien pour l\'instant</string>
     <string name="scr_inbox_index_progress">Organisation des anciens messages : %1$s sur %2$s</string>
-    <string name="scr_inbox_index_waiting">%1$s anciens messages seront organisés au moment que vous avez choisi</string>
     <string name="scr_inbox_new_message">Nouveau message</string>
     <string name="scr_link_lookalike">Cette adresse imite %1$s mais n\'est pas son site officiel.</string>
     <string name="scr_link_lookalike_unbranded">Cette adresse n\'a que l\'apparence d\'un site officiel : c\'est un simple numéro, ou elle se fait passer pour un site public ou bancaire. Les vrais sites utilisent leur propre domaine.</string>
@@ -267,7 +257,6 @@
     <string name="scr_passbook_balance_unknown_since">Solde inconnu depuis le %1$s</string>
     <string name="scr_passbook_empty_body">Les comptes et cartes s\'affichent ici dès l\'arrivée des messages bancaires. Tout est lu sur votre téléphone.</string>
     <string name="scr_passbook_empty_title">Aucun compte pour l\'instant</string>
-    <string name="scr_passbook_entries">%1$d transactions</string>
     <string name="scr_passbook_group_accounts">Comptes bancaires</string>
     <string name="scr_passbook_group_cards">Cartes de crédit</string>
     <string name="scr_passbook_group_other">Autres</string>
@@ -288,7 +277,6 @@
     <string name="scr_search_filters">Filtres</string>
     <string name="scr_search_hint">Rechercher dans les messages</string>
     <string name="scr_search_in_bin">Dans la corbeille</string>
-    <string name="scr_search_more_matches">+%1$d autres dans cette conversation</string>
     <string name="scr_search_no_results">Aucun résultat</string>
     <string name="scr_search_no_results_body">Essayez avec moins de mots ou retirez un filtre.</string>
     <string name="scr_search_operators_help">Astuce : combinez des mots et des filtres tels que from:hdfc category:otp sim:2 has:link amount:>500 during:\"last week\" in:archive is:unread.</string>

@@ -66,6 +66,10 @@ class BackupChainTest {
 
     @Test
     fun `no latest pointer and no snapshot is a clear error`(): Unit = runBlocking {
+        // Typed, so the app maps it to "no backup found" without matching the English message.
+        assertFailsWith<NoBackupsException> { BackupEngine(LocalDirectoryTarget(tempDir())).restore(existingKeys = none).toList() }
+        assertFailsWith<NoBackupsException> { BackupEngine(LocalDirectoryTarget(tempDir())).readExtras() }
+        // Still an IllegalStateException for callers that catch the broad type.
         val e = assertFailsWith<IllegalStateException> { BackupEngine(LocalDirectoryTarget(tempDir())).restore(existingKeys = none).toList() }
         assertTrue("No backups" in (e.message ?: ""))
     }

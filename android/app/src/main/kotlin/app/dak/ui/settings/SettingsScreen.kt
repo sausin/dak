@@ -55,6 +55,7 @@ import app.dak.ui.common.DakTopAppBar
 fun SettingsScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     FollowAppLanguage(viewModel)
+    val settingsLabels = rememberSettingsLabels()
     val snackbar = remember { SnackbarHostState() }
     var handledFocus by rememberSaveable { mutableStateOf(false) }
 
@@ -109,7 +110,7 @@ fun SettingsScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewM
                             leadingContent = { Icon(sectionIcon(section.id), contentDescription = null) },
                             headlineContent = { Text(section.title) },
                             supportingContent = {
-                                val summary = section.inlineSummary
+                                val summary = section.inlineSummary(settingsLabels)
                                 if (summary.isNotEmpty()) {
                                     Text(summary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 }

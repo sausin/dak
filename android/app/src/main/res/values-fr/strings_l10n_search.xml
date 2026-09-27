@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search, passbook, folding, inbox and link-safety i18n fixes: plurals, filter chips, composed titles (workstream "search"). -->
+<resources>
+    <string name="search_chip_from">De : %1$s</string>
+    <string name="search_chip_sim">SIM : %1$s</string>
+    <string name="search_chip_has_attachment">Avec pièce jointe</string>
+    <string name="search_chip_has_link">Avec lien</string>
+    <string name="search_chip_has_otp">Avec OTP</string>
+    <string name="search_chip_amount_exact">Montant %1$s</string>
+    <string name="search_chip_amount_between">Montant %1$s–%2$s</string>
+    <string name="search_chip_amount_over">Montant supérieur à %1$s</string>
+    <string name="search_chip_amount_under">Montant inférieur à %1$s</string>
+    <string name="search_chip_amount_any">Tout montant</string>
+    <string name="search_chip_date_since">Depuis le %1$s</string>
+    <string name="search_chip_date_before">Avant le %1$s</string>
+    <string name="search_chip_date_any">Toute date</string>
+    <string name="search_chip_in_inbox">Dans la boîte de réception</string>
+    <string name="search_chip_read">Lus</string>
+    <string name="search_chip_not">Exclure : %1$s</string>
+    <plurals name="scr_search_more_matches">
+        <item quantity="one">+%1$d autre dans cette conversation</item>
+        <item quantity="many">+%1$d autres dans cette conversation</item>
+        <item quantity="other">+%1$d autres dans cette conversation</item>
+    </plurals>
+
+    <string name="link_brand_uidai">UIDAI (Aadhaar)</string>
+    <string name="link_brand_income_tax">l\'administration fiscale indienne (Income Tax Department)</string>
+    <string name="link_brand_government_of_india">le gouvernement indien</string>
+    <string name="link_brand_india_post">la poste indienne (India Post)</string>
+
+    <string name="inst_unknown_institution">Inconnu</string>
+    <string name="inst_account_title">%1$s · %2$s</string>
+    <string name="inst_account_title_digits">%1$s · %2$s %3$s</string>
+    <string name="inst_kind_digits">%1$s %2$s</string>
+    <plurals name="scr_passbook_entries">
+        <item quantity="one">%1$d transaction</item>
+        <item quantity="many">%1$d transactions</item>
+        <item quantity="other">%1$d transactions</item>
+    </plurals>
+    <plurals name="inst_total_missing">
+        <item quantity="one">%1$d inconnu</item>
+        <item quantity="many">%1$d inconnus</item>
+        <item quantity="other">%1$d inconnus</item>
+    </plurals>
+
+    <plurals name="fold_channels_count">
+        <item quantity="one">%1$d canal</item>
+        <item quantity="many">%1$d canaux</item>
+        <item quantity="other">%1$d canaux</item>
+    </plurals>
+    <plurals name="fold_channel_last_seen">
+        <item quantity="one">Dernier message %1$s · %2$d message</item>
+        <item quantity="many">Dernier message %1$s · %2$d messages</item>
+        <item quantity="other">Dernier message %1$s · %2$d messages</item>
+    </plurals>
+    <plurals name="fold_suggestion_title">
+        <item quantity="one">Cet expéditeur semble correspondre à %2$s. Le regrouper dans une seule conversation ?</item>
+        <item quantity="many">Ces %1$d expéditeurs semblent correspondre à %2$s. Les regrouper dans une seule conversation ?</item>
+        <item quantity="other">Ces %1$d expéditeurs semblent correspondre à %2$s. Les regrouper dans une seule conversation ?</item>
+    </plurals>
+    <plurals name="fold_name_title">
+        <item quantity="one">Regrouper %1$d conversation</item>
+        <item quantity="many">Regrouper %1$d conversations</item>
+        <item quantity="other">Regrouper %1$d conversations</item>
+    </plurals>
+
+    <plurals name="scr_inbox_index_waiting">
+        <item quantity="one">%1$s ancien message sera organisé au moment que vous avez choisi</item>
+        <item quantity="many">%1$s anciens messages seront organisés au moment que vous avez choisi</item>
+        <item quantity="other">%1$s anciens messages seront organisés au moment que vous avez choisi</item>
+    </plurals>
+    <string name="inbox_unread_overflow">%1$s+</string>
+</resources>

@@ -54,7 +54,7 @@ internal fun MessageSelectionTopBar(count: Int, actions: MessageSelectionActions
         },
         title = {
             Text(
-                stringResource(R.string.fold_selected_count, count),
+                pluralStringResource(R.plurals.fold_selected_count, count, count),
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         },

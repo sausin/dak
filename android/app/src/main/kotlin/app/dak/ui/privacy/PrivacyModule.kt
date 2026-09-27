@@ -15,6 +15,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
+import java.util.Locale
 import javax.inject.Singleton
 
 /**
@@ -42,12 +43,23 @@ internal class FileConsentStorage(dir: File) : ConsentStorage {
     }
 }
 
+/** The language tag disclosures are shown in for [context]: the app language. */
+internal fun disclosureLanguage(context: Context): String =
+    (context.resources.configuration.locales[0] ?: Locale.getDefault()).toLanguageTag()
+
 @Module
 @InstallIn(SingletonComponent::class)
 object PrivacyModule {
+    /**
+     * Disclosures are shown in the app language (the application context follows it, docs/i18n.md), so a consent is
+     * recorded against the text in that language unless the screen names the language it showed.
+     */
     @Provides @Singleton
     fun consentLedger(@ApplicationContext context: Context): ConsentLedger =
-        ConsentLedger(FileConsentStorage(context.noBackupFilesDir))
+        ConsentLedger(
+            FileConsentStorage(context.noBackupFilesDir),
+            displayLanguage = { disclosureLanguage(context) },
+        )
 }
 
 /**

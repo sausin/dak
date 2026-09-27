@@ -1,6 +1,7 @@
 package app.dak.automations.action
 
 import app.dak.automations.MessageEvent
+import app.dak.automations.PlaceholderFormatter
 import app.dak.automations.PlannedAction
 import app.dak.automations.TemplateRenderer
 import app.dak.automations.audit.AuditLogEntry
@@ -36,6 +37,8 @@ public interface ActionContext {
     public val clockMillis: () -> Long
     /** Zone used to render `{time}` in templates; see [TemplateRenderer]. */
     public val zoneId: String
+    /** Formats `{time}`, `{amount}` and `{sim}` in templates (the app language in `:app`). */
+    public val placeholderFormatter: PlaceholderFormatter get() = PlaceholderFormatter.Default
 }
 
 /**
@@ -90,7 +93,7 @@ public class DefaultActionRegistry : ActionRegistry {
                 else ActionResult.Failed("notify failed")
             }
             is ActionSpec.ForwardSms -> {
-                val text = TemplateRenderer.render(action.template, event, context.zoneId)
+                val text = TemplateRenderer.render(action.template, event, context.zoneId, context.placeholderFormatter)
                 if (context.smsForwarder.forward(action.to, action.subId, text)) ActionResult.Success
                 else ActionResult.Failed("forward failed")
             }
@@ -112,7 +115,7 @@ public class DefaultActionRegistry : ActionRegistry {
                 ActionResult.Success
             }
             is ActionSpec.Webhook -> {
-                val text = TemplateRenderer.render(action.template, event, context.zoneId)
+                val text = TemplateRenderer.render(action.template, event, context.zoneId, context.placeholderFormatter)
                 val jsonBody = Json.encodeToString(
                     JsonObject.serializer(),
                     buildJsonObject {
@@ -130,7 +133,7 @@ public class DefaultActionRegistry : ActionRegistry {
                 else ActionResult.Failed("webhook failed")
             }
             is ActionSpec.RelayToWebClient -> {
-                val text = TemplateRenderer.render(action.template, event, context.zoneId)
+                val text = TemplateRenderer.render(action.template, event, context.zoneId, context.placeholderFormatter)
                 val pairing = action.pairingId ?: return ActionResult.Failed("no pairing configured")
                 if (context.premiumGateway.relayCiphertext(pairing, text.toByteArray(Charsets.UTF_8))) {
                     ActionResult.Success
@@ -139,7 +142,7 @@ public class DefaultActionRegistry : ActionRegistry {
                 }
             }
             is ActionSpec.RelayRule -> {
-                val text = TemplateRenderer.render(action.template, event, context.zoneId)
+                val text = TemplateRenderer.render(action.template, event, context.zoneId, context.placeholderFormatter)
                 when (action.channel) {
                     RelayChannel.SMS ->
                         if (context.smsForwarder.forward(action.recipient, null, text)) ActionResult.Success

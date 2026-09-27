@@ -2,6 +2,7 @@ package app.dak.i18n
 
 import app.dak.automations.birthdays.WishTemplates
 import app.dak.automations.forwarding.ForwardingSpec
+import app.dak.automations.presets.Presets
 import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
@@ -28,6 +29,16 @@ class LocalizedDefaultsTest {
         assertEquals(ForwardingSpec.DEFAULT_TEMPLATE, ForwardingSpec.defaultTemplate(s["fw_default_template"]))
         assertEquals(WishTemplates.FALLBACK_OCCASION, s["wish_fallback_occasion"])
         assertTrue(s.getValue("selftest_sms_body").contains("%1\$s"))
+    }
+
+    @Test
+    fun `english preset names match the automations module`() {
+        val s = strings()
+        val english = Presets.all(0L).associate { it.id to it.name }
+        assertEquals(english.getValue(Presets.ID_ARCHIVE_OLD_PROMOTIONS), s["preset_archive_old_promotions_name"])
+        assertEquals(english.getValue(Presets.ID_LABEL_AMAZON_DELIVERIES), s["preset_label_amazon_deliveries_name"])
+        assertEquals(english.getValue(Presets.ID_OTP_BIG_NOTIFICATION), s["preset_otp_big_notification_name"])
+        assertEquals(3, english.size)
     }
 
     @Test

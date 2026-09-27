@@ -67,8 +67,15 @@
     <string name="dak_telephony_fail_mms_save_failed">Impossible d\'enregistrer le message</string>
     <string name="dak_telephony_fail_mms_too_large">Le message est trop volumineux</string>
     <string name="dak_telephony_fail_mms_empty_response">L\'opérateur a renvoyé un message vide</string>
-    <!-- %1$s = technical detail from the MMS decoder (English, not translated) -->
-    <string name="dak_telephony_fail_mms_unreadable">MMS illisible : %1$s</string>
+    <string name="dak_telephony_fail_mms_unreadable">MMS illisible</string>
     <string name="dak_telephony_fail_mms_unexpected_response">Réponse inattendue de l\'opérateur</string>
     <string name="dak_telephony_fail_mms_carrier_could_not_deliver">L\'opérateur n\'a pas pu distribuer ce message</string>
+    <string name="dak_telephony_fail_birthday_already_wished">Vœux déjà envoyés cette année</string>
+    <string name="dak_telephony_fail_birthday_wishes_off">Vœux d\'anniversaire désactivés</string>
+    <string name="dak_telephony_fail_birthday_asked">Demandé d\'abord à l\'utilisateur</string>
+    <string name="dak_telephony_fail_birthday_no_app_lock">Pas de verrouillage de l\'appli : demandé à l\'utilisateur</string>
+    <string name="dak_telephony_fail_birthday_daily_limit">Limite quotidienne d\'envois automatiques : demandé à l\'utilisateur</string>
+    <string name="dak_telephony_fail_scheduled_premium_refused">Numéro surtaxé non approuvé</string>
+    <string name="dak_telephony_fail_scheduled_no_app_lock">Aucun verrouillage de l\'application n\'était configuré</string>
+    <string name="dak_telephony_fail_scheduled_emergency_cancelled">Les messages programmés vers les numéros d\'urgence ne sont pas autorisés</string>
 </resources>

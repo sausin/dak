@@ -59,7 +59,7 @@ fun PinVerifyPanel(
 
     val lockedOut = lockoutEnds > 0 && now < lockoutEnds
     val shownMessage = if (lockedOut) {
-        context.getString(R.string.lock_pin_locked_out, formatCountdown(lockoutEnds - now))
+        context.getString(R.string.lock_pin_locked_out, formatCountdown(lockoutEnds - now, context.resources.configuration.locales[0] ?: Locale.getDefault()))
     } else {
         message
     }
@@ -110,12 +110,14 @@ fun PinVerifyPanel(
     )
 }
 
-/** `m:ss` (or `h:mm:ss` from an hour up), rounded up so it never shows 0:00 while still locked. */
-internal fun formatCountdown(millis: Long): String {
+/**
+ * `m:ss` (or `h:mm:ss` from an hour up), rounded up so it never shows 0:00 while still locked. Digits follow
+ * [locale], the app language (not the phone's default locale).
+ */
+internal fun formatCountdown(millis: Long, locale: Locale): String {
     val total = ((millis + 999) / 1000).coerceAtLeast(0)
     val h = total / 3600
     val m = (total % 3600) / 60
     val s = total % 60
-    val locale = Locale.getDefault()
     return if (h > 0) "%d:%02d:%02d".format(locale, h, m, s) else "%d:%02d".format(locale, m, s)
 }

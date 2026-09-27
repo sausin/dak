@@ -92,11 +92,14 @@ internal object Mappers {
 
     fun conversationSummary(row: ConversationRow, contacts: ContactLookup, snippetRepeatCount: Int = 1): ConversationSummary {
         val merged = ConversationIds.isMergeGroup(row.conversationId)
+        var titleParts = emptyList<String>()
         val title = if (merged) {
             row.groupName ?: row.canonicalSender ?: row.address
         } else {
             val addresses = if (row.kind == MessageKind.MMS) splitAddresses(row.address) else listOf(row.address)
-            titleForAddresses(addresses, contacts) ?: row.canonicalSender ?: row.address
+            val parts = titlePartsForAddresses(addresses, contacts)
+            if (addresses.size > 1 && (parts != null || row.canonicalSender == null)) titleParts = parts ?: addresses
+            parts?.joinToString(", ") ?: row.canonicalSender ?: row.address
         }
         return ConversationSummary(
             conversationId = row.conversationId,
@@ -120,14 +123,16 @@ internal object Mappers {
             snippetRepeatCount = snippetRepeatCount.coerceAtLeast(1),
             incognito = row.incognito,
             lastDeliveryStatus = DeliveryStatus.fromCode(row.deliveryStatus),
+            titleParts = titleParts,
         )
     }
 
     fun providerSummary(thread: ProviderThread, prefs: ConversationPrefs?, contacts: ContactLookup): ConversationSummary {
         val address = thread.addresses.joinToString(" ")
+        val parts = titlePartsForAddresses(thread.addresses, contacts)
         return ConversationSummary(
             conversationId = ConversationIds.forThread(thread.threadId),
-            title = titleForAddresses(thread.addresses, contacts) ?: address,
+            title = parts?.joinToString(", ") ?: address,
             address = address,
             snippet = IndexRowMapper.preview(thread.snippet),
             dateMillis = thread.dateMillis,
@@ -145,15 +150,19 @@ internal object Mappers {
             incognito = prefs?.incognitoSince != null,
             hasAttachment = false,
             enriched = false,
+            titleParts = if (thread.addresses.size > 1) parts ?: thread.addresses else emptyList(),
         )
     }
 
-    /** Contact names for the given addresses joined with ", ", or null if none resolves. */
-    fun titleForAddresses(addresses: List<String>, contacts: ContactLookup): String? {
+    /**
+     * The contact name (else the address) of each address, in order, or null if none resolves. Summaries keep them as
+     * [ConversationSummary.titleParts] (the UI joins them in the app language) and a ", "-joined fallback title.
+     */
+    fun titlePartsForAddresses(addresses: List<String>, contacts: ContactLookup): List<String>? {
         if (addresses.isEmpty()) return null
         val names = addresses.map { contacts.displayName(it) }
         if (names.all { it == null }) return null
-        return addresses.indices.joinToString(", ") { names[it] ?: addresses[it] }
+        return addresses.indices.map { names[it] ?: addresses[it] }
     }
 
     /** MMS rows store recipients space-joined (SMS rows hold a single address and are never split). */

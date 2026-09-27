@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automation.AppLocaleText
 import app.dak.automation.ForwardingHold
 import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automations.forwarding.ForwardingPolicy
@@ -286,7 +287,7 @@ fun ForwardingScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     issues = emptyList()
                     scope.launch {
                         handle(
-                            viewModel.checkSave(spec, original),
+                            viewModel.checkSave(withAppDefaults(context, spec), original),
                             onReady = { rule ->
                                 if (viewModel.save(rule)) editing = null else lockNeeded = true
                             },
@@ -336,8 +337,31 @@ private fun newSpec(context: Context): ForwardingSpec {
     return ForwardingSpec(
         startMillis = start,
         endMillis = end,
-        template = ForwardingSpec.defaultTemplate(context.getString(R.string.fw_default_template)),
+        template = defaultTemplate(context),
     )
+}
+
+private fun defaultTemplate(context: Context): String = ForwardingSpec.defaultTemplate(context.getString(R.string.fw_default_template))
+
+/**
+ * Fills what the user left blank in the app language before the rule is built: a cleared template becomes the
+ * app-language default (not [ForwardingSpec]'s English fallback), and a blank name becomes "A and B → C" with the
+ * language's list pattern ([ForwardingSpec.derivedName] joins with ", " and is only a last resort). The name is stored
+ * with the rule, so it stays in the language it was saved in.
+ */
+private fun withAppDefaults(context: Context, spec: ForwardingSpec): ForwardingSpec {
+    var result = spec
+    if (result.template.isBlank()) result = result.copy(template = defaultTemplate(context))
+    if (result.name.isBlank() && result.isComplete) result = result.copy(name = derivedName(context, result))
+    return result
+}
+
+/** "HDFC Bank and Zerodha → CA", "HDFC Bank and Zerodha +1 → CA and Ravi", in the app language. */
+private fun derivedName(context: Context, spec: ForwardingSpec): String {
+    val shown = AppLocaleText.list(context, spec.sources.take(2).map { it.name })
+    val from = if (spec.sources.size > 2) context.getString(R.string.fw_history_to_more, shown, spec.sources.size - 2) else shown
+    val to = AppLocaleText.list(context, spec.recipients.filter { it.number.isNotBlank() }.map { it.label })
+    return context.getString(R.string.fw_derived_name, from, to)
 }
 
 @Composable
@@ -360,7 +384,11 @@ private fun ForwardingRuleRow(
         supportingContent = {
             Column {
                 Text(
-                    stringResource(R.string.fw_row_route, spec.sources.joinToString(", ") { it.name }, spec.recipients.joinToString(", ") { it.label }),
+                    stringResource(
+                        R.string.fw_row_route,
+                        AppLocaleText.list(LocalContext.current, spec.sources.map { it.name }),
+                        AppLocaleText.list(LocalContext.current, spec.recipients.map { it.label }),
+                    ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -436,5 +464,5 @@ private fun statusText(row: ForwardingRow, status: ForwardingStatus): String {
             else -> R.string.fw_status_paused
         },
     )
-    return "$label · $period"
+    return stringResource(R.string.fw_status_with_period, label, period)
 }

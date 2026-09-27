@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -53,7 +54,7 @@ internal fun SelectionTopBar(count: Int, onClose: () -> Unit) {
         },
         title = {
             Text(
-                stringResource(R.string.fold_selected_count, count),
+                pluralStringResource(R.plurals.fold_selected_count, count, count),
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         },

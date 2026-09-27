@@ -4,7 +4,9 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.util.Base64
+import androidx.annotation.StringRes
 import app.dak.BuildConfig
+import app.dak.R
 import app.dak.automation.UserLabels
 import app.dak.backup.format.PersonalDataExportWriter
 import app.dak.index.db.DakIndexDatabase
@@ -53,22 +55,24 @@ class PersonalDataExporter @Inject constructor(
 ) {
     suspend fun export(uri: Uri): PersonalDataExportResult = withContext(Dispatchers.IO) {
         val written = LinkedHashMap<String, Int?>()
+        // Descriptions and the README are for the person reading the export: in the app language (the application
+        // context follows it, see docs/i18n.md). Section names and file names stay machine ids.
         val out = context.contentResolver.openOutputStream(uri, "w") ?: throw IOException("Cannot write to the chosen file")
         out.use { stream ->
             PersonalDataExportWriter(stream).use { w ->
-                w.writeJson("settings", "Your Dak settings (only values you changed).", settings.export())
+                w.writeJson("settings", context.getString(R.string.privacy_export_desc_settings), settings.export())
                 written["settings"] = null
 
                 val folds = runCatching { senderGroups.get().exportRules() }.getOrNull()
                 if (folds != null) {
-                    w.writeJson("sender_groups", "How you grouped senders, and names you gave them.", folds)
+                    w.writeJson("sender_groups", context.getString(R.string.privacy_export_desc_sender_groups), folds)
                     written["sender_groups"] = null
                 }
 
                 val labels = userLabels.all.value.mapValues { (_, v) -> v.sorted() }
                 w.writeJson(
                     "user_labels",
-                    "Labels you or your rules put on messages, by message key (for example sms:123).",
+                    context.getString(R.string.privacy_export_desc_user_labels),
                     json.encodeToString(MapSerializer(String.serializer(), ListSerializer(String.serializer())), labels),
                     items = labels.size,
                 )
@@ -76,7 +80,7 @@ class PersonalDataExporter @Inject constructor(
 
                 w.writeJson(
                     "consent_records",
-                    "Each time you allowed, declined or withdrew a feature that sends data off the phone.",
+                    context.getString(R.string.privacy_export_desc_consent_records),
                     consents.exportJson(),
                     items = consents.records.value.size,
                 )
@@ -84,14 +88,14 @@ class PersonalDataExporter @Inject constructor(
 
                 for (table in TABLES) {
                     var count = 0
-                    w.writeJsonLines(table.section, table.description, rows(table.sql).onEach { count++ })
+                    w.writeJsonLines(table.section, context.getString(table.description), rows(table.sql).onEach { count++ })
                     written[table.section] = count
                 }
                 w.finish(
                     createdAt = System.currentTimeMillis(),
                     appVersion = BuildConfig.VERSION_NAME,
-                    readme = README,
-                    notIncluded = NOT_INCLUDED,
+                    readme = readme(context),
+                    notIncluded = NOT_INCLUDED.map { context.getString(it) },
                 )
             }
         }
@@ -119,55 +123,46 @@ class PersonalDataExporter @Inject constructor(
         else -> JsonPrimitive(c.getString(i))
     }
 
-    private data class TableExport(val section: String, val description: String, val sql: String)
+    private data class TableExport(val section: String, @StringRes val description: Int, val sql: String)
 
     private companion object {
         val json = Json { encodeDefaults = true }
 
         val TABLES = listOf(
-            TableExport("automation_rules", "Your automation rules (the rule definition is the \"json\" column).", "SELECT * FROM ${Tables.AUTOMATION_RULE}"),
-            TableExport("automation_runs", "What each rule sent, failed to send or skipped, and where to.", "SELECT * FROM ${Tables.AUTOMATION_RUN} ORDER BY atMillis"),
-            TableExport("activity_log", "Automatic and destructive actions (rules firing, auto-deletes, restores).", "SELECT * FROM ${Tables.AUDIT_LOG} ORDER BY atMillis"),
-            TableExport("scheduled_messages", "Messages you scheduled, including sent and cancelled ones.", "SELECT * FROM ${Tables.SCHEDULED_SEND}"),
-            TableExport("saved_searches", "Searches you saved.", "SELECT * FROM ${Tables.SAVED_SEARCH}"),
-            TableExport("search_history", "Your recent searches.", "SELECT * FROM ${Tables.SEARCH_HISTORY}"),
-            TableExport("accounts", "Bank accounts and cards in the Passbook, with balances.", "SELECT * FROM ${Tables.ACCOUNT}"),
-            TableExport("ledger", "Transactions Dak found in your messages.", "SELECT * FROM ${Tables.LEDGER_ENTRY}"),
-            TableExport("account_links", "Accounts you merged or kept apart.", "SELECT * FROM ${Tables.ACCOUNT_ALIAS}"),
-            TableExport("account_types", "Account types you set by hand.", "SELECT * FROM ${Tables.ACCOUNT_TYPE_OVERRIDE}"),
-            TableExport("hidden_accounts", "Accounts you removed from the Passbook.", "SELECT * FROM ${Tables.ACCOUNT_HIDDEN}"),
-            TableExport("conversation_settings", "Per-conversation choices: pinned, muted, archived, reply SIM, colour.", "SELECT * FROM ${Tables.PREFS}"),
-            TableExport("sender_names", "Sender groups and the names shown for them.", "SELECT * FROM ${Tables.MERGE_GROUP}"),
-            TableExport("sender_addresses", "Which addresses belong to which sender group.", "SELECT * FROM ${Tables.SENDER_ALIAS}"),
-            TableExport("message_flags", "Messages you starred or archived.", "SELECT * FROM ${Tables.MESSAGE_FLAG}"),
+            TableExport("automation_rules", R.string.privacy_export_desc_automation_rules, "SELECT * FROM ${Tables.AUTOMATION_RULE}"),
+            TableExport("automation_runs", R.string.privacy_export_desc_automation_runs, "SELECT * FROM ${Tables.AUTOMATION_RUN} ORDER BY atMillis"),
+            TableExport("activity_log", R.string.privacy_export_desc_activity_log, "SELECT * FROM ${Tables.AUDIT_LOG} ORDER BY atMillis"),
+            TableExport("scheduled_messages", R.string.privacy_export_desc_scheduled_messages, "SELECT * FROM ${Tables.SCHEDULED_SEND}"),
+            TableExport("saved_searches", R.string.privacy_export_desc_saved_searches, "SELECT * FROM ${Tables.SAVED_SEARCH}"),
+            TableExport("search_history", R.string.privacy_export_desc_search_history, "SELECT * FROM ${Tables.SEARCH_HISTORY}"),
+            TableExport("accounts", R.string.privacy_export_desc_accounts, "SELECT * FROM ${Tables.ACCOUNT}"),
+            TableExport("ledger", R.string.privacy_export_desc_ledger, "SELECT * FROM ${Tables.LEDGER_ENTRY}"),
+            TableExport("account_links", R.string.privacy_export_desc_account_links, "SELECT * FROM ${Tables.ACCOUNT_ALIAS}"),
+            TableExport("account_types", R.string.privacy_export_desc_account_types, "SELECT * FROM ${Tables.ACCOUNT_TYPE_OVERRIDE}"),
+            TableExport("hidden_accounts", R.string.privacy_export_desc_hidden_accounts, "SELECT * FROM ${Tables.ACCOUNT_HIDDEN}"),
+            TableExport("conversation_settings", R.string.privacy_export_desc_conversation_settings, "SELECT * FROM ${Tables.PREFS}"),
+            TableExport("sender_names", R.string.privacy_export_desc_sender_names, "SELECT * FROM ${Tables.MERGE_GROUP}"),
+            TableExport("sender_addresses", R.string.privacy_export_desc_sender_addresses, "SELECT * FROM ${Tables.SENDER_ALIAS}"),
+            TableExport("message_flags", R.string.privacy_export_desc_message_flags, "SELECT * FROM ${Tables.MESSAGE_FLAG}"),
             TableExport(
                 "message_categories",
-                "The category and labels Dak gave each message (no message text).",
+                R.string.privacy_export_desc_message_categories,
                 "SELECT kind, providerId, address, dateMillis, category, labels FROM ${Tables.MESSAGE}",
             ),
-            TableExport("recycle_bin", "Messages in the recycle bin (deleted, waiting to be purged). Includes their text.", "SELECT * FROM ${Tables.BIN}"),
+            TableExport("recycle_bin", R.string.privacy_export_desc_recycle_bin, "SELECT * FROM ${Tables.BIN}"),
         )
 
         val NOT_INCLUDED = listOf(
-            "Your SMS and MMS messages themselves: they live in the phone's shared message store. Use Backup → Export to save them.",
-            "Keys and secrets: the index key, the backup passphrase and recovery code, the app-lock PIN and webhook secrets.",
-            "Data Dak can rebuild: the search index and installed-app OTP hashes.",
+            R.string.privacy_export_not_included_messages,
+            R.string.privacy_export_not_included_secrets,
+            R.string.privacy_export_not_included_rebuildable,
         )
 
-        const val README = """Dak personal data export
-========================
-
-This file contains the data the Dak app stored about you on your phone, as plain JSON.
-It is NOT encrypted: anyone with this file can read it. Keep it somewhere safe and delete it when you are done.
-
-manifest.json lists every file with its size, SHA-256 checksum and a short description.
-data/*.json files hold one JSON document each; data/*.jsonl files hold one JSON object per line.
-Times are milliseconds since 1970-01-01 UTC.
-
-Not included: your SMS and MMS messages (use Settings > Backup, data and privacy > Export for those),
-secrets such as keys and PINs, and data Dak can rebuild from your messages.
-
-Questions: see the privacy policy in the app (Settings > Privacy > Privacy policy).
-"""
+        /** README.txt: a title underlined for plain-text readers, then the body, both in the app language. */
+        fun readme(context: Context): String {
+            val title = context.getString(R.string.privacy_export_readme_title)
+            val body = context.getString(R.string.privacy_export_readme_body)
+            return title + "\n" + "=".repeat(title.codePointCount(0, title.length)) + "\n\n" + body.trimEnd() + "\n"
+        }
     }
 }

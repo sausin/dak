@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import app.dak.notifications.ReliabilityCheckId
 import app.dak.telephony.FailureReasonText
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.WarningBanner
+import app.dak.ui.common.simName
 import app.dak.ui.theme.DakTheme
 
 /**
@@ -112,7 +114,7 @@ fun SelfTestScreen(navigator: DakNavigator, modifier: Modifier = Modifier, viewM
                                     selected = sim.subId == state.selectedSubId,
                                     onClick = { viewModel.selectSim(sim.subId) },
                                     label = {
-                                        Text(sim.displayName.ifBlank { stringResource(R.string.sim_n, (sim.slotIndex + 1).toString()) })
+                                        Text(simName(sim))
                                     },
                                 )
                             }
@@ -204,9 +206,10 @@ private fun SmsStatus(sms: SmsTestState) {
             Text(stringResource(if (sms is SmsTestState.Sending) R.string.selftest_sms_sending else R.string.selftest_sms_waiting))
         }
         is SmsTestState.Received -> Text(
-            stringResource(
-                if (sms.notificationPosted) R.string.selftest_sms_received else R.string.selftest_sms_received_no_notification,
-                sms.seconds,
+            pluralStringResource(
+                if (sms.notificationPosted) R.plurals.selftest_sms_received_seconds else R.plurals.selftest_sms_received_no_notification_seconds,
+                sms.seconds.toInt(),
+                sms.seconds.toInt(),
             ),
             color = if (sms.notificationPosted) DakTheme.colors.success.accent else MaterialTheme.colorScheme.error,
         )

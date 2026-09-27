@@ -7,7 +7,6 @@
     <string name="fold_empty_body">Les expéditeurs d\'une même marque sont regroupés automatiquement. Appuyez de manière prolongée sur des conversations dans la boîte de réception et choisissez « Regrouper » pour en regrouper d\'autres.</string>
     <string name="fold_suggestions_header">Suggestions</string>
     <string name="fold_groups_header">Conversations regroupées</string>
-    <string name="fold_suggestion_title">Ces %1$d expéditeurs semblent correspondre à %2$s. Les regrouper dans une seule conversation ?</string>
     <string name="fold_suggestion_same_brand">Même marque</string>
     <string name="fold_suggestion_similar">Noms d\'expéditeurs similaires</string>
     <string name="fold_action_fold">Regrouper</string>
@@ -21,15 +20,12 @@
     <string name="fold_action_unfold_channel">Dégrouper un expéditeur…</string>
     <string name="fold_action_manage">Groupes d\'expéditeurs</string>
     <string name="fold_action_select">Sélectionner</string>
-    <string name="fold_channels_count">%1$d canaux</string>
-    <string name="fold_channel_last_seen">Dernier message %1$s · %2$d messages</string>
     <string name="fold_channel_also">Aussi sous %1$s</string>
     <string name="fold_channel_manual">Regroupé par vous</string>
     <string name="fold_group_manual">Votre groupe</string>
     <string name="fold_group_brand">Regroupé par marque</string>
     <string name="fold_rename_title">Renommer le groupe</string>
     <string name="fold_rename_label">Nom</string>
-    <string name="fold_name_title">Regrouper %1$d conversations</string>
     <string name="fold_name_hint">Nom de la conversation regroupée (facultatif)</string>
     <string name="fold_into_title">Regrouper dans</string>
     <string name="fold_into_empty">Aucune autre conversation dans laquelle regrouper pour l\'instant.</string>
@@ -38,7 +34,6 @@
     <string name="fold_snack_folded">Regroupé</string>
     <string name="fold_snack_unfolded">Dégroupé</string>
     <string name="fold_snack_failed">Impossible de regrouper ces conversations</string>
-    <string name="fold_selected_count">%1$d sélectionné(s)</string>
     <string name="fold_filter_all">Tous les expéditeurs</string>
     <string name="fold_chip_channel">via %1$s</string>
 

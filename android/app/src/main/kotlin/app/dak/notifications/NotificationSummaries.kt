@@ -78,7 +78,10 @@ class NotificationSummaries @Inject constructor(
             val who = extras.getCharSequence(NotificationCompat.EXTRA_TITLE)
             val what = extras.getCharSequence(NotificationCompat.EXTRA_TEXT)
             // Each part isolated (FSI…PDI): an Arabic or Urdu sender name cannot swap places with the ": " and body.
-            style.addLine(listOfNotNull(who, what).joinToString(": ") { BidiText.isolate(it.toString()) })
+            val parts = listOfNotNull(who, what).map { BidiText.isolate(it.toString()) }
+            style.addLine(
+                if (parts.size == 2) context.getString(R.string.ch_summary_line, parts[0], parts[1]) else parts.firstOrNull().orEmpty(),
+            )
         }
         val open = PendingIntent.getActivity(
             context,

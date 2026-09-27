@@ -82,6 +82,11 @@ data class BubbleDecor(
     /** Outgoing bubble colours (per-thread choice or theme default). */
     val outgoingColors: TonalColors?,
     val forwardedTo: String?,
+    /**
+     * Labels the user or an automation rule put on the message (`UserLabels`), shown as chips as written. Classifier
+     * labels (`MessageItem.labels`: `dlt-*`, `fraud-risk`, scam and link-safety keys, template labels) are machine
+     * keys that drive warnings and routing; they are never shown here.
+     */
     val labels: Set<String>,
     /** Raw sender header/number shown as a small "via …" chip in a folded conversation, or null. */
     val channelLabel: String? = null,
@@ -310,7 +315,7 @@ private fun AttachmentList(attachments: List<Attachment>) {
         when {
             a.mimeType.startsWith("image/") -> AsyncImage(
                 model = Uri.parse(a.uri),
-                contentDescription = a.name ?: stringResource(R.string.notification_photo),
+                contentDescription = AttachmentNames.shown(a.name) ?: stringResource(R.string.notification_photo),
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -327,7 +332,7 @@ private fun AttachmentList(attachments: List<Attachment>) {
                 ) {
                     Icon(if (isCard) Icons.Outlined.ContactPage else Icons.Outlined.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text(
-                        a.name ?: stringResource(if (isCard) R.string.scr_bubble_contact_card else R.string.notification_attachment),
+                        AttachmentNames.shown(a.name) ?: stringResource(if (isCard) R.string.scr_bubble_contact_card else R.string.notification_attachment),
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

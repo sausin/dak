@@ -20,7 +20,6 @@
     <string name="inst_total_nothing_spent">इस महीने कोई खर्च नहीं</string>
     <string name="inst_total_no_balance">अभी तक कोई बैलेंस नहीं बताया गया</string>
     <string name="inst_total_no_outstanding">बकाया देखने के लिए स्टेटमेंट की तारीखें सेट करें</string>
-    <string name="inst_total_missing">%1$d की जानकारी नहीं</string>
     <string name="inst_total_value">मौजूदा मूल्य %1$s</string>
     <string name="inst_total_no_value">अभी तक कोई मौजूदा मूल्य नहीं बताया गया</string>
 

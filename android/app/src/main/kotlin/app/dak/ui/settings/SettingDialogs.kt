@@ -75,6 +75,7 @@ private fun SliderDialog(row: RowState, control: ControlType.Slider, onDismiss: 
     val step = control.step.coerceAtLeast(1)
     var value by remember { mutableFloatStateOf((row.raw.toIntOrNull() ?: range.first).toFloat()) }
     val stepsBetween = ((range.last - range.first) / step - 1).coerceAtLeast(0)
+    val labels = rememberSettingsLabels()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(row.title) },
@@ -82,7 +83,7 @@ private fun SliderDialog(row: RowState, control: ControlType.Slider, onDismiss: 
             Column {
                 Text(row.summary, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    value.roundToInt().toString(),
+                    labels.sliderValue(row.def, value.roundToInt()),
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(top = 16.dp),
                 )
@@ -116,7 +117,14 @@ private fun TextDialog(row: RowState, onDismiss: () -> Unit, onSave: (String) ->
         text = {
             Column {
                 Text(row.summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
-                OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true)
+                // A blank SIM name shows its default ("SIM 1") as the hint.
+                val hint = row.valueLabel.takeIf { row.raw.isBlank() }
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    placeholder = if (hint != null) { { Text(hint) } } else null,
+                )
             }
         },
         confirmButton = {

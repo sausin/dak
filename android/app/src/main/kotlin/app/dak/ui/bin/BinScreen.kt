@@ -78,7 +78,7 @@ fun BinScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             val text = when (event) {
                 BinEvent.Restored -> context.getString(R.string.scr_bin_restored)
                 BinEvent.RestoreFailed -> context.getString(R.string.scr_bin_restore_failed)
-                is BinEvent.Emptied -> context.getString(R.string.scr_bin_emptied, event.count)
+                is BinEvent.Emptied -> context.resources.getQuantityString(R.plurals.scr_bin_emptied, event.count, event.count)
             }
             snackbar.showSnackbar(text)
         }

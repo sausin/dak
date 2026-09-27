@@ -49,7 +49,9 @@ import app.dak.premium.consent.Disclosures
  */
 @Composable
 fun DisclosureDialog(flow: DataFlow, onAllow: () -> Unit, onDecline: () -> Unit) {
-    val disclosure = Disclosures.forFlow(flow)
+    // In the app language when a translation of the current version exists; the ledger records this same text
+    // (ConsentLedger.disclosure with the same language).
+    val disclosure = Disclosures.forFlow(flow, disclosureLanguage(LocalContext.current))
     Dialog(
         onDismissRequest = onDecline,
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false),

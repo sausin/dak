@@ -17,15 +17,18 @@
     <string name="privacy_flow_on">Allowed</string>
     <string name="privacy_flow_off">Off</string>
     <string name="privacy_flow_unavailable">Not available in this version</string>
+    <!-- %1$s = date and time. -->
     <string name="privacy_flow_changed">Last changed %1$s</string>
     <string name="privacy_flow_details">What is sent</string>
     <string name="privacy_withdraw_title">Turn this off?</string>
+    <!-- %1$s = the name of the feature. -->
     <string name="privacy_withdraw_body">%1$s will stop immediately and nothing more will be sent. You can allow it again later.</string>
     <string name="privacy_withdraw_confirm">Turn off</string>
     <string name="privacy_records_title">Your consent history</string>
     <string name="privacy_records_empty">You have not allowed or declined anything yet.</string>
     <string name="privacy_record_granted">Allowed</string>
     <string name="privacy_record_declined">Declined or withdrawn</string>
+    <!-- %1$s = date and time; %2$d = version number of the explanation; %3$s = where the choice was made. -->
     <string name="privacy_record_meta">%1$s · explanation version %2$d · from %3$s</string>
 
     <string name="privacy_export_title">Export my Dak data</string>
@@ -33,7 +36,6 @@
     <string name="privacy_export_warning">The export is not encrypted: anyone who gets the file can read it. Your SMS messages are not included; to save them, use Backup, data and privacy → Export.</string>
     <string name="privacy_export_start">Choose where to save</string>
     <string name="privacy_export_running">Exporting…</string>
-    <string name="privacy_export_done">Saved %1$d sections (%2$d entries).</string>
     <string name="privacy_export_failed">The export failed. Nothing was saved.</string>
     <string name="privacy_export_auth">Export your Dak data</string>
 
@@ -59,6 +61,7 @@
     <string name="privacy_disclosure_off">How to turn it off</string>
     <string name="privacy_disclosure_read_policy">Read the privacy policy</string>
     <string name="privacy_disclosure_adult">I am 18 or older</string>
+    <!-- %1$d = version number of the explanation. -->
     <string name="privacy_disclosure_version">Explanation version %1$d. Your choice is saved on this phone with the date and this version.</string>
     <string name="privacy_disclosure_allow">Allow</string>
     <string name="privacy_disclosure_decline">Not now</string>

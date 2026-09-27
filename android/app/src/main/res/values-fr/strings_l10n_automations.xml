@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="fw_status_title">
+        <item quantity="one">Transfert actif</item>
+        <item quantity="many">%1$d règles de transfert actives</item>
+        <item quantity="other">%1$d règles de transfert actives</item>
+    </plurals>
+    <string name="fw_status_line_otp">%1$s → %2$s (%3$s) · OTP inclus</string>
+    <string name="fw_status_with_period">%1$s · %2$s</string>
+    <plurals name="fw_guard_disabled_text">
+        <item quantity="one">%1$d automatisation qui envoie des messages a été désactivée, car %2$s. Configurez le verrouillage de l\'application pour la réactiver. Dak l\'exige afin que personne d\'autre utilisant votre téléphone ne puisse s\'envoyer vos messages.</item>
+        <item quantity="many">%1$d automatisations qui envoient des messages ont été désactivées, car %2$s. Configurez le verrouillage de l\'application pour les réactiver. Dak l\'exige afin que personne d\'autre utilisant votre téléphone ne puisse s\'envoyer vos messages.</item>
+        <item quantity="other">%1$d automatisations qui envoient des messages ont été désactivées, car %2$s. Configurez le verrouillage de l\'application pour les réactiver. Dak l\'exige afin que personne d\'autre utilisant votre téléphone ne puisse s\'envoyer vos messages.</item>
+    </plurals>
+
+    <plurals name="fw_history_sent_between">
+        <item quantity="one">%1$d message envoyé à %2$s entre le %3$s et le %4$s</item>
+        <item quantity="many">%1$d messages envoyés à %2$s entre le %3$s et le %4$s</item>
+        <item quantity="other">%1$d messages envoyés à %2$s entre le %3$s et le %4$s</item>
+    </plurals>
+    <string name="fw_history_sent_none_between">Aucun message envoyé entre le %1$s et le %2$s</string>
+    <string name="fw_history_to_more">%1$s +%2$d</string>
+    <plurals name="fw_history_failed">
+        <item quantity="one">%1$d échec</item>
+        <item quantity="many">%1$d échecs</item>
+        <item quantity="other">%1$d échecs</item>
+    </plurals>
+    <plurals name="fw_history_skipped">
+        <item quantity="one">%1$d ignoré</item>
+        <item quantity="many">%1$d ignorés</item>
+        <item quantity="other">%1$d ignorés</item>
+    </plurals>
+
+    <string name="scr_auto_sched_when_sim">%1$s · %2$s</string>
+    <string name="scr_auto_relay_channel_sms">SMS</string>
+    <string name="scr_auto_relay_channel_whatsapp">WhatsApp (en un geste)</string>
+    <string name="scr_auto_relay_channel_webhook">Webhook</string>
+    <string name="scr_auto_action_web_client">Envoyer au client Web</string>
+    <string name="scr_auto_action_unknown">Action inconnue</string>
+
+    <string name="scr_auto_default_name_label">Libellé « %1$s »</string>
+    <string name="scr_auto_default_name_archive">Archiver</string>
+    <string name="scr_auto_default_name_notify">M\'avertir</string>
+    <string name="scr_auto_default_name_forward">Transférer à %1$s</string>
+    <string name="scr_auto_default_name_reply">Réponse automatique</string>
+    <string name="scr_auto_default_name_delete">Placer dans la corbeille</string>
+    <string name="scr_auto_default_name_open">Ouvrir le lien</string>
+    <string name="scr_auto_default_name_webhook">Webhook</string>
+    <string name="scr_auto_default_name_relay">Relayer à %1$s</string>
+
+    <string name="preset_archive_old_promotions_name">Archiver les promotions de plus de 14 jours</string>
+    <string name="preset_label_amazon_deliveries_name">Ajouter un libellé aux livraisons Amazon</string>
+    <string name="preset_otp_big_notification_name">Notification OTP grande et sonore</string>
+
+    <string name="auto_tpl_sim">SIM %1$d</string>
+    <string name="auto_tpl_sim_sub">SIM (ID %1$d)</string>
+</resources>

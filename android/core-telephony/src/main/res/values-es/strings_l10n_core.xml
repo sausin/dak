@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Why the carrier's MMS server (MMSC) refused a message (X-Mms-Response-Status), one string per
+    app.dak.telephony.Failure MMSC_* entry, named like strings_failures.xml (FailureReasonsTest checks both). docs/i18n.md.
+-->
+<resources>
+    <string name="dak_telephony_fail_mmsc_service_denied">Servicio denegado</string>
+    <string name="dak_telephony_fail_mmsc_format_corrupt">Formato del mensaje dañado</string>
+    <string name="dak_telephony_fail_mmsc_address_unresolved">No se pudo resolver la dirección del destinatario</string>
+    <string name="dak_telephony_fail_mmsc_message_not_found">Mensaje no encontrado</string>
+    <string name="dak_telephony_fail_mmsc_network_problem">Problema de red</string>
+    <string name="dak_telephony_fail_mmsc_content_not_accepted">Contenido no aceptado</string>
+    <string name="dak_telephony_fail_mmsc_unsupported_message">Mensaje no compatible</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_limitations">No se cumplen las condiciones del cobro de respuesta</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_rejected">Solicitud de cobro de respuesta no aceptada</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_forwarding_denied">Reenvío con cobro de respuesta denegado</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_not_supported">El cobro de respuesta no es compatible</string>
+    <string name="dak_telephony_fail_mmsc_address_hiding_not_supported">No se admite ocultar la dirección</string>
+    <string name="dak_telephony_fail_mmsc_lack_of_prepaid_credit">Saldo prepago insuficiente</string>
+    <!-- %1$s = the status code in hexadecimal, e.g. E0 (not translated) -->
+    <string name="dak_telephony_fail_mmsc_temporary_failure">Fallo temporal del servidor MMS (0x%1$s)</string>
+    <!-- %1$s = the status code in hexadecimal, e.g. E0 (not translated) -->
+    <string name="dak_telephony_fail_mmsc_error">Error del servidor MMS (0x%1$s)</string>
+</resources>

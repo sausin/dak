@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup results, personal data export, consent history, helplines, fraud report details, app lock and bin (i18n workstream "privacy"). -->
+<resources>
+    <!-- %1$d = number of messages. -->
+    <plurals name="scr_backup_done_backup">
+        <item quantity="one">%1$d message sauvegardé</item>
+        <item quantity="many">%1$d messages sauvegardés</item>
+        <item quantity="other">%1$d messages sauvegardés</item>
+    </plurals>
+    <!-- %1$d = number of messages. -->
+    <plurals name="scr_backup_done_export">
+        <item quantity="one">%1$d message exporté</item>
+        <item quantity="many">%1$d messages exportés</item>
+        <item quantity="other">%1$d messages exportés</item>
+    </plurals>
+    <!-- %1$d = messages added, %2$d = already present or skipped. -->
+    <plurals name="scr_backup_done_import">
+        <item quantity="one">%1$d message importé (%2$d déjà présents ou ignorés)</item>
+        <item quantity="many">%1$d messages importés (%2$d déjà présents ou ignorés)</item>
+        <item quantity="other">%1$d messages importés (%2$d déjà présents ou ignorés)</item>
+    </plurals>
+    <!-- %1$d = messages added, %2$d = already present or skipped. -->
+    <plurals name="scr_backup_done_restore">
+        <item quantity="one">%1$d message restauré (%2$d déjà présents ou ignorés)</item>
+        <item quantity="many">%1$d messages restaurés (%2$d déjà présents ou ignorés)</item>
+        <item quantity="other">%1$d messages restaurés (%2$d déjà présents ou ignorés)</item>
+    </plurals>
+    <!-- %1$d = messages added, %2$d = already present or skipped, %3$s = date and time of the newest restored message. -->
+    <plurals name="scr_backup_done_restore_upto">
+        <item quantity="one">%1$d message restauré (%2$d déjà présents ou ignorés). Inclut les messages jusqu\'au %3$s.</item>
+        <item quantity="many">%1$d messages restaurés (%2$d déjà présents ou ignorés). Inclut les messages jusqu\'au %3$s.</item>
+        <item quantity="other">%1$d messages restaurés (%2$d déjà présents ou ignorés). Inclut les messages jusqu\'au %3$s.</item>
+    </plurals>
+    <!-- %1$s = date and time, %2$d = number of messages. -->
+    <plurals name="scr_backup_last_value">
+        <item quantity="one">%1$s · %2$d message</item>
+        <item quantity="many">%1$s · %2$d messages</item>
+        <item quantity="other">%1$s · %2$d messages</item>
+    </plurals>
+
+    <!-- %1$d = number of messages removed. -->
+    <plurals name="scr_bin_emptied">
+        <item quantity="one">%1$d message supprimé définitivement</item>
+        <item quantity="many">%1$d messages supprimés définitivement</item>
+        <item quantity="other">%1$d messages supprimés définitivement</item>
+    </plurals>
+
+    <!-- %1$d = number of digits typed. -->
+    <plurals name="lock_pin_entered">
+        <item quantity="one">%1$d chiffre saisi</item>
+        <item quantity="many">%1$d chiffres saisis</item>
+        <item quantity="other">%1$d chiffres saisis</item>
+    </plurals>
+
+    <!-- %1$d = number of features allowed. -->
+    <plurals name="privacy_sharing_allowed_count">
+        <item quantity="one">%1$d fonctionnalité autorisée</item>
+        <item quantity="many">%1$d fonctionnalités autorisées</item>
+        <item quantity="other">%1$d fonctionnalités autorisées</item>
+    </plurals>
+    <!-- %1$d = number of sections, %2$d = total entries. -->
+    <plurals name="privacy_export_done">
+        <item quantity="one">%1$d section enregistrée (%2$d entrées).</item>
+        <item quantity="many">%1$d sections enregistrées (%2$d entrées).</item>
+        <item quantity="other">%1$d sections enregistrées (%2$d entrées).</item>
+    </plurals>
+
+    <string name="privacy_record_source_settings">Paramètres</string>
+    <string name="privacy_record_source_privacy">Paramètres de confidentialité</string>
+    <string name="privacy_record_source_onboarding">Configuration initiale</string>
+    <string name="privacy_record_source_restore">Restauration</string>
+
+    <string name="privacy_export_readme_title">Exportation des données personnelles Dak</string>
+    <string name="privacy_export_readme_body">Ce fichier contient les données que l\'application Dak a enregistrées à votre sujet sur votre téléphone, au format JSON brut.\nIl n\'est PAS chiffré : toute personne qui dispose de ce fichier peut le lire. Conservez-le en lieu sûr et supprimez-le lorsque vous n\'en avez plus besoin.\n\nmanifest.json liste chaque fichier avec sa taille, sa somme de contrôle SHA-256 et une courte description.\nChaque fichier data/*.json contient un document JSON ; les fichiers data/*.jsonl contiennent un objet JSON par ligne.\nLes heures sont exprimées en millisecondes depuis le 1970-01-01 UTC.\n\nNon inclus : vos SMS et MMS (pour ceux-ci, utilisez Paramètres > Sauvegarde, données et confidentialité > Exporter),\nles secrets comme les clés et les codes PIN, ainsi que les données que Dak peut reconstituer à partir de vos messages.\n\nDes questions ? Consultez les règles de confidentialité dans l\'application (Paramètres > Confidentialité > Règles de confidentialité).\n</string>
+    <string name="privacy_export_not_included_messages">Vos SMS et MMS eux-mêmes : ils se trouvent dans la mémoire de messages partagée du téléphone. Utilisez Sauvegarde → Exporter pour les enregistrer.</string>
+    <string name="privacy_export_not_included_secrets">Clés et secrets : la clé de l\'index, la phrase secrète et le code de récupération de la sauvegarde, le code PIN du verrouillage de l\'application et les secrets des webhooks.</string>
+    <string name="privacy_export_not_included_rebuildable">Les données que Dak peut reconstituer : l\'index de recherche et les empreintes OTP des applications installées.</string>
+    <string name="privacy_export_desc_settings">Vos paramètres Dak (uniquement les valeurs que vous avez modifiées).</string>
+    <string name="privacy_export_desc_sender_groups">La façon dont vous avez regroupé les expéditeurs, et les noms que vous leur avez donnés.</string>
+    <string name="privacy_export_desc_user_labels">Les libellés que vous ou vos règles avez mis sur les messages, par clé de message (par exemple sms:123).</string>
+    <string name="privacy_export_desc_consent_records">Chaque fois que vous avez autorisé, refusé ou retiré une fonctionnalité qui envoie des données hors du téléphone.</string>
+    <string name="privacy_export_desc_automation_rules">Vos règles d\'automatisation (la définition de la règle se trouve dans la colonne « json »).</string>
+    <string name="privacy_export_desc_automation_runs">Ce que chaque règle a envoyé, n\'a pas réussi à envoyer ou a ignoré, et vers quelle destination.</string>
+    <string name="privacy_export_desc_activity_log">Les actions automatiques et destructrices (déclenchements de règles, suppressions automatiques, restaurations).</string>
+    <string name="privacy_export_desc_scheduled_messages">Les messages que vous avez programmés, y compris ceux envoyés et annulés.</string>
+    <string name="privacy_export_desc_saved_searches">Les recherches que vous avez enregistrées.</string>
+    <string name="privacy_export_desc_search_history">Vos recherches récentes.</string>
+    <string name="privacy_export_desc_accounts">Les comptes bancaires et cartes du Livret, avec leurs soldes.</string>
+    <string name="privacy_export_desc_ledger">Les transactions que Dak a trouvées dans vos messages.</string>
+    <string name="privacy_export_desc_account_links">Les comptes que vous avez fusionnés ou séparés.</string>
+    <string name="privacy_export_desc_account_types">Les types de compte que vous avez définis vous-même.</string>
+    <string name="privacy_export_desc_hidden_accounts">Les comptes que vous avez retirés du Livret.</string>
+    <string name="privacy_export_desc_conversation_settings">Les choix propres à chaque conversation : épinglée, en sourdine, archivée, SIM de réponse, couleur.</string>
+    <string name="privacy_export_desc_sender_names">Les groupes d\'expéditeurs et les noms affichés pour eux.</string>
+    <string name="privacy_export_desc_sender_addresses">Les adresses qui appartiennent à chaque groupe d\'expéditeurs.</string>
+    <string name="privacy_export_desc_message_flags">Les messages que vous avez suivis ou archivés.</string>
+    <string name="privacy_export_desc_message_categories">La catégorie et les libellés que Dak a attribués à chaque message (sans le texte du message).</string>
+    <string name="privacy_export_desc_recycle_bin">Les messages de la corbeille (supprimés, en attente d\'effacement définitif). Leur texte est inclus.</string>
+
+    <string name="helpline_in_cybercrime_1930_name">Ligne nationale contre la cybercriminalité</string>
+    <string name="helpline_in_cybercrime_1930_purpose">Vous avez perdu de l\'argent à cause d\'une fraude en ligne ou UPI ? Appelez immédiatement : un signalement dans les premières heures offre les meilleures chances de faire geler l\'argent.</string>
+    <string name="helpline_in_cybercrime_portal_name">Portail national de signalement de la cybercriminalité</string>
+    <string name="helpline_in_cybercrime_portal_purpose">Déposez en ligne une plainte pour fraude financière ou tout autre cybercrime, et suivez-la.</string>
+    <string name="helpline_in_chakshu_name">Chakshu (Sanchar Saathi)</string>
+    <string name="helpline_in_chakshu_purpose">Signalez au Département des télécommunications les appels, SMS ou messages WhatsApp suspects de fraude (faux KYC, usurpation d\'identité, faux service client).</string>
+    <string name="helpline_in_trai_1909_sms_name">Plainte pour spam auprès de la TRAI (1909)</string>
+    <string name="helpline_in_trai_1909_sms_purpose">Signalez les SMS commerciaux non sollicités (spam) à votre opérateur selon les règles de la TRAI. Envoyez le texte du message, l\'expéditeur et la date.</string>
+    <string name="helpline_in_trai_1909_call_name">DND et plaintes pour spam de la TRAI (appeler le 1909)</string>
+    <string name="helpline_in_trai_1909_call_purpose">Appelez la ligne 1909 de votre opérateur pour enregistrer une plainte pour spam ou modifier vos préférences Ne pas déranger (DND).</string>
+    <string name="helpline_in_emergency_112_name">Urgences (112)</string>
+    <string name="helpline_in_emergency_112_purpose">Police, pompiers, ambulance : le numéro d\'urgence unique de l\'Inde.</string>
+    <string name="helpline_in_rbi_cms_name">Système de gestion des réclamations de la RBI</string>
+    <string name="helpline_in_rbi_cms_purpose">Adressez une réclamation au médiateur de la RBI lorsque votre banque, l\'émetteur de votre carte ou votre application de paiement n\'a pas résolu votre réclamation.</string>
+    <string name="helpline_in_rbi_contact_centre_name">Centre de contact de la RBI (14448)</string>
+    <string name="helpline_in_rbi_contact_centre_purpose">Aide pour déposer auprès de la RBI une réclamation contre une banque ou une société de paiement.</string>
+    <string name="helpline_in_rbi_sachet_name">RBI Sachet</string>
+    <string name="helpline_in_rbi_sachet_purpose">Signalez les sociétés qui collectent illégalement des dépôts ou proposent des placements non réglementés.</string>
+
+    <!-- %1$s = field name, %2$s = value. French typography: space before the colon. -->
+    <string name="safe_detail_line">%1$s : %2$s</string>
+    <!-- %1$s = field name, %2$s = message text. -->
+    <string name="safe_detail_block">%1$s :\n%2$s</string>
+</resources>

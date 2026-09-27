@@ -13,6 +13,7 @@ import app.dak.backup.crypto.WrongPassphraseException
 import app.dak.backup.engine.BackupEncryption
 import app.dak.backup.engine.BackupEngine
 import app.dak.backup.engine.BackupTarget
+import app.dak.backup.engine.NoBackupsException
 import app.dak.backup.engine.RestoreKey
 import app.dak.backup.format.ArchiveLimits
 import app.dak.backup.format.AutomationRunRecord
@@ -100,6 +101,10 @@ sealed interface BackupOperation {
         val restoredUpToMillis: Long? = null,
     ) : BackupOperation
 
+    /**
+     * [failure] is what the screen shows (a translated message). [detail] is the exception message, English and for
+     * diagnosis only: it is never shown to the user.
+     */
     data class Failed(val kind: BackupOpKind, val failure: BackupFailure, val detail: String? = null) : BackupOperation
 }
 
@@ -182,8 +187,9 @@ class BackupManager @Inject constructor(
             stateStore.recordSuccess(result.manifest, result.digest, result.knownAttachmentHashes, snap.records.size, full)
             finish(BackupOperation.Finished(kind, snap.records.size, recoveryCode = if (full) result.recoveryCode else null))
         } catch (e: Exception) {
-            stateStore.recordFailure(e.message ?: e::class.java.simpleName)
-            fail(kind, failureOf(e), e.message)
+            val failure = failureOf(e)
+            stateStore.recordFailure(failure)
+            fail(kind, failure, e.message)
         } finally {
             passphrase.fill('\u0000')
         }
@@ -547,7 +553,7 @@ class BackupManager @Inject constructor(
         is WrongPassphraseException, is RecoveryCodeMismatchException -> BackupFailure.WRONG_KEY
         is TamperedException, is MalformedHeaderException -> BackupFailure.DAMAGED
         is BackupCryptoException -> BackupFailure.DAMAGED
-        is IllegalStateException -> if (e.message?.contains("No backups") == true) BackupFailure.NO_BACKUP_FOUND else BackupFailure.IO
+        is NoBackupsException -> BackupFailure.NO_BACKUP_FOUND
         else -> BackupFailure.IO
     }
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Why the carrier's MMS server (MMSC) refused a message (X-Mms-Response-Status), one string per
+    app.dak.telephony.Failure MMSC_* entry, named like strings_failures.xml (FailureReasonsTest checks both). docs/i18n.md.
+-->
+<resources>
+    <string name="dak_telephony_fail_mmsc_service_denied">Service refusé</string>
+    <string name="dak_telephony_fail_mmsc_format_corrupt">Format du message corrompu</string>
+    <string name="dak_telephony_fail_mmsc_address_unresolved">Adresse du destinataire introuvable</string>
+    <string name="dak_telephony_fail_mmsc_message_not_found">Message introuvable</string>
+    <string name="dak_telephony_fail_mmsc_network_problem">Problème de réseau</string>
+    <string name="dak_telephony_fail_mmsc_content_not_accepted">Contenu refusé</string>
+    <string name="dak_telephony_fail_mmsc_unsupported_message">Message non pris en charge</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_limitations">Conditions de paiement de la réponse non remplies</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_rejected">Demande de paiement de la réponse refusée</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_forwarding_denied">Transfert avec paiement de la réponse refusé</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_not_supported">Paiement de la réponse non pris en charge</string>
+    <string name="dak_telephony_fail_mmsc_address_hiding_not_supported">Masquage de l\'adresse non pris en charge</string>
+    <string name="dak_telephony_fail_mmsc_lack_of_prepaid_credit">Crédit prépayé insuffisant</string>
+    <!-- %1$s = the status code in hexadecimal, e.g. E0 (not translated) -->
+    <string name="dak_telephony_fail_mmsc_temporary_failure">Échec temporaire du serveur MMS (0x%1$s)</string>
+    <!-- %1$s = the status code in hexadecimal, e.g. E0 (not translated) -->
+    <string name="dak_telephony_fail_mmsc_error">Erreur du serveur MMS (0x%1$s)</string>
+</resources>

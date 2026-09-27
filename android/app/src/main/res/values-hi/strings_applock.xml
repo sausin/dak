@@ -18,7 +18,6 @@
     <!-- PIN pad -->
     <string name="lock_pin_delete">अंक मिटाएं</string>
     <string name="lock_pin_enter">PIN डालें</string>
-    <string name="lock_pin_entered">%1$d अंक डाले गए</string>
     <string name="lock_pin_wrong">गलत PIN। फिर से कोशिश करें।</string>
     <plurals name="lock_pin_wrong_attempts">
         <item quantity="one">गलत PIN। थोड़ी देर के लॉकआउट से पहले %1$d कोशिश बाकी है।</item>

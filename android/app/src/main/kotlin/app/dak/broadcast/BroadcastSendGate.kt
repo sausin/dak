@@ -25,7 +25,8 @@ class BroadcastSendGate @Inject constructor(
         val tag = BroadcastTag.decode(send.ruleId) ?: return true
         val recipient = store.record(tag.broadcastId)?.recipients?.getOrNull(tag.recipientIndex)
         if (recipient == null || recipient.status == RecipientStatus.CANCELLED) {
-            sends.markStatus(send.id, ScheduledSendStatus.CANCELLED, REASON_REMOVED)
+            // No reason: the copy's state ("Cancelled") says it all, in the app language.
+            sends.markStatus(send.id, ScheduledSendStatus.CANCELLED)
             return false
         }
         return true
@@ -45,7 +46,8 @@ class BroadcastSendGate @Inject constructor(
         store.updateRecipient(tag.broadcastId, tag.recipientIndex) { it.copy(status = RecipientStatus.FAILED) }
     }
 
-    private companion object {
-        const val REASON_REMOVED = "broadcast cancelled"
+    internal companion object {
+        /** The English reason older versions stored with a dropped copy; hidden when shown (see BroadcastStatusReader). */
+        const val LEGACY_REASON_REMOVED = "broadcast cancelled"
     }
 }

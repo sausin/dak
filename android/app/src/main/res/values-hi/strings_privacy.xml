@@ -33,7 +33,6 @@
     <string name="privacy_export_warning">एक्सपोर्ट एन्क्रिप्ट नहीं होता: जिसे भी फ़ाइल मिलेगी वह इसे पढ़ सकता है। आपके SMS मैसेज इसमें शामिल नहीं हैं; उन्हें सेव करने के लिए बैकअप, डेटा और प्राइवेसी → एक्सपोर्ट इस्तेमाल करें।</string>
     <string name="privacy_export_start">सेव करने की जगह चुनें</string>
     <string name="privacy_export_running">एक्सपोर्ट हो रहा है…</string>
-    <string name="privacy_export_done">%1$d सेक्शन सेव किए गए (%2$d एंट्री)।</string>
     <string name="privacy_export_failed">एक्सपोर्ट नहीं हो सका। कुछ भी सेव नहीं हुआ।</string>
     <string name="privacy_export_auth">अपना Dak डेटा एक्सपोर्ट करें</string>
 

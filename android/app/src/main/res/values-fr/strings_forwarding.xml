@@ -33,7 +33,6 @@
     <string name="fw_end_before_start">La fin est antérieure au début.</string>
     <string name="fw_period_default_note">Les nouvelles règles transfèrent pendant 1 heure. Pour plus longtemps, ou \"Jusqu\'à ce que je l\'arrête\", votre empreinte ou le verrouillage d\'écran est requis.</string>
     <string name="fw_period_long_note">Plus d\'une heure : l\'enregistrement nécessite votre empreinte ou le verrouillage d\'écran.</string>
-    <string name="fw_date_time">%1$s, %2$s</string>
     <string name="fw_section_message">Message</string>
     <!-- Keep the {placeholders} in English, exactly as written: the app replaces them. %1$s = the default template (fw_default_template). -->
     <string name="fw_template_help">Variables : {sender}, {body}, {time}, {amount}, {merchant}, {sim}. Par défaut : \"%1$s\".</string>
@@ -90,16 +89,12 @@ Si quelqu\'un vous a demandé de le faire au téléphone ou par chat, arrêtez-v
     <string name="fw_pick_channels">Choisir les expéditeurs</string>
     <string name="fw_pick_channels_help">Les expéditeurs regroupés comptent pour un seul : \"HDFC Bank\" couvre tous les identifiants depuis lesquels elle envoie des SMS.</string>
     <string name="fw_search_channels">Rechercher des expéditeurs</string>
-    <string name="fw_channels_selected">%1$d sélectionné(s)</string>
     <string name="fw_done">OK</string>
     <string name="fw_label_forwarded">Transféré → %1$s</string>
     <!-- Persistent status notification -->
     <string name="fw_channel_status_name">État du transfert</string>
     <string name="fw_channel_status_description">Un rappel discret pendant que des messages sont transférés automatiquement.</string>
-    <string name="fw_status_title_one">Transfert actif</string>
-    <string name="fw_status_title_many">%1$d règles de transfert actives</string>
     <string name="fw_status_line">%1$s → %2$s (%3$s)</string>
-    <string name="fw_status_otp_suffix">" · OTP inclus"</string>
 
     <!-- Birthday wishes -->
     <string name="fw_bd_title">Anniversaires et événements</string>
@@ -122,8 +117,6 @@ Si quelqu\'un vous a demandé de le faire au téléphone ou par chat, arrêtez-v
     <string name="fw_bd_none_body">Appuyez sur \"Ajouter une date\" pour ajouter un anniversaire, un anniversaire de mariage ou toute autre date à un contact.</string>
     <string name="fw_bd_today">Aujourd\'hui</string>
     <string name="fw_bd_tomorrow">Demain</string>
-    <string name="fw_bd_in_days">Dans %1$d jours</string>
-    <string name="fw_bd_turns">fête ses %1$d ans</string>
     <string name="fw_bd_anniversary">Anniversaire de mariage</string>
     <string name="fw_bd_choose_number">Choisir un numéro</string>
     <string name="fw_bd_no_number">Aucun numéro de téléphone</string>
@@ -152,12 +145,6 @@ Si quelqu\'un vous a demandé de le faire au téléphone ou par chat, arrêtez-v
     <string name="fw_status_off_screen_lock">Désactivée : le verrouillage d\'écran du téléphone a été supprimé</string>
     <string name="fw_status_off_lock_needed">Désactivée : nécessite le verrouillage de l\'application</string>
     <string name="fw_guard_disabled_title">Transfert désactivé pour votre sécurité</string>
-    <plurals name="fw_guard_disabled_body">
-        <item quantity="one">%1$d automatisation qui envoie des messages a été désactivée, car %2$s. Configurez le verrouillage de l\'application pour la réactiver.</item>
-        <item quantity="many">%1$d automatisations qui envoient des messages ont été désactivées, car %2$s. Configurez le verrouillage de l\'application pour les réactiver.</item>
-        <item quantity="other">%1$d automatisations qui envoient des messages ont été désactivées, car %2$s. Configurez le verrouillage de l\'application pour les réactiver.</item>
-    </plurals>
-    <string name="fw_guard_disabled_why">Dak exige le verrouillage de l\'application pour celles-ci afin que personne d\'autre utilisant votre téléphone ne puisse s\'envoyer vos messages.</string>
     <string name="fw_guard_reason_lock_off">le verrouillage de l\'application a été désactivé</string>
     <string name="fw_guard_reason_screen_lock">le verrouillage d\'écran de votre téléphone a été supprimé</string>
     <string name="fw_guard_reason_lock_needed">le verrouillage de l\'application n\'est pas configuré</string>
@@ -208,9 +195,6 @@ Si quelqu\'un vous a demandé de le faire au téléphone ou par chat, arrêtez-v
         <item quantity="other">%1$d messages envoyés à %2$s</item>
     </plurals>
     <string name="fw_history_sent_none">Aucun message envoyé</string>
-    <string name="fw_history_between">entre le %1$s et le %2$s</string>
-    <string name="fw_history_failed">%1$d échec(s)</string>
-    <string name="fw_history_skipped">%1$d ignoré(s)</string>
     <string name="fw_history_from">de %1$s</string>
     <string name="fw_history_to">À %1$s</string>
     <string name="fw_outcome_sent">Envoyé</string>

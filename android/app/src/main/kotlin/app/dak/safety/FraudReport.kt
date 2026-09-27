@@ -75,15 +75,43 @@ object FraudReport {
         }
         val date = format.apply { this.timeZone = timeZone }.format(Date(dateMillis))
         return buildString {
-            append(labels.sender).append(": ").append(sender.trim()).append('\n')
-            append(labels.received).append(": ").append(date).append('\n')
-            if (!simLabel.isNullOrBlank()) append(labels.sim).append(": ").append(simLabel).append('\n')
-            append(labels.message).append(":\n").append(text.trim())
+            append(labels.line(labels.sender, sender.trim())).append('\n')
+            append(labels.line(labels.received, date)).append('\n')
+            if (!simLabel.isNullOrBlank()) append(labels.line(labels.sim, simLabel)).append('\n')
+            append(labels.block(labels.message, text.trim()))
         }
     }
 
-    /** Field names for [detailsText]. */
-    data class DetailLabels(val sender: String, val received: String, val sim: String, val message: String)
+    /**
+     * Field names for [detailsText], and how a field is joined to its value in the app language: [lineFormat] for a
+     * one-line field (`%1$s` label, `%2$s` value; "Sender: X", French "Expéditeur : X"), [blockFormat] for the message
+     * text on the lines below its label.
+     */
+    data class DetailLabels(
+        val sender: String,
+        val received: String,
+        val sim: String,
+        val message: String,
+        val lineFormat: String = FraudReport.DEFAULT_LINE,
+        val blockFormat: String = FraudReport.DEFAULT_BLOCK,
+    ) {
+        internal fun line(label: String, value: String): String = fill(lineFormat, FraudReport.DEFAULT_LINE, label, value)
+
+        internal fun block(label: String, value: String): String = fill(blockFormat, FraudReport.DEFAULT_BLOCK, label, value)
+
+        /** [format] with the label and value; the English default when a translation lost a placeholder. */
+        private fun fill(format: String, fallback: String, label: String, value: String): String {
+            val usable = format.takeIf { "%1\$s" in it && "%2\$s" in it } ?: fallback
+            // Replaced literally (not String.format): the message text may itself contain '%'.
+            return usable.replace("%1\$s", label).replace("%2\$s", value)
+        }
+    }
+
+    /** "Label: value" in English, the format [DetailLabels.lineFormat] translates. */
+    const val DEFAULT_LINE = "%1\$s: %2\$s"
+
+    /** "Label:" then the value on the next line. */
+    const val DEFAULT_BLOCK = "%1\$s:\n%2\$s"
 
     private val DATE_PLACEHOLDER = Regex("\\{date:([^}]+)\\}")
 }

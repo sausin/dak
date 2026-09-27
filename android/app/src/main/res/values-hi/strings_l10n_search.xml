@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search, passbook, folding, inbox and link-safety i18n fixes: plurals, filter chips, composed titles (workstream "search"). -->
+<resources>
+    <string name="search_chip_from">भेजने वाला: %1$s</string>
+    <string name="search_chip_sim">SIM: %1$s</string>
+    <string name="search_chip_has_attachment">अटैचमेंट वाले</string>
+    <string name="search_chip_has_link">लिंक वाले</string>
+    <string name="search_chip_has_otp">OTP वाले</string>
+    <string name="search_chip_amount_exact">राशि %1$s</string>
+    <string name="search_chip_amount_between">राशि %1$s–%2$s</string>
+    <string name="search_chip_amount_over">राशि %1$s से ज़्यादा</string>
+    <string name="search_chip_amount_under">राशि %1$s से कम</string>
+    <string name="search_chip_amount_any">कोई भी राशि</string>
+    <string name="search_chip_date_since">%1$s से</string>
+    <string name="search_chip_date_before">%1$s से पहले</string>
+    <string name="search_chip_date_any">कोई भी तारीख</string>
+    <string name="search_chip_in_inbox">इनबॉक्स में</string>
+    <string name="search_chip_read">पढ़े हुए</string>
+    <string name="search_chip_not">छोड़ें: %1$s</string>
+    <plurals name="scr_search_more_matches">
+        <item quantity="one">इस बातचीत में +%1$d और</item>
+        <item quantity="other">इस बातचीत में +%1$d और</item>
+    </plurals>
+
+    <string name="link_brand_uidai">UIDAI (आधार)</string>
+    <string name="link_brand_income_tax">आयकर विभाग</string>
+    <string name="link_brand_government_of_india">भारत सरकार</string>
+    <string name="link_brand_india_post">भारतीय डाक</string>
+
+    <string name="inst_unknown_institution">अज्ञात</string>
+    <string name="inst_account_title">%1$s %2$s</string>
+    <string name="inst_account_title_digits">%1$s %2$s %3$s</string>
+    <string name="inst_kind_digits">%1$s %2$s</string>
+    <plurals name="scr_passbook_entries">
+        <item quantity="one">%1$d लेन-देन</item>
+        <item quantity="other">%1$d लेन-देन</item>
+    </plurals>
+    <plurals name="inst_total_missing">
+        <item quantity="one">%1$d की जानकारी नहीं</item>
+        <item quantity="other">%1$d की जानकारी नहीं</item>
+    </plurals>
+
+    <plurals name="fold_channels_count">
+        <item quantity="one">%1$d चैनल</item>
+        <item quantity="other">%1$d चैनल</item>
+    </plurals>
+    <plurals name="fold_channel_last_seen">
+        <item quantity="one">आखिरी मैसेज %1$s · %2$d मैसेज</item>
+        <item quantity="other">आखिरी मैसेज %1$s · %2$d मैसेज</item>
+    </plurals>
+    <plurals name="fold_suggestion_title">
+        <item quantity="one">यह %1$d भेजने वाला %2$s जैसा लगता है। इसे एक बातचीत में जोड़ें?</item>
+        <item quantity="other">ये %1$d भेजने वाले %2$s जैसे लगते हैं। इन्हें एक बातचीत में जोड़ें?</item>
+    </plurals>
+    <plurals name="fold_name_title">
+        <item quantity="one">%1$d बातचीत जोड़ें</item>
+        <item quantity="other">%1$d बातचीत जोड़ें</item>
+    </plurals>
+
+    <plurals name="scr_inbox_index_waiting">
+        <item quantity="one">%1$s पुराना मैसेज आपके चुने हुए समय पर व्यवस्थित किया जाएगा</item>
+        <item quantity="other">%1$s पुराने मैसेज आपके चुने हुए समय पर व्यवस्थित किए जाएंगे</item>
+    </plurals>
+    <string name="inbox_unread_overflow">%1$s+</string>
+</resources>

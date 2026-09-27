@@ -38,6 +38,17 @@ class LedgerTest {
     )
 
     @Test
+    fun `an account whose SMS names no institution gets the stable unknown key`() {
+        val ledgers = Ledger.apply(listOf(LedgerInput("m1", 1000L, txn(TransactionDirection.DEBIT, 50000, "INR", institution = null))))
+        val account = ledgers.single().account
+        // The key stays "Unknown" so ledgers stored by earlier versions read the same; the app shows its own word.
+        assertEquals(Account.UNKNOWN_INSTITUTION, account.institution)
+        assertEquals("Unknown", Account.UNKNOWN_INSTITUTION)
+        assertEquals(false, account.institutionKnown)
+        assertTrue(ledgers.single().account.copy(institution = "HDFC Bank").institutionKnown)
+    }
+
+    @Test
     fun `groups entries into one account per institution instrument and last4`() {
         val inputs = listOf(
             LedgerInput("m1", 1000L, txn(TransactionDirection.DEBIT, 50000, "INR", last4 = "1234")),

@@ -45,6 +45,13 @@ class RelativeTimeFormatterTest {
     }
 
     @Test
+    fun `date only comes from its own skeleton, not from cutting the date-time apart`() {
+        // A French-style joiner (" à ") would survive a substringBefore(',') cut; formatDate never contains the time.
+        val fr = uk + ("dMMMyHm" to "d MMM y 'à' HH:mm")
+        assertEquals("12 Sep 2025", formatter(Patterns(fr)).formatDate(at))
+    }
+
+    @Test
     fun `relative labels are unchanged`() {
         val f = formatter(Patterns(uk))
         assertEquals("Now", f.format(at, nowMillis = at + 30_000))

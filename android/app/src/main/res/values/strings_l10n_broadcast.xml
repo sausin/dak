@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Broadcast and birthday i18n fixes: plurals and composed lines (workstream "broadcast"). -->
+<resources>
+    <!-- %d = number of people the broadcast is being sent to -->
+    <plurals name="bc_sent_snack">
+        <item quantity="one">Sending to %d person</item>
+        <item quantity="other">Sending to %d people</item>
+    </plurals>
+    <!-- %d = number of people the broadcast is scheduled for -->
+    <plurals name="bc_scheduled_snack">
+        <item quantity="one">Scheduled for %d person</item>
+        <item quantity="other">Scheduled for %d people</item>
+    </plurals>
+    <!-- %d = number of recipients (dialog title) -->
+    <plurals name="bc_confirm_title">
+        <item quantity="one">Send to %d person?</item>
+        <item quantity="other">Send to %d people?</item>
+    </plurals>
+    <!-- %d = number of recipients (dialog title, scheduled send) -->
+    <plurals name="bc_confirm_title_scheduled">
+        <item quantity="one">Schedule for %d person?</item>
+        <item quantity="other">Schedule for %d people?</item>
+    </plurals>
+    <!-- %1$s = bc_cost_sms_total ("12 SMS in total"), %2$s = bc_members_count ("6 people"), %3$s = bc_cost_parts_each ("up to 2 parts each") -->
+    <string name="bc_confirm_cost">%1$s (%2$s, %3$s). Your operator\'s normal charges apply to each one.</string>
+    <!-- %d = total number of SMS the broadcast sends; part of bc_confirm_cost -->
+    <plurals name="bc_cost_sms_total">
+        <item quantity="one">%d SMS in total</item>
+        <item quantity="other">%d SMS in total</item>
+    </plurals>
+    <!-- %d = most SMS parts one copy takes; part of bc_confirm_cost, after the number of people -->
+    <plurals name="bc_cost_parts_each">
+        <item quantity="one">up to %d part each</item>
+        <item quantity="other">up to %d parts each</item>
+    </plurals>
+    <!-- %d = number of international numbers in the broadcast -->
+    <plurals name="bc_confirm_international">
+        <item quantity="one">%d international number: international SMS rates apply.</item>
+        <item quantity="other">%d international numbers: international SMS rates apply.</item>
+    </plurals>
+    <!-- One person left out of a broadcast. %1$s = name or number, %2$s = why (e.g. "Blocked") -->
+    <string name="bc_excluded_line">%1$s: %2$s</string>
+    <!-- %1$d = number of recipients (chooses the plural), %2$d = the most one broadcast can go to -->
+    <plurals name="bc_problem_too_many">
+        <item quantity="one">%1$d person would receive this, but a broadcast can go to at most %2$d. Remove some from the list first.</item>
+        <item quantity="other">%1$d people would receive this, but a broadcast can go to at most %2$d. Remove some from the list first.</item>
+    </plurals>
+    <!-- %1$d = broadcast messages still allowed in the next 24 hours (chooses the plural), %2$d = the daily limit -->
+    <plurals name="bc_problem_daily">
+        <item quantity="one">Daily limit reached: only %1$d more broadcast message can go out in the next 24 hours (limit %2$d).</item>
+        <item quantity="other">Daily limit reached: only %1$d more broadcast messages can go out in the next 24 hours (limit %2$d).</item>
+    </plurals>
+    <!-- %d = copies delivered; joined with the other bc_status_* counts by " · " -->
+    <plurals name="bc_status_delivered">
+        <item quantity="one">%d delivered</item>
+        <item quantity="other">%d delivered</item>
+    </plurals>
+    <!-- %d = copies sent (not yet delivered); joined with the other bc_status_* counts -->
+    <plurals name="bc_status_sent">
+        <item quantity="one">%d sent</item>
+        <item quantity="other">%d sent</item>
+    </plurals>
+    <!-- %d = copies still waiting to go out; joined with the other bc_status_* counts -->
+    <plurals name="bc_status_pending">
+        <item quantity="one">%d pending</item>
+        <item quantity="other">%d pending</item>
+    </plurals>
+    <!-- %d = copies that failed; joined with the other bc_status_* counts -->
+    <plurals name="bc_status_failed">
+        <item quantity="one">%d failed</item>
+        <item quantity="other">%d failed</item>
+    </plurals>
+    <!-- %d = the most people a broadcast list can have -->
+    <plurals name="bc_edit_over_cap">
+        <item quantity="one">A list can have at most %d person.</item>
+        <item quantity="other">A list can have at most %d people.</item>
+    </plurals>
+    <!-- %1$d = days until the birthday (2 or more; today and tomorrow have their own strings) -->
+    <plurals name="fw_bd_in_days">
+        <item quantity="one">In %1$d day</item>
+        <item quantity="other">In %1$d days</item>
+    </plurals>
+    <!-- %1$d = the age the contact turns on this birthday -->
+    <plurals name="fw_bd_turns">
+        <item quantity="one">turns %1$d</item>
+        <item quantity="other">turns %1$d</item>
+    </plurals>
+    <!-- A wish preview in quotation marks. %1$s = the wish text -->
+    <string name="fw_bd_preview_quoted">“%1$s”</string>
+    <!-- Language name of a wish preset: Hindi written in Latin letters -->
+    <string name="fw_bd_lang_hinglish">Hinglish</string>
+</resources>

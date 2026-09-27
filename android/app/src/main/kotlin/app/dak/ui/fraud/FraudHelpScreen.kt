@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
-import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +72,7 @@ import app.dak.safety.helplines.HelplineAction
 import app.dak.safety.helplines.HelplineCategory
 import app.dak.safety.helplines.UserHelpline
 import app.dak.ui.common.DakTopAppBar
+import app.dak.ui.common.rememberRelativeTimeFormatter
 import app.dak.ui.conversation.simLabel
 import app.dak.ui.theme.DakTheme
 
@@ -104,17 +104,21 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         }
     }
 
+    val helplineTexts = rememberHelplineTexts()
     val detailLabels = remember(context) {
         FraudReport.DetailLabels(
             sender = context.getString(R.string.safe_detail_sender),
             received = context.getString(R.string.safe_detail_received),
             sim = context.getString(R.string.safe_detail_sim),
             message = context.getString(R.string.safe_detail_message),
+            lineFormat = context.getString(R.string.safe_detail_line),
+            blockFormat = context.getString(R.string.safe_detail_block),
         )
     }
     fun copyDetails(): Boolean {
-        val details = viewModel.details(detailLabels) { subId ->
-            viewModel.slotOf(subId).takeIf { it >= 0 }?.let { context.getString(R.string.sim_n, (it + 1).toString()) }
+        val appLocale = context.resources.configuration.locales[0] ?: java.util.Locale.getDefault()
+        val details = viewModel.details(detailLabels, appLocale) { subId ->
+            viewModel.slotOf(subId).takeIf { it >= 0 }?.let { context.getString(R.string.sim_n, it + 1) }
         } ?: return false
         copyPlain(context, details)
         return true
@@ -180,7 +184,7 @@ fun FraudHelpScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
             }
             item(key = "helplines-title") { SectionTitle(stringResource(R.string.safe_section_helplines)) }
             items(ui.helplines, key = { "h:" + it.id }) { helpline ->
-                HelplineTile(helpline, onOpen = { openHelpline(helpline) }, onSource = { FraudIntents.openUrl(context, helpline.sourceUrl) })
+                HelplineTile(helpline, helplineTexts, onOpen = { openHelpline(helpline) }, onSource = { FraudIntents.openUrl(context, helpline.sourceUrl) })
             }
             items(ui.emergencyNumbers, key = { "e:$it" }) { number ->
                 EmergencyTile(number, onCall = {
@@ -281,12 +285,13 @@ private fun ReportCard(
     onBlock: () -> Unit,
     onCopy: () -> Unit,
 ) {
-    val context = LocalContext.current
+    // Date and time in the app language (DateUtils would use the phone's language on Android 8-12).
+    val formatter = rememberRelativeTimeFormatter()
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
         Column(Modifier.padding(vertical = 12.dp)) {
             Text(stringResource(R.string.safe_report_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp))
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                val date = DateUtils.formatDateTime(context, message.dateMillis, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME)
+                val date = formatter.formatAbsolute(message.dateMillis)
                 Text("${message.sender} · $date", style = MaterialTheme.typography.labelLarge)
                 Text(message.body, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
@@ -367,14 +372,14 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun HelplineTile(helpline: Helpline, onOpen: () -> Unit, onSource: () -> Unit) {
+private fun HelplineTile(helpline: Helpline, texts: HelplineTexts, onOpen: () -> Unit, onSource: () -> Unit) {
     Card(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(iconFor(helpline), contentDescription = null, modifier = Modifier.padding(top = 2.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(helpline.name, style = MaterialTheme.typography.titleSmall)
+                Text(texts.name(helpline), style = MaterialTheme.typography.titleSmall)
                 Text(actionLabel(helpline), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Text(helpline.purpose, style = MaterialTheme.typography.bodySmall)
+                Text(texts.purpose(helpline), style = MaterialTheme.typography.bodySmall)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (helpline.needsVerification) {
                         Text(

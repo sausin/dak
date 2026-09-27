@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -159,7 +160,7 @@ fun PinPad(
 
 @Composable
 private fun PinDots(length: Int) {
-    val description = stringResource(R.string.lock_pin_entered, length)
+    val description = pluralStringResource(R.plurals.lock_pin_entered, length, length)
     val slots = maxOf(PinPolicy.MIN_LENGTH, length)
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),

@@ -105,11 +105,6 @@
     <string name="scr_backup_default_app_note">रीस्टोर और इंपोर्ट के लिए Dak का आपका डिफ़ॉल्ट SMS ऐप होना ज़रूरी है। ये सिर्फ़ मैसेज जोड़ते हैं; आपके फ़ोन पर पहले से मौजूद कुछ भी बदला या हटाया नहीं जाता।</string>
     <string name="scr_backup_destination">बैकअप फ़ोल्डर</string>
     <string name="scr_backup_destination_none">नहीं चुना गया। Drive, Dropbox या इस फ़ोन पर कोई फ़ोल्डर चुनें।</string>
-    <string name="scr_backup_done_backup">%1$d मैसेज का बैकअप लिया गया</string>
-    <string name="scr_backup_done_export">%1$d मैसेज एक्सपोर्ट किए गए</string>
-    <string name="scr_backup_done_import">%1$d मैसेज इंपोर्ट किए गए (%2$d पहले से मौजूद थे या छोड़े गए)</string>
-    <string name="scr_backup_done_restore">%1$d मैसेज रीस्टोर किए गए (%2$d पहले से मौजूद थे या छोड़े गए)</string>
-    <string name="scr_backup_done_restore_upto">%1$s तक के मैसेज शामिल हैं।</string>
     <string name="scr_backup_explainer">बैकअप इस फ़ोन से बाहर जाने से पहले आपके पासफ़्रेज़ से यहीं एन्क्रिप्ट किए जाते हैं। Dak आपके मैसेज या आपकी कुंजी कभी नहीं देखता।</string>
     <string name="scr_backup_export">एक्सपोर्ट करें</string>
     <string name="scr_backup_export_dak">एक्सपोर्ट करें (ओपन Dak फ़ॉर्मैट)</string>
@@ -128,7 +123,6 @@
     <string name="scr_backup_import_body">SMS Backup &amp; Restore (XML), Fossify Messages, या SMS Organizer का बैकअप।</string>
     <string name="scr_backup_last">पिछला बैकअप</string>
     <string name="scr_backup_last_error">पिछली कोशिश विफल रही: %1$s</string>
-    <string name="scr_backup_last_value">%1$s · %2$d मैसेज</string>
     <string name="scr_backup_manual">सिर्फ़ मैन्युअल</string>
     <string name="scr_backup_never">कभी नहीं</string>
     <string name="scr_backup_now">अभी बैकअप लें</string>
@@ -168,7 +162,6 @@
     <string name="scr_bin_deleted_by_otp">अपने-आप मिटाया गया OTP</string>
     <string name="scr_bin_deleted_by_rule">नियम \"%1$s\" ने मिटाया</string>
     <string name="scr_bin_deleted_by_you">आपने मिटाया</string>
-    <string name="scr_bin_emptied">%1$d मैसेज हमेशा के लिए हटाए गए</string>
     <string name="scr_bin_empty_action">बिन खाली करें</string>
     <string name="scr_bin_empty_body">मिटाए गए मैसेज कुछ समय तक यहां रहते हैं, ताकि आप उन्हें रीस्टोर कर सकें।</string>
     <string name="scr_bin_empty_confirm_body">रीसायकल बिन की हर चीज़ हमेशा के लिए हटा दी जाएगी। इसे वापस नहीं लिया जा सकता।</string>
@@ -211,14 +204,12 @@
     <string name="scr_composer_mms_chip">MMS</string>
     <string name="scr_composer_remove_attachment">अटैचमेंट हटाएं</string>
     <string name="scr_composer_roaming">%1$s पर रोमिंग</string>
-    <string name="scr_composer_segments">%1$d SMS · %2$d अक्षर बाकी</string>
     <string name="scr_composer_send">भेजें</string>
     <string name="scr_composer_send_in_hour">1 घंटे में भेजें</string>
     <string name="scr_composer_send_mms">MMS के रूप में भेजें</string>
     <string name="scr_composer_send_tomorrow">कल सुबह 9:00 बजे भेजें</string>
     <string name="scr_composer_sent_as">%1$s के रूप में भेजा जाएगा, ताकि रोमिंग में भी जवाब मिल सकें</string>
     <string name="scr_conv_back_to_results">नतीजों पर वापस जाएं</string>
-    <string name="scr_conv_group_members">%1$d लोग</string>
     <string name="scr_filter_amount_500">500 से ज़्यादा</string>
     <string name="scr_filter_amount_5000">5,000 से ज़्यादा</string>
     <string name="scr_filter_archive">संग्रहित</string>
@@ -246,7 +237,6 @@
     <string name="scr_inbox_empty_body">इस टैब की बातचीत मैसेज आने पर यहां दिखेंगी।</string>
     <string name="scr_inbox_empty_title">यहां अभी कुछ नहीं है</string>
     <string name="scr_inbox_index_progress">पुराने मैसेज व्यवस्थित हो रहे हैं: %2$s में से %1$s</string>
-    <string name="scr_inbox_index_waiting">%1$s पुराने मैसेज आपके चुने हुए समय पर व्यवस्थित किए जाएंगे</string>
     <string name="scr_inbox_new_message">नया मैसेज</string>
     <string name="scr_link_lookalike">यह पता %1$s की नकल करता है, लेकिन उसकी आधिकारिक साइट नहीं है।</string>
     <string name="scr_link_lookalike_unbranded">यह पता सिर्फ़ आधिकारिक दिखता है: यह सिर्फ़ एक नंबर है या किसी सरकारी या बैंक साइट होने का दिखावा करता है। असली साइटें अपने खुद के डोमेन इस्तेमाल करती हैं।</string>
@@ -267,7 +257,6 @@
     <string name="scr_passbook_balance_unknown_since">%1$s से बैलेंस पता नहीं</string>
     <string name="scr_passbook_empty_body">बैंक मैसेज आने के बाद खाते और कार्ड यहां दिखेंगे। सब कुछ आपके फ़ोन पर ही पढ़ा जाता है।</string>
     <string name="scr_passbook_empty_title">अभी कोई खाता नहीं</string>
-    <string name="scr_passbook_entries">%1$d लेन-देन</string>
     <string name="scr_passbook_group_accounts">बैंक खाते</string>
     <string name="scr_passbook_group_cards">क्रेडिट कार्ड</string>
     <string name="scr_passbook_group_other">अन्य</string>
@@ -288,7 +277,6 @@
     <string name="scr_search_filters">फ़िल्टर</string>
     <string name="scr_search_hint">मैसेज खोजें</string>
     <string name="scr_search_in_bin">रीसायकल बिन में</string>
-    <string name="scr_search_more_matches">इस बातचीत में +%1$d और</string>
     <string name="scr_search_no_results">कोई नतीजा नहीं</string>
     <string name="scr_search_no_results_body">कम शब्द आज़माएं या कोई फ़िल्टर हटाएं।</string>
     <string name="scr_search_operators_help">सुझाव: शब्दों को इन जैसे फ़िल्टर के साथ जोड़ें: from:hdfc category:otp sim:2 has:link amount:>500 during:\"last week\" in:archive is:unread.</string>

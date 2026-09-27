@@ -1,6 +1,5 @@
 package app.dak.ui.forwarding
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automation.AppLocaleText
 import app.dak.automations.history.RunHistory
 import app.dak.automations.history.RunOutcome
 import app.dak.automations.history.RunRecord
@@ -45,13 +45,13 @@ import app.dak.navigation.DakNavigator
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.EmptyState
 import app.dak.ui.common.TokenChip
+import app.dak.ui.common.text.rememberDisplayLocale
 import app.dak.ui.theme.DakTheme
 import app.dak.ui.theme.TonalColors
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.util.Date
 
 /**
  * What an automation sent, and when: the run log of one rule (from its row's History button) or of every rule
@@ -76,7 +76,8 @@ fun AutomationHistoryScreen(navigator: DakNavigator, modifier: Modifier = Modifi
     val zone = remember { ZoneId.systemDefault() }
     val days = remember(list) { RunHistory.groupByDay(list, zone) }
     val summary = remember(list) { RunHistory.summarize(list) }
-    val dayFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL) }
+    val locale = rememberDisplayLocale()
+    val dayFormat = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale) }
 
     Scaffold(
         modifier = modifier,
@@ -127,32 +128,36 @@ fun AutomationHistoryScreen(navigator: DakNavigator, modifier: Modifier = Modifi
 @Composable
 private fun SummaryCard(summary: RunSummary) {
     val context = LocalContext.current
-    val dateFormat = remember { DateFormat.getMediumDateFormat(context) }
     val first = summary.firstAtMillis
     val last = summary.lastAtMillis
-    val to = summary.destinations.take(MAX_DESTINATIONS).joinToString(", ") +
-        if (summary.destinations.size > MAX_DESTINATIONS) " +${summary.destinations.size - MAX_DESTINATIONS}" else ""
-    val sent = if (summary.sent == 0) {
+    val shown = AppLocaleText.list(context, summary.destinations.take(MAX_DESTINATIONS))
+    val more = summary.destinations.size - MAX_DESTINATIONS
+    val to = if (more > 0) stringResource(R.string.fw_history_to_more, shown, more) else shown
+    // One sentence per case (count, recipients and range together), so each language orders it its own way.
+    val sent = if (first != null && last != null) {
+        val from = AppLocaleText.date(context, first)
+        val until = AppLocaleText.date(context, last)
+        if (summary.sent == 0) {
+            stringResource(R.string.fw_history_sent_none_between, from, until)
+        } else {
+            pluralStringResource(R.plurals.fw_history_sent_between, summary.sent, summary.sent, to, from, until)
+        }
+    } else if (summary.sent == 0) {
         stringResource(R.string.fw_history_sent_none)
     } else {
         pluralStringResource(R.plurals.fw_history_sent, summary.sent, summary.sent, to)
-    }
-    val range = if (first != null && last != null) {
-        stringResource(R.string.fw_history_between, dateFormat.format(Date(first)), dateFormat.format(Date(last)))
-    } else {
-        ""
     }
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.fillMaxWidth().padding(16.dp),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(listOf(sent, range).filter { it.isNotEmpty() }.joinToString(" "), style = MaterialTheme.typography.bodyLarge)
+            Text(sent, style = MaterialTheme.typography.bodyLarge)
             if (summary.failed > 0 || summary.skipped > 0) {
                 Text(
                     listOfNotNull(
-                        summary.failed.takeIf { it > 0 }?.let { stringResource(R.string.fw_history_failed, it) },
-                        summary.skipped.takeIf { it > 0 }?.let { stringResource(R.string.fw_history_skipped, it) },
+                        summary.failed.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.fw_history_failed, it, it) },
+                        summary.skipped.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.fw_history_skipped, it, it) },
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -165,7 +170,7 @@ private fun SummaryCard(summary: RunSummary) {
 @Composable
 private fun RunRow(record: RunRecord, showRule: Boolean, onOpen: () -> Unit) {
     val context = LocalContext.current
-    val time = remember(record.atMillis) { DateFormat.getTimeFormat(context).format(Date(record.atMillis)) }
+    val time = remember(record.atMillis, context) { AppLocaleText.time(context, record.atMillis) }
     val outcome = outcomeLabel(record.outcome)
     val openLabel = stringResource(R.string.fw_history_open_message_cd)
     ListItem(

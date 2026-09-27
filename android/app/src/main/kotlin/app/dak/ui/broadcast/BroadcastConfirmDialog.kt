@@ -4,7 +4,7 @@ import android.content.Context
 import android.icu.text.MeasureFormat
 import android.icu.util.Measure
 import android.icu.util.MeasureUnit
-import android.text.format.DateUtils
+import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,6 +43,10 @@ import app.dak.automations.broadcast.SpamRiskLevel
 import app.dak.automations.broadcast.SpamSignal
 import app.dak.broadcast.BroadcastPreview
 import app.dak.telephony.cost.CostKind
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -70,7 +74,7 @@ fun BroadcastConfirmDialog(preview: BroadcastPreview, simName: String?, onConfir
             )
         },
         title = {
-            Text(stringResource(if (scheduled) R.string.bc_confirm_title_scheduled else R.string.bc_confirm_title, n))
+            Text(pluralText(if (scheduled) R.plurals.bc_confirm_title_scheduled else R.plurals.bc_confirm_title, n))
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -87,14 +91,19 @@ fun BroadcastConfirmDialog(preview: BroadcastPreview, simName: String?, onConfir
                 if (simName != null) Text(stringResource(R.string.bc_sim_label, simName), style = MaterialTheme.typography.bodyMedium)
                 if (n > 0) {
                     Text(
-                        stringResource(R.string.bc_confirm_cost, preview.totalSegments, n, preview.maxSegmentsPerCopy),
+                        stringResource(
+                            R.string.bc_confirm_cost,
+                            pluralText(R.plurals.bc_cost_sms_total, preview.totalSegments),
+                            quantityString(R.plurals.bc_members_count, n),
+                            pluralText(R.plurals.bc_cost_parts_each, preview.maxSegmentsPerCopy),
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(etaText(context, preview), style = MaterialTheme.typography.bodyMedium)
                 }
                 val international = preview.costVerdicts.count { it.kind == CostKind.INTERNATIONAL }
                 if (international > 0) {
-                    Text(stringResource(R.string.bc_confirm_international, international), style = MaterialTheme.typography.bodyMedium)
+                    Text(pluralText(R.plurals.bc_confirm_international, international), style = MaterialTheme.typography.bodyMedium)
                 }
                 if (preview.roaming || preview.costVerdicts.any { it.kind == CostKind.ROAMING || it.roaming }) {
                     Text(stringResource(R.string.bc_confirm_roaming), style = MaterialTheme.typography.bodyMedium)
@@ -106,7 +115,7 @@ fun BroadcastConfirmDialog(preview: BroadcastPreview, simName: String?, onConfir
                     )
                     for (e in plan.excluded.take(MAX_EXCLUDED_SHOWN)) {
                         val who = e.member.displayName.ifBlank { e.member.address }
-                        Text("$who: ${exclusionText(e.reason)}", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.bc_excluded_line, who, exclusionText(e.reason)), style = MaterialTheme.typography.bodySmall)
                     }
                     if (plan.excluded.size > MAX_EXCLUDED_SHOWN) {
                         Text("…", style = MaterialTheme.typography.bodySmall)
@@ -175,8 +184,8 @@ private fun RiskCard(title: String, body: String) {
 private fun problemText(problem: PlanProblem): String = when (problem) {
     PlanProblem.EmptyMessage -> stringResource(R.string.bc_problem_empty)
     PlanProblem.NoRecipients -> stringResource(R.string.bc_problem_no_recipients)
-    is PlanProblem.TooManyRecipients -> stringResource(R.string.bc_problem_too_many, problem.count, problem.max)
-    is PlanProblem.DailyLimit -> stringResource(R.string.bc_problem_daily, problem.remaining, problem.max)
+    is PlanProblem.TooManyRecipients -> pluralText(R.plurals.bc_problem_too_many, problem.count, problem.max)
+    is PlanProblem.DailyLimit -> pluralText(R.plurals.bc_problem_daily, problem.remaining, problem.max)
     PlanProblem.ScheduledInPast -> stringResource(R.string.bc_problem_past)
     is PlanProblem.ScheduledTooFar -> stringResource(R.string.bc_problem_far)
 }
@@ -196,7 +205,7 @@ internal fun exclusionText(reason: ExclusionReason): String = stringResource(
 
 private fun etaText(context: Context, preview: BroadcastPreview): String {
     val plan = preview.plan
-    val spread = formatDuration(plan.spreadMillis)
+    val spread = formatDuration(plan.spreadMillis, appLocale(context))
     return when {
         preview.scheduledAtMillis != null ->
             context.getString(R.string.bc_confirm_eta_scheduled, formatWhen(context, plan.startAtMillis), spread)
@@ -205,17 +214,27 @@ private fun etaText(context: Context, preview: BroadcastPreview): String {
     }
 }
 
-/** A date and time in the user's locale, e.g. "24 Sept, 9:00 am". */
-internal fun formatWhen(context: Context, millis: Long): String = DateUtils.formatDateTime(
-    context,
-    millis,
-    DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH,
-)
+/** The app language (activity or composition context), not the phone's default locale. */
+internal fun appLocale(context: Context): Locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
 
-/** "40 minutes", "1 hour, 10 minutes" in the user's locale (rounded up to the minute). */
-internal fun formatDuration(millis: Long): String {
+/**
+ * A date and time in the app language, honouring the 12/24-hour setting, e.g. "24 Sept, 9:00 am" (the year is added
+ * when it is not this year). One CLDR skeleton, so the locale picks the order of date and time and the joiner.
+ */
+internal fun formatWhen(context: Context, millis: Long): String {
+    val locale = appLocale(context)
+    val zone = ZoneId.systemDefault()
+    val then = Instant.ofEpochMilli(millis).atZone(zone)
+    val thisYear = then.year == ZonedDateTime.now(zone).year
+    val hour = if (DateFormat.is24HourFormat(context)) "Hm" else "hm"
+    val skeleton = (if (thisYear) "dMMM" else "dMMMy") + hour
+    return then.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale))
+}
+
+/** "40 minutes", "1 hour, 10 minutes" in [locale] (rounded up to the minute). */
+internal fun formatDuration(millis: Long, locale: Locale): String {
     val totalMinutes = ((millis + 59_999L) / 60_000L).coerceAtLeast(0L)
-    val format = MeasureFormat.getInstance(Locale.getDefault(), MeasureFormat.FormatWidth.WIDE)
+    val format = MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE)
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     return when {
@@ -231,3 +250,8 @@ private const val MAX_EXCLUDED_SHOWN = 8
 @Composable
 internal fun quantityString(id: Int, count: Int): String =
     LocalContext.current.resources.getQuantityString(id, count, count)
+
+/** A plural string chosen by [count], formatted with [count] first, then [more] (%1$d = count, %2$… = more). */
+@Composable
+internal fun pluralText(id: Int, count: Int, vararg more: Any): String =
+    LocalContext.current.resources.getQuantityString(id, count, count, *more)

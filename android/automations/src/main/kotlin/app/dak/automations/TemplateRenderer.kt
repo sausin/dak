@@ -1,9 +1,6 @@
 package app.dak.automations
 
-import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Renders the editable forward/webhook/relay templates ("Payment of {amount} received from {payer} at
@@ -12,14 +9,19 @@ import java.util.Locale
  *
  * Recognised placeholders: `{amount}`, `{payer}`, `{merchant}`, `{time}`, `{sender}`, `{body}`, `{otp}`,
  * `{sim}`. A placeholder with nothing to fill it renders as an empty string; anything else in the
- * template (including an unrecognised `{placeholder}`) passes through unchanged.
+ * template (including an unrecognised `{placeholder}`) passes through unchanged. `{time}`, `{amount}` and `{sim}` are
+ * formatted by a [PlaceholderFormatter]: `:app` passes one for the app language; the default is locale-independent
+ * English.
  */
 public object TemplateRenderer {
 
-    private val TIME_FORMAT = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.US)
-
-    public fun render(template: String, event: MessageEvent, zoneId: String = "UTC"): String {
-        val values = placeholderValues(event, zoneId)
+    public fun render(
+        template: String,
+        event: MessageEvent,
+        zoneId: String = "UTC",
+        formatter: PlaceholderFormatter = PlaceholderFormatter.Default,
+    ): String {
+        val values = placeholderValues(event, zoneId, formatter)
         val builder = StringBuilder(template.length)
         var i = 0
         while (i < template.length) {
@@ -42,15 +44,15 @@ public object TemplateRenderer {
         return builder.toString()
     }
 
-    private fun placeholderValues(event: MessageEvent, zoneId: String): Map<String, String> {
+    private fun placeholderValues(event: MessageEvent, zoneId: String, formatter: PlaceholderFormatter): Map<String, String> {
         val tx = event.transaction
         val zone = runCatching { ZoneId.of(zoneId) }.getOrDefault(ZoneId.of("UTC"))
-        val time = TIME_FORMAT.withZone(zone).format(Instant.ofEpochMilli(event.dateMillis))
-        val amount = tx?.let { formatAmount(it.amountMinor, it.currency) }.orEmpty()
+        val time = formatter.time(event.dateMillis, zone)
+        val amount = tx?.let { formatter.amount(it.amountMinor, it.currency) }.orEmpty()
         // The AST does not yet distinguish "who paid" from "who was paid"; both templates map to the
         // same extracted merchant/counterparty name until that split exists.
         val counterparty = tx?.merchant.orEmpty()
-        val sim = event.slot?.let { "SIM ${it + 1}" } ?: "sub ${event.subId}"
+        val sim = formatter.sim(event.slot, event.subId)
         return mapOf(
             "amount" to amount,
             "payer" to counterparty,
@@ -61,10 +63,5 @@ public object TemplateRenderer {
             "otp" to (event.otp?.code.orEmpty()),
             "sim" to sim,
         )
-    }
-
-    private fun formatAmount(amountMinor: Long, currency: String): String {
-        val major = amountMinor / 100.0
-        return "%s %.2f".format(Locale.US, currency, major)
     }
 }

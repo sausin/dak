@@ -1,0 +1,75 @@
+{
+  "_comment": "Spanish translation of the consent disclosures in Disclosures.kt. Legal text: needs a reviewed translation before release (docs/i18n.md). Each entry names the source version it translates; a stale one is not shown. Editing any text changes its hash: users who allowed it in Spanish are asked again.",
+  "language": "es",
+  "disclosures": [
+    {
+      "flow": "cloud_classification",
+      "version": 3,
+      "title": "Enviar mensajes poco claros para una segunda opinión (Jev)",
+      "whatIsSent": [
+        "El ID de remitente de un mensaje comercial que Dak no pudo clasificar por sí solo, como \"VM-HDFCBK\" o un código corto.",
+        "Una copia enmascarada de ese mensaje: antes de que salga del teléfono, los números, importes, números de tarjeta, enlaces, direcciones de correo y probables nombres se sustituyen por marcadores como <NUM>."
+      ],
+      "whatIsNotSent": [
+        "Códigos OTP, importes, números de cuenta y enlaces (se enmascaran).",
+        "Nada que venga de una persona: los mensajes de números de teléfono, y esos números, nunca salen del teléfono.",
+        "Los mensajes que Dak ya puede clasificar en el teléfono, tus contactos y el resto de tus mensajes."
+      ],
+      "sentTo": "El servicio de clasificación de Dak (gestionado por Dak o por un encargado del tratamiento que trabaja para Dak), a través de una conexión cifrada.",
+      "why": "Para archivar el mensaje en la categoría correcta (por ejemplo, Transacciones o Spam) cuando el clasificador del dispositivo no está seguro.",
+      "whenSent": "Solo para mensajes entrantes nuevos e individuales que el teléfono no puede clasificar con seguridad, hasta tu límite mensual (Ajustes → Categorías y spam → Avanzado).",
+      "retention": "El servicio devuelve una categoría y no conserva el texto. No se usa para entrenar modelos ni para publicidad, y no se vende.",
+      "howToTurnOff": "Ajustes → Privacidad → Datos que salen de tu teléfono. Al desactivarlo se detiene de inmediato."
+    },
+    {
+      "flow": "webhooks",
+      "version": 2,
+      "title": "Enviar mensajes a tu propia dirección web (webhooks)",
+      "whatIsSent": [
+        "Por cada mensaje que coincide con una regla con webhook: el remitente (dirección o ID de remitente), un ID interno del mensaje y el texto que genera la plantilla de tu regla (por defecto, el mensaje completo, que puede incluir OTP)."
+      ],
+      "whatIsNotSent": [
+        "Los mensajes que no coinciden con ninguna de tus reglas de webhook.",
+        "El secreto de firma del webhook (solo se envía una firma hecha con él)."
+      ],
+      "sentTo": "La dirección web que escribes en la regla (tu propio servidor o un servicio como un bot de Slack o Telegram). Dak no la lee.",
+      "why": "Para que tu regla pueda pasar el mensaje a un sistema que tú controlas.",
+      "whenSent": "Automáticamente, cada vez que llega un mensaje que coincide, mientras la regla está activada.",
+      "retention": "Quien gestiona esa dirección web decide cuánto tiempo lo conserva. Dak guarda un registro de cada envío en este teléfono (Automatizaciones → historial).",
+      "howToTurnOff": "Ajustes → Privacidad → Datos que salen de tu teléfono. Al desactivarlo se detiene de inmediato. También puedes desactivar o eliminar la regla en Automatizaciones."
+    },
+    {
+      "flow": "web_relay",
+      "version": 2,
+      "title": "Leer y responder desde tu ordenador (retransmisión)",
+      "whatIsSent": [
+        "Los mensajes que decides retransmitir, cifrados en este teléfono con una clave que solo compartes con tu ordenador vinculado (se configura escaneando un código QR).",
+        "Los datos de entrega que la retransmisión de Dak necesita para encaminarlos: un ID de vinculación y el tamaño y la hora de cada elemento cifrado."
+      ],
+      "whatIsNotSent": [
+        "El texto legible: el servidor de retransmisión de Dak solo guarda datos cifrados que no puede abrir."
+      ],
+      "sentTo": "El servidor de retransmisión de Dak, que pasa los datos cifrados a tu cliente web vinculado.",
+      "why": "Para que puedas leer y responder mensajes desde un ordenador.",
+      "whenSent": "Mientras haya un dispositivo vinculado y la retransmisión esté activada.",
+      "retention": "Los elementos cifrados se eliminan de la retransmisión en cuanto se entregan, y como máximo a los 7 días si nunca se entregan.",
+      "howToTurnOff": "Ajustes → Privacidad → Datos que salen de tu teléfono. Al desactivarlo se detiene de inmediato. Desvincular el ordenador también lo detiene."
+    },
+    {
+      "flow": "ai_search",
+      "version": 2,
+      "title": "Hacer preguntas sobre tus mensajes con tus propias palabras (búsqueda con IA)",
+      "whatIsSent": [
+        "Solo la pregunta que escribes en la búsqueda, por ejemplo \"cuánto gasté en Swiggy el mes pasado\"."
+      ],
+      "whatIsNotSent": [
+        "Tus mensajes. El servicio convierte tu pregunta en filtros de búsqueda; la búsqueda en sí se hace en este teléfono."
+      ],
+      "sentTo": "Un servicio de modelo de lenguaje que Dak usa para entender la pregunta, a través de una conexión cifrada.",
+      "why": "Para convertir tu pregunta en filtros (remitente, fecha, importe) que Dak aplica después en el teléfono.",
+      "whenSent": "Cada vez que haces una búsqueda con tus propias palabras mientras esto está activado.",
+      "retention": "La pregunta no se conserva después de devolver la respuesta y no se usa para entrenamiento ni para publicidad.",
+      "howToTurnOff": "Ajustes → Privacidad → Datos que salen de tu teléfono. Al desactivarlo se detiene de inmediato. La búsqueda usa entonces solo palabras clave y filtros."
+    }
+  ]
+}

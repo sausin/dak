@@ -67,8 +67,15 @@
     <string name="dak_telephony_fail_mms_save_failed">मैसेज सेव नहीं हो सका</string>
     <string name="dak_telephony_fail_mms_too_large">मैसेज बहुत बड़ा है</string>
     <string name="dak_telephony_fail_mms_empty_response">ऑपरेटर ने खाली मैसेज लौटाया</string>
-    <!-- %1$s = technical detail from the MMS decoder (English, not translated) -->
-    <string name="dak_telephony_fail_mms_unreadable">MMS पढ़ा नहीं जा सकता: %1$s</string>
+    <string name="dak_telephony_fail_mms_unreadable">MMS पढ़ा नहीं जा सकता</string>
     <string name="dak_telephony_fail_mms_unexpected_response">ऑपरेटर से अनपेक्षित जवाब</string>
     <string name="dak_telephony_fail_mms_carrier_could_not_deliver">ऑपरेटर यह मैसेज डिलीवर नहीं कर सका</string>
+    <string name="dak_telephony_fail_birthday_already_wished">इस साल शुभकामना पहले ही भेजी जा चुकी है</string>
+    <string name="dak_telephony_fail_birthday_wishes_off">जन्मदिन की शुभकामनाएं बंद हैं</string>
+    <string name="dak_telephony_fail_birthday_asked">पहले उपयोगकर्ता से पूछा गया</string>
+    <string name="dak_telephony_fail_birthday_no_app_lock">ऐप लॉक नहीं है: उपयोगकर्ता से पूछा गया</string>
+    <string name="dak_telephony_fail_birthday_daily_limit">बिना निगरानी भेजने की रोज़ की सीमा: उपयोगकर्ता से पूछा गया</string>
+    <string name="dak_telephony_fail_scheduled_premium_refused">प्रीमियम-रेट नंबर को मंज़ूरी नहीं दी गई है</string>
+    <string name="dak_telephony_fail_scheduled_no_app_lock">कोई ऐप लॉक सेट नहीं था</string>
+    <string name="dak_telephony_fail_scheduled_emergency_cancelled">आपातकालीन नंबरों पर शेड्यूल किए गए मैसेज भेजने की अनुमति नहीं है</string>
 </resources>

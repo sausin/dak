@@ -10,7 +10,6 @@ import app.dak.premium.Feature
 import app.dak.premium.consent.ConsentLedger
 import app.dak.premium.consent.ConsentRecord
 import app.dak.premium.consent.DataFlow
-import app.dak.premium.consent.Disclosures
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,10 +25,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-/** One off-device data flow as the Privacy screen shows it. */
+/** One off-device data flow as the Privacy screen shows it (its title comes from the disclosure in the app language). */
 data class DataFlowState(
     val flow: DataFlow,
-    val title: String,
     val granted: Boolean,
     /** False when the feature does not exist in this build or tier (it can still be withdrawn if granted). */
     val available: Boolean,
@@ -62,7 +60,6 @@ class PrivacyViewModel @Inject constructor(
         DataFlow.entries.map { flow ->
             DataFlowState(
                 flow = flow,
-                title = Disclosures.forFlow(flow).title,
                 granted = consents.isGranted(flow),
                 available = isAvailable(flow),
                 lastChangedAt = records.lastOrNull { it.flow == flow.id }?.atMillis,
@@ -78,13 +75,14 @@ class PrivacyViewModel @Inject constructor(
     private val exportState = MutableStateFlow<ExportState>(ExportState.Idle)
     val export: StateFlow<ExportState> = exportState.asStateFlow()
 
-    fun grant(flow: DataFlow) {
-        consents.grant(flow, SOURCE)
+    /** Records "Allow" of the disclosure the screen showed, in [language] (the app language tag). */
+    fun grant(flow: DataFlow, language: String) {
+        consents.grant(flow, SOURCE, language)
         if (flow == DataFlow.CLOUD_CLASSIFICATION) settings.set(DakSettings.jevOptIn, true)
     }
 
-    fun decline(flow: DataFlow) {
-        consents.decline(flow, SOURCE)
+    fun decline(flow: DataFlow, language: String) {
+        consents.decline(flow, SOURCE, language)
     }
 
     fun withdraw(flow: DataFlow) {

@@ -28,11 +28,12 @@
     <string name="category_spam">Spam</string>
     <string name="category_other">Other</string>
     <string name="premium">Premium</string>
-    <!-- Short SIM label on chips. %1$s = slot number ("1", "2"). -->
-    <string name="sim_n">SIM %1$s</string>
+    <!-- Short SIM label on chips. %1$d = slot number (1, 2). -->
+    <string name="sim_n">SIM %1$d</string>
 
     <!-- Relative time -->
     <string name="time_now">Now</string>
+    <!-- %d = number of minutes ago, e.g. "5 min". -->
     <string name="time_minutes_format">%d min</string>
     <string name="time_yesterday">Yesterday</string>
 
@@ -125,10 +126,6 @@
     <string name="selftest_sms_body">Dak self-test %1$s. If you see this as a notification, delivery works.</string>
     <string name="selftest_sms_sending">Sending…</string>
     <string name="selftest_sms_waiting">Sent. Waiting for it to arrive…</string>
-    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
-    <string name="selftest_sms_received">Received and notified in %1$d s. Delivery works.</string>
-    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
-    <string name="selftest_sms_received_no_notification">Received in %1$d s, but the notification was blocked.</string>
     <!-- %1$s = why sending failed, from the phone or carrier (core-telephony strings_failures.xml). -->
     <string name="selftest_sms_failed">Could not send: %1$s</string>
     <string name="selftest_sms_timeout">Nothing arrived within 2 minutes. Check the number, or try the other SIM.</string>

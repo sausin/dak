@@ -34,6 +34,7 @@
     </plurals>
     <!-- Joiner only: %1$s = recipient, %2$s = time. Not translated. -->
     <string name="sched_hu_summary_line" translatable="false">%1$s · %2$s</string>
+    <!-- %d = number of further scheduled messages. -->
     <plurals name="sched_hu_summary_more">
         <item quantity="one">+%d more</item>
         <item quantity="other">+%d more</item>

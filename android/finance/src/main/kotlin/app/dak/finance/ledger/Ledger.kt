@@ -110,7 +110,7 @@ object Ledger {
                 ?.let { aliases.resolve(it) }
             var account = Account(
                 id = id,
-                institution = sample.institution ?: "Unknown",
+                institution = sample.institution ?: Account.UNKNOWN_INSTITUTION,
                 instrument = instrumentOverride(id) ?: sample.instrument,
                 last4 = sample.last4,
                 homeCurrency = homeCurrency,

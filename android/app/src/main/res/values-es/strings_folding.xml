@@ -7,7 +7,6 @@
     <string name="fold_empty_body">Los remitentes de una misma marca se agrupan automáticamente. Mantén pulsadas conversaciones en la bandeja de entrada y elige Agrupar para agrupar otras.</string>
     <string name="fold_suggestions_header">Sugerencias</string>
     <string name="fold_groups_header">Conversaciones agrupadas</string>
-    <string name="fold_suggestion_title">Estos %1$d remitentes parecen ser %2$s. ¿Agruparlos en una sola conversación?</string>
     <string name="fold_suggestion_same_brand">Misma marca</string>
     <string name="fold_suggestion_similar">Nombres de remitente similares</string>
     <string name="fold_action_fold">Agrupar</string>
@@ -21,15 +20,12 @@
     <string name="fold_action_unfold_channel">Separar un remitente…</string>
     <string name="fold_action_manage">Grupos de remitentes</string>
     <string name="fold_action_select">Seleccionar</string>
-    <string name="fold_channels_count">%1$d canales</string>
-    <string name="fold_channel_last_seen">Último mensaje %1$s · %2$d mensajes</string>
     <string name="fold_channel_also">También como %1$s</string>
     <string name="fold_channel_manual">Agrupado por ti</string>
     <string name="fold_group_manual">Tu grupo</string>
     <string name="fold_group_brand">Agrupado por marca</string>
     <string name="fold_rename_title">Cambiar nombre del grupo</string>
     <string name="fold_rename_label">Nombre</string>
-    <string name="fold_name_title">Agrupar %1$d conversaciones</string>
     <string name="fold_name_hint">Nombre de la conversación agrupada (opcional)</string>
     <string name="fold_into_title">Agrupar en</string>
     <string name="fold_into_empty">Aún no hay otras conversaciones en las que agrupar.</string>
@@ -38,7 +34,6 @@
     <string name="fold_snack_folded">Agrupado</string>
     <string name="fold_snack_unfolded">Separado</string>
     <string name="fold_snack_failed">No se pudieron agrupar estas conversaciones</string>
-    <string name="fold_selected_count">%1$d seleccionadas</string>
     <string name="fold_filter_all">Todos los remitentes</string>
     <string name="fold_chip_channel">mediante %1$s</string>
 

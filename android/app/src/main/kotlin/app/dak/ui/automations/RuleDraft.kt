@@ -49,8 +49,11 @@ data class RuleDraft(
     val relayChannel: RelayChannel = RelayChannel.SMS,
     val createdAt: Long? = null,
 ) {
-    /** Builds the rule AST; null when a required field for the chosen action is missing. */
-    fun toRule(now: Long): Rule? {
+    /**
+     * Builds the rule AST; null when a required field for the chosen action is missing. [defaultName] is the name used
+     * when [name] is blank (the screen builds it from the action, in the app language).
+     */
+    fun toRule(now: Long, defaultName: String): Rule? {
         val conditions = buildList<Condition> {
             senderContains.trim().takeIf { it.isNotEmpty() }?.let { add(Condition.SenderMatches("(?i)" + Pattern.quote(it))) }
             category?.let { add(Condition.CategoryIs(it)) }
@@ -77,7 +80,7 @@ data class RuleDraft(
         val trigger = keyword.trim().takeIf { it.isNotEmpty() }?.let { Trigger.Keyword(it) } ?: Trigger.MessageReceived()
         return Rule(
             id = id ?: UUID.randomUUID().toString(),
-            name = name.trim().ifEmpty { defaultName() },
+            name = name.trim().ifEmpty { defaultName },
             enabled = enabled,
             trigger = trigger,
             conditions = Condition.All(conditions),
@@ -89,18 +92,6 @@ data class RuleDraft(
 
     private fun amountMinor(): Long? = amountAtLeast.trim().takeIf { it.isNotEmpty() }
         ?.let { runCatching { BigDecimal(it).movePointRight(2).toLong() }.getOrNull() }
-
-    private fun defaultName(): String = when (action) {
-        ActionKind.LABEL -> "Label \"${label.trim()}\""
-        ActionKind.ARCHIVE -> "Archive"
-        ActionKind.NOTIFY -> "Notify"
-        ActionKind.FORWARD_SMS -> "Forward to ${forwardTo.trim()}"
-        ActionKind.SCHEDULE_REPLY -> "Auto-reply"
-        ActionKind.DELETE -> "Move to bin"
-        ActionKind.OPEN_LINK -> "Open link"
-        ActionKind.WEBHOOK -> "Webhook"
-        ActionKind.RELAY -> "Relay to ${forwardTo.trim()}"
-    }
 
     companion object {
         private const val MAX_DELAY_MINUTES = 7L * 24 * 60

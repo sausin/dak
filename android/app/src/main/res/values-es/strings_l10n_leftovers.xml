@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Residual i18n fixes: selection counts, unknown-sender titles, list joins (workstream "leftovers"). -->
+<resources>
+    <!-- Selection top bar title; %1$d = number of selected messages or conversations. -->
+    <plurals name="fold_selected_count">
+        <item quantity="one">%1$d seleccionado</item>
+        <item quantity="many">%1$d seleccionados</item>
+        <item quantity="other">%1$d seleccionados</item>
+    </plurals>
+    <!-- Forwarding source picker footer; %1$d = number of conversations ticked. -->
+    <plurals name="fw_channels_selected">
+        <item quantity="one">%1$d seleccionado</item>
+        <item quantity="many">%1$d seleccionados</item>
+        <item quantity="other">%1$d seleccionados</item>
+    </plurals>
+    <!-- Name of a forwarding rule the user left unnamed; stored with the rule. %1$s = the conversations forwarded (a list), %2$s = the recipients (a list) -->
+    <string name="fw_derived_name">%1$s → %2$s</string>
+</resources>

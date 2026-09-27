@@ -33,7 +33,6 @@
     <string name="privacy_export_warning">La exportación no está cifrada: cualquiera que obtenga el archivo puede leerlo. Tus mensajes SMS no se incluyen; para guardarlos, usa Copia de seguridad, datos y privacidad → Exportar.</string>
     <string name="privacy_export_start">Elegir dónde guardar</string>
     <string name="privacy_export_running">Exportando…</string>
-    <string name="privacy_export_done">Se guardaron %1$d secciones (%2$d entradas).</string>
     <string name="privacy_export_failed">La exportación falló. No se guardó nada.</string>
     <string name="privacy_export_auth">Exportar tus datos de Dak</string>
 

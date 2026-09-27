@@ -25,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,7 +71,7 @@ internal fun AccountAliasCard(
                     R.string.fold_alias_question,
                     accountNumberLabel(suggestion.a.account),
                     "••" + (suggestion.b.account.visibleDigits ?: "—"),
-                    BidiText.displaySafe(suggestion.a.account.institution),
+                    BidiText.displaySafe(institutionName(suggestion.a.account)),
                 ),
                 style = MaterialTheme.typography.titleSmall,
             )
@@ -130,7 +131,7 @@ internal fun MergeWithDialog(candidates: List<AccountSummary>, onPick: (AccountS
                         Column(Modifier.fillMaxWidth().clickable { onPick(summary) }.padding(vertical = 10.dp)) {
                             Text(accountTitle(summary.account), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
-                                stringResource(R.string.scr_passbook_entries, summary.entryCount),
+                                pluralStringResource(R.plurals.scr_passbook_entries, summary.entryCount, summary.entryCount),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

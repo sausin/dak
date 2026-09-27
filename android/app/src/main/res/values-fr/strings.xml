@@ -25,8 +25,8 @@
     <string name="category_spam">Spam</string>
     <string name="category_other">Autres</string>
     <string name="premium">Premium</string>
-    <!-- Short SIM label on chips. %1$s = slot number ("1", "2"). -->
-    <string name="sim_n">SIM %1$s</string>
+    <!-- Short SIM label on chips. %1$d = slot number (1, 2). -->
+    <string name="sim_n">SIM %1$d</string>
 
     <!-- Relative time -->
     <string name="time_now">Maintenant</string>
@@ -122,10 +122,6 @@
     <string name="selftest_sms_body">Autotest Dak %1$s. Si ce message s\'affiche en notification, la réception fonctionne.</string>
     <string name="selftest_sms_sending">Envoi…</string>
     <string name="selftest_sms_waiting">Envoyé. En attente de réception…</string>
-    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
-    <string name="selftest_sms_received">Reçu et notifié en %1$d s. La réception fonctionne.</string>
-    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
-    <string name="selftest_sms_received_no_notification">Reçu en %1$d s, mais la notification a été bloquée.</string>
     <!-- %1$s = why sending failed, from the phone or carrier (core-telephony strings_failures.xml). -->
     <string name="selftest_sms_failed">Envoi impossible : %1$s</string>
     <string name="selftest_sms_timeout">Rien n\'est arrivé en 2 minutes. Vérifiez le numéro ou essayez avec l\'autre SIM.</string>

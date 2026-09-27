@@ -49,6 +49,7 @@ import app.dak.core.model.SimInfo
 import app.dak.index.MessageItem
 import app.dak.ui.common.categoryLabel
 import app.dak.ui.common.rememberRelativeTimeFormatter
+import app.dak.ui.common.simName
 import app.dak.ui.common.text.BidiText
 
 /** Callbacks of the long-press message sheet. Null entries are hidden. */
@@ -131,7 +132,7 @@ fun MessageInfoDialog(item: MessageItem, sim: SimInfo?, onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 InfoLine(stringResource(if (item.isOutgoing) R.string.ux_info_to else R.string.ux_info_from), BidiText.displaySafe(item.address))
                 InfoLine(stringResource(R.string.ux_info_time), formatter.formatAbsolute(item.dateMillis))
-                if (sim != null) InfoLine(stringResource(R.string.ux_info_sim), sim.displayName.ifBlank { simLabel(sim) })
+                if (sim != null) InfoLine(stringResource(R.string.ux_info_sim), simName(sim))
                 InfoLine(stringResource(R.string.ux_info_type), stringResource(if (item.key.kind == MessageKind.MMS) R.string.ux_info_mms else R.string.ux_info_sms))
                 statusLabel(item)?.let { InfoLine(stringResource(R.string.ux_info_status), it) }
                 item.deliveredAtMillis?.takeIf { item.tickState == TickState.DELIVERED }?.let {

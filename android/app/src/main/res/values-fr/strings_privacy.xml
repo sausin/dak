@@ -33,7 +33,6 @@
     <string name="privacy_export_warning">L\'export n\'est pas chiffré : toute personne qui obtient le fichier peut le lire. Vos SMS n\'y sont pas inclus ; pour les enregistrer, utilisez Sauvegarde, données et confidentialité → Exporter.</string>
     <string name="privacy_export_start">Choisir l\'emplacement</string>
     <string name="privacy_export_running">Exportation…</string>
-    <string name="privacy_export_done">%1$d sections enregistrées (%2$d entrées).</string>
     <string name="privacy_export_failed">L\'export a échoué. Rien n\'a été enregistré.</string>
     <string name="privacy_export_auth">Exporter vos données Dak</string>
 

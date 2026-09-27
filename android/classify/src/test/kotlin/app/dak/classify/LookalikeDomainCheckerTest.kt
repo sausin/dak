@@ -48,6 +48,15 @@ class LookalikeDomainCheckerTest {
     }
 
     @Test
+    fun `descriptive government brands are named by their stable constants`() {
+        // The app translates these four by matching the constants; their English also feeds the brand-word matching.
+        val verdict = checker.check(LinkExtractor.extract("http://incometax.gov.in-refund.xyz/claim").first())
+        assertEquals(LinkRisk.LOOKALIKE, verdict.risk)
+        assertEquals(LookalikeDomainChecker.BRAND_INCOME_TAX, verdict.matchedBrand)
+        assertEquals("Income Tax Department", LookalikeDomainChecker.BRAND_INCOME_TAX)
+    }
+
+    @Test
     fun `flags edit-distance typo-squat`() {
         val verdict = checker.check(LinkExtractor.extract("http://irctc-info.co.in/pnr").first())
         // registrable label "irctc-info" -> checked against official "irctc"; ensure it doesn't

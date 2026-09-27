@@ -42,11 +42,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.dak.R
 import app.dak.di.ContactMatch
+import app.dak.telephony.mms.MmsUnknownSender
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.text.BidiText
 
@@ -97,7 +99,7 @@ fun ContactDetailsSheet(
             )
             if (header.isGroup) {
                 Text(
-                    stringResource(R.string.scr_conv_group_members, header.addresses.size),
+                    pluralStringResource(R.plurals.scr_conv_group_members_count, header.addresses.size, header.addresses.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -154,6 +156,11 @@ private fun Participant(
     onSaveNew: () -> Unit,
     onAddToExisting: () -> Unit,
 ) {
+    // An MMS without a sender is filed under a placeholder address: name it, and offer nothing to call, copy or save.
+    if (MmsUnknownSender.isUnknown(address)) {
+        ListItem(headlineContent = { Text(stringResource(R.string.unknown_sender)) })
+        return
+    }
     val business = address.none { it.isDigit() }
     Column(Modifier.fillMaxWidth()) {
         ListItem(

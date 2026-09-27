@@ -22,6 +22,12 @@ data class BackupStatus(
     val destinationLabel: String?,
     val lastBackupMillis: Long?,
     val lastMessageCount: Int?,
+    /** Why the last scheduled or manual backup failed (shown translated); null after a success. */
+    val lastFailure: BackupFailure?,
+    /**
+     * The failure text stored by versions before [lastFailure] existed (an English exception message), shown as is
+     * until the next backup replaces it. New failures never set it.
+     */
     val lastError: String?,
     val snapshotsSinceFull: Int,
 )
@@ -43,8 +49,11 @@ class BackupStateStore @Inject constructor(@ApplicationContext private val conte
         val knownAttachmentHashes: Set<String> = emptySet(),
         val lastBackupMillis: Long? = null,
         val lastMessageCount: Int? = null,
+        /** Legacy: the English exception message older versions stored. Never written any more. */
         val lastError: String? = null,
         val snapshotsSinceFull: Int = 0,
+        /** [BackupFailure] name of the last failure; null after a success. */
+        val lastFailure: String? = null,
     )
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -85,13 +94,15 @@ class BackupStateStore @Inject constructor(@ApplicationContext private val conte
                 lastBackupMillis = manifest.createdAt,
                 lastMessageCount = messageCount,
                 lastError = null,
+                lastFailure = null,
                 snapshotsSinceFull = if (full) 0 else it.snapshotsSinceFull + 1,
             )
         }
     }
 
-    internal suspend fun recordFailure(message: String) {
-        update { it.copy(lastError = message) }
+    internal suspend fun recordFailure(failure: BackupFailure) {
+        // A code, not text: the screen shows it in the app language (and the language may change later).
+        update { it.copy(lastFailure = failure.name, lastError = null) }
     }
 
     private suspend fun update(change: (Persisted) -> Persisted) = withContext(Dispatchers.IO) {
@@ -118,6 +129,7 @@ class BackupStateStore @Inject constructor(@ApplicationContext private val conte
         destinationLabel = p.treeLabel,
         lastBackupMillis = p.lastBackupMillis,
         lastMessageCount = p.lastMessageCount,
+        lastFailure = p.lastFailure?.let { name -> BackupFailure.entries.firstOrNull { it.name == name } },
         lastError = p.lastError,
         snapshotsSinceFull = p.snapshotsSinceFull,
     )

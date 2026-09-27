@@ -25,8 +25,8 @@
     <string name="category_spam">स्पैम</string>
     <string name="category_other">अन्य</string>
     <string name="premium">Premium</string>
-    <!-- Short SIM label on chips. %1$s = slot number ("1", "2"). -->
-    <string name="sim_n">SIM %1$s</string>
+    <!-- Short SIM label on chips. %1$d = slot number (1, 2). -->
+    <string name="sim_n">SIM %1$d</string>
 
     <!-- Relative time -->
     <string name="time_now">अभी</string>
@@ -122,10 +122,6 @@
     <string name="selftest_sms_body">Dak सेल्फ़-टेस्ट %1$s. अगर यह सूचना के रूप में दिख रहा है, तो डिलीवरी ठीक है।</string>
     <string name="selftest_sms_sending">भेजा जा रहा है…</string>
     <string name="selftest_sms_waiting">भेज दिया। आने का इंतज़ार है…</string>
-    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
-    <string name="selftest_sms_received">%1$d सेकंड में मिला और सूचना दिखी। डिलीवरी ठीक है।</string>
-    <!-- %1$d = seconds the test SMS took to arrive (unit: "s"). -->
-    <string name="selftest_sms_received_no_notification">%1$d सेकंड में मिला, लेकिन सूचना ब्लॉक थी।</string>
     <!-- %1$s = why sending failed, from the phone or carrier (core-telephony strings_failures.xml). -->
     <string name="selftest_sms_failed">भेजा नहीं जा सका: %1$s</string>
     <string name="selftest_sms_timeout">2 मिनट में कुछ नहीं आया। नंबर जांचें, या दूसरा SIM आज़माएं।</string>

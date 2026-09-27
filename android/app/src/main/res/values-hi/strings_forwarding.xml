@@ -33,7 +33,6 @@
     <string name="fw_end_before_start">खत्म होने का समय शुरू से पहले है।</string>
     <string name="fw_period_default_note">नए नियम 1 घंटे तक फ़ॉरवर्ड करते हैं। इससे लंबे समय, या \"जब तक मैं बंद न करूं\", के लिए आपका फ़िंगरप्रिंट या स्क्रीन लॉक चाहिए।</string>
     <string name="fw_period_long_note">1 घंटे से ज़्यादा: सेव करने के लिए आपका फ़िंगरप्रिंट या स्क्रीन लॉक चाहिए।</string>
-    <string name="fw_date_time">%1$s, %2$s</string>
     <string name="fw_section_message">मैसेज</string>
     <!-- Keep the {placeholders} in English, exactly as written: the app replaces them. %1$s = the default template (fw_default_template). -->
     <string name="fw_template_help">प्लेसहोल्डर: {sender}, {body}, {time}, {amount}, {merchant}, {sim}। डिफ़ॉल्ट: \"%1$s\"।</string>
@@ -90,16 +89,12 @@
     <string name="fw_pick_channels">भेजने वाले चुनें</string>
     <string name="fw_pick_channels_help">ग्रुप किए भेजने वाले एक गिने जाते हैं: \"HDFC Bank\" में वे सभी हेडर शामिल हैं जिनसे वह मैसेज भेजता है।</string>
     <string name="fw_search_channels">भेजने वाले खोजें</string>
-    <string name="fw_channels_selected">%1$d चुने गए</string>
     <string name="fw_done">हो गया</string>
     <string name="fw_label_forwarded">फ़ॉरवर्ड → %1$s</string>
     <!-- Persistent status notification -->
     <string name="fw_channel_status_name">फ़ॉरवर्डिंग की स्थिति</string>
     <string name="fw_channel_status_description">जब मैसेज अपने-आप फ़ॉरवर्ड हो रहे हों, तब एक शांत रिमाइंडर।</string>
-    <string name="fw_status_title_one">फ़ॉरवर्डिंग चालू है</string>
-    <string name="fw_status_title_many">%1$d फ़ॉरवर्डिंग नियम चालू हैं</string>
     <string name="fw_status_line">%1$s → %2$s (%3$s)</string>
-    <string name="fw_status_otp_suffix">" · OTP भी शामिल"</string>
 
     <!-- Birthday wishes -->
     <string name="fw_bd_title">जन्मदिन और खास मौके</string>
@@ -122,8 +117,6 @@
     <string name="fw_bd_none_body">किसी संपर्क में जन्मदिन, सालगिरह या कोई और तारीख जोड़ने के लिए \"तारीख जोड़ें\" पर टैप करें।</string>
     <string name="fw_bd_today">आज</string>
     <string name="fw_bd_tomorrow">कल</string>
-    <string name="fw_bd_in_days">%1$d दिन में</string>
-    <string name="fw_bd_turns">%1$d साल के होंगे</string>
     <string name="fw_bd_anniversary">सालगिरह</string>
     <string name="fw_bd_choose_number">नंबर चुनें</string>
     <string name="fw_bd_no_number">कोई फ़ोन नंबर नहीं</string>
@@ -152,11 +145,6 @@
     <string name="fw_status_off_screen_lock">बंद किया गया: फ़ोन का स्क्रीन लॉक हटा दिया गया था</string>
     <string name="fw_status_off_lock_needed">बंद किया गया: ऐप लॉक चाहिए</string>
     <string name="fw_guard_disabled_title">आपकी सुरक्षा के लिए फ़ॉरवर्डिंग बंद की गई</string>
-    <plurals name="fw_guard_disabled_body">
-        <item quantity="one">मैसेज भेजने वाला %1$d ऑटोमेशन बंद कर दिया गया क्योंकि %2$s। इसे फिर चालू करने के लिए ऐप लॉक सेट करें।</item>
-        <item quantity="other">मैसेज भेजने वाले %1$d ऑटोमेशन बंद कर दिए गए क्योंकि %2$s। इन्हें फिर चालू करने के लिए ऐप लॉक सेट करें।</item>
-    </plurals>
-    <string name="fw_guard_disabled_why">Dak को इनके लिए ऐप लॉक चाहिए, ताकि आपका फ़ोन इस्तेमाल करने वाला कोई और आपके मैसेज खुद को न भेज सके।</string>
     <string name="fw_guard_reason_lock_off">ऐप लॉक बंद कर दिया गया था</string>
     <string name="fw_guard_reason_screen_lock">आपके फ़ोन का स्क्रीन लॉक हटा दिया गया था</string>
     <string name="fw_guard_reason_lock_needed">ऐप लॉक सेट नहीं है</string>
@@ -205,9 +193,6 @@
         <item quantity="other">%2$s को %1$d मैसेज भेजे गए</item>
     </plurals>
     <string name="fw_history_sent_none">कोई मैसेज नहीं भेजा गया</string>
-    <string name="fw_history_between">%1$s और %2$s के बीच</string>
-    <string name="fw_history_failed">%1$d नहीं भेजे जा सके</string>
-    <string name="fw_history_skipped">%1$d छोड़े गए</string>
     <string name="fw_history_from">%1$s से</string>
     <string name="fw_history_to">%1$s को</string>
     <string name="fw_outcome_sent">भेजा गया</string>

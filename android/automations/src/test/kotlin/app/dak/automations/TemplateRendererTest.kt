@@ -61,4 +61,22 @@ class TemplateRendererTest {
         val e = baseEvent.copy(slot = null, subId = 3)
         assertEquals("sub 3", TemplateRenderer.render("{sim}", e))
     }
+
+    @Test
+    fun `time, amount and sim go through the given formatter`() {
+        val zones = mutableListOf<java.time.ZoneId>()
+        val formatter = object : PlaceholderFormatter {
+            override fun time(epochMillis: Long, zone: java.time.ZoneId): String {
+                zones += zone
+                return "t$epochMillis"
+            }
+            override fun amount(amountMinor: Long, currency: String): String = "$currency:$amountMinor"
+            override fun sim(slot: Int?, subId: Int): String = "s$slot/$subId"
+        }
+        assertEquals(
+            "t0 INR:50000 s1/5 Swiggy",
+            TemplateRenderer.render("{time} {amount} {sim} {merchant}", baseEvent, "Asia/Kolkata", formatter),
+        )
+        assertEquals(listOf(java.time.ZoneId.of("Asia/Kolkata")), zones)
+    }
 }

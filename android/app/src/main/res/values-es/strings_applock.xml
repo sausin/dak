@@ -18,7 +18,6 @@
     <!-- PIN pad -->
     <string name="lock_pin_delete">Borrar dígito</string>
     <string name="lock_pin_enter">Introducir PIN</string>
-    <string name="lock_pin_entered">%1$d dígitos introducidos</string>
     <string name="lock_pin_wrong">PIN incorrecto. Inténtalo de nuevo.</string>
     <plurals name="lock_pin_wrong_attempts">
         <item quantity="one">PIN incorrecto. Te queda %1$d intento antes de un breve bloqueo.</item>

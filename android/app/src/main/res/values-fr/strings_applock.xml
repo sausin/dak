@@ -18,7 +18,6 @@
     <!-- PIN pad -->
     <string name="lock_pin_delete">Effacer le chiffre</string>
     <string name="lock_pin_enter">Valider le code</string>
-    <string name="lock_pin_entered">%1$d chiffres saisis</string>
     <string name="lock_pin_wrong">Code PIN incorrect. Réessayez.</string>
     <plurals name="lock_pin_wrong_attempts">
         <item quantity="one">Code PIN incorrect. Encore %1$d essai avant un bref blocage.</item>

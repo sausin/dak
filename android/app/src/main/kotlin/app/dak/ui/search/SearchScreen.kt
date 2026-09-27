@@ -66,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,6 +94,7 @@ import app.dak.ui.common.CategoryChip
 import app.dak.ui.common.EmptyState
 import app.dak.ui.common.LockChip
 import app.dak.ui.common.categoryLabel
+import app.dak.ui.common.conversationTitle
 import app.dak.ui.common.relativeTime
 import app.dak.ui.common.text.BidiText
 import app.dak.ui.conversation.MessageTextColors
@@ -207,7 +209,7 @@ fun SearchScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         InputChip(
                             selected = true,
                             onClick = { viewModel.removeFilter(chip.filter) },
-                            label = { Text(chip.label) },
+                            label = { Text(filterChipText(chip.filter)) },
                             trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.scr_search_remove_filter), modifier = Modifier.size(16.dp)) },
                         )
                     }
@@ -405,7 +407,7 @@ private fun SearchResultRow(hit: SearchHit, onClick: () -> Unit) {
         overlineContent = if (hit.binId != null) { { Text(stringResource(R.string.scr_search_in_bin)) } } else null,
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(BidiText.displaySafe(hit.conversationTitle), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(BidiText.displaySafe(conversationTitle(hit)), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (hit.message.category != Category.UNKNOWN && hit.message.enriched) CategoryChip(hit.message.category)
             }
         },
@@ -414,7 +416,7 @@ private fun SearchResultRow(hit: SearchHit, onClick: () -> Unit) {
                 Text(snippet, maxLines = 3, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
                 if (hit.matchCount > 1) {
                     Text(
-                        stringResource(R.string.scr_search_more_matches, hit.matchCount - 1),
+                        pluralStringResource(R.plurals.scr_search_more_matches, hit.matchCount - 1, hit.matchCount - 1),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -454,7 +456,7 @@ private fun FilterSheetContent(query: SearchQuery, sims: List<SimInfo>, onToggle
             Section(R.string.scr_filter_sim) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     sims.filter { it.slotIndex >= 0 }.forEach { sim ->
-                        Toggle(Filter.Sim((sim.slotIndex + 1).toString()), stringResource(R.string.sim_n, (sim.slotIndex + 1).toString()))
+                        Toggle(Filter.Sim((sim.slotIndex + 1).toString()), stringResource(R.string.sim_n, sim.slotIndex + 1))
                     }
                 }
             }

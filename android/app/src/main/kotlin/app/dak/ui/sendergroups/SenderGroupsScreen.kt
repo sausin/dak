@@ -1,5 +1,6 @@
 package app.dak.ui.sendergroups
 
+import android.icu.text.ListFormatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ import app.dak.ui.common.EmptyState
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.rememberRelativeTimeFormatter
 import app.dak.ui.common.text.BidiText
+import app.dak.ui.common.text.rememberDisplayLocale
 
 /**
  * Sender groups: every folded conversation with its member channels (header or number, other prefixes seen, last
@@ -174,7 +177,7 @@ private fun SuggestionCard(proposal: FoldProposal, onFold: () -> Unit, onDismiss
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                stringResource(R.string.fold_suggestion_title, proposal.conversationIds.size, BidiText.displaySafe(proposal.title)),
+                pluralStringResource(R.plurals.fold_suggestion_title, proposal.conversationIds.size, proposal.conversationIds.size, BidiText.displaySafe(proposal.title)),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
@@ -212,7 +215,7 @@ private fun GroupCard(
             Column(Modifier.weight(1f)) {
                 Text(BidiText.displaySafe(group.title), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    stringResource(R.string.fold_channels_count, group.channels.size) + " · " +
+                    pluralStringResource(R.plurals.fold_channels_count, group.channels.size, group.channels.size) + " · " +
                         stringResource(if (group.manual) R.string.fold_group_manual else R.string.fold_group_brand),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -246,7 +249,7 @@ private fun ChannelRow(channel: FoldChannel, sims: List<SimInfo>, canUnfold: Boo
             val others = channel.addresses.drop(1)
             if (others.isNotEmpty()) {
                 Text(
-                    stringResource(R.string.fold_channel_also, others.joinToString { BidiText.displaySafe(it) }),
+                    stringResource(R.string.fold_channel_also, ListFormatter.getInstance(rememberDisplayLocale()).format(others.map { BidiText.displaySafe(it) })),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -254,7 +257,7 @@ private fun ChannelRow(channel: FoldChannel, sims: List<SimInfo>, canUnfold: Boo
                 )
             }
             Text(
-                stringResource(R.string.fold_channel_last_seen, formatter.formatAbsolute(channel.lastSeenMillis), channel.messageCount),
+                pluralStringResource(R.plurals.fold_channel_last_seen, channel.messageCount, formatter.formatAbsolute(channel.lastSeenMillis), channel.messageCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

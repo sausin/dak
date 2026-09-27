@@ -1,5 +1,6 @@
 package app.dak.ui.conversation
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -185,7 +186,11 @@ class ComposerDelegate(
         }
         val showedHint = hintVisible
         val outcome = runCatching { controller.send(to, body, files, subId.value, threadId()) }
-            .getOrElse { SendOutcome.Failed(SendProblem.PLATFORM, it.message) }
+            // An exception's message is English and technical: log it, show the plain "Not sent" text.
+            .getOrElse {
+                Log.w("DakComposer", "Send failed: ${it.javaClass.simpleName}: ${it.message}")
+                SendOutcome.Failed(SendProblem.PLATFORM, null)
+            }
         sending.value = false
         when (outcome) {
             SendOutcome.Sent -> {

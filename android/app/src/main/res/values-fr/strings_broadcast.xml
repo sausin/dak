@@ -47,7 +47,6 @@
     <string name="bc_edit_add">Ajouter</string>
     <string name="bc_edit_members">Membres (%1$d sur %2$d)</string>
     <string name="bc_edit_remove">Retirer %s</string>
-    <string name="bc_edit_over_cap">Une liste peut contenir %d personnes au maximum.</string>
     <string name="bc_edit_save">Enregistrer</string>
     <string name="bc_edit_delete">Supprimer la liste</string>
     <string name="bc_edit_delete_confirm">Supprimer \"%s\" ? Les messages déjà envoyés restent dans chaque conversation.</string>
@@ -69,20 +68,14 @@
     <string name="bc_sim_label">Depuis %s</string>
     <string name="bc_edit_list">Modifier la liste</string>
     <string name="bc_cancel">Annuler</string>
-    <string name="bc_sent_snack">Envoi à %d personnes</string>
-    <string name="bc_scheduled_snack">Programmé pour %d personnes</string>
     <string name="bc_send_failed">Impossible de mettre la diffusion en file d\'attente. Vérifiez la limite quotidienne et réessayez.</string>
     <string name="bc_list_missing">Cette liste a été supprimée.</string>
 
     <!-- Confirmation -->
-    <string name="bc_confirm_title">Envoyer à %d personnes ?</string>
-    <string name="bc_confirm_title_scheduled">Programmer pour %d personnes ?</string>
-    <string name="bc_confirm_cost">%1$d SMS au total (%2$d personnes, jusqu\'à %3$d partie(s) chacune). Les frais habituels de votre opérateur s\'appliquent à chacun.</string>
     <string name="bc_confirm_eta_single_batch">Tout part immédiatement.</string>
     <string name="bc_confirm_eta">Envoyé par petits lots pour respecter les limites de l\'opérateur : le dernier part dans environ %s.</string>
     <string name="bc_confirm_eta_scheduled">Début : %1$s ; le dernier part environ %2$s plus tard.</string>
     <string name="bc_confirm_excluded">Exclus (%d) :</string>
-    <string name="bc_confirm_international">%d numéro(s) international(aux) : les tarifs SMS internationaux s\'appliquent.</string>
     <string name="bc_confirm_roaming">Votre SIM est en itinérance : chaque SMS peut coûter plus cher.</string>
     <string name="bc_confirm_reminder">N\'écrivez qu\'à des personnes qui attendent ce message. Le spam enfreint les conditions de Dak et les règles de l\'opérateur et de la TRAI.</string>
     <string name="bc_confirm_quota">%1$d messages de diffusion restants sur %2$d aujourd\'hui.</string>
@@ -95,8 +88,6 @@
     <string name="bc_confirm_schedule">Programmer</string>
     <string name="bc_problem_empty">Saisissez d\'abord un message.</string>
     <string name="bc_problem_no_recipients">Personne dans cette liste ne peut le recevoir.</string>
-    <string name="bc_problem_too_many">%1$d personnes recevraient ce message, mais une diffusion est limitée à %2$d. Retirez d\'abord des personnes de la liste.</string>
-    <string name="bc_problem_daily">Limite quotidienne atteinte : seuls %1$d messages de diffusion supplémentaires peuvent partir dans les prochaines 24 heures (limite : %2$d).</string>
     <string name="bc_problem_past">Choisissez une heure future.</string>
     <string name="bc_problem_far">Choisissez une date dans les 30 prochains jours.</string>
 
@@ -110,7 +101,6 @@
     <string name="bc_excl_invalid">pas un numéro de téléphone</string>
 
     <!-- Sent broadcast + details -->
-    <string name="bc_status_line">%1$d distribué(s) · %2$d envoyé(s) · %3$d en attente · %4$d échec(s)</string>
     <string name="bc_details_title">Détails de la diffusion</string>
     <string name="bc_details_recipients">Destinataires</string>
     <string name="bc_details_replies">Réponses</string>

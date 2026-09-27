@@ -85,7 +85,7 @@ class MmsPersister @Inject constructor(
     }
 
     suspend fun insertNotification(n: NotificationInd, subId: Int): Long? {
-        val threadId = writer.threadIdFor(setOf(n.from ?: UNKNOWN_SENDER))
+        val threadId = writer.threadIdFor(setOf(n.from ?: MmsUnknownSender.THREAD_ADDRESS))
         return withContext(Dispatchers.IO) {
             val row = MmsProviderMapping.notificationRow(n, subId, threadId, System.currentTimeMillis())
             val id = insertPdu(ProviderUris.MMS_INBOX, row) ?: return@withContext null
@@ -96,7 +96,7 @@ class MmsPersister @Inject constructor(
 
     suspend fun insertRetrieved(r: RetrieveConf, subId: Int): Long? {
         val recipients = MmsProviderMapping.threadRecipients(r.from, r.to, r.cc) { isOwnNumber(it, subId) }
-        val threadId = writer.threadIdFor(recipients.ifEmpty { setOf(r.from ?: UNKNOWN_SENDER) })
+        val threadId = writer.threadIdFor(recipients.ifEmpty { setOf(r.from ?: MmsUnknownSender.THREAD_ADDRESS) })
         return withContext(Dispatchers.IO) {
             val row = MmsProviderMapping.retrievedRow(r, subId, threadId, System.currentTimeMillis())
             val id = insertPdu(ProviderUris.MMS_INBOX, row) ?: return@withContext null
@@ -393,7 +393,6 @@ class MmsPersister @Inject constructor(
     }
 
     private companion object {
-        const val UNKNOWN_SENDER = "Unknown"
         const val YES = 0x80
     }
 }

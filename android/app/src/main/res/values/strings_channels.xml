@@ -6,7 +6,9 @@
     <string name="ch_automation">Scheduled sends and automations</string>
     <string name="ch_automation_desc">Results of your rules and scheduled messages</string>
     <string name="ch_group_conversations">Conversations</string>
+    <!-- %1$d = SIM slot number. -->
     <string name="ch_group_sim">SIM %1$d</string>
+    <!-- %1$d = SIM slot number; %2$s = carrier name. -->
     <string name="ch_group_sim_carrier">SIM %1$d · %2$s</string>
     <string name="ch_group_other">Other</string>
     <string name="ch_conversation_desc">Custom notifications for this conversation</string>
@@ -16,6 +18,7 @@
         <item quantity="one">%d conversation</item>
         <item quantity="other">%d conversations</item>
     </plurals>
+    <!-- %d = number of messages. -->
     <plurals name="ch_messages_count">
         <item quantity="one">%d message</item>
         <item quantity="other">%d messages</item>
@@ -27,6 +30,7 @@
     <string name="ch_open_settings">Open settings</string>
     <string name="ch_app_blocked_title">Notifications are off for Dak</string>
     <string name="ch_app_blocked_body">You will not be told about new messages or codes.</string>
+    <!-- %1$s = the notification channel's name. -->
     <string name="ch_critical_blocked_title">%1$s is turned off</string>
     <string name="ch_critical_blocked_body">Messages on this channel arrive without any notification.</string>
     <string name="ch_importance_off">Off</string>
@@ -39,6 +43,7 @@
     <string name="ch_conversations_empty">None yet. Open a conversation and choose Custom notifications from its menu.</string>
     <string name="ch_conversation_custom">Own sound and priority</string>
     <string name="ch_remove">Remove</string>
+    <!-- %1$s = the conversation or contact name. -->
     <string name="ch_remove_confirm_title">Remove custom notifications for %1$s?</string>
     <string name="ch_remove_confirm_body">Its messages will use the regular category channels again.</string>
     <string name="ch_reset">Reset channels</string>
@@ -46,6 +51,7 @@
     <string name="ch_reset_confirm_title">Reset channels?</string>
     <string name="ch_reset_confirm_body">Channels you have not changed are recreated with Dak\'s defaults. Channels you customised keep your settings; open them to change them. Conversation channels are not affected.</string>
     <string name="ch_reset_done">Channels reset</string>
+    <!-- %d = number of customised channels kept. -->
     <plurals name="ch_reset_done_kept">
         <item quantity="one">Channels reset. %d customised channel kept your settings.</item>
         <item quantity="other">Channels reset. %d customised channels kept your settings.</item>

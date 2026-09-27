@@ -67,8 +67,15 @@
     <string name="dak_telephony_fail_mms_save_failed">No se pudo guardar el mensaje</string>
     <string name="dak_telephony_fail_mms_too_large">El mensaje es demasiado grande</string>
     <string name="dak_telephony_fail_mms_empty_response">El operador devolvió un mensaje vacío</string>
-    <!-- %1$s = technical detail from the MMS decoder (English, not translated) -->
-    <string name="dak_telephony_fail_mms_unreadable">MMS ilegible: %1$s</string>
+    <string name="dak_telephony_fail_mms_unreadable">MMS ilegible</string>
     <string name="dak_telephony_fail_mms_unexpected_response">Respuesta inesperada del operador</string>
     <string name="dak_telephony_fail_mms_carrier_could_not_deliver">El operador no pudo entregar este mensaje</string>
+    <string name="dak_telephony_fail_birthday_already_wished">Ya se felicitó este año</string>
+    <string name="dak_telephony_fail_birthday_wishes_off">Felicitaciones de cumpleaños desactivadas</string>
+    <string name="dak_telephony_fail_birthday_asked">Se preguntó primero al usuario</string>
+    <string name="dak_telephony_fail_birthday_no_app_lock">Sin bloqueo de la app: se preguntó al usuario</string>
+    <string name="dak_telephony_fail_birthday_daily_limit">Límite diario de envíos automáticos: se preguntó al usuario</string>
+    <string name="dak_telephony_fail_scheduled_premium_refused">Número de tarifa premium no aprobado</string>
+    <string name="dak_telephony_fail_scheduled_no_app_lock">No se había configurado el bloqueo de la app</string>
+    <string name="dak_telephony_fail_scheduled_emergency_cancelled">No se permiten mensajes programados a números de emergencia</string>
 </resources>

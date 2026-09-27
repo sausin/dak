@@ -105,11 +105,6 @@
     <string name="scr_backup_default_app_note">Para restaurar e importar, Dak debe ser tu app de SMS predeterminada. Solo se añaden mensajes; no se cambia ni se elimina nada de lo que ya hay en tu teléfono.</string>
     <string name="scr_backup_destination">Carpeta de copia de seguridad</string>
     <string name="scr_backup_destination_none">Sin elegir. Elige una carpeta en Drive, Dropbox o en este teléfono.</string>
-    <string name="scr_backup_done_backup">Se hizo copia de seguridad de %1$d mensajes</string>
-    <string name="scr_backup_done_export">Se exportaron %1$d mensajes</string>
-    <string name="scr_backup_done_import">Se importaron %1$d mensajes (%2$d ya estaban aquí o se omitieron)</string>
-    <string name="scr_backup_done_restore">Se restauraron %1$d mensajes (%2$d ya estaban aquí o se omitieron)</string>
-    <string name="scr_backup_done_restore_upto">Incluye mensajes hasta el %1$s.</string>
     <string name="scr_backup_explainer">Las copias de seguridad se cifran en este teléfono con tu frase de contraseña antes de salir de él. Dak nunca ve tus mensajes ni tu clave.</string>
     <string name="scr_backup_export">Exportar</string>
     <string name="scr_backup_export_dak">Exportar (formato abierto de Dak)</string>
@@ -128,7 +123,6 @@
     <string name="scr_backup_import_body">SMS Backup &amp; Restore (XML), Fossify Messages o una copia de seguridad de SMS Organizer.</string>
     <string name="scr_backup_last">Última copia de seguridad</string>
     <string name="scr_backup_last_error">El último intento falló: %1$s</string>
-    <string name="scr_backup_last_value">%1$s · %2$d mensajes</string>
     <string name="scr_backup_manual">Solo manual</string>
     <string name="scr_backup_never">Nunca</string>
     <string name="scr_backup_now">Hacer copia ahora</string>
@@ -168,7 +162,6 @@
     <string name="scr_bin_deleted_by_otp">OTP eliminado automáticamente</string>
     <string name="scr_bin_deleted_by_rule">Eliminado por la regla \"%1$s\"</string>
     <string name="scr_bin_deleted_by_you">Eliminado por ti</string>
-    <string name="scr_bin_emptied">Se eliminaron %1$d mensajes para siempre</string>
     <string name="scr_bin_empty_action">Vaciar papelera</string>
     <string name="scr_bin_empty_body">Los mensajes eliminados se quedan aquí un tiempo para que puedas restaurarlos.</string>
     <string name="scr_bin_empty_confirm_body">Todo lo que hay en la papelera se eliminará para siempre. Esta acción no se puede deshacer.</string>
@@ -211,14 +204,12 @@
     <string name="scr_composer_mms_chip">MMS</string>
     <string name="scr_composer_remove_attachment">Quitar archivo adjunto</string>
     <string name="scr_composer_roaming">En roaming con %1$s</string>
-    <string name="scr_composer_segments">%1$d SMS · quedan %2$d caracteres</string>
     <string name="scr_composer_send">Enviar</string>
     <string name="scr_composer_send_in_hour">Enviar en 1 hora</string>
     <string name="scr_composer_send_mms">Enviar como MMS</string>
     <string name="scr_composer_send_tomorrow">Enviar mañana a las 9:00</string>
     <string name="scr_composer_sent_as">Se enviará como %1$s para que las respuestas funcionen en roaming</string>
     <string name="scr_conv_back_to_results">Volver a los resultados</string>
-    <string name="scr_conv_group_members">%1$d personas</string>
     <string name="scr_filter_amount_500">Más de 500</string>
     <string name="scr_filter_amount_5000">Más de 5000</string>
     <string name="scr_filter_archive">Archivados</string>
@@ -246,7 +237,6 @@
     <string name="scr_inbox_empty_body">Las conversaciones de esta pestaña aparecerán aquí a medida que lleguen mensajes.</string>
     <string name="scr_inbox_empty_title">Aún no hay nada aquí</string>
     <string name="scr_inbox_index_progress">Organizando mensajes antiguos: %1$s de %2$s</string>
-    <string name="scr_inbox_index_waiting">%1$s mensajes antiguos se organizarán a la hora que elegiste</string>
     <string name="scr_inbox_new_message">Mensaje nuevo</string>
     <string name="scr_link_lookalike">Esta dirección imita a %1$s, pero no es su sitio oficial.</string>
     <string name="scr_link_lookalike_unbranded">Esta dirección solo parece oficial: es un número sin más o se hace pasar por un sitio del gobierno o de un banco. Los sitios reales usan su propio dominio.</string>
@@ -267,7 +257,6 @@
     <string name="scr_passbook_balance_unknown_since">Saldo desconocido desde el %1$s</string>
     <string name="scr_passbook_empty_body">Las cuentas y tarjetas aparecen aquí cuando llegan mensajes del banco. Todo se lee en tu teléfono.</string>
     <string name="scr_passbook_empty_title">Aún no hay cuentas</string>
-    <string name="scr_passbook_entries">%1$d transacciones</string>
     <string name="scr_passbook_group_accounts">Cuentas bancarias</string>
     <string name="scr_passbook_group_cards">Tarjetas de crédito</string>
     <string name="scr_passbook_group_other">Otras</string>
@@ -288,7 +277,6 @@
     <string name="scr_search_filters">Filtros</string>
     <string name="scr_search_hint">Buscar mensajes</string>
     <string name="scr_search_in_bin">En la papelera</string>
-    <string name="scr_search_more_matches">+%1$d más en esta conversación</string>
     <string name="scr_search_no_results">No hay coincidencias</string>
     <string name="scr_search_no_results_body">Prueba con menos palabras o quita un filtro.</string>
     <string name="scr_search_operators_help">Consejo: combina palabras con filtros como from:hdfc category:otp sim:2 has:link amount:>500 during:\"last week\" in:archive is:unread.</string>

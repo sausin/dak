@@ -46,7 +46,6 @@
     <string name="bc_edit_add">जोड़ें</string>
     <string name="bc_edit_members">सदस्य (%2$d में से %1$d)</string>
     <string name="bc_edit_remove">%s को हटाएं</string>
-    <string name="bc_edit_over_cap">एक सूची में ज़्यादा से ज़्यादा %d लोग हो सकते हैं।</string>
     <string name="bc_edit_save">सेव करें</string>
     <string name="bc_edit_delete">सूची मिटाएं</string>
     <string name="bc_edit_delete_confirm">\"%s\" मिटाएं? पहले से भेजे मैसेज हर बातचीत में बने रहेंगे।</string>
@@ -68,20 +67,14 @@
     <string name="bc_sim_label">%s से</string>
     <string name="bc_edit_list">सूची बदलें</string>
     <string name="bc_cancel">रद्द करें</string>
-    <string name="bc_sent_snack">%d लोगों को भेजा जा रहा है</string>
-    <string name="bc_scheduled_snack">%d लोगों के लिए शेड्यूल किया गया</string>
     <string name="bc_send_failed">ब्रॉडकास्ट कतार में नहीं डाला जा सका। रोज़ की सीमा जांचें और फिर कोशिश करें।</string>
     <string name="bc_list_missing">यह सूची मिटा दी गई थी।</string>
 
     <!-- Confirmation -->
-    <string name="bc_confirm_title">%d लोगों को भेजें?</string>
-    <string name="bc_confirm_title_scheduled">%d लोगों के लिए शेड्यूल करें?</string>
-    <string name="bc_confirm_cost">कुल %1$d SMS (%2$d लोग, हर एक को ज़्यादा से ज़्यादा %3$d हिस्से)। हर एक पर आपके ऑपरेटर के सामान्य शुल्क लगेंगे।</string>
     <string name="bc_confirm_eta_single_batch">सभी तुरंत भेजे जाएंगे।</string>
     <string name="bc_confirm_eta">ऑपरेटर की सीमाओं में रहने के लिए छोटे बैच में भेजे जाते हैं: आखिरी मैसेज लगभग %s में जाएगा।</string>
     <string name="bc_confirm_eta_scheduled">%1$s शुरू होगा; आखिरी मैसेज लगभग %2$s बाद जाएगा।</string>
     <string name="bc_confirm_excluded">छोड़े गए (%d):</string>
-    <string name="bc_confirm_international">%d अंतरराष्ट्रीय नंबर: अंतरराष्ट्रीय SMS दरें लागू होंगी।</string>
     <string name="bc_confirm_roaming">आपका SIM रोमिंग में है, इसलिए हर SMS ज़्यादा महंगा हो सकता है।</string>
     <string name="bc_confirm_reminder">सिर्फ़ उन्हीं लोगों को भेजें जो इस मैसेज की उम्मीद करते हैं। स्पैम Dak की शर्तों और ऑपरेटर / TRAI के नियमों का उल्लंघन है।</string>
     <string name="bc_confirm_quota">रोज़ के %2$d ब्रॉडकास्ट मैसेज में से %1$d बाकी।</string>
@@ -94,8 +87,6 @@
     <string name="bc_confirm_schedule">शेड्यूल करें</string>
     <string name="bc_problem_empty">पहले मैसेज टाइप करें।</string>
     <string name="bc_problem_no_recipients">इस सूची में कोई भी इसे नहीं पा सकता।</string>
-    <string name="bc_problem_too_many">%1$d लोगों को यह मिलेगा, लेकिन एक ब्रॉडकास्ट ज़्यादा से ज़्यादा %2$d लोगों को जा सकता है। पहले सूची से कुछ लोगों को हटाएं।</string>
-    <string name="bc_problem_daily">रोज़ की सीमा पूरी: अगले 24 घंटों में सिर्फ़ %1$d और ब्रॉडकास्ट मैसेज भेजे जा सकते हैं (सीमा %2$d)।</string>
     <string name="bc_problem_past">आगे का कोई समय चुनें।</string>
     <string name="bc_problem_far">अगले 30 दिनों के अंदर का समय चुनें।</string>
 
@@ -109,7 +100,6 @@
     <string name="bc_excl_invalid">फ़ोन नंबर नहीं है</string>
 
     <!-- Sent broadcast + details -->
-    <string name="bc_status_line">%1$d पहुंचे · %2$d भेजे · %3$d बाकी · %4$d नहीं भेजे जा सके</string>
     <string name="bc_details_title">ब्रॉडकास्ट की जानकारी</string>
     <string name="bc_details_recipients">पाने वाले</string>
     <string name="bc_details_replies">जवाब</string>

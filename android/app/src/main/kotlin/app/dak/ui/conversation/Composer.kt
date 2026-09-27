@@ -63,6 +63,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
@@ -79,6 +80,7 @@ import app.dak.telephony.DefaultSmsRole
 import app.dak.ui.common.SimChip
 import app.dak.ui.common.TokenChip
 import app.dak.ui.common.WarningBanner
+import app.dak.ui.common.simName
 import app.dak.ui.theme.DakTheme
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
@@ -317,7 +319,11 @@ private fun ComposerStatusRow(ui: ComposerUi, actions: ComposerActions) {
         }
         if (ui.showSegments && ui.segments.segments > 0) {
             Text(
-                stringResource(R.string.scr_composer_segments, ui.segments.segments, ui.segments.remainingInSegment),
+                stringResource(
+                    R.string.text_pair_dot,
+                    pluralStringResource(R.plurals.scr_composer_sms_parts, ui.segments.segments, ui.segments.segments),
+                    pluralStringResource(R.plurals.scr_composer_chars_left, ui.segments.remainingInSegment, ui.segments.remainingInSegment),
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -335,7 +341,7 @@ private fun ComposerStatusRow(ui: ComposerUi, actions: ComposerActions) {
 /** "SIM 2" style label for chips and hints. */
 @Composable
 fun simLabel(sim: SimInfo): String =
-    if (sim.slotIndex >= 0) stringResource(R.string.sim_n, (sim.slotIndex + 1).toString()) else sim.displayName
+    if (sim.slotIndex >= 0) stringResource(R.string.sim_n, sim.slotIndex + 1) else simName(sim)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -368,14 +374,21 @@ private fun AttachmentStrip(attachments: List<ComposerAttachment>, onRemove: (Co
                     if (a.isImage) {
                         AsyncImage(
                             model = a.uri ?: a.bytes,
-                            contentDescription = a.name,
+                            contentDescription = AttachmentNames.shown(a.name) ?: stringResource(R.string.notification_photo),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.size(72.dp),
                         )
                     } else {
                         Column(Modifier.size(width = 120.dp, height = 72.dp).padding(8.dp), verticalArrangement = Arrangement.Center) {
                             Icon(Icons.Outlined.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text(a.name ?: a.mimeType, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            val isCard = a.mimeType.contains("vcard", ignoreCase = true)
+                            Text(
+                                AttachmentNames.shown(a.name)
+                                    ?: stringResource(if (isCard) R.string.scr_bubble_contact_card else R.string.notification_attachment),
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 }
@@ -416,7 +429,7 @@ private fun AttachmentTray(onAttachment: (ComposerAttachment) -> Unit, onText: (
                 val bytes = withContext(Dispatchers.Default) {
                     ByteArrayOutputStream().also { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
                 }
-                onAttachment(ComposerAttachment(UUID.randomUUID().toString(), "image/jpeg", "photo.jpg", bytes = bytes))
+                onAttachment(ComposerAttachment(UUID.randomUUID().toString(), "image/jpeg", AttachmentNames.CAMERA_PHOTO, bytes = bytes))
                 onDone()
             }
         }
@@ -425,7 +438,7 @@ private fun AttachmentTray(onAttachment: (ComposerAttachment) -> Unit, onText: (
         val uri = pendingCameraUri?.let(Uri::parse)
         pendingCameraUri = null
         if (saved && uri != null) {
-            onAttachment(ComposerAttachment(UUID.randomUUID().toString(), "image/jpeg", "photo.jpg", uri = uri))
+            onAttachment(ComposerAttachment(UUID.randomUUID().toString(), "image/jpeg", AttachmentNames.CAMERA_PHOTO, uri = uri))
             onDone()
         }
     }
@@ -525,12 +538,12 @@ private fun describe(context: Context, uri: Uri, fallbackMime: String): Pair<Str
 private fun readVCard(context: Context, contactUri: Uri): Pair<String, ByteArray>? = runCatching {
     val projection = arrayOf(ContactsContract.Contacts.LOOKUP_KEY, ContactsContract.Contacts.DISPLAY_NAME)
     val (lookup, name) = context.contentResolver.query(contactUri, projection, null, null, null)?.use { c ->
-        if (c.moveToFirst()) (c.getString(0) to (c.getString(1) ?: "contact")) else null
+        if (c.moveToFirst()) (c.getString(0) to (c.getString(1) ?: AttachmentNames.CONTACT_STEM)) else null
     } ?: return@runCatching null
     if (lookup == null) return@runCatching null
     val vcardUri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_VCARD_URI, lookup)
     val bytes = context.contentResolver.openInputStream(vcardUri)?.use { it.readBytes() } ?: return@runCatching null
-    val safe = name.filter { it.isLetterOrDigit() || it == ' ' }.trim().ifBlank { "contact" }
+    val safe = name.filter { it.isLetterOrDigit() || it == ' ' }.trim().ifBlank { AttachmentNames.CONTACT_STEM }
     "$safe.vcf" to bytes
 }.getOrNull()
 

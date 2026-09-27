@@ -33,7 +33,6 @@
     <string name="fw_end_before_start">El final es anterior al inicio.</string>
     <string name="fw_period_default_note">Las reglas nuevas reenvían durante 1 hora. Un periodo más largo, o \"Hasta que lo detenga\", requiere tu huella digital o el bloqueo de pantalla.</string>
     <string name="fw_period_long_note">Más de 1 hora: para guardar se necesita tu huella digital o el bloqueo de pantalla.</string>
-    <string name="fw_date_time">%1$s, %2$s</string>
     <string name="fw_section_message">Mensaje</string>
     <!-- Keep the {placeholders} in English, exactly as written: the app replaces them. %1$s = the default template (fw_default_template). -->
     <string name="fw_template_help">Marcadores: {sender}, {body}, {time}, {amount}, {merchant}, {sim}. Predeterminado: \"%1$s\".</string>
@@ -90,16 +89,12 @@ Si alguien te ha pedido por llamada o chat que lo configures, para ahora y cuelg
     <string name="fw_pick_channels">Elegir remitentes</string>
     <string name="fw_pick_channels_help">Los remitentes agrupados cuentan como uno: \"HDFC Bank\" incluye todos los encabezados desde los que envía.</string>
     <string name="fw_search_channels">Buscar remitentes</string>
-    <string name="fw_channels_selected">%1$d seleccionados</string>
     <string name="fw_done">Listo</string>
     <string name="fw_label_forwarded">Reenv. → %1$s</string>
     <!-- Persistent status notification -->
     <string name="fw_channel_status_name">Estado del reenvío</string>
     <string name="fw_channel_status_description">Un recordatorio discreto mientras los mensajes se reenvían automáticamente.</string>
-    <string name="fw_status_title_one">Reenvío activo</string>
-    <string name="fw_status_title_many">%1$d reglas de reenvío activas</string>
     <string name="fw_status_line">%1$s → %2$s (%3$s)</string>
-    <string name="fw_status_otp_suffix">" · incluye OTP"</string>
 
     <!-- Birthday wishes -->
     <string name="fw_bd_title">Cumpleaños y fechas especiales</string>
@@ -122,8 +117,6 @@ Si alguien te ha pedido por llamada o chat que lo configures, para ahora y cuelg
     <string name="fw_bd_none_body">Toca \"Añadir una fecha\" para añadir un cumpleaños, un aniversario u otra fecha a un contacto.</string>
     <string name="fw_bd_today">Hoy</string>
     <string name="fw_bd_tomorrow">Mañana</string>
-    <string name="fw_bd_in_days">Dentro de %1$d días</string>
-    <string name="fw_bd_turns">cumple %1$d</string>
     <string name="fw_bd_anniversary">Aniversario</string>
     <string name="fw_bd_choose_number">Elegir número</string>
     <string name="fw_bd_no_number">Sin número de teléfono</string>
@@ -152,12 +145,6 @@ Si alguien te ha pedido por llamada o chat que lo configures, para ahora y cuelg
     <string name="fw_status_off_screen_lock">Desactivada: se quitó el bloqueo de pantalla del teléfono</string>
     <string name="fw_status_off_lock_needed">Desactivada: requiere el bloqueo de la app</string>
     <string name="fw_guard_disabled_title">Reenvío desactivado por tu seguridad</string>
-    <plurals name="fw_guard_disabled_body">
-        <item quantity="one">Se desactivó %1$d automatización que envía mensajes porque %2$s. Configura el bloqueo de la app para volver a activarla.</item>
-        <item quantity="many">Se desactivaron %1$d automatizaciones que envían mensajes porque %2$s. Configura el bloqueo de la app para volver a activarlas.</item>
-        <item quantity="other">Se desactivaron %1$d automatizaciones que envían mensajes porque %2$s. Configura el bloqueo de la app para volver a activarlas.</item>
-    </plurals>
-    <string name="fw_guard_disabled_why">Dak requiere el bloqueo de la app para ellas, para que nadie más que use tu teléfono pueda enviarse tus mensajes.</string>
     <string name="fw_guard_reason_lock_off">se desactivó el bloqueo de la app</string>
     <string name="fw_guard_reason_screen_lock">se quitó el bloqueo de pantalla de tu teléfono</string>
     <string name="fw_guard_reason_lock_needed">el bloqueo de la app no está configurado</string>
@@ -208,9 +195,6 @@ Si alguien te ha pedido por llamada o chat que lo configures, para ahora y cuelg
         <item quantity="other">%1$d mensajes enviados a %2$s</item>
     </plurals>
     <string name="fw_history_sent_none">No se ha enviado ningún mensaje</string>
-    <string name="fw_history_between">entre %1$s y %2$s</string>
-    <string name="fw_history_failed">%1$d con error</string>
-    <string name="fw_history_skipped">%1$d omitidos</string>
     <string name="fw_history_from">de %1$s</string>
     <string name="fw_history_to">Para %1$s</string>
     <string name="fw_outcome_sent">Enviado</string>

@@ -137,6 +137,16 @@ object LinkSafety {
     }
 }
 
+/** [brand] from [LookalikeDomainChecker]: the descriptive government names translated, proper nouns as they are. */
+@Composable
+private fun brandDisplayName(brand: String): String = when (brand) {
+    LookalikeDomainChecker.BRAND_UIDAI -> stringResource(R.string.link_brand_uidai)
+    LookalikeDomainChecker.BRAND_INCOME_TAX -> stringResource(R.string.link_brand_income_tax)
+    LookalikeDomainChecker.BRAND_GOVERNMENT_OF_INDIA -> stringResource(R.string.link_brand_government_of_india)
+    LookalikeDomainChecker.BRAND_INDIA_POST -> stringResource(R.string.link_brand_india_post)
+    else -> brand
+}
+
 /** Warning dialog shown before a risky link opens; "Open anyway" is the deliberate second tap. */
 @Composable
 fun LinkWarningDialog(warning: LinkWarning, onOpen: () -> Unit, onDismiss: () -> Unit, onReport: (() -> Unit)? = null) {
@@ -144,7 +154,7 @@ fun LinkWarningDialog(warning: LinkWarning, onOpen: () -> Unit, onDismiss: () ->
     val reason = when (verdict.risk) {
         // No brand: a bare IP address or an official-sounding host (e.g. "government" words on a non-government
         // domain) that imitates no one site in particular.
-        LinkRisk.LOOKALIKE -> verdict.matchedBrand?.let { stringResource(R.string.scr_link_lookalike, it) }
+        LinkRisk.LOOKALIKE -> verdict.matchedBrand?.let { stringResource(R.string.scr_link_lookalike, brandDisplayName(it)) }
             ?: stringResource(R.string.scr_link_lookalike_unbranded)
         LinkRisk.SUSPICIOUS_TLD -> stringResource(R.string.scr_link_suspicious_tld)
         LinkRisk.SHORTENED -> stringResource(R.string.scr_link_shortened)

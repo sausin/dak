@@ -291,7 +291,9 @@ object DakSettings {
     // ---------------------------------------------------------------- SIMs and sending
     val sim1Name = textSetting(
         "simsSending.sim1.name", SettingsGroup.SIMS_SENDING,
-        "SIM 1 name", "Label shown for SIM 1 across the app.", default = "SIM 1",
+        // Blank default: the app shows "SIM 1" in the app language (sim_n) until the user names it. Names typed
+        // (or stored as "SIM 1") by older versions are kept as they are.
+        "SIM 1 name", "Label shown for SIM 1 across the app.", default = "",
     )
     val sim1Color = textSetting(
         "simsSending.sim1.color", SettingsGroup.SIMS_SENDING,
@@ -299,7 +301,7 @@ object DakSettings {
     )
     val sim2Name = textSetting(
         "simsSending.sim2.name", SettingsGroup.SIMS_SENDING,
-        "SIM 2 name", "Label shown for SIM 2 across the app.", default = "SIM 2",
+        "SIM 2 name", "Label shown for SIM 2 across the app.", default = "",
         visible = { it.simCount > 1 },
     )
     val sim2Color = textSetting(

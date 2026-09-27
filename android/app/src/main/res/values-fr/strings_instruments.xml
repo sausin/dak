@@ -20,7 +20,6 @@
     <string name="inst_total_nothing_spent">Aucune dépense ce mois-ci</string>
     <string name="inst_total_no_balance">Aucun solde indiqué pour l\'instant</string>
     <string name="inst_total_no_outstanding">Définissez les jours de relevé pour voir l\'encours</string>
-    <string name="inst_total_missing">%1$d inconnu(s)</string>
     <string name="inst_total_value">Valeur actuelle %1$s</string>
     <string name="inst_total_no_value">Aucune valeur actuelle indiquée pour l\'instant</string>
 

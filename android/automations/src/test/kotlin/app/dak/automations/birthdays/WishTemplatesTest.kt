@@ -29,6 +29,23 @@ class WishTemplatesTest {
     }
 
     @Test
+    fun `french keeps its space before an exclamation mark`() {
+        val fr = WishTemplates.birthdayDefaults.first { it.language == "fr" }.text
+        assertEquals(
+            "Joyeux anniversaire, Anita ! Je te souhaite une merveilleuse année.",
+            WishTemplates.render(fr, "Anita Rao", "Anita"),
+        )
+        assertEquals("Tu as 36 ans !", WishTemplates.render("Tu as {age} ans !", "A", "A", 36))
+        assertEquals("Bonne fête, Anita !", WishTemplates.render("Bonne fête, {firstName} !", "Anita", null))
+    }
+
+    @Test
+    fun `an empty placeholder takes only its own space along`() {
+        assertEquals("Hi Anita, happy day", WishTemplates.render("Hi {firstName} {age}, happy day", "Anita", null))
+        assertEquals("Hi Anita", WishTemplates.render("Hi {firstName} {age}", "Anita", null))
+    }
+
+    @Test
     fun `hindi default keeps devanagari intact`() {
         val hi = WishTemplates.birthdayDefaults.first { it.language == "hi" }.text
         assertEquals(

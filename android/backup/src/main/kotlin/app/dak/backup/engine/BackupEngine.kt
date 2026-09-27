@@ -25,6 +25,12 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+/**
+ * The target holds no backup to restore (no `latest.json` pointer). Typed, so callers can tell it apart from a damaged
+ * or unreadable backup without reading the (English, log-only) message.
+ */
+class NoBackupsException : IllegalStateException("No backups found on this target")
+
 /** How an existing snapshot is unlocked for [BackupEngine.restore]. Either key [BackupCrypto] wrapped works. */
 sealed class RestoreKey {
     data class Passphrase(val value: CharArray) : RestoreKey()
@@ -163,7 +169,7 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
         fromBlobName: String? = null,
     ): Flow<MessageRecord> = flow {
         val startBlob = fromBlobName ?: readLatestPointer()?.blobName
-            ?: throw IllegalStateException("No backups found on this target")
+            ?: throw NoBackupsException()
 
         if (fromBlobName != null) {
             // A name the caller listed from the target (may be user-renamed, e.g. "x (1).dakbackup"): no path syntax.
@@ -208,7 +214,7 @@ class BackupEngine(private val target: BackupTarget, private val encryption: Bac
      * the reader; deciding which to insert is [app.dak.backup.format.AutomationRunRestore.plan].
      */
     suspend fun readExtras(key: RestoreKey? = null, fromBlobName: String? = null): SnapshotExtras {
-        val blob = fromBlobName ?: readLatestPointer()?.blobName ?: throw IllegalStateException("No backups found on this target")
+        val blob = fromBlobName ?: readLatestPointer()?.blobName ?: throw NoBackupsException()
         if (fromBlobName != null) {
             if (fromBlobName.any { it == '/' || it == '\\' || it < ' ' } || fromBlobName.startsWith(".")) {
                 throw IllegalStateException("Invalid snapshot name")

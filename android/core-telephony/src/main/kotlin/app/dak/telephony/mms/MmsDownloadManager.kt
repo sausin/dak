@@ -272,7 +272,11 @@ class MmsDownloadManager @Inject constructor(
         val bytes = withContext(Dispatchers.IO) { file?.takeIf { length > 0 }?.readBytes() }
             ?: return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_EMPTY_RESPONSE), retryable = true)
         val retrieved = when (val decoded = MmsPduDecoder.decode(bytes)) {
-            is PduDecodeResult.Failure -> return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_UNREADABLE, decoded.error.message.toString()), retryable = false)
+            is PduDecodeResult.Failure -> {
+                // The decoder's detail is English and technical: log it, show only "Unreadable MMS".
+                Log.w(TAG, "Unreadable MMS: ${decoded.error.message}")
+                return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_UNREADABLE), retryable = false)
+            }
             is PduDecodeResult.Success -> decoded.pdu as? RetrieveConf
                 ?: return DownloadOutcome.Failed(FailureReasons.encode(Failure.MMS_UNEXPECTED_RESPONSE), retryable = false)
         }

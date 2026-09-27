@@ -44,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -142,10 +143,16 @@ fun BackupScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                     Column {
                         val last = status.lastBackupMillis
                         Text(
-                            if (last == null) stringResource(R.string.scr_backup_never)
-                            else stringResource(R.string.scr_backup_last_value, formatter.formatAbsolute(last), status.lastMessageCount ?: 0),
+                            if (last == null) {
+                                stringResource(R.string.scr_backup_never)
+                            } else {
+                                val count = status.lastMessageCount ?: 0
+                                pluralStringResource(R.plurals.scr_backup_last_value, count, formatter.formatAbsolute(last), count)
+                            },
                         )
-                        status.lastError?.let { Text(stringResource(R.string.scr_backup_last_error, it), color = MaterialTheme.colorScheme.error) }
+                        // A failure code in the app language; text stored by older versions is shown as it was saved.
+                        val lastError = status.lastFailure?.let { stringResource(failureLabel(it)) } ?: status.lastError
+                        lastError?.let { Text(stringResource(R.string.scr_backup_last_error, it), color = MaterialTheme.colorScheme.error) }
                     }
                 },
             )
@@ -242,7 +249,8 @@ private fun OperationPanel(operation: BackupOperation, onDismiss: () -> Unit, on
         }
         is BackupOperation.Failed -> WarningBanner(
             title = stringResource(R.string.scr_backup_failed_title),
-            body = stringResource(failureLabel(operation.failure)) + (operation.detail?.let { "\n$it" }.orEmpty()),
+            // Only the translated reason: operation.detail is an English exception message, kept for diagnosis.
+            body = stringResource(failureLabel(operation.failure)),
             actionLabel = stringResource(R.string.action_got_it),
             onAction = onDismiss,
         )
@@ -265,13 +273,17 @@ private fun OperationPanel(operation: BackupOperation, onDismiss: () -> Unit, on
 private fun finishedText(op: BackupOperation.Finished): String {
     val formatter = rememberRelativeTimeFormatter()
     return when (op.kind) {
-        BackupOpKind.BACKUP -> stringResource(R.string.scr_backup_done_backup, op.count)
+        BackupOpKind.BACKUP -> pluralStringResource(R.plurals.scr_backup_done_backup, op.count, op.count)
         BackupOpKind.RESTORE -> {
-            val base = stringResource(R.string.scr_backup_done_restore, op.count, op.skipped)
-            op.restoredUpToMillis?.let { base + " " + stringResource(R.string.scr_backup_done_restore_upto, formatter.formatAbsolute(it)) } ?: base
+            val upTo = op.restoredUpToMillis
+            if (upTo != null) {
+                pluralStringResource(R.plurals.scr_backup_done_restore_upto, op.count, op.count, op.skipped, formatter.formatAbsolute(upTo))
+            } else {
+                pluralStringResource(R.plurals.scr_backup_done_restore, op.count, op.count, op.skipped)
+            }
         }
-        BackupOpKind.EXPORT_DAK, BackupOpKind.EXPORT_XML -> stringResource(R.string.scr_backup_done_export, op.count)
-        BackupOpKind.IMPORT -> stringResource(R.string.scr_backup_done_import, op.count, op.skipped)
+        BackupOpKind.EXPORT_DAK, BackupOpKind.EXPORT_XML -> pluralStringResource(R.plurals.scr_backup_done_export, op.count, op.count)
+        BackupOpKind.IMPORT -> pluralStringResource(R.plurals.scr_backup_done_import, op.count, op.count, op.skipped)
     }
 }
 

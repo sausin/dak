@@ -1,6 +1,8 @@
 package app.dak.automation
 
 import app.dak.automations.broadcast.BroadcastTag
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
@@ -288,8 +290,12 @@ object HeadsUpActions {
  * Immediate texts to emergency numbers are unaffected.
  */
 object ScheduledEmergencyPolicy {
-    /** [ScheduledSend.failureReason] of a legacy row cancelled at send time. */
-    const val CANCEL_REASON: String = "emergency number: scheduled texts to emergency services are not allowed"
+    /**
+     * [ScheduledSend.failureReason] of a legacy row cancelled at send time: a code shown in the app language. Versions
+     * before reason codes stored "emergency number: scheduled texts to emergency services are not allowed", which is
+     * still shown as is.
+     */
+    val CANCEL_REASON: String = FailureReasons.encode(Failure.SCHEDULED_EMERGENCY_CANCELLED)
 
     /** True when any of [addresses] is an emergency number (a failing check counts as "not emergency"). */
     fun refuses(addresses: List<String>, isEmergency: (String) -> Boolean): Boolean =

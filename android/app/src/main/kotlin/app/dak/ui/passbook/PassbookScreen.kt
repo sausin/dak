@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -62,6 +63,7 @@ import app.dak.navigation.Routes
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.EmptyState
 import app.dak.ui.common.rememberRelativeTimeFormatter
+import app.dak.ui.common.text.rememberDisplayLocale
 import app.dak.ui.theme.DakTheme
 
 /**
@@ -209,7 +211,7 @@ private fun HiddenHeader(count: Int, expanded: Boolean, onToggle: () -> Unit) {
 private fun HiddenAccountRow(summary: AccountSummary, onOpen: () -> Unit, onRestore: () -> Unit) {
     ListItem(
         modifier = Modifier.clickable(onClick = onOpen),
-        leadingContent = { InstitutionBadge(summary.account.institution) },
+        leadingContent = { InstitutionBadge(summary.account) },
         headlineContent = { Text(accountTitle(summary.account), maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant) },
         trailingContent = { TextButton(onClick = onRestore) { Text(stringResource(R.string.pb_restore)) } },
     )
@@ -228,7 +230,7 @@ private fun AccountRow(item: AccountGroupItem, onHide: () -> Unit, onClick: () -
             modifier = Modifier
                 .combinedClickable(onClick = onClick, onLongClick = { menu = true }, onLongClickLabel = hideLabel)
                 .semantics { customActions = listOf(CustomAccessibilityAction(hideLabel) { onHide(); true }) },
-            leadingContent = { InstitutionBadge(account.institution) },
+            leadingContent = { InstitutionBadge(account) },
             headlineContent = { Text(accountTitle(account), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             overlineContent = {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -281,7 +283,7 @@ private fun AccountRow(item: AccountGroupItem, onHide: () -> Unit, onClick: () -
                             }
                             summary.unitsHeld?.let { units ->
                                 Text(
-                                    stringResource(R.string.inst_units_held, unitsText(units)),
+                                    stringResource(R.string.inst_units_held, unitsText(units, rememberDisplayLocale())),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -298,7 +300,7 @@ private fun AccountRow(item: AccountGroupItem, onHide: () -> Unit, onClick: () -
                         )
                     }
                     Text(
-                        stringResource(R.string.scr_passbook_entries, summary.entryCount),
+                        pluralStringResource(R.plurals.scr_passbook_entries, summary.entryCount, summary.entryCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -316,13 +318,18 @@ private fun AccountRow(item: AccountGroupItem, onHide: () -> Unit, onClick: () -
     }
 }
 
-/** "HDFC Bank debit card ••1234", "PEAKMF mutual fund folio ••1234". */
+/** "HDFC Bank debit card ••1234", "PEAKMF mutual fund folio ••1234"; the word order is the translation's. */
 @Composable
 fun accountTitle(account: Account): String {
+    val institution = institutionName(account)
     val kind = stringResource(kindRes(account))
     // Every digit the bank shows (e.g. ••440065), so two formats of one number are told apart.
-    val digits = maskedSuffix(account).let { if (it.isEmpty()) "" else " $it" }
-    return "${account.institution} $kind$digits"
+    val digits = maskedSuffix(account)
+    return if (digits.isEmpty()) {
+        stringResource(R.string.inst_account_title, institution, kind)
+    } else {
+        stringResource(R.string.inst_account_title_digits, institution, kind, digits)
+    }
 }
 
 /**

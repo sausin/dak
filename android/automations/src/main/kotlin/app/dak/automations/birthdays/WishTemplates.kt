@@ -19,11 +19,15 @@ public object WishTemplates {
         WishTemplate("en_formal", "en", "Dear {name}, many happy returns of the day. Best wishes for the year ahead."),
         WishTemplate("hi_warm", "hi", "जन्मदिन की हार्दिक शुभकामनाएँ, {firstName}! आपका आने वाला साल खुशियों से भरा हो।"),
         WishTemplate("hi_latin", "hi-Latn", "Janamdin ki dher saari shubhkamnayein, {firstName}!"),
+        WishTemplate("es_warm", "es", "¡Feliz cumpleaños, {firstName}! Que tengas un año maravilloso."),
+        WishTemplate("fr_warm", "fr", "Joyeux anniversaire, {firstName} ! Je te souhaite une merveilleuse année."),
     )
 
     public val anniversaryDefaults: List<WishTemplate> = listOf(
         WishTemplate("en_anniv", "en", "Happy anniversary, {firstName}! Wishing you many more happy years together."),
         WishTemplate("hi_anniv", "hi", "सालगिरह की हार्दिक शुभकामनाएँ, {firstName}!"),
+        WishTemplate("es_anniv", "es", "¡Feliz aniversario, {firstName}! Que vengan muchos años más de felicidad juntos."),
+        WishTemplate("fr_anniv", "fr", "Joyeux anniversaire de mariage, {firstName} ! Encore beaucoup d'années de bonheur à deux."),
     )
 
     /** For any other date saved on a contact (a custom label such as "Graduation", or "Other"). */
@@ -31,6 +35,8 @@ public object WishTemplates {
         WishTemplate("en_other", "en", "Happy {occasion}, {firstName}! Thinking of you today."),
         WishTemplate("en_other_short", "en", "Thinking of you today, {firstName}! 🎉"),
         WishTemplate("hi_other", "hi", "आज के खास दिन की शुभकामनाएँ, {firstName}!"),
+        WishTemplate("es_other", "es", "¡Pensando en ti en este día especial, {firstName}!"),
+        WishTemplate("fr_other", "fr", "Je pense à toi en ce jour spécial, {firstName} !"),
     )
 
     public val DEFAULT_BIRTHDAY: String = birthdayDefaults.first().text

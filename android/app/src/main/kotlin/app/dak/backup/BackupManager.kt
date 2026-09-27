@@ -67,10 +67,26 @@ enum class BackupOpKind { BACKUP, RESTORE, EXPORT_DAK, EXPORT_XML, IMPORT }
 /** Why an operation failed, for a specific message on screen. */
 enum class BackupFailure { NO_DESTINATION, NO_PASSPHRASE, WRONG_KEY, DAMAGED, NO_BACKUP_FOUND, UNRECOGNISED_FILE, IO }
 
+/** Which step of a running operation [BackupOperation.Running.done] counts. */
+enum class BackupStage {
+    /** Reading messages from the phone (the count is messages read). */
+    READING,
+
+    /** The operation's main work: writing a backup or export file, or adding messages (the count is items done). */
+    WORKING,
+}
+
 /** Progress and outcome of the current or last operation. */
 sealed interface BackupOperation {
     data object Idle : BackupOperation
-    data class Running(val kind: BackupOpKind, val done: Int, val total: Int) : BackupOperation
+
+    /** [total] is 0 while unknown (imports, restores): the screen then shows [done] alone. */
+    data class Running(
+        val kind: BackupOpKind,
+        val done: Int,
+        val total: Int,
+        val stage: BackupStage = BackupStage.WORKING,
+    ) : BackupOperation
 
     /**
      * [count] messages written (backup/export) or added (restore/import); [skipped] were already present or unreadable.
@@ -211,10 +227,17 @@ class BackupManager @Inject constructor(
     suspend fun export(uri: Uri, format: ExportFormat): BackupOperation = mutex.withLock {
         val kind = if (format == ExportFormat.DAK) BackupOpKind.EXPORT_DAK else BackupOpKind.EXPORT_XML
         try {
-            state.value = BackupOperation.Running(kind, 0, 0)
-            val snap = snapshot.read(withAttachments = true) { done, total -> state.value = BackupOperation.Running(kind, done, total) }
+            state.value = BackupOperation.Running(kind, 0, 0, BackupStage.READING)
+            val snap = snapshot.read(withAttachments = true) { done, total ->
+                state.value = BackupOperation.Running(kind, done, total, BackupStage.READING)
+            }
             val settingsJson = settingsWithFolds()
             val runs = if (format == ExportFormat.DAK) automationRunRecords() else emptyList()
+            // Writing is the slow part (attachments, base64 in the XML): one step per attachment copied (the Dak format
+            // stores them separately, before the messages) and per message written.
+            val attachmentSteps = if (format == ExportFormat.DAK) snap.attachmentUris.size else 0
+            val progress = ProgressReporter(kind, attachmentSteps + snap.records.size)
+            val messages = snap.records.asSequence().onEach { progress.step() }
             withContext(Dispatchers.IO) {
                 val out = context.contentResolver.openOutputStream(uri, "w") ?: throw IOException("Cannot write to the chosen file")
                 out.use { stream ->
@@ -222,8 +245,9 @@ class BackupManager @Inject constructor(
                         ExportFormat.DAK -> DakExportWriter(stream).use { w ->
                             for ((sha, attachmentUri) in snap.attachmentUris) {
                                 snapshot.open(attachmentUri)?.let { w.writeAttachment(sha, it) }
+                                progress.step()
                             }
-                            w.writeMessages(snap.records.asSequence())
+                            w.writeMessages(messages)
                             w.writeThreads(emptyList())
                             w.writeSettings(settingsJson)
                             if (runs.isNotEmpty()) w.writeAutomationRuns(runs.asSequence())
@@ -239,7 +263,7 @@ class BackupManager @Inject constructor(
                         }
                         ExportFormat.SMS_BACKUP_RESTORE_XML -> SmsBackupRestoreXmlExporter.write(
                             output = stream,
-                            messages = snap.records.asSequence(),
+                            messages = messages,
                             count = snap.records.size,
                             attachmentBytes = { sha -> snap.attachmentUris[sha]?.let { u -> snapshot.open(u)?.use { it.readBytes() } } },
                         )
@@ -485,6 +509,24 @@ class BackupManager @Inject constructor(
         }
     }.getOrNull()
 
+    /**
+     * Publishes [BackupStage.WORKING] progress over [total] steps, about [PROGRESS_UPDATES] times in all (and on the
+     * last step), so a large export does not flood the screen with states.
+     */
+    private inner class ProgressReporter(private val kind: BackupOpKind, private val total: Int) {
+        private val every = maxOf(1, total / PROGRESS_UPDATES)
+        private var done = 0
+
+        init {
+            state.value = BackupOperation.Running(kind, 0, total)
+        }
+
+        fun step() {
+            done++
+            if (done % every == 0 || done == total) state.value = BackupOperation.Running(kind, minOf(done, total), total)
+        }
+    }
+
     private fun launchOp(block: suspend () -> BackupOperation) {
         if (state.value is BackupOperation.Running) return
         scope.launch { block() }
@@ -518,6 +560,7 @@ class BackupManager @Inject constructor(
         /** Settings-JSON key carrying the sender fold rules (a JSON string, see `SenderMergeRepository.exportRules`). */
         const val FOLDS_KEY = "dak.index.senderFolds"
         const val PROGRESS_EVERY = 100
+        const val PROGRESS_UPDATES = 200
         const val HEADER_BYTES = 4096
         const val LATEST = "latest.json"
         const val BLOB_SUFFIX = ".dakbackup"

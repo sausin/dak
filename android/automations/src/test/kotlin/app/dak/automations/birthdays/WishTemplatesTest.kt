@@ -85,7 +85,11 @@ class WishTemplatesTest {
         assertEquals("Happy {occasion}, {firstName}! Thinking of you today.", WishTemplates.DEFAULT_OTHER)
         assertEquals("special day", WishTemplates.FALLBACK_OCCASION)
         assertEquals(
-            listOf("en_warm", "en_short", "en_formal", "hi_warm", "hi_latin", "en_anniv", "hi_anniv", "en_other", "en_other_short", "hi_other"),
+            listOf(
+                "en_warm", "en_short", "en_formal", "hi_warm", "hi_latin", "es_warm", "fr_warm",
+                "en_anniv", "hi_anniv", "es_anniv", "fr_anniv",
+                "en_other", "en_other_short", "hi_other", "es_other", "fr_other",
+            ),
             OccasionKind.entries.flatMap { WishTemplates.defaultsFor(it) }.map { it.id },
         )
     }
@@ -98,7 +102,10 @@ class WishTemplatesTest {
         assertEquals("hi_latin", WishTemplates.defaultFor(OccasionKind.BIRTHDAY, "hi-Latn-IN").id)
         assertEquals("hi_anniv", WishTemplates.defaultFor(OccasionKind.ANNIVERSARY, "hi-IN").id)
         assertEquals("hi_other", WishTemplates.defaultFor(OccasionKind.OTHER, "HI").id)
-        for (tag in listOf("en-IN", "en", "ta-IN", "fr", "", null, "hin")) {
+        assertEquals("es_warm", WishTemplates.defaultFor(OccasionKind.BIRTHDAY, "es-MX").id)
+        assertEquals("fr_anniv", WishTemplates.defaultFor(OccasionKind.ANNIVERSARY, "fr-CA").id)
+        assertEquals("es_other", WishTemplates.defaultFor(OccasionKind.OTHER, "es").id)
+        for (tag in listOf("en-IN", "en", "ta-IN", "de", "", null, "hin", "esp")) {
             assertEquals("en_warm", WishTemplates.defaultFor(OccasionKind.BIRTHDAY, tag).id, "$tag")
         }
         assertEquals(WishTemplates.DEFAULT_BIRTHDAY, WishTemplates.defaultFor(OccasionKind.BIRTHDAY, "en").text)

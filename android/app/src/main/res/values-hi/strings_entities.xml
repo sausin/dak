@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smart entities in message bubbles (EntityText / EntityActionSheet). -->
+<resources>
+    <string name="ent_type_otp">वन-टाइम कोड</string>
+    <string name="ent_type_url">लिंक</string>
+    <string name="ent_type_email">ईमेल पता</string>
+    <string name="ent_type_account">खाता या कार्ड</string>
+    <string name="ent_type_amount">राशि</string>
+    <string name="ent_type_upi">UPI ID</string>
+    <string name="ent_type_pnr">PNR</string>
+    <string name="ent_type_tracking">ट्रैकिंग नंबर</string>
+    <string name="ent_type_reference">रेफ़रेंस नंबर</string>
+    <string name="ent_type_phone">फ़ोन नंबर</string>
+
+    <string name="ent_action_call">कॉल करें</string>
+    <string name="ent_action_sms">SMS भेजें</string>
+    <string name="ent_action_save_contact">संपर्क के रूप में सेव करें</string>
+    <string name="ent_action_whatsapp">WhatsApp में खोलें</string>
+    <string name="ent_action_copy">कॉपी करें</string>
+    <string name="ent_action_copy_amount">राशि कॉपी करें</string>
+    <string name="ent_action_search_amount">यह राशि खोजें</string>
+    <string name="ent_action_open_passbook">पासबुक में खोलें</string>
+    <string name="ent_action_track">कूरियर साइट पर ट्रैक करें (ID कॉपी हो गई)</string>
+    <string name="ent_action_email">ईमेल लिखें</string>
+    <string name="ent_action_open_link">लिंक खोलें</string>
+
+    <string name="ent_scam_warning">स्कैमर ऐसे नंबर इस्तेमाल करते हैं — अपने बैंक के आधिकारिक ऐप/नंबर से पुष्टि करें</string>
+    <string name="ent_no_app">कोई ऐप इसे नहीं खोल सकता</string>
+</resources>

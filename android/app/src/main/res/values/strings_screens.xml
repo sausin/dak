@@ -151,6 +151,7 @@
     <string name="scr_backup_restore_body">Messages from the backup that are not on this phone are added back. Nothing is deleted.</string>
     <string name="scr_backup_running_backup">Backing up…</string>
     <string name="scr_backup_running_export">Exporting…</string>
+    <string name="scr_backup_running_export_reading">Preparing export…</string>
     <string name="scr_backup_running_import">Importing…</string>
     <string name="scr_backup_running_restore">Restoring…</string>
     <string name="scr_backup_schedule">Automatic backup</string>

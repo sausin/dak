@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Why a message could not be sent or downloaded, shown under a failed bubble, in the "Could not send" snackbar of the composer
+    and in broadcast / scheduled-send details. One string per app.dak.telephony.Failure entry, named
+    dak_telephony_fail_<entry in lower case>, with the English text of the entry: FailureReasonsTest checks both.
+    Keep them short (one line under a message bubble). docs/i18n.md.
+-->
+<resources>
+    <string name="dak_telephony_fail_message_empty">मैसेज खाली है</string>
+    <string name="dak_telephony_fail_no_recipient">कोई प्राप्तकर्ता नहीं</string>
+    <string name="dak_telephony_fail_not_default_app">Dak डिफ़ॉल्ट SMS ऐप नहीं है</string>
+    <string name="dak_telephony_fail_waiting_not_default_app">इंतज़ार: Dak डिफ़ॉल्ट SMS ऐप नहीं है</string>
+    <string name="dak_telephony_fail_save_failed_not_default">मैसेज सेव नहीं हो सका; क्या Dak डिफ़ॉल्ट SMS ऐप है?</string>
+    <string name="dak_telephony_fail_conversation_failed_not_default">बातचीत नहीं खुल सकी; क्या Dak डिफ़ॉल्ट SMS ऐप है?</string>
+    <string name="dak_telephony_fail_emergency_refused">फ़ोन ने आपातकालीन मैसेज भेजने से मना कर दिया</string>
+    <string name="dak_telephony_fail_message_not_found">मैसेज नहीं मिला</string>
+    <string name="dak_telephony_fail_send_interrupted">भेजना बीच में रुक गया; फिर से कोशिश करने के लिए टैप करें</string>
+    <!-- %1$d = size of the message in KB, %2$d = the carrier limit in KB -->
+    <string name="dak_telephony_fail_mms_too_large_for_carrier">इस ऑपरेटर के लिए बहुत बड़ा: %1$d KB (सीमा %2$d KB)</string>
+    <string name="dak_telephony_fail_sms_sent">भेजा गया</string>
+    <string name="dak_telephony_fail_sms_failed">भेजा नहीं जा सका</string>
+    <string name="dak_telephony_fail_sms_radio_off">मोबाइल रेडियो बंद है (हवाई जहाज़ मोड या दूसरा SIM व्यस्त है)</string>
+    <string name="dak_telephony_fail_sms_not_encoded">मैसेज एन्कोड नहीं हो सका</string>
+    <string name="dak_telephony_fail_sms_no_service">मोबाइल सेवा नहीं है</string>
+    <string name="dak_telephony_fail_sms_limit_exceeded">बहुत ज़्यादा मैसेज भेजे गए; दोबारा कोशिश से पहले इंतज़ार</string>
+    <string name="dak_telephony_fail_sms_fdn_blocked">फ़िक्स्ड डायलिंग नंबर (FDN) ने ब्लॉक किया</string>
+    <string name="dak_telephony_fail_sms_short_code_not_allowed">इस शॉर्ट कोड पर भेजने की अनुमति नहीं है</string>
+    <string name="dak_telephony_fail_sms_radio_not_available">मोबाइल रेडियो उपलब्ध नहीं है</string>
+    <string name="dak_telephony_fail_sms_network_reject">नेटवर्क ने मैसेज अस्वीकार कर दिया</string>
+    <string name="dak_telephony_fail_sms_bad_format">मैसेज इस फ़ॉर्मैट में नहीं भेजा जा सका</string>
+    <string name="dak_telephony_fail_sms_invalid_smsc">SIM का मैसेज सेंटर नंबर अमान्य है</string>
+    <string name="dak_telephony_fail_sms_not_allowed">अभी भेजने की अनुमति नहीं है</string>
+    <string name="dak_telephony_fail_sms_cancelled">भेजना रद्द कर दिया गया</string>
+    <string name="dak_telephony_fail_sms_not_supported">इस SIM से भेजना सपोर्ट नहीं है</string>
+    <string name="dak_telephony_fail_sms_temporary_error">फ़ोन में अस्थायी गड़बड़ी</string>
+    <string name="dak_telephony_fail_sms_network_error">नेटवर्क गड़बड़ी</string>
+    <!-- %1$d = the numeric error code of the phone -->
+    <string name="dak_telephony_fail_sms_unknown_code">भेजा नहीं जा सका (कोड %1$d)</string>
+    <string name="dak_telephony_fail_sms_not_delivered">डिलीवर नहीं हुआ</string>
+    <!-- %1$d = parts sent, %2$d = parts in the message -->
+    <string name="dak_telephony_fail_sms_partial">%2$d में से सिर्फ़ %1$d हिस्से भेजे गए। दोबारा कोशिश करने पर पूरा मैसेज फिर से भेजा जाएगा, इसलिए प्राप्तकर्ता को कुछ हिस्सा दो बार दिख सकता है</string>
+    <string name="dak_telephony_fail_mms_ok">ठीक है</string>
+    <string name="dak_telephony_fail_mms_failed">MMS नहीं भेजा जा सका</string>
+    <string name="dak_telephony_fail_mms_invalid_apn">इस SIM के लिए MMS सेटिंग्स (APN) मौजूद नहीं हैं या अमान्य हैं</string>
+    <string name="dak_telephony_fail_mms_cannot_connect">ऑपरेटर के MMS सर्वर से कनेक्ट नहीं हो सका</string>
+    <string name="dak_telephony_fail_mms_http_failure">ऑपरेटर के MMS सर्वर ने गड़बड़ी लौटाई</string>
+    <string name="dak_telephony_fail_mms_io_error">MMS ट्रांसफ़र करते समय नेटवर्क गड़बड़ी</string>
+    <string name="dak_telephony_fail_mms_retry_later">ऑपरेटर ने बाद में फिर से कोशिश करने को कहा</string>
+    <string name="dak_telephony_fail_mms_not_configured">इस SIM के लिए MMS सेट अप नहीं है</string>
+    <string name="dak_telephony_fail_mms_no_data">MMS के लिए मोबाइल डेटा कनेक्शन नहीं है</string>
+    <string name="dak_telephony_fail_mms_sim_unavailable">इस मैसेज का SIM उपलब्ध नहीं है</string>
+    <string name="dak_telephony_fail_mms_sim_inactive">इस मैसेज का SIM चालू नहीं है</string>
+    <string name="dak_telephony_fail_mms_data_off">मोबाइल डेटा बंद है</string>
+    <string name="dak_telephony_fail_mms_disabled_by_carrier">ऑपरेटर ने MMS बंद किया है</string>
+    <!-- %1$d = the numeric error code of the phone -->
+    <string name="dak_telephony_fail_mms_unknown_code">MMS नहीं भेजा जा सका (कोड %1$d)</string>
+    <!-- %1$s = one of the MMS failure reasons above, %2$d = HTTP status code from the carrier server (e.g. 404) -->
+    <string name="dak_telephony_fail_mms_with_http_status">%1$s (HTTP %2$d)</string>
+    <string name="dak_telephony_fail_mms_tap_to_download">डाउनलोड करने के लिए टैप करें</string>
+    <string name="dak_telephony_fail_mms_tap_to_download_large">बहुत बड़ा मैसेज: डाउनलोड करने के लिए टैप करें</string>
+    <string name="dak_telephony_fail_mms_tap_to_download_roaming">रोमिंग: डाउनलोड करने के लिए टैप करें</string>
+    <string name="dak_telephony_fail_mms_tap_to_download_many">एक साथ कई मैसेज: डाउनलोड करने के लिए टैप करें</string>
+    <string name="dak_telephony_fail_mms_not_downloaded">अभी डाउनलोड नहीं हुआ</string>
+    <string name="dak_telephony_fail_mms_expired">ऑपरेटर के सर्वर पर इसकी समय-सीमा खत्म हो गई</string>
+    <string name="dak_telephony_fail_mms_invalid_link">डाउनलोड लिंक अमान्य है</string>
+    <string name="dak_telephony_fail_mms_timed_out">ऑपरेटर का इंतज़ार करते-करते समय खत्म हो गया</string>
+    <string name="dak_telephony_fail_mms_save_failed">मैसेज सेव नहीं हो सका</string>
+    <string name="dak_telephony_fail_mms_too_large">मैसेज बहुत बड़ा है</string>
+    <string name="dak_telephony_fail_mms_empty_response">ऑपरेटर ने खाली मैसेज लौटाया</string>
+    <!-- %1$s = technical detail from the MMS decoder (English, not translated) -->
+    <string name="dak_telephony_fail_mms_unreadable">MMS पढ़ा नहीं जा सकता: %1$s</string>
+    <string name="dak_telephony_fail_mms_unexpected_response">ऑपरेटर से अनपेक्षित जवाब</string>
+    <string name="dak_telephony_fail_mms_carrier_could_not_deliver">ऑपरेटर यह मैसेज डिलीवर नहीं कर सका</string>
+</resources>

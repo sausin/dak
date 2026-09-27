@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Passbook instrument groups (agent I "instruments") -->
+    <string name="inst_group_bank_accounts">बैंक खाते</string>
+    <string name="inst_group_credit_cards">क्रेडिट कार्ड</string>
+    <string name="inst_group_debit_cards">डेबिट कार्ड</string>
+    <string name="inst_group_wallets">वॉलेट</string>
+    <string name="inst_group_upi">UPI</string>
+    <string name="inst_group_prepaid">प्रीपेड और फ़ॉरेक्स कार्ड</string>
+    <string name="inst_group_loans">लोन</string>
+    <string name="inst_group_investments">निवेश</string>
+    <string name="inst_group_other">अन्य</string>
+    <string name="inst_group_expand">%1$s दिखाएं</string>
+    <string name="inst_group_collapse">%1$s छिपाएं</string>
+
+    <!-- Header totals, per currency, never converted -->
+    <string name="inst_total_balance">बैलेंस %1$s</string>
+    <string name="inst_total_outstanding">बकाया %1$s</string>
+    <string name="inst_total_spent">इस महीने खर्च %1$s</string>
+    <string name="inst_total_nothing_spent">इस महीने कोई खर्च नहीं</string>
+    <string name="inst_total_no_balance">अभी तक कोई बैलेंस नहीं बताया गया</string>
+    <string name="inst_total_no_outstanding">बकाया देखने के लिए स्टेटमेंट की तारीखें सेट करें</string>
+    <string name="inst_total_missing">%1$d की जानकारी नहीं</string>
+    <string name="inst_total_value">मौजूदा मूल्य %1$s</string>
+    <string name="inst_total_no_value">अभी तक कोई मौजूदा मूल्य नहीं बताया गया</string>
+
+    <!-- Account title kinds ("HDFC Bank debit card ••1234") -->
+    <string name="inst_kind_account">खाता</string>
+    <string name="inst_kind_credit_card">क्रेडिट कार्ड</string>
+    <string name="inst_kind_debit_card">डेबिट कार्ड</string>
+    <string name="inst_kind_wallet">वॉलेट</string>
+    <string name="inst_kind_upi">UPI</string>
+    <string name="inst_kind_prepaid">प्रीपेड कार्ड</string>
+    <string name="inst_kind_loan">लोन</string>
+    <string name="inst_kind_investment">निवेश</string>
+    <string name="inst_kind_mutual_fund">म्यूचुअल फ़ंड फ़ोलियो</string>
+    <string name="inst_kind_demat">डीमैट खाता</string>
+    <string name="inst_kind_other">खाता</string>
+
+    <!-- Type chips -->
+    <string name="inst_chip_account">खाता</string>
+    <string name="inst_chip_credit_card">क्रेडिट कार्ड</string>
+    <string name="inst_chip_debit_card">डेबिट कार्ड</string>
+    <string name="inst_chip_wallet">वॉलेट</string>
+    <string name="inst_chip_upi">UPI</string>
+    <string name="inst_chip_prepaid">प्रीपेड</string>
+    <string name="inst_chip_loan">लोन</string>
+    <string name="inst_chip_mutual_fund">म्यूचुअल फ़ंड</string>
+    <string name="inst_chip_demat">डीमैट</string>
+    <string name="inst_chip_other">अन्य</string>
+
+    <!-- Account rows -->
+    <string name="inst_row_spent_month">इस महीने %1$s</string>
+    <string name="inst_row_outstanding">बकाया %1$s</string>
+    <string name="inst_row_linked_to">%1$s से जुड़ा</string>
+    <string name="inst_row_card_no_balance">सिर्फ़ कार्ड से खर्च; इसका अपना कोई बैलेंस नहीं</string>
+    <string name="inst_row_via">%1$s से</string>
+    <string name="inst_row_no_value">अभी तक कोई मौजूदा मूल्य नहीं बताया गया</string>
+    <string name="inst_units_held">%1$s यूनिट आपके पास</string>
+
+    <!-- Account screen per type -->
+    <string name="inst_balance_account">बैलेंस</string>
+    <string name="inst_balance_wallet">वॉलेट बैलेंस</string>
+    <string name="inst_balance_prepaid">कार्ड बैलेंस</string>
+    <string name="inst_balance_loan">बकाया (जैसा बताया गया)</string>
+    <string name="inst_balance_upi">UPI भुगतान</string>
+    <string name="inst_upi_note">ऐसे UPI मैसेज जिनमें किसी बैंक खाते का नाम नहीं है। जब किसी मैसेज में खाते का नाम होता है, तो बैलेंस उसी खाते पर दिखाया जाता है।</string>
+    <string name="inst_loan_no_outstanding">अभी तक किसी मैसेज में बकाया राशि नहीं बताई गई है।</string>
+    <string name="inst_loan_paid_from">EMI %1$s से चुकाई गई</string>
+    <string name="inst_debit_linked_header">जुड़ा हुआ बैंक खाता</string>
+    <string name="inst_debit_unlinked">अभी तक किसी मैसेज में वह खाता नहीं बताया गया जिससे यह कार्ड पैसे काटता है, इसलिए इसके खर्च यहां बिना बैलेंस के दिखाए गए हैं।</string>
+    <string name="inst_debit_stated_balance">कार्ड से खर्च के साथ बताया गया उपलब्ध बैलेंस (बैंक खाते का, कार्ड का नहीं)</string>
+    <string name="inst_open_linked">खाता खोलें</string>
+    <string name="inst_balance_investment">मौजूदा मूल्य (जैसा बताया गया)</string>
+    <string name="inst_investment_no_value">अभी तक किसी मैसेज में इस निवेश का मौजूदा मूल्य नहीं बताया गया है। वैल्यूएशन, होल्डिंग और CAS मैसेज इसे अपडेट करते हैं।</string>
+    <string name="inst_investment_note">यहां की खरीदारी बैंक से ले जाया गया आपका अपना पैसा है, इसलिए इसे कभी खर्च में नहीं गिना जाता।</string>
+
+    <!-- Investment entries and months -->
+    <string name="inst_action_purchase">खरीद / SIP</string>
+    <string name="inst_action_redemption">रिडेम्पशन</string>
+    <string name="inst_action_switch">स्विच</string>
+    <string name="inst_action_dividend">डिविडेंड / IDCW</string>
+    <string name="inst_action_buy">खरीदा</string>
+    <string name="inst_action_sell">बेचा</string>
+    <string name="inst_action_valuation">वैल्यूएशन</string>
+    <string name="inst_entry_units_at">%1$s यूनिट @ %2$s</string>
+    <string name="inst_entry_units">%1$s यूनिट</string>
+    <string name="inst_entry_price">NAV / कीमत %1$s</string>
+    <string name="inst_entry_value">मौजूदा मूल्य</string>
+    <string name="inst_entry_value_after">मूल्य %1$s</string>
+    <string name="inst_entry_own_transfer">आपके निवेश में · खर्च नहीं</string>
+    <string name="inst_month_invested">निवेश किया</string>
+    <string name="inst_month_redeemed">रिडीम / बेचा</string>
+    <string name="inst_month_dividends">डिविडेंड</string>
+    <string name="inst_month_transfers">आपके निवेश में गए %1$s · वापस आए %2$s (खर्च नहीं)</string>
+
+    <!-- Manual type -->
+    <string name="inst_type_label">प्रकार</string>
+    <string name="inst_type_detected">मैसेज से पहचाना गया</string>
+    <string name="inst_type_set_by_you">आपने सेट किया</string>
+    <string name="inst_type_change">प्रकार बदलें</string>
+    <string name="inst_type_dialog_title">यह क्या है?</string>
+    <string name="inst_type_reset">पहचाना गया प्रकार इस्तेमाल करें</string>
+    <string name="inst_type_option_account">बैंक खाता</string>
+    <string name="inst_type_option_credit_card">यह क्रेडिट कार्ड है</string>
+    <string name="inst_type_option_debit_card">यह डेबिट कार्ड है</string>
+    <string name="inst_type_option_wallet">वॉलेट</string>
+    <string name="inst_type_option_upi">UPI भुगतान</string>
+    <string name="inst_type_option_prepaid">प्रीपेड, फ़ॉरेक्स या गिफ़्ट कार्ड</string>
+    <string name="inst_type_option_loan">लोन या EMI खाता</string>
+    <string name="inst_type_option_mutual_fund">म्यूचुअल फ़ंड फ़ोलियो</string>
+    <string name="inst_type_option_demat">डीमैट / ट्रेडिंग खाता</string>
+    <string name="inst_type_option_other">कुछ और</string>
+</resources>

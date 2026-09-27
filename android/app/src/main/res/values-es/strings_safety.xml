@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fraud help and SMS cost warnings (agent "safety"). All names prefixed safe_. -->
+<resources>
+    <!-- Entry points -->
+    <string name="safe_action_report_fraud">Denunciar fraude</string>
+    <string name="safe_link_report">Denunciar</string>
+    <string name="safe_shortcut_short">Denunciar fraude</string>
+    <string name="safe_shortcut_long">Denunciar fraude o llamar a una línea de ayuda</string>
+    <string name="safe_shortcut_disabled">Abre Dak para denunciar un fraude</string>
+
+    <!-- Report fraud screen -->
+    <string name="safe_title">Denunciar fraude</string>
+    <string name="safe_urgent_title">¿Perdiste dinero por una estafa?</string>
+    <string name="safe_urgent_body">Llama de inmediato al %1$s, la Línea Nacional de Ayuda contra el Cibercrimen. Denunciar en las primeras horas da la mejor oportunidad de detener el dinero. Después llama a tu banco para bloquear tu tarjeta o cuenta.</string>
+    <string name="safe_call_n">Llamar al %1$s</string>
+    <string name="safe_sms_n">SMS al %1$s</string>
+    <string name="safe_report_title">Denunciar este mensaje</string>
+    <string name="safe_report_trai">Denunciar spam a TRAI (1909)</string>
+    <string name="safe_report_trai_body">Abre un SMS de queja con el texto del mensaje, el remitente y la fecha, en el formato que publica TRAI. Revísalo antes de enviarlo: tu operador puede responder si necesita cambios. Las quejas deben enviarse pocos días después del mensaje.</string>
+    <string name="safe_report_trai_sim">Se envía desde %1$s, la SIM que recibió este mensaje.</string>
+    <string name="safe_report_trai_sim_fallback">Se envía desde %1$s. La SIM que recibió este mensaje no está disponible.</string>
+    <string name="safe_report_chakshu">Denunciar posible fraude en Chakshu</string>
+    <string name="safe_report_chakshu_body">Para mensajes falsos de KYC, suplantación de identidad, falsa atención al cliente o premios. Los datos del mensaje se copian: en la página de Sanchar Saathi elige el medio (SMS) y la categoría, y luego pégalos.</string>
+    <string name="safe_report_cyber">Denunciar fraude financiero en cybercrime.gov.in</string>
+    <string name="safe_report_cyber_body">Si perdiste dinero o compartiste datos bancarios. Los datos del mensaje se copian para el formulario de denuncia. Ten a mano capturas de pantalla e identificadores de transacción.</string>
+    <string name="safe_block_sender">Bloquear remitente</string>
+    <string name="safe_sender_blocked">Remitente bloqueado</string>
+    <string name="safe_block_sender_body">Añade el remitente a la lista de bloqueo del teléfono (también bloquea sus llamadas).</string>
+    <string name="safe_copy_details">Copiar datos del mensaje</string>
+    <string name="safe_message_missing">El mensaje que quieres denunciar ya no está en este teléfono.</string>
+    <string name="safe_section_helplines">Líneas de ayuda oficiales</string>
+    <string name="safe_section_bank">Tu banco</string>
+    <string name="safe_pending_verification">Pendiente de verificación</string>
+    <string name="safe_source">Fuente: %1$s</string>
+    <string name="safe_bank_empty">Dak no muestra números de bancos que no haya verificado. Guarda aquí el número de bloqueo de tarjetas de tu banco para tenerlo a un toque cuando lo necesites.</string>
+    <string name="safe_bank_add">Añadir el número de bloqueo de tarjetas de mi banco</string>
+    <string name="safe_bank_add_hint">Cópialo del reverso de tu tarjeta o de la web oficial de tu banco, nunca de un SMS ni de un resultado de búsqueda.</string>
+    <string name="safe_bank_label">Nombre</string>
+    <string name="safe_bank_default_label">Número de bloqueo de tarjetas de mi banco</string>
+    <string name="safe_bank_number">Número de teléfono</string>
+    <string name="safe_bank_unverified">Añadido por ti · no verificado por Dak</string>
+    <string name="safe_bank_added">Número guardado</string>
+    <string name="safe_bank_invalid">Introduce un nombre y un número de teléfono</string>
+    <string name="safe_bank_remove_title">¿Quitar este número?</string>
+    <string name="safe_remove">Quitar</string>
+    <string name="safe_save">Guardar</string>
+    <string name="safe_blocked">Remitente bloqueado</string>
+    <string name="safe_block_failed">No se pudo bloquear. Asegúrate de que Dak sea tu app de SMS predeterminada.</string>
+    <string name="safe_no_app">Ninguna app de este teléfono puede abrirlo</string>
+    <string name="safe_details_copied">Datos copiados</string>
+    <string name="safe_details_copied_paste">Datos del mensaje copiados. Pégalos en el formulario.</string>
+    <string name="safe_clip_label">Datos del mensaje</string>
+    <string name="safe_detail_sender">Remitente</string>
+    <string name="safe_detail_received">Recibido</string>
+    <string name="safe_detail_sim">SIM</string>
+    <string name="safe_detail_message">Mensaje</string>
+    <string name="safe_footer">Las llamadas abren el marcador del teléfono; Dak nunca llama por ti. Los bancos, la policía y los organismos públicos nunca piden tu OTP, tu PIN ni los datos de tu tarjeta por SMS o por teléfono.</string>
+
+    <!-- SMS cost warnings -->
+    <string name="safe_cost_title">Revisa antes de enviar</string>
+    <string name="safe_cost_title_premium">Esto puede costar mucho</string>
+    <string name="safe_cost_premium">Número de tarificación especial. Cada mensaje puede costar mucho más que un SMS normal o suscribirte a un servicio de pago.</string>
+    <string name="safe_cost_unknown_short_code">Número corto con costes desconocidos. Puede facturarse con tarificación especial.</string>
+    <string name="safe_cost_international">Número internacional. Se aplican tarifas de SMS internacionales.</string>
+    <string name="safe_cost_international_to">Número de %1$s. Se aplican tarifas de SMS internacionales.</string>
+    <string name="safe_cost_roaming">Estás en itinerancia en el extranjero. Los SMS pueden cobrarse con tarifas de itinerancia.</string>
+    <string name="safe_cost_also_roaming">Además, estás en itinerancia en el extranjero.</string>
+    <string name="safe_cost_alphanumeric">Este remitente no puede recibir respuestas. Tu mensaje no se entregará (aunque puede que se te cobre).</string>
+    <string name="safe_cost_emergency">Número de emergencia. Es posible que no se admitan SMS a los servicios de emergencia: llama en su lugar.</string>
+    <string name="safe_cost_standard_short_code">Número corto, con tarifa estándar.</string>
+    <string name="safe_cost_toll_free">Número gratuito.</string>
+    <string name="safe_cost_scheduled_note">El mensaje se enviará más tarde, cuando quizá estés en otro lugar.</string>
+    <string name="safe_cost_dont_ask_number">No volver a preguntar para este número</string>
+    <string name="safe_cost_dont_ask_numbers">No volver a preguntar para estos números</string>
+    <string name="safe_cost_send_anyway">Enviar de todos modos</string>
+    <string name="safe_cost_schedule_anyway">Programar de todos modos</string>
+    <string name="safe_cost_dont_send">No enviar</string>
+    <string name="safe_reply_needs_confirmation">No enviado: este número puede tener coste. Abre la conversación para confirmar.</string>
+</resources>

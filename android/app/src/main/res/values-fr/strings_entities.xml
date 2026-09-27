@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smart entities in message bubbles (EntityText / EntityActionSheet). -->
+<resources>
+    <string name="ent_type_otp">Code à usage unique</string>
+    <string name="ent_type_url">Lien</string>
+    <string name="ent_type_email">Adresse e-mail</string>
+    <string name="ent_type_account">Compte ou carte</string>
+    <string name="ent_type_amount">Montant</string>
+    <string name="ent_type_upi">Identifiant UPI</string>
+    <string name="ent_type_pnr">PNR</string>
+    <string name="ent_type_tracking">Numéro de suivi</string>
+    <string name="ent_type_reference">Numéro de référence</string>
+    <string name="ent_type_phone">Numéro de téléphone</string>
+
+    <string name="ent_action_call">Appeler</string>
+    <string name="ent_action_sms">Envoyer un SMS</string>
+    <string name="ent_action_save_contact">Enregistrer comme contact</string>
+    <string name="ent_action_whatsapp">Ouvrir dans WhatsApp</string>
+    <string name="ent_action_copy">Copier</string>
+    <string name="ent_action_copy_amount">Copier le montant</string>
+    <string name="ent_action_search_amount">Rechercher ce montant</string>
+    <string name="ent_action_open_passbook">Ouvrir dans le relevé</string>
+    <string name="ent_action_track">Suivre sur le site du transporteur (numéro copié)</string>
+    <string name="ent_action_email">Écrire un e-mail</string>
+    <string name="ent_action_open_link">Ouvrir le lien</string>
+
+    <string name="ent_scam_warning">Les escrocs utilisent ce type de numéro : vérifiez via l\'application ou le numéro officiels de votre banque</string>
+    <string name="ent_no_app">Aucune application ne peut ouvrir cet élément</string>
+</resources>

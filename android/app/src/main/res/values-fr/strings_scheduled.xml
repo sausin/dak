@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scheduled messages: heads-up before a send goes out, emergency-number refusal, scheduled list (prefix sched_). -->
+<resources>
+    <!-- Channel -->
+    <string name="sched_channel_name">Messages programmés</string>
+    <string name="sched_channel_desc">Un rappel peu avant l\'envoi d\'un message programmé ou d\'un vœu d\'anniversaire automatique, avec Envoyer maintenant, Reporter et Annuler</string>
+
+    <!-- Heads-up notification. %1$s = recipient(s), %2$s = time -->
+    <string name="sched_hu_title">À %1$s · %2$s</string>
+    <!-- Heads-up notification. %1$s = recipient(s), %2$s = time -->
+    <string name="sched_hu_title_birthday">Vœu d\'anniversaire à %1$s · %2$s</string>
+    <!-- Heads-up notification. %1$s = broadcast list name, %2$s = time -->
+    <string name="sched_hu_title_broadcast">Diffusion à %1$s · %2$s</string>
+    <!-- %1$s = broadcast list name, %2$d = number of people on it -->
+    <plurals name="sched_hu_broadcast_recipients">
+        <item quantity="one">%1$s (%2$d personne)</item>
+        <item quantity="many">%1$s (%2$d personnes)</item>
+        <item quantity="other">%1$s (%2$d personnes)</item>
+    </plurals>
+    <string name="sched_hu_public_text">Un message programmé va bientôt partir</string>
+    <!-- Lock-screen text. %1$s = time the message goes out, e.g. "14:30" -->
+    <string name="sched_hu_public_text_at">Envoi à %1$s</string>
+    <string name="sched_hu_delay_prompt">Reporter jusqu\'à quand ?</string>
+    <string name="sched_hu_action_send_now">Envoyer maintenant</string>
+    <string name="sched_hu_action_delay">Reporter</string>
+    <string name="sched_hu_action_delay_hour">+1 heure</string>
+    <string name="sched_hu_action_delay_tomorrow">Demain, même heure</string>
+    <string name="sched_hu_action_pick_time">Choisir l\'heure</string>
+    <string name="sched_hu_action_cancel">Annuler</string>
+
+    <!-- Group summary -->
+    <plurals name="sched_hu_summary_title">
+        <item quantity="one">%d message programmé va bientôt partir</item>
+        <item quantity="many">%d messages programmés vont bientôt partir</item>
+        <item quantity="other">%d messages programmés vont bientôt partir</item>
+    </plurals>
+    <plurals name="sched_hu_summary_more">
+        <item quantity="one">+%d autre</item>
+        <item quantity="many">+%d autres</item>
+        <item quantity="other">+%d autres</item>
+    </plurals>
+
+    <!-- Emergency numbers -->
+    <string name="sched_emergency_refused">Les services d\'urgence doivent être contactés maintenant : envoyez le message au lieu de le programmer.</string>
+    <!-- %1$s = the emergency number the scheduled text was for. -->
+    <string name="sched_emergency_cancelled_title">SMS programmé au %1$s non envoyé</string>
+    <string name="sched_emergency_cancelled_text">Les SMS aux numéros d’urgence ne peuvent pas être programmés ; celui-ci a donc été annulé. Si vous avez toujours besoin d’aide, contactez immédiatement les services d’urgence.</string>
+
+    <!-- Scheduled list -->
+    <string name="sched_focus_title">Depuis votre notification</string>
+    <string name="sched_focus_gone">Ce message a déjà été envoyé ou annulé.</string>
+    <string name="sched_action_change_time">Modifier l\'heure</string>
+    <string name="sched_time_in_past">Choisissez une heure future.</string>
+    <!-- Snackbar. %1$s = new date and time of the scheduled message. -->
+    <string name="sched_moved">Reporté au %1$s</string>
+</resources>

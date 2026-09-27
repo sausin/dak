@@ -99,7 +99,7 @@ android {
             "StringFormatInvalid", // placeholders that do not match the arguments, in any language
             "DefaultLocale", // String.format / toUpperCase without a Locale in machine-facing text
         )
-        // Warning, not error, while only English ships: Android falls back to English per string, and a language
+        // Warning, not error: work-in-progress translations fall back to English per string, and a language
         // is only offered once it is complete (scripts/check-i18n.py enforces that for locales_config.xml).
         warning += "MissingTranslation"
     }

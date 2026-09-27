@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Settings labels: registry rows (android/settings-registry, DakSettings), app-declared Appearance rows
+    (AppearanceSettings), premium feature summaries (premium-api Feature) and the Language row.
+
+    Names are derived from stable keys (SettingsStringKeys / Feature.stringKey); do not rename them. The English
+    text here must equal the registry's English literals: SettingsStringResourcesTest (settings-registry, runs
+    without the Android SDK) and SettingsTextTest (app) fail otherwise. Translators: titles are short (a list row
+    headline), summaries are one sentence under it, option labels appear in a radio list. See docs/i18n.md.
+-->
+<resources>
+
+    <!-- Groups -->
+    <string name="settings_group_notifications">Notificaciones</string>
+    <string name="settings_group_categories_spam">Categorías y spam</string>
+    <string name="settings_group_finance">Finanzas</string>
+    <string name="settings_group_sims_sending">SIM y envío</string>
+    <string name="settings_group_backup_data">Copia de seguridad, datos y privacidad</string>
+    <string name="settings_group_automations">Automatizaciones</string>
+    <string name="settings_group_translation">Traducción</string>
+
+    <!-- Notifications -->
+    <string name="setting_notifications_perCategoryAlerts_title">Alertas por categoría</string>
+    <string name="setting_notifications_perCategoryAlerts_summary">Elige qué categorías te notifican y con qué intensidad.</string>
+    <string name="setting_notifications_channels_title">Canales de notificación</string>
+    <string name="setting_notifications_channels_summary">Canales por categoría y SIM, canales de conversación personalizados y restablecimiento.</string>
+    <string name="setting_notifications_otpDisplaySize_title">Tamaño del OTP</string>
+    <string name="setting_notifications_otpDisplaySize_summary">Tamaño con el que aparece el código en la notificación y en la pantalla de bloqueo.</string>
+    <string name="setting_notifications_otpDisplaySize_opt_normal">Normal</string>
+    <string name="setting_notifications_otpDisplaySize_opt_large">Grande</string>
+    <string name="setting_notifications_otpAutoCopy_title">Copiar OTP automáticamente</string>
+    <string name="setting_notifications_otpAutoCopy_summary">Copia cada código nuevo al portapapeles en cuanto llega, oculto en las vistas previas del portapapeles. Desactivado: se muestra un botón Copiar.</string>
+    <string name="setting_notifications_otpAutoDelete_title">Eliminar OTP automáticamente</string>
+    <string name="setting_notifications_otpAutoDelete_summary">Elimina los mensajes con OTP automáticamente después de recibirlos.</string>
+    <string name="setting_notifications_otpAutoDelete_opt_1h">1 hora</string>
+    <string name="setting_notifications_otpAutoDelete_opt_24h">24 horas</string>
+    <string name="setting_notifications_otpAutoDelete_opt_off">Desactivado</string>
+    <string name="setting_notifications_consumedOtpHandling_title">OTP ya utilizados</string>
+    <string name="setting_notifications_consumedOtpHandling_summary">Cómo notificar un OTP que otra app ya leyó automáticamente.</string>
+    <string name="setting_notifications_consumedOtpHandling_opt_silentAutoDelete">Silencio y eliminar</string>
+    <string name="setting_notifications_consumedOtpHandling_opt_silentOnly">Solo silencio</string>
+    <string name="setting_notifications_consumedOtpHandling_opt_normal">Tratar como normal</string>
+    <string name="setting_notifications_consumedOtpWindowMinutes_title">Plazo para eliminar OTP utilizados</string>
+    <string name="setting_notifications_consumedOtpWindowMinutes_summary">Minutos de espera antes de eliminar un OTP ya utilizado, para que una app que lo reintente aún pueda leerlo.</string>
+    <string name="setting_notifications_quickActions_title">Acciones rápidas</string>
+    <string name="setting_notifications_quickActions_summary">Muestra las acciones de responder, archivar y eliminar en las notificaciones.</string>
+    <string name="setting_notifications_selfTest_title">Prueba de notificaciones</string>
+    <string name="setting_notifications_selfTest_summary">Envía una notificación de prueba para comprobar el sonido, las notificaciones emergentes y las burbujas.</string>
+    <string name="setting_notifications_soundPerSim_title">Sonido por SIM</string>
+    <string name="setting_notifications_soundPerSim_summary">Elige un sonido de notificación distinto para cada SIM.</string>
+    <string name="setting_notifications_bubbles_title">Burbujas</string>
+    <string name="setting_notifications_bubbles_summary">Muestra las conversaciones como burbujas flotantes sobre otras apps.</string>
+    <string name="setting_notifications_lockScreenPrivacy_title">Privacidad en la pantalla de bloqueo</string>
+    <string name="setting_notifications_lockScreenPrivacy_summary">Qué parte del mensaje se muestra en la pantalla de bloqueo.</string>
+    <string name="setting_notifications_lockScreenPrivacy_opt_full">Mensaje completo</string>
+    <string name="setting_notifications_lockScreenPrivacy_opt_hideContent">Solo el remitente</string>
+    <string name="setting_notifications_lockScreenPrivacy_opt_hideAll">Ocultar remitente y mensaje</string>
+
+    <!-- Categories and spam -->
+    <string name="setting_categoriesSpam_tabSet_title">Pestañas de la bandeja de entrada</string>
+    <string name="setting_categoriesSpam_tabSet_summary">Elige qué pestañas de categorías aparecen en la bandeja de entrada.</string>
+    <string name="setting_categoriesSpam_swipeRight_title">Deslizar a la derecha en una conversación</string>
+    <string name="setting_categoriesSpam_swipeRight_summary">Qué ocurre al deslizar una conversación hacia la derecha en la bandeja de entrada.</string>
+
+    <!-- Shared swipe actions -->
+    <string name="swipe_action_archive">Archivar</string>
+    <string name="swipe_action_delete">Eliminar (mover a la papelera)</string>
+    <string name="swipe_action_mark_read">Marcar como leído</string>
+    <string name="swipe_action_pin">Fijar o dejar de fijar</string>
+    <string name="swipe_action_none">Nada</string>
+
+    <!-- Categories and spam -->
+    <string name="setting_categoriesSpam_swipeLeft_title">Deslizar a la izquierda en una conversación</string>
+    <string name="setting_categoriesSpam_swipeLeft_summary">Qué ocurre al deslizar una conversación hacia la izquierda en la bandeja de entrada. Al eliminar, puedes deshacer.</string>
+    <string name="setting_categoriesSpam_inboxOtpCopy_title">Copiar código desde la bandeja de entrada</string>
+    <string name="setting_categoriesSpam_inboxOtpCopy_summary">Muestra un botón \"Copiar código\" en las conversaciones con un OTP de los últimos 10 minutos.</string>
+    <string name="setting_categoriesSpam_senderMerges_title">Remitentes agrupados</string>
+    <string name="setting_categoriesSpam_senderMerges_summary">Agrupa en uno los distintos ID de remitente de una misma marca.</string>
+    <string name="setting_categoriesSpam_blockList_title">Números bloqueados</string>
+    <string name="setting_categoriesSpam_blockList_summary">La lista de bloqueo del sistema, compartida con la app Teléfono.</string>
+    <string name="setting_categoriesSpam_autoArchivePromosDays_title">Archivar promociones automáticamente</string>
+    <string name="setting_categoriesSpam_autoArchivePromosDays_summary">Mueve los mensajes promocionales a Archivo después de este número de días (0 = nunca).</string>
+    <string name="setting_categoriesSpam_fakeCreditWarnings_title">Avisar de abonos falsos</string>
+    <string name="setting_categoriesSpam_fakeCreditWarnings_summary">Marca los mensajes de \"dinero abonado\" que no proceden de tu banco y las peticiones de \"enviado por error, devuélvelo\". Si lo desactivas, se ocultan los avisos; los probables fraudes nunca cuentan para tus saldos.</string>
+    <string name="setting_categoriesSpam_classifierConfidenceThreshold_title">Umbral de confianza del clasificador</string>
+    <string name="setting_categoriesSpam_classifierConfidenceThreshold_summary">Seguridad mínima que necesita el clasificador del dispositivo para archivar un mensaje automáticamente.</string>
+    <string name="setting_categoriesSpam_jevOptIn_title">Clasificación en la nube Jev</string>
+    <string name="setting_categoriesSpam_jevOptIn_summary">Envía el remitente de un mensaje dudoso y una copia enmascarada a la nube para una segunda opinión. Primero pide tu consentimiento. Usa pocos datos.</string>
+    <string name="setting_categoriesSpam_jevMonthlyCap_title">Límite mensual de Jev</string>
+    <string name="setting_categoriesSpam_jevMonthlyCap_summary">Número máximo de mensajes enviados a la clasificación en la nube cada mes.</string>
+
+    <!-- Finance -->
+    <string name="setting_finance_accounts_title">Cuentas y tarjetas</string>
+    <string name="setting_finance_accounts_summary">Gestiona las cuentas bancarias y las tarjetas que registra el libro de cuentas.</string>
+    <string name="setting_finance_homeCurrency_title">Moneda principal</string>
+    <string name="setting_finance_homeCurrency_summary">Moneda predeterminada (código ISO, p. ej., INR, USD) para las cuentas cuyos SMS no la indican. En blanco: según el país de tu SIM.</string>
+    <string name="setting_finance_hideBalancesOnLock_title">Ocultar saldos en la pantalla de bloqueo</string>
+    <string name="setting_finance_hideBalancesOnLock_summary">Oculta los saldos de las cuentas hasta que se desbloquee el teléfono.</string>
+    <string name="setting_finance_ratesSource_title">Fuente de tipos de cambio</string>
+    <string name="setting_finance_ratesSource_summary">De dónde se obtienen los tipos de cambio medios diarios para las transacciones en moneda extranjera.</string>
+    <string name="setting_finance_ratesSource_opt_ecb">BCE</string>
+    <string name="setting_finance_ratesSource_opt_openSource">Tipos de código abierto</string>
+    <string name="setting_finance_reconciliationToleranceMinor_title">Tolerancia de conciliación</string>
+    <string name="setting_finance_reconciliationToleranceMinor_summary">Cuánto puede diferir un importe liquidado de la estimación y seguir coincidiendo, en paisas.</string>
+
+    <!-- SIMs and sending -->
+    <string name="setting_simsSending_sim1_name_title">Nombre de la SIM 1</string>
+    <string name="setting_simsSending_sim1_name_summary">Etiqueta que se muestra para la SIM 1 en toda la app.</string>
+    <string name="setting_simsSending_sim1_color_title">Color de la SIM 1</string>
+    <string name="setting_simsSending_sim1_color_summary">Color de énfasis de las burbujas y los chips de la SIM 1.</string>
+    <string name="setting_simsSending_sim2_name_title">Nombre de la SIM 2</string>
+    <string name="setting_simsSending_sim2_name_summary">Etiqueta que se muestra para la SIM 2 en toda la app.</string>
+    <string name="setting_simsSending_sim2_color_title">Color de la SIM 2</string>
+    <string name="setting_simsSending_sim2_color_summary">Color de énfasis de las burbujas y los chips de la SIM 2.</string>
+    <string name="setting_simsSending_defaultReplySim_title">SIM predeterminada para responder</string>
+    <string name="setting_simsSending_defaultReplySim_summary">Qué SIM envía la respuesta cuando una conversación aún no tiene SIM propia.</string>
+    <string name="setting_simsSending_defaultReplySim_opt_sim1">SIM 1</string>
+    <string name="setting_simsSending_defaultReplySim_opt_sim2">SIM 2</string>
+    <string name="setting_simsSending_defaultReplySim_opt_ask">Preguntar siempre</string>
+    <string name="setting_simsSending_numberNormalization_title">Normalizar números al enviar</string>
+    <string name="setting_simsSending_numberNormalization_summary">Envía al número completo con prefijo internacional para que las respuestas funcionen en itinerancia.</string>
+    <string name="setting_simsSending_roamingWarnings_title">Avisos de itinerancia</string>
+    <string name="setting_simsSending_roamingWarnings_summary">Avisa antes de un envío masivo o programado en itinerancia, ya que los SMS se cobran de otra forma.</string>
+    <string name="setting_simsSending_costWarnings_title">Avisar antes de SMS caros</string>
+    <string name="setting_simsSending_costWarnings_summary">Pregunta antes de escribir a números de tarificación especial o códigos cortos desconocidos, a números internacionales o en itinerancia en el extranjero. Las automatizaciones nunca envían a números de tarificación especial que no hayas aprobado.</string>
+    <string name="setting_simsSending_enterToSend_title">Enviar con la tecla Intro</string>
+    <string name="setting_simsSending_enterToSend_summary">La tecla Intro del teclado envía el mensaje en lugar de empezar una línea nueva.</string>
+    <string name="setting_simsSending_deliveryReports_title">Informes de entrega</string>
+    <string name="setting_simsSending_deliveryReports_summary">Pide al operador que confirme la entrega de cada mensaje (MMS solo si el operador lo admite). Consume un poco de batería.</string>
+    <string name="setting_simsSending_mmsReadReceipts_title">Confirmaciones de lectura de MMS</string>
+    <string name="setting_simsSending_mmsReadReceipts_summary">Si alguien lo pide, indícale que has leído su MMS, y pide lo mismo en los MMS que envíes. Nunca se envían a empresas ni a códigos cortos. Solo funciona si el operador admite confirmaciones de lectura de MMS.</string>
+    <string name="setting_simsSending_mmsDeliveryToSenders_title">Mostrar entrega de MMS a los remitentes</string>
+    <string name="setting_simsSending_mmsDeliveryToSenders_summary">Permite que el operador indique a otra persona que su MMS te ha llegado. Desactívalo para mantenerlo en privado.</string>
+    <string name="setting_simsSending_sendRateSpreading_title">Espaciar los envíos</string>
+    <string name="setting_simsSending_sendRateSpreading_summary">Espacia un lote grande de envíos para evitar que el operador los limite.</string>
+    <string name="setting_simsSending_exactAlarmPermission_title">Permiso de alarmas exactas</string>
+    <string name="setting_simsSending_exactAlarmPermission_summary">Necesario para que los envíos programados salgan a la hora exacta que hayas fijado.</string>
+    <string name="setting_simsSending_broadcastLists_title">Listas de difusión</string>
+    <string name="setting_simsSending_broadcastLists_summary">Envía un mensaje a hasta 50 personas que conoces, como SMS independientes; las respuestas llegan de forma individual. Solo para uso personal: el spam incumple los términos de Dak y las normas de telecomunicaciones.</string>
+
+    <!-- Backup and data -->
+    <string name="setting_backupData_destination_title">Destino de la copia de seguridad</string>
+    <string name="setting_backupData_destination_summary">Dónde se guardan las copias de seguridad cifradas (tu propio Drive o Dropbox).</string>
+    <string name="setting_backupData_schedule_title">Programación de copias de seguridad</string>
+    <string name="setting_backupData_schedule_summary">Con qué frecuencia se hace automáticamente una copia de seguridad cifrada.</string>
+    <string name="setting_backupData_schedule_opt_daily">Diaria</string>
+    <string name="setting_backupData_schedule_opt_weekly">Semanal</string>
+    <string name="setting_backupData_schedule_opt_manual">Solo manual</string>
+    <string name="setting_backupData_encryptionKeyRecovery_title">Clave de cifrado y código de recuperación</string>
+    <string name="setting_backupData_encryptionKeyRecovery_summary">Consulta o vuelve a generar la clave y el código que desbloquean tus copias de seguridad.</string>
+    <string name="setting_backupData_export_title">Exportar</string>
+    <string name="setting_backupData_export_summary">Guarda los mensajes y los ajustes en un formato de archivo abierto.</string>
+    <string name="setting_backupData_import_title">Importar</string>
+    <string name="setting_backupData_import_summary">Restaura los mensajes y los ajustes desde un archivo de copia de seguridad.</string>
+    <string name="setting_backupData_otpBinRetention_title">Conservación de OTP en la papelera</string>
+    <string name="setting_backupData_otpBinRetention_summary">Cuánto tiempo permanece un OTP eliminado en la papelera antes de borrarse definitivamente.</string>
+    <string name="setting_backupData_otpBinRetention_opt_shorter">Menos de un día</string>
+    <string name="setting_backupData_otpBinRetention_opt_1day">1 día</string>
+    <string name="setting_backupData_otpBinRetention_opt_longer">Más de un día</string>
+    <string name="setting_backupData_otpBinRetention_opt_untilEmptied">Hasta que la vacíe</string>
+    <string name="setting_backupData_otherBinRetentionDays_title">Conservación en la papelera</string>
+    <string name="setting_backupData_otherBinRetentionDays_summary">Cuánto tiempo permanecen en la papelera los demás mensajes eliminados.</string>
+    <string name="setting_backupData_binBiometricLock_title">Bloquear la papelera</string>
+    <string name="setting_backupData_binBiometricLock_summary">Pide la huella digital o el reconocimiento facial para abrir la papelera.</string>
+    <string name="setting_backupData_binExcludedFromBackup_title">Excluir la papelera de la copia</string>
+    <string name="setting_backupData_binExcludedFromBackup_summary">No incluye nunca el contenido de la papelera (a menudo OTP recientes) en las copias de seguridad.</string>
+
+    <!-- Privacy and app lock -->
+    <string name="setting_privacy_center_title">Privacidad</string>
+    <string name="setting_privacy_center_summary">Política de privacidad, qué puede salir de tu teléfono y tus decisiones, y exportar o eliminar tus datos de Dak.</string>
+    <string name="setting_privacy_policy_title">Política de privacidad</string>
+    <string name="setting_privacy_policy_summary">Qué hace Dak con tus datos, en lenguaje sencillo. Funciona sin conexión.</string>
+    <string name="setting_privacy_dataSharing_title">Datos que salen de tu teléfono</string>
+    <string name="setting_privacy_dataSharing_summary">Todo lo que podría enviar datos fuera del teléfono está desactivado hasta que lo permitas. Consulta o retira tus decisiones.</string>
+    <string name="setting_privacy_exportMyData_title">Exportar mis datos de Dak</string>
+    <string name="setting_privacy_exportMyData_summary">Guarda tus ajustes, reglas, historial de ejecuciones, cuentas y libro de cuentas en el archivo que elijas.</string>
+    <string name="setting_privacy_deleteMyData_title">Eliminar mis datos de Dak</string>
+    <string name="setting_privacy_deleteMyData_summary">Borra todo lo que Dak guarda en este teléfono. Tus SMS se quedan en el almacén de mensajes del teléfono.</string>
+    <string name="setting_privacy_appLock_title">Bloqueo de la app</string>
+    <string name="setting_privacy_appLock_summary">Pide tu huella digital, tu cara o un PIN para abrir Dak: el bloqueo de pantalla del teléfono o un PIN propio de la app.</string>
+    <string name="setting_privacy_appLock_opt_off">Desactivado</string>
+    <string name="setting_privacy_appLock_opt_device">Bloqueo de pantalla del teléfono</string>
+    <string name="setting_privacy_appLock_opt_appPin">PIN de la app</string>
+    <string name="setting_privacy_autoLockAfter_title">Bloqueo automático</string>
+    <string name="setting_privacy_autoLockAfter_summary">Cuánto tiempo puede estar Dak en segundo plano antes de volver a pedir el desbloqueo.</string>
+    <string name="setting_privacy_autoLockAfter_opt_immediately">Inmediatamente</string>
+    <string name="setting_privacy_autoLockAfter_opt_30s">Tras 30 segundos</string>
+    <string name="setting_privacy_autoLockAfter_opt_1m">Tras 1 minuto</string>
+    <string name="setting_privacy_autoLockAfter_opt_5m">Tras 5 minutos</string>
+    <string name="setting_privacy_autoLockAfter_opt_15m">Tras 15 minutos</string>
+    <string name="setting_privacy_lockOnScreenOff_title">Bloquear al apagar la pantalla</string>
+    <string name="setting_privacy_lockOnScreenOff_summary">Bloquea Dak en cuanto se apaga la pantalla, sea cual sea el tiempo de bloqueo automático.</string>
+    <string name="setting_privacy_hideInRecents_title">Ocultar contenido en Recientes</string>
+    <string name="setting_privacy_hideInRecents_summary">Oculta la vista previa de Dak en la lista de apps recientes. También impide hacer capturas de pantalla de Dak.</string>
+    <string name="setting_privacy_hideInRecents_opt_whenLockOn">Con el bloqueo de la app activado</string>
+    <string name="setting_privacy_hideInRecents_opt_always">Siempre</string>
+    <string name="setting_privacy_hideInRecents_opt_never">Nunca</string>
+    <string name="setting_privacy_protectSensitiveScreens_title">Proteger pantallas sensibles</string>
+    <string name="setting_privacy_protectSensitiveScreens_summary">Pide desbloquear antes de abrir la papelera, la libreta, las copias de seguridad, las automatizaciones y el reenvío, aunque el bloqueo de la app esté desactivado.</string>
+
+    <!-- Backup and data -->
+    <string name="setting_backupData_indexSchedule_title">Programación del índice</string>
+    <string name="setting_backupData_indexSchedule_summary">Cuándo se reconstruye el índice de búsqueda cifrado.</string>
+    <string name="setting_backupData_indexSchedule_opt_now">Ahora</string>
+    <string name="setting_backupData_indexSchedule_opt_plugged">Cuando esté cargando</string>
+    <string name="setting_backupData_indexSchedule_opt_tonight">Esta noche</string>
+    <string name="setting_backupData_rebuildIndex_title">Reconstruir índice ahora</string>
+    <string name="setting_backupData_rebuildIndex_summary">Reconstruye el índice de búsqueda a partir del proveedor de telefonía. Puede tardar unos minutos.</string>
+
+    <!-- Automations -->
+    <string name="setting_automations_rulesList_title">Reglas</string>
+    <string name="setting_automations_rulesList_summary">Reglas de automatización que clasifican, archivan o reenvían mensajes por ti.</string>
+    <string name="setting_automations_scheduledSends_title">Envíos programados</string>
+    <string name="setting_automations_scheduledSends_summary">Mensajes en cola para enviarse más tarde.</string>
+    <string name="setting_automations_scheduledHeadsUp_title">Aviso antes de mensajes programados</string>
+    <string name="setting_automations_scheduledHeadsUp_summary">Una notificación poco antes de que salga un mensaje programado o una felicitación de cumpleaños automática, con Enviar ahora, Retrasar y Cancelar. Las felicitaciones automáticas que se envían más tarde durante el día también reciben un aviso por la mañana.</string>
+    <string name="setting_automations_scheduledHeadsUp_opt_off">Desactivado</string>
+    <string name="setting_automations_scheduledHeadsUp_opt_5">5 minutos antes</string>
+    <string name="setting_automations_scheduledHeadsUp_opt_15">15 minutos antes</string>
+    <string name="setting_automations_scheduledHeadsUp_opt_60">1 hora antes</string>
+    <string name="setting_automations_forwarding_title">Reenvío automático</string>
+    <string name="setting_automations_forwarding_summary">Reenvía los mensajes de ciertos remitentes a alguien durante un periodo, p. ej., alertas bancarias a tu asesor fiscal. Gratis: se envían desde tu propia SIM.</string>
+    <string name="setting_automations_birthdayWishes_title">Felicitaciones de cumpleaños</string>
+    <string name="setting_automations_birthdayWishes_summary">Cumpleaños de tus contactos, con una felicitación enviada o sugerida ese día.</string>
+    <string name="setting_automations_webhooks_title">Webhooks</string>
+    <string name="setting_automations_webhooks_summary">Envía una solicitud HTTP firmada cuando se activa una regla.</string>
+    <string name="setting_automations_sendApiKeys_title">Claves de API de envío</string>
+    <string name="setting_automations_sendApiKeys_summary">Claves que permiten a tus propios servicios pedir a este teléfono que envíe un SMS.</string>
+    <string name="setting_automations_auditLog_title">Registro de automatizaciones</string>
+    <string name="setting_automations_auditLog_summary">Cada acción automática, con la regla que la provocó.</string>
+
+    <!-- Translation -->
+    <string name="setting_translation_languages_title">Idiomas</string>
+    <string name="setting_translation_languages_summary">Idiomas que lees; para cualquier otro se ofrecerá traducir.</string>
+    <string name="setting_translation_autoTranslateRules_title">Reglas de traducción automática</string>
+    <string name="setting_translation_autoTranslateRules_summary">Traduce automáticamente los mensajes de un remitente o idioma concreto.</string>
+    <string name="setting_translation_downloadedPacks_title">Paquetes de idioma descargados</string>
+    <string name="setting_translation_downloadedPacks_summary">Paquetes de ML Kit en el dispositivo. Los paquetes más grandes ocupan más almacenamiento.</string>
+    <string name="setting_translation_freeTasterPack_title">Prueba un idioma gratis</string>
+    <string name="setting_translation_freeTasterPack_summary">Descarga y usa un paquete de idioma de traducción sin mejorar tu plan.</string>
+    <string name="setting_translation_packStorageLocation_title">Ubicación de los paquetes</string>
+    <string name="setting_translation_packStorageLocation_summary">Dónde se guardan en el dispositivo los paquetes de idioma descargados.</string>
+
+    <!-- Appearance (app-declared rows, AppearanceSettings) -->
+    <string name="setting_appearance_language_title">Idioma</string>
+    <string name="setting_appearance_language_summary">El idioma que usa Dak. Predeterminado del sistema sigue el idioma de tu teléfono.</string>
+    <string name="setting_appearance_themeMode_title">Tema</string>
+    <string name="setting_appearance_themeMode_summary">Seguir el sistema, o siempre claro u oscuro.</string>
+    <string name="setting_appearance_themeMode_opt_system">Predeterminado del sistema</string>
+    <string name="setting_appearance_themeMode_opt_light">Claro</string>
+    <string name="setting_appearance_themeMode_opt_dark">Oscuro</string>
+    <string name="setting_appearance_amoled_title">Negro puro</string>
+    <string name="setting_appearance_amoled_summary">Fondos completamente negros en el tema oscuro. Ahorra batería en pantallas OLED.</string>
+    <string name="setting_appearance_contrast_title">Contraste</string>
+    <string name="setting_appearance_contrast_summary">Colores de texto y contorno más marcados. Sistema sigue tu ajuste de accesibilidad.</string>
+    <string name="setting_appearance_contrast_opt_system">Predeterminado del sistema</string>
+    <string name="setting_appearance_contrast_opt_standard">Estándar</string>
+    <string name="setting_appearance_contrast_opt_high">Alto</string>
+    <string name="setting_appearance_dynamicColor_title">Colores del fondo de pantalla</string>
+    <string name="setting_appearance_dynamicColor_summary">Adapta los colores de la app a tu fondo de pantalla.</string>
+
+    <!-- Settings screens: section name for the app-declared rows, and a toggle's value shown inline -->
+    <string name="settings_section_appearance">Apariencia</string>
+    <string name="settings_value_on">Activado</string>
+    <string name="settings_value_off">Desactivado</string>
+    <!-- Language picker: first entry, meaning "use the phone's language" -->
+    <string name="language_system_default">Predeterminado del sistema</string>
+
+    <!-- Premium features (premium-api Feature): the upgrade sheet and the reason on a locked row -->
+    <string name="feature_adjustable_otp_bin_retention_summary">Conserva los OTP eliminados en la papelera más de 1 día</string>
+    <string name="feature_webhooks_summary">Envía webhooks firmados desde las automatizaciones</string>
+    <string name="feature_relay_rules_summary">Reenvía automáticamente ciertos tipos de mensajes a una persona</string>
+    <string name="feature_translation_summary">Traduce mensajes en el dispositivo</string>
+    <string name="feature_ai_search_summary">Haz preguntas en lenguaje natural</string>
+    <string name="feature_web_client_summary">Lee y responde desde tu ordenador</string>
+    <string name="feature_send_api_summary">Envía SMS desde tus propios servicios</string>
+    <string name="feature_cloud_classification_higher_cap_summary">Límite mensual más alto para la clasificación en la nube</string>
+</resources>

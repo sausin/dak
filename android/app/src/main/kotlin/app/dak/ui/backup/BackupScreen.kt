@@ -36,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,7 @@ import app.dak.R
 import app.dak.backup.BackupFailure
 import app.dak.backup.BackupOpKind
 import app.dak.backup.BackupOperation
+import app.dak.backup.BackupStage
 import app.dak.backup.ExportFormat
 import app.dak.navigation.DakNavigator
 import app.dak.ui.common.DakTopAppBar
@@ -98,12 +100,16 @@ fun BackupScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
     }
     val stamp = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
     val running = operation is BackupOperation.Running
+    val scroll = rememberScrollState()
+    // Progress and results show at the top; exports and imports start from the bottom of the screen, so bring the
+    // panel into view whenever an operation starts.
+    LaunchedEffect(running) { if (running) scroll.animateScrollTo(0) }
 
     Scaffold(
         modifier = modifier,
         topBar = { DakTopAppBar(title = stringResource(R.string.scr_backup_title), onBack = { navigator.back() }) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(scroll)) {
             OperationPanel(operation, onDismiss = viewModel::dismissResult, onCopy = { copyToClipboard(context, it, sensitive = true) })
 
             SectionTitle(R.string.scr_backup_section_encrypted)
@@ -225,7 +231,7 @@ private fun OperationPanel(operation: BackupOperation, onDismiss: () -> Unit, on
     when (operation) {
         BackupOperation.Idle -> Unit
         is BackupOperation.Running -> Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(runningLabel(operation.kind)), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(runningLabel(operation.kind, operation.stage)), style = MaterialTheme.typography.bodyMedium)
             if (operation.total > 0) {
                 LinearProgressIndicator(progress = { (operation.done.toFloat() / operation.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                 Text(stringResource(R.string.scr_backup_progress, operation.done, operation.total), style = MaterialTheme.typography.labelSmall)
@@ -269,10 +275,11 @@ private fun finishedText(op: BackupOperation.Finished): String {
     }
 }
 
-private fun runningLabel(kind: BackupOpKind): Int = when (kind) {
+private fun runningLabel(kind: BackupOpKind, stage: BackupStage): Int = when (kind) {
     BackupOpKind.BACKUP -> R.string.scr_backup_running_backup
     BackupOpKind.RESTORE -> R.string.scr_backup_running_restore
-    BackupOpKind.EXPORT_DAK, BackupOpKind.EXPORT_XML -> R.string.scr_backup_running_export
+    BackupOpKind.EXPORT_DAK, BackupOpKind.EXPORT_XML ->
+        if (stage == BackupStage.READING) R.string.scr_backup_running_export_reading else R.string.scr_backup_running_export
     BackupOpKind.IMPORT -> R.string.scr_backup_running_import
 }
 

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dak_telephony_channel_transfers">Transferts de messages</string>
+    <string name="dak_telephony_mms_downloading">Téléchargement du message multimédia</string>
+    <string name="dak_telephony_channel_problems">Problèmes de messages</string>
+    <string name="dak_telephony_sms_unsaved_title">Un message n\'a pas pu être enregistré</string>
+    <plurals name="dak_telephony_sms_unsaved_text">
+        <item quantity="one">%d message reçu n\'a pas pu être enregistré après plusieurs tentatives.</item>
+        <item quantity="many">%d messages reçus n\'ont pas pu être enregistrés après plusieurs tentatives.</item>
+        <item quantity="other">%d messages reçus n\'ont pas pu être enregistrés après plusieurs tentatives.</item>
+    </plurals>
+
+    <!-- Class 0 ("flash") SMS: shown at once, stored only if the user saves it. -->
+    <string name="dak_telephony_channel_flash">Messages flash</string>
+    <string name="dak_telephony_channel_flash_description">Messages que l\'expéditeur a marqués pour un affichage immédiat. Ils ne sont pas enregistrés, sauf si vous appuyez sur Enregistrer.</string>
+    <string name="dak_telephony_flash_title">Message flash de %1$s</string>
+    <string name="dak_telephony_flash_public">Message flash</string>
+    <string name="dak_telephony_flash_save">Enregistrer</string>
+    <string name="dak_telephony_flash_dismiss">Ignorer</string>
+    <string name="dak_telephony_flash_saved">Message enregistré</string>
+    <string name="dak_telephony_flash_not_saved">Impossible d\'enregistrer le message</string>
+
+    <!-- Composer while another app is the default SMS app. -->
+    <string name="dak_telephony_not_default_title">Dak n\'est pas votre application SMS par défaut</string>
+    <string name="dak_telephony_not_default_body">Vous pouvez lire les messages, mais l\'envoi est suspendu. Les messages programmés et en file d\'attente patientent et partent dès que Dak redevient l\'application par défaut. Les SMS vers les numéros d\'urgence sont toujours envoyés.</string>
+    <string name="dak_telephony_make_default">Définir Dak comme application SMS par défaut</string>
+    <string name="dak_telephony_group_mms_off">Cet opérateur ne prend pas en charge les MMS de groupe : chaque destinataire reçoit sa propre copie</string>
+    <string name="dak_telephony_mms_disabled">Cet opérateur ne prend pas en charge les MMS : impossible d\'envoyer des pièces jointes ou d\'écrire à des adresses e-mail</string>
+    <string name="dak_telephony_too_many_recipients">Cet opérateur autorise au maximum %1$d destinataires par MMS</string>
+    <string name="dak_telephony_mms_text_too_long">Le texte est trop long pour un MMS sur cet opérateur</string>
+</resources>

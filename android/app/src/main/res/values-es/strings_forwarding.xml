@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto-forwarding and birthday wishes (agent "forwarding", prefix fw_). -->
+<resources>
+    <!-- Auto-forwarding -->
+    <string name="fw_title">Reenvío automático</string>
+    <string name="fw_shortcut_summary">Reenvía los mensajes de ciertos remitentes a alguien durante un periodo, p. ej., alertas bancarias a tu asesor fiscal. Gratis.</string>
+    <string name="fw_intro">Reenvía los mensajes de los remitentes que elijas a alguien durante un periodo concreto, p. ej., los mensajes del banco y de Hacienda a tu asesor fiscal en la temporada de impuestos. Los reenvíos salen de tu propia SIM, así que es gratis; se aplican las tarifas de SMS habituales de tu operador.</string>
+    <string name="fw_new_rule">Nueva regla de reenvío</string>
+    <string name="fw_edit_rule">Editar regla de reenvío</string>
+    <string name="fw_empty_title">No hay reglas de reenvío</string>
+    <string name="fw_empty_body">Crea una para reenviar los mensajes de ciertos remitentes, p. ej., HDFC Bank y el Departamento de Impuestos, a tu asesor fiscal hasta la fecha que elijas.</string>
+    <string name="fw_field_name">Nombre</string>
+    <string name="fw_field_name_hint">Documentos fiscales para el asesor</string>
+    <string name="fw_section_from">Reenviar mensajes de</string>
+    <string name="fw_add_channel">Añadir remitente</string>
+    <string name="fw_remove">Quitar</string>
+    <string name="fw_filter_category">Solo estas categorías (opcional)</string>
+    <string name="fw_field_keyword">Solo si el mensaje contiene (opcional)</string>
+    <string name="fw_section_to">Enviarlos a</string>
+    <string name="fw_pick_contact">Elegir de los contactos</string>
+    <string name="fw_contacts_only_note">Los reenvíos solo se envían a personas guardadas en tus contactos. Antes de cada reenvío, Dak comprueba que sigan ahí; si no, la regla se pausa.</string>
+    <string name="fw_contacts_permission_needed">Permite el acceso a los contactos para que Dak pueda comprobar, antes de cada reenvío, que el destinatario sigue en tus contactos.</string>
+    <string name="fw_recipient_not_contact">No se eligió de tus contactos. Quítalo y elige a la persona de tus contactos.</string>
+    <string name="fw_recipient_risky">Ten cuidado con %1$s: %2$s.</string>
+    <string name="fw_risk_recent_contact">guardado o editado en los últimos 7 días</string>
+    <string name="fw_risk_no_history">nunca has intercambiado SMS con este número</string>
+    <string name="fw_risk_international">un número extranjero</string>
+    <string name="fw_risk_unusual">no es un número de móvil normal</string>
+    <string name="fw_section_when">Periodo activo</string>
+    <string name="fw_start">Empieza</string>
+    <string name="fw_end">Termina (incluido)</string>
+    <string name="fw_until_stopped">Hasta que lo detenga</string>
+    <string name="fw_end_before_start">El final es anterior al inicio.</string>
+    <string name="fw_period_default_note">Las reglas nuevas reenvían durante 1 hora. Un periodo más largo, o \"Hasta que lo detenga\", requiere tu huella digital o el bloqueo de pantalla.</string>
+    <string name="fw_period_long_note">Más de 1 hora: para guardar se necesita tu huella digital o el bloqueo de pantalla.</string>
+    <string name="fw_date_time">%1$s, %2$s</string>
+    <string name="fw_section_message">Mensaje</string>
+    <!-- Keep the {placeholders} in English, exactly as written: the app replaces them. %1$s = the default template (fw_default_template). -->
+    <string name="fw_template_help">Marcadores: {sender}, {body}, {time}, {amount}, {merchant}, {sim}. Predeterminado: \"%1$s\".</string>
+    <!--
+        The text a new auto-forward sends. Keep {sender} and {body} exactly as written (the app fills them in), and
+        start with a few words of your own before the first {placeholder}: that lead marks the message as a Dak
+        forward so it is never forwarded back and forth (ForwardLoopGuard). A translation without {body} or without
+        that lead is ignored and the English default is used. Existing rules keep the template they were saved with.
+    -->
+    <string name="fw_default_template">Reenviado de {sender}: {body}</string>
+    <string name="fw_include_otp">Incluir OTP</string>
+    <string name="fw_include_otp_summary">Desactivado de forma predeterminada. Para activarlo se necesita tu huella digital, tu cara o el bloqueo de pantalla.</string>
+    <string name="fw_include_otp_warning">Cualquiera que reciba tus OTP puede iniciar sesión en tus cuentas o aprobar pagos. Reenvía OTP solo a alguien de total confianza.</string>
+    <string name="fw_free_note">El reenvío funciona solo en este teléfono. No se envía nada a los servidores de Dak.</string>
+    <string name="fw_incomplete">Elige al menos un remitente y un destinatario de tus contactos, y un final posterior al inicio.</string>
+    <string name="fw_issue_loop">%1$s también es remitente de esta regla o uno de tus propios números, lo que reenviaría los mensajes en bucle.</string>
+    <string name="fw_confirm_forward_title">Confirmar reenvío automático</string>
+    <string name="fw_confirm_forward_subtitle">Tus mensajes se reenviarán automáticamente a otro teléfono.</string>
+    <!-- High-risk confirmation (long / open-ended / extended period, OTPs, risky recipient) -->
+    <string name="fw_risk_title">Para. ¿Te ha pedido alguien que hagas esto?</string>
+    <string name="fw_risk_body">Quien reciba tus mensajes reenviados podrá leer tus alertas bancarias y contraseñas de un solo uso (OTP) y usarlas para hacerse con tu banco, UPI, correo electrónico y otras cuentas.
+
+Los estafadores que se hacen pasar por un banco, la policía, una empresa de mensajería, tu operador o el servicio de atención al cliente suelen pedir que se configure el reenvío de mensajes \"para verificar\" o \"para detener un fraude\". Ningún banco, organismo oficial o empresa de verdad te pedirá nunca que hagas esto.
+
+Si alguien te ha pedido por llamada o chat que lo configures, para ahora y cuelga.</string>
+    <string name="fw_risk_reasons">Por qué ves esto:</string>
+    <string name="fw_risk_reason_long">El reenvío dura más de 1 hora.</string>
+    <string name="fw_risk_reason_open">El reenvío dura hasta que lo detengas.</string>
+    <string name="fw_risk_reason_extend">Estás ampliando el periodo de reenvío de esta regla.</string>
+    <string name="fw_risk_reason_otp">Se reenviarán contraseñas de un solo uso (OTP).</string>
+    <string name="fw_risk_reason_recipient">%1$s: %2$s.</string>
+    <string name="fw_risk_ack">Lo configuro para mí. Nadie me lo ha pedido.</string>
+    <string name="fw_risk_continue">Continuar</string>
+    <string name="fw_otp_notice_title">Se están reenviando OTP</string>
+    <string name="fw_otp_notice_body">Al menos una regla activa reenvía contraseñas de un solo uso. Desactívala en cuanto ya no la necesites.</string>
+    <string name="fw_row_route">%1$s → %2$s</string>
+    <string name="fw_row_includes_otp">Incluye OTP</string>
+    <string name="fw_status_active">Activa</string>
+    <string name="fw_status_scheduled">Programada</string>
+    <string name="fw_status_paused">Pausada</string>
+    <string name="fw_status_ended">Finalizada</string>
+    <string name="fw_status_paused_contact">Pausada: el destinatario no está en tus contactos</string>
+    <string name="fw_status_paused_access">Pausada: permite el acceso a los contactos</string>
+    <string name="fw_row_needs_confirmation">No reenvía hasta que lo confirmes con tu huella digital o el bloqueo de pantalla</string>
+    <string name="fw_row_confirm">Confirmar</string>
+    <string name="fw_enable_contact_missing">%1$s ya no está en tus contactos. Edita la regla y elige un contacto.</string>
+    <string name="fw_paused_notification_title">Reenvío pausado: %1$s</string>
+    <string name="fw_paused_contact_missing">%1$s ya no está en tus contactos, así que no se le reenvía nada. Los reenvíos solo se envían a contactos guardados.</string>
+    <string name="fw_paused_no_access">Dak ya no puede leer tus contactos para comprobar %1$s, así que el reenvío está pausado. Permite el acceso a los contactos y vuelve a activar la regla.</string>
+    <string name="fw_period_range">%1$s – %2$s</string>
+    <string name="fw_period_from">desde %1$s</string>
+    <string name="fw_period_until">hasta %1$s</string>
+    <string name="fw_period_until_stopped">hasta que lo detengas</string>
+    <string name="fw_pick_channels">Elegir remitentes</string>
+    <string name="fw_pick_channels_help">Los remitentes agrupados cuentan como uno: \"HDFC Bank\" incluye todos los encabezados desde los que envía.</string>
+    <string name="fw_search_channels">Buscar remitentes</string>
+    <string name="fw_channels_selected">%1$d seleccionados</string>
+    <string name="fw_done">Listo</string>
+    <string name="fw_label_forwarded">Reenv. → %1$s</string>
+    <!-- Persistent status notification -->
+    <string name="fw_channel_status_name">Estado del reenvío</string>
+    <string name="fw_channel_status_description">Un recordatorio discreto mientras los mensajes se reenvían automáticamente.</string>
+    <string name="fw_status_title_one">Reenvío activo</string>
+    <string name="fw_status_title_many">%1$d reglas de reenvío activas</string>
+    <string name="fw_status_line">%1$s → %2$s (%3$s)</string>
+    <string name="fw_status_otp_suffix">" · incluye OTP"</string>
+
+    <!-- Birthday wishes -->
+    <string name="fw_bd_title">Cumpleaños y fechas especiales</string>
+    <string name="fw_bd_shortcut_summary">Cumpleaños, aniversarios y otras fechas de tus contactos, con una felicitación lista para enviar ese día.</string>
+    <string name="fw_bd_enable">Enviar felicitaciones</string>
+    <string name="fw_bd_enable_summary">No se envía nada hasta que también actives \"Envío automático\" para un contacto.</string>
+    <string name="fw_bd_mode_ask">Preguntarme antes</string>
+    <string name="fw_bd_mode_auto">Enviar automáticamente</string>
+    <string name="fw_bd_mode_ask_summary">Ese día recibirás una notificación con Enviar, Editar y Omitir.</string>
+    <string name="fw_bd_mode_auto_summary">La felicitación se envía a la hora elegida sin preguntar. Requiere el bloqueo de la app: sin él, o si se supera el límite diario de mensajes automáticos, recibirás la notificación de Enviar.</string>
+    <string name="fw_bd_send_time">Hora de envío</string>
+    <string name="fw_bd_edit_birthday_template">Mensaje de cumpleaños</string>
+    <string name="fw_bd_edit_anniversary_template">Mensaje de aniversario</string>
+    <string name="fw_bd_permission_title">Permitir acceso a los contactos</string>
+    <string name="fw_bd_permission_body">Dak lee los cumpleaños, aniversarios y otras fechas de tus contactos en este teléfono. Nunca se suben a ningún servidor.</string>
+    <string name="fw_bd_allow">Permitir</string>
+    <string name="fw_bd_open_settings">Abrir ajustes</string>
+    <string name="fw_bd_upcoming">Próximos 60 días</string>
+    <string name="fw_bd_none_title">No hay nada próximamente</string>
+    <string name="fw_bd_none_body">Toca \"Añadir una fecha\" para añadir un cumpleaños, un aniversario u otra fecha a un contacto.</string>
+    <string name="fw_bd_today">Hoy</string>
+    <string name="fw_bd_tomorrow">Mañana</string>
+    <string name="fw_bd_in_days">Dentro de %1$d días</string>
+    <string name="fw_bd_turns">cumple %1$d</string>
+    <string name="fw_bd_anniversary">Aniversario</string>
+    <string name="fw_bd_choose_number">Elegir número</string>
+    <string name="fw_bd_no_number">Sin número de teléfono</string>
+    <string name="fw_bd_auto_send">Envío automático</string>
+    <string name="fw_bd_feature_off_hint">Activa \"Enviar felicitaciones\" arriba para enviarla.</string>
+    <string name="fw_bd_template_title">Mensaje</string>
+    <string name="fw_bd_template_field">Tu mensaje</string>
+    <string name="fw_bd_template_help">Marcadores: {firstName}, {name}, {age} (solo si se conoce el año de nacimiento), {occasion} (la etiqueta de la fecha, para otras fechas).</string>
+    <string name="fw_bd_template_reset">Usar predeterminado</string>
+    <string name="fw_bd_prompt_title">Hoy es el cumpleaños de %1$s</string>
+    <string name="fw_bd_prompt_title_anniversary">Hoy es el aniversario de %1$s</string>
+    <string name="fw_bd_action_send">Enviar</string>
+    <string name="fw_bd_action_edit">Editar</string>
+    <string name="fw_bd_action_skip">Omitir</string>
+
+    <!-- Inbox overflow -->
+    <string name="fw_menu_forwarding">Reenvío automático</string>
+    <string name="fw_menu_birthdays">Cumpleaños y fechas especiales</string>
+
+    <!-- Automations that send messages off the phone need app lock (OutboundAutomationGuard) -->
+    <string name="fw_lock_needed_title">Configura primero el bloqueo de la app</string>
+    <string name="fw_lock_needed_body">El reenvío automático y otras automatizaciones que envían mensajes requieren el bloqueo de la app. Así, alguien que coja tu teléfono desbloqueado un minuto, o un estafador que te vaya guiando, no podrá configurar uno a escondidas para recibir tus mensajes del banco y tus códigos.</string>
+    <string name="fw_lock_needed_action">Configurar bloqueo de la app</string>
+    <string name="fw_lock_needed_not_now">Ahora no</string>
+    <string name="fw_status_off_lock_off">Desactivada: se desactivó el bloqueo de la app</string>
+    <string name="fw_status_off_screen_lock">Desactivada: se quitó el bloqueo de pantalla del teléfono</string>
+    <string name="fw_status_off_lock_needed">Desactivada: requiere el bloqueo de la app</string>
+    <string name="fw_guard_disabled_title">Reenvío desactivado por tu seguridad</string>
+    <plurals name="fw_guard_disabled_body">
+        <item quantity="one">Se desactivó %1$d automatización que envía mensajes porque %2$s. Configura el bloqueo de la app para volver a activarla.</item>
+        <item quantity="many">Se desactivaron %1$d automatizaciones que envían mensajes porque %2$s. Configura el bloqueo de la app para volver a activarlas.</item>
+        <item quantity="other">Se desactivaron %1$d automatizaciones que envían mensajes porque %2$s. Configura el bloqueo de la app para volver a activarlas.</item>
+    </plurals>
+    <string name="fw_guard_disabled_why">Dak requiere el bloqueo de la app para ellas, para que nadie más que use tu teléfono pueda enviarse tus mensajes.</string>
+    <string name="fw_guard_reason_lock_off">se desactivó el bloqueo de la app</string>
+    <string name="fw_guard_reason_screen_lock">se quitó el bloqueo de pantalla de tu teléfono</string>
+    <string name="fw_guard_reason_lock_needed">el bloqueo de la app no está configurado</string>
+
+    <!-- "Was this you?" security alert -->
+    <string name="fw_channel_security_name">Alertas de seguridad</string>
+    <string name="fw_channel_security_description">Te avisa cuando se activa o desactiva el reenvío automático u otra automatización que envía tus mensajes, para que te des cuenta si otra persona lo configuró.</string>
+    <string name="fw_remind_title_forwarding">¿Has sido tú? El reenvío automático está activado</string>
+    <string name="fw_remind_title_automation">¿Has sido tú? Una automatización envía mensajes</string>
+    <string name="fw_remind_body">Activado %1$s: %2$s. %3$s %4$s ¿No lo configuraste tú? Desactívalo y revisa la seguridad de tu teléfono. Los estafadores, o alguien que tuvo tu teléfono un momento, usan el reenvío para obtener mensajes del banco y códigos.</string>
+    <string name="fw_remind_still_active">Sigue activo.</string>
+    <string name="fw_remind_ended">Ha finalizado.</string>
+    <plurals name="fw_remind_sent_count">
+        <item quantity="one">%1$d mensaje enviado hasta ahora.</item>
+        <item quantity="many">%1$d mensajes enviados hasta ahora.</item>
+        <item quantity="other">%1$d mensajes enviados hasta ahora.</item>
+    </plurals>
+    <string name="fw_remind_action_turn_off">Desactivar</string>
+    <string name="fw_remind_action_history">Ver lo enviado</string>
+    <string name="fw_remind_turned_off_title">Desactivado: %1$s</string>
+    <string name="fw_remind_turned_off_body">No se enviará nada más. Si no lo configuraste tú, cambia el PIN de bloqueo de pantalla del teléfono y toca aquí para ver lo que se envió.</string>
+    <string name="fw_generic_summary">%1$s (%2$s)</string>
+    <string name="fw_kind_forward">reenvía SMS a %1$s</string>
+    <string name="fw_kind_reply">responde por SMS</string>
+    <string name="fw_kind_webhook">envía a %1$s</string>
+    <string name="fw_kind_web_client">envía a tu cliente web</string>
+    <string name="fw_kind_relay">retransmite a %1$s</string>
+    <string name="fw_kind_open">abre enlaces en otras apps</string>
+    <string name="fw_kind_unknown">una acción que esta versión de Dak no reconoce</string>
+
+    <!-- Using an ended rule again -->
+    <string name="fw_section_ended">Finalizadas: toca para volver a usar</string>
+    <string name="fw_row_use_again">Volver a usar</string>
+    <string name="fw_use_again_done">Reenviando de nuevo hasta %1$s</string>
+    <string name="fw_use_again_done_open">Reenviando de nuevo hasta que lo detengas</string>
+
+    <!-- History (automation run log) -->
+    <string name="fw_history_menu">Historial de reenvíos</string>
+    <string name="fw_history_rule_title">Historial: %1$s</string>
+    <string name="fw_history_row_cd">Historial de %1$s</string>
+    <string name="fw_history_open_message_cd">Abrir el mensaje original</string>
+    <string name="fw_history_message_gone">El mensaje original ya no está en este teléfono.</string>
+    <string name="fw_history_empty_title">Aún no se ha enviado nada</string>
+    <string name="fw_history_empty_body">Aquí aparece cada mensaje que reenvía o envía una automatización, con la hora, el mensaje original y su destino.</string>
+    <plurals name="fw_history_sent">
+        <item quantity="one">%1$d mensaje enviado a %2$s</item>
+        <item quantity="many">%1$d mensajes enviados a %2$s</item>
+        <item quantity="other">%1$d mensajes enviados a %2$s</item>
+    </plurals>
+    <string name="fw_history_sent_none">No se ha enviado ningún mensaje</string>
+    <string name="fw_history_between">entre %1$s y %2$s</string>
+    <string name="fw_history_failed">%1$d con error</string>
+    <string name="fw_history_skipped">%1$d omitidos</string>
+    <string name="fw_history_from">de %1$s</string>
+    <string name="fw_history_to">Para %1$s</string>
+    <string name="fw_outcome_sent">Enviado</string>
+    <string name="fw_outcome_failed">Error</string>
+    <string name="fw_outcome_skipped">Omitido</string>
+    <string name="fw_skip_not_confirmed">No enviado: falta tu confirmación con la huella digital o el bloqueo de pantalla</string>
+    <string name="fw_skip_no_app_lock">No enviado: el bloqueo de la app estaba desactivado</string>
+    <string name="fw_queued_auto_reply">Respuesta automática</string>
+    <string name="fw_queued_auto_forward">Reenvío automático</string>
+    <string name="fw_queued_automation">Automatización</string>
+    <string name="fw_skip_contact_removed">No enviado: el destinatario ya no está en tus contactos</string>
+    <string name="fw_skip_no_contacts_access">No enviado: Dak no pudo comprobar tus contactos</string>
+    <string name="fw_skip_possible_scam">No enviado: el mensaje parecía una estafa</string>
+    <string name="fw_skip_premium">No enviado: requiere una función Premium</string>
+    <string name="fw_skip_incognito">No enviado: el mensaje está en un chat de incógnito, que nunca se reenvía</string>
+    <string name="fw_limit_title">Envío automático pausado por hoy</string>
+    <string name="fw_limit_text">Tus automatizaciones han enviado %1$d mensajes hoy, el límite diario, así que se omitieron los siguientes reenvíos y respuestas automáticas. Revisa tus automatizaciones si no te lo esperabas.</string>
+
+    <!-- Snackbar after an automation rule acted on a new message, with Undo. %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_archived">Archivado por \"%1$s\"</string>
+    <!-- %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_binned">Movido a la papelera por \"%1$s\"</string>
+</resources>

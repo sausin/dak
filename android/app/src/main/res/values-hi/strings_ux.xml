@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UX pass (agent L): gestures, thumb-zone actions, selection mode, accessibility labels. Prefix: ux_ -->
+<resources>
+    <!-- Inbox: bottom bar and places sheet -->
+    <string name="ux_inbox_places">और जगहें</string>
+    <string name="ux_inbox_places_title">यहां जाएं</string>
+
+    <!-- Inbox: OTP chip on a conversation row -->
+    <string name="ux_inbox_copy_code">कोड कॉपी करें</string>
+    <string name="ux_inbox_code_copied">कॉपी हो गया</string>
+    <string name="ux_inbox_copy_code_description">कोड %1$s कॉपी करें</string>
+
+    <!-- Inbox: row accessibility -->
+    <string name="ux_action_open">खोलें</string>
+    <string name="ux_action_select">चुनें</string>
+    <string name="ux_action_deselect">चुनाव हटाएं</string>
+    <string name="ux_selected">चुना गया</string>
+    <plurals name="ux_unread_count">
+        <item quantity="one">%d बिना पढ़ा मैसेज</item>
+        <item quantity="other">%d बिना पढ़े मैसेज</item>
+    </plurals>
+
+    <!-- Inbox: selection mode -->
+    <string name="ux_selection_more">और</string>
+    <string name="ux_action_read_short">पढ़ा गया</string>
+    <string name="ux_action_delete_short">मिटाएं</string>
+    <string name="ux_action_select_all">लोड हुए सभी चुनें</string>
+    <plurals name="ux_snack_archived_many">
+        <item quantity="one">बातचीत संग्रहित की गई</item>
+        <item quantity="other">%d बातचीत संग्रहित की गईं</item>
+    </plurals>
+    <plurals name="ux_snack_pinned">
+        <item quantity="one">पिन किया गया</item>
+        <item quantity="other">%d बातचीत पिन की गईं</item>
+    </plurals>
+    <plurals name="ux_snack_unpinned">
+        <item quantity="one">अनपिन किया गया</item>
+        <item quantity="other">%d बातचीत अनपिन की गईं</item>
+    </plurals>
+    <plurals name="ux_snack_marked_read">
+        <item quantity="one">पढ़ा गया मार्क किया</item>
+        <item quantity="other">%d बातचीत पढ़ी गई मार्क कीं</item>
+    </plurals>
+
+    <!-- Conversation -->
+    <string name="ux_jump_latest">नए मैसेज पर जाएं</string>
+    <string name="ux_action_reply">जवाब दें</string>
+    <string name="ux_action_copy_amount">राशि कॉपी करें</string>
+    <string name="ux_action_info">मैसेज की जानकारी</string>
+    <string name="ux_action_message_actions">मैसेज के विकल्प</string>
+    <string name="ux_snack_code_copied">कोड कॉपी हो गया</string>
+    <string name="ux_snack_amount_copied">राशि कॉपी हो गई</string>
+    <string name="ux_snack_text_copied">मैसेज कॉपी हो गया</string>
+    <string name="ux_action_close">बंद करें</string>
+    <string name="ux_info_from">भेजने वाला</string>
+    <string name="ux_info_to">पाने वाला</string>
+    <string name="ux_info_time">समय</string>
+    <string name="ux_info_sim">SIM</string>
+    <string name="ux_info_type">प्रकार</string>
+    <string name="ux_info_category">कैटेगरी</string>
+    <string name="ux_info_status">स्थिति</string>
+    <string name="ux_info_confidence">%1$s (%2$d%% भरोसा)</string>
+    <string name="ux_info_sms">SMS</string>
+    <string name="ux_info_mms">MMS</string>
+
+    <!-- Conversation: message multi-select -->
+    <plurals name="ux_conv_delete_selected_title">
+        <item quantity="one">%d मैसेज मिटाएं?</item>
+        <item quantity="other">%d मैसेज मिटाएं?</item>
+    </plurals>
+    <string name="ux_conv_delete_selected_body">मिटाए गए मैसेज रीसायकल बिन में जाते हैं, जहां से आप उन्हें वापस ला सकते हैं।</string>
+    <plurals name="ux_snack_messages_copied">
+        <item quantity="one">मैसेज कॉपी हो गया</item>
+        <item quantity="other">%d मैसेज कॉपी हो गए</item>
+    </plurals>
+
+    <!-- Settings accessibility -->
+    <string name="ux_expanded">खुला हुआ</string>
+    <string name="ux_collapsed">बंद</string>
+</resources>

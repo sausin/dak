@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fake credit alert warnings (docs/security/fake-credit-scams.md) -->
+    <string name="scam_notification_title">⚠ Posible alerta de abono falsa · %1$s</string>
+    <string name="scam_notification_text">Consulta la app de tu banco antes de devolver dinero</string>
+    <string name="scam_action_report">Denunciar</string>
+    <string name="scam_action_block">Bloquear</string>
+    <string name="scam_toast_blocked">Remitente bloqueado</string>
+    <string name="scam_toast_block_failed">No se pudo bloquear a este remitente</string>
+
+    <string name="scam_banner_title_likely">Posible alerta de abono falsa</string>
+    <string name="scam_banner_title_suspicious">Ten cuidado con este mensaje</string>
+    <string name="scam_banner_claims">Dice ser de %1$s.</string>
+    <string name="scam_banner_verify">Compruébalo en la app de tu banco antes de devolver dinero.</string>
+    <string name="scam_banner_advice">Los bancos nunca te piden devolver dinero a un número de móvil o a un ID de UPI. Si de verdad llegó dinero por error, el banco del remitente lo revierte; nunca tienes que devolverlo tú.</string>
+    <string name="scam_banner_report">Denunciar fraude</string>
+    <string name="scam_banner_block">Bloquear remitente</string>
+    <string name="scam_banner_blocked">Remitente bloqueado</string>
+    <string name="scam_banner_not_scam">No es una estafa</string>
+    <string name="scam_inbox_chip">Posible estafa</string>
+
+    <!-- One plain-language line per reason (app.dak.classify.scam.ScamReason) -->
+    <string name="scam_reason_phone_credit_alert">Una alerta bancaria de abono desde un número de móvil personal. Los bancos reales envían alertas desde nombres de remitente registrados, nunca desde números de 10 dígitos.</string>
+    <string name="scam_reason_phone_debit_alert">Una alerta bancaria de cargo desde un número de móvil personal. Los bancos reales nunca envían alertas desde números de 10 dígitos.</string>
+    <string name="scam_reason_phone_claims_bank">Un número de móvil se hace pasar por un banco.</string>
+    <string name="scam_reason_unknown_sender_alert">Una alerta de dinero de un remitente que no es un banco conocido ni uno de tus contactos.</string>
+    <string name="scam_reason_lookalike_sender">El nombre del remitente solo se parece al de un banco. Las alertas bancarias reales vienen de remitentes registrados como XX-HDFCBK-S.</string>
+    <string name="scam_reason_mixed_script_sender">El nombre del remitente mezcla letras o dígitos de alfabetos distintos. Los remitentes reales nunca lo hacen; las imitaciones sí.</string>
+    <string name="scam_reason_unverified_sender">El remitente no es uno de los remitentes registrados del banco.</string>
+    <string name="scam_reason_unprefixed_header">Al nombre del remitente le falta el prefijo registrado que llevan las alertas bancarias reales.</string>
+    <string name="scam_reason_promotional_route">Una alerta de abono enviada como publicidad. Los bancos envían las alertas como mensajes transaccionales.</string>
+    <string name="scam_reason_brand_mismatch">El banco mencionado en el mensaje no es la empresa que lo envió.</string>
+    <string name="scam_reason_unknown_account">El número de cuenta no coincide con ninguna de tus cuentas en este banco.</string>
+    <string name="scam_reason_no_account_at_bank">Parece que no tienes ninguna cuenta en este banco.</string>
+    <string name="scam_reason_return_request">Te pide devolver dinero \"enviado por error\". Es una estafa habitual.</string>
+    <string name="scam_reason_mobile_in_alert">Incluye un número de móvil al que llamar o pagar. Los bancos nunca piden esto.</string>
+    <string name="scam_reason_payment_handle">Da un ID de UPI o un enlace de pago al que devolver el dinero.</string>
+    <string name="scam_reason_link_in_alert">Contiene un enlace. Los bancos no envían enlaces en las alertas de abono.</string>
+    <string name="scam_reason_pin_to_receive">Pide tu PIN de UPI para recibir dinero. El PIN solo se necesita para pagar, nunca para recibir.</string>
+    <string name="scam_reason_collect_request">Aprobar una \"solicitud\" para recibir dinero en realidad envía dinero desde tu cuenta.</string>
+    <string name="scam_reason_follow_up">Llegó poco después de una alerta de abono sospechosa y pregunta por el mismo dinero.</string>
+    <string name="scam_reason_return_after_credit">Te pide devolver un abono reciente. Pide al remitente que contacte con su banco; nunca lo devuelvas tú.</string>
+    <string name="scam_link_in_flagged">Este mensaje parece una alerta de abono falsa. Sus enlaces pueden llevar a una página fraudulenta, aunque la dirección parezca real.</string>
+</resources>

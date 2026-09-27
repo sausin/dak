@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Broadcast lists (agent "broadcast", prefix bc_). -->
+<resources>
+    <string name="bc_title">Listas de difusión</string>
+    <string name="bc_shortcut_summary">Envía un mensaje a varias personas que conoces, como SMS independientes</string>
+    <string name="bc_new_message_entry">Enviar a una lista de difusión</string>
+
+    <!-- First-use terms sheet -->
+    <string name="bc_terms_title">Usa las difusiones con cuidado</string>
+    <string name="bc_terms_intro">Una difusión envía el mismo mensaje a cada persona como un SMS independiente desde tu número. Las respuestas te llegan de forma individual.</string>
+    <string name="bc_terms_personal">Solo para uso personal y no comercial: familia, amigos, tu comunidad de vecinos o tu equipo.</string>
+    <string name="bc_terms_expect">Envía solo a personas que te conocen y esperan tu mensaje.</string>
+    <string name="bc_terms_spam">El spam y los mensajes promocionales no solicitados incumplen los términos de Dak y las normas de tu operador y del regulador de telecomunicaciones.</string>
+    <string name="bc_terms_india">En India, las normas de la TRAI sobre comunicaciones comerciales no solicitadas (TCCCPR 2018) también se aplican a los números personales: cualquiera puede denunciar tu número al 1909, y se puede desconectar o incluir en una lista negra.</string>
+    <string name="bc_terms_throttle">Los operadores pueden ralentizar, bloquear o suspender los números que envían mensajes masivos.</string>
+    <string name="bc_terms_charges">Se aplican tus tarifas de SMS habituales por cada destinatario y por cada parte de un mensaje largo.</string>
+    <string name="bc_terms_limits">Dak limita una difusión a %1$d personas y %2$d mensajes al día, y espacia los mensajes.</string>
+    <string name="bc_terms_checkbox">Lo entiendo, y solo enviaré a personas que esperan mis mensajes</string>
+    <string name="bc_terms_accept">Aceptar</string>
+    <string name="bc_terms_decline">Ahora no</string>
+    <string name="bc_terms_read_full">Leer la política de uso aceptable</string>
+    <string name="bc_terms_accepted_on">Términos aceptados el %s</string>
+
+    <!-- Acceptable use (mirrors docs/terms-acceptable-use.md) -->
+    <string name="bc_aup_title">Uso aceptable</string>
+    <string name="bc_aup_body">Dak es una app de mensajería personal. Las listas de difusión, los envíos programados, el reenvío y las automatizaciones están para ayudarte a hablar con personas que conoces.\n\nNo debes usar Dak para enviar spam: mensajes comerciales o promocionales no solicitados, mensajes a personas que no han aceptado recibirlos o mensajes a números comprados, extraídos o recopilados de terceros.\n\nIndia: el reglamento de la TRAI sobre preferencias de los clientes en comunicaciones comerciales de telecomunicaciones de 2018 (TCCCPR) prohíbe las comunicaciones comerciales no solicitadas de remitentes no registrados, incluidos los números personales. Los destinatarios pueden denunciar estos mensajes por SMS o llamando al 1909, o en la app DND. Los operadores deben actuar ante las denuncias y pueden advertir, restringir, desconectar e incluir el número en una lista negra.\n\nEn todo el mundo: los operadores ralentizan, bloquean o suspenden los números que envían mensajes masivos, y muchos países tienen leyes contra el spam. Las empresas deben usar un proveedor registrado de SMS masivos, no una SIM personal.\n\nLímites de Dak: como máximo 50 personas por difusión y 100 mensajes de difusión en cualquier periodo de 24 horas, enviados en lotes espaciados; sin difusiones periódicas; las automatizaciones nunca pueden iniciar una difusión; nunca se envían difusiones a números de tarificación especial, códigos cortos ni remitentes alfanuméricos.\n\nLas tarifas de SMS de tu operador se aplican a cada mensaje que envías, incluida cada copia de una difusión y cada parte de un mensaje largo.\n\nEres responsable de los mensajes que envías. Un uso indebido puede hacer que tu operador desconecte tu número.</string>
+    <string name="bc_close">Cerrar</string>
+
+    <!-- Lists screen -->
+    <string name="bc_empty_title">Aún no hay listas de difusión</string>
+    <string name="bc_empty_body">Crea una lista para enviar un mensaje a varias personas que conoces. Cada una recibe su propio SMS, y las respuestas te llegan de forma individual.</string>
+    <string name="bc_new_list">Nueva lista</string>
+    <string name="bc_limits_note">Hasta %1$d personas por difusión y %2$d mensajes de difusión al día. Solo para uso personal.</string>
+    <string name="bc_last_sent">Último envío: %s</string>
+    <plurals name="bc_members_count">
+        <item quantity="one">%d persona</item>
+        <item quantity="many">%d personas</item>
+        <item quantity="other">%d personas</item>
+    </plurals>
+
+    <!-- List editor -->
+    <string name="bc_edit_title_new">Nueva lista de difusión</string>
+    <string name="bc_edit_title">Editar lista</string>
+    <string name="bc_edit_name">Nombre de la lista</string>
+    <string name="bc_edit_search">Añadir personas: nombre o número</string>
+    <string name="bc_edit_numbers">O escribe números separados por comas</string>
+    <string name="bc_edit_add">Añadir</string>
+    <string name="bc_edit_members">Miembros (%1$d de %2$d)</string>
+    <string name="bc_edit_remove">Quitar a %s</string>
+    <string name="bc_edit_over_cap">Una lista puede tener como máximo %d personas.</string>
+    <string name="bc_edit_save">Guardar</string>
+    <string name="bc_edit_delete">Eliminar lista</string>
+    <string name="bc_edit_delete_confirm">¿Eliminar \"%s\"? Los mensajes ya enviados se quedan en cada conversación.</string>
+    <string name="bc_edit_contacts_off">Permite el acceso a los contactos para buscar por nombre.</string>
+    <string name="bc_edit_allow">Permitir</string>
+    <string name="bc_edit_default_name">Mi lista</string>
+
+    <!-- List thread + composer -->
+    <string name="bc_thread_empty">Aún no se ha enviado nada a esta lista. Lo que envíes aquí le llegará a cada persona como su propio SMS.</string>
+    <string name="bc_composer_hint">Mensaje para todos</string>
+    <string name="bc_insert_first_name">{firstName}</string>
+    <string name="bc_insert_name">{name}</string>
+    <string name="bc_placeholders_label">Personalizar:</string>
+    <string name="bc_preview_for">Vista previa para %1$s: %2$s</string>
+    <string name="bc_send">Enviar</string>
+    <string name="bc_send_later">Enviar más tarde</string>
+    <string name="bc_scheduled_for">Se envía %s</string>
+    <string name="bc_send_now_instead">Enviar ahora</string>
+    <string name="bc_sim_label">Desde %s</string>
+    <string name="bc_edit_list">Editar lista</string>
+    <string name="bc_cancel">Cancelar</string>
+    <string name="bc_sent_snack">Enviando a %d personas</string>
+    <string name="bc_scheduled_snack">Programado para %d personas</string>
+    <string name="bc_send_failed">No se pudo poner en cola la difusión. Comprueba el límite diario y vuelve a intentarlo.</string>
+    <string name="bc_list_missing">Esta lista se ha eliminado.</string>
+
+    <!-- Confirmation -->
+    <string name="bc_confirm_title">¿Enviar a %d personas?</string>
+    <string name="bc_confirm_title_scheduled">¿Programar para %d personas?</string>
+    <string name="bc_confirm_cost">%1$d SMS en total (%2$d personas, hasta %3$d parte(s) cada uno). Se aplican las tarifas habituales de tu operador a cada uno.</string>
+    <string name="bc_confirm_eta_single_batch">Todos se envían de inmediato.</string>
+    <string name="bc_confirm_eta">Se envían en lotes pequeños para respetar los límites del operador: el último sale en unos %s.</string>
+    <string name="bc_confirm_eta_scheduled">Empieza %1$s; el último sale unos %2$s después.</string>
+    <string name="bc_confirm_excluded">Excluidos (%d):</string>
+    <string name="bc_confirm_international">%d número(s) internacional(es): se aplican tarifas de SMS internacionales.</string>
+    <string name="bc_confirm_roaming">Tu SIM está en itinerancia, así que cada SMS puede costar más.</string>
+    <string name="bc_confirm_reminder">Envía solo a personas que esperan este mensaje. El spam incumple los términos de Dak y las normas del operador y de la TRAI.</string>
+    <string name="bc_confirm_quota">Quedan %1$d de %2$d mensajes de difusión diarios.</string>
+    <string name="bc_risk_promo_title">Parece un mensaje promocional</string>
+    <string name="bc_risk_promo_body">Los enlaces y palabras como oferta, rebajas, descuento o haz clic son típicos del spam. Los SMS promocionales no solicitados desde un número personal incumplen las normas de la TRAI en India y los términos de tu operador: tu número puede denunciarse al 1909 y ser desconectado.</string>
+    <string name="bc_risk_large_title">Es un envío grande</string>
+    <string name="bc_risk_large_body">Los operadores vigilan los números que escriben a muchas personas a la vez. Asegúrate de que todos los de la lista esperan tener noticias tuyas.</string>
+    <string name="bc_confirm_expect">Estas personas me conocen y esperan este mensaje</string>
+    <string name="bc_confirm_send">Enviar</string>
+    <string name="bc_confirm_schedule">Programar</string>
+    <string name="bc_problem_empty">Escribe un mensaje primero.</string>
+    <string name="bc_problem_no_recipients">Nadie de esta lista puede recibirlo.</string>
+    <string name="bc_problem_too_many">%1$d personas recibirían esto, pero una difusión puede llegar como máximo a %2$d. Quita a algunas de la lista primero.</string>
+    <string name="bc_problem_daily">Límite diario alcanzado: solo pueden enviarse %1$d mensajes de difusión más en las próximas 24 horas (límite: %2$d).</string>
+    <string name="bc_problem_past">Elige una hora futura.</string>
+    <string name="bc_problem_far">Elige una hora dentro de los próximos 30 días.</string>
+
+    <!-- Exclusion reasons -->
+    <string name="bc_excl_duplicate">número duplicado</string>
+    <string name="bc_excl_blocked">bloqueado</string>
+    <string name="bc_excl_own">tu propio número</string>
+    <string name="bc_excl_short_code">código corto</string>
+    <string name="bc_excl_alphanumeric">no puede recibir SMS</string>
+    <string name="bc_excl_special">número de tarificación especial o de servicio</string>
+    <string name="bc_excl_invalid">no es un número de teléfono</string>
+
+    <!-- Sent broadcast + details -->
+    <string name="bc_status_line">%1$d entregados · %2$d enviados · %3$d pendientes · %4$d con error</string>
+    <string name="bc_details_title">Detalles de la difusión</string>
+    <string name="bc_details_recipients">Destinatarios</string>
+    <string name="bc_details_replies">Respuestas</string>
+    <string name="bc_details_no_replies">Aún no hay respuestas.</string>
+    <string name="bc_retry">Reintentar</string>
+    <string name="bc_cancel_unsent">Cancelar pendientes</string>
+    <string name="bc_delete_record">Quitar del historial de esta lista</string>
+    <string name="bc_state_scheduled">Programado %s</string>
+    <string name="bc_state_sending">Enviando</string>
+    <string name="bc_state_sent">Enviado</string>
+    <string name="bc_state_delivered">Entregado</string>
+    <string name="bc_state_failed">Error</string>
+    <string name="bc_state_cancelled">Cancelado</string>
+    <string name="bc_open_conversation">Abrir conversación con %s</string>
+    <plurals name="bc_reply_count">
+        <item quantity="one">%d respuesta</item>
+        <item quantity="many">%d respuestas</item>
+        <item quantity="other">%d respuestas</item>
+    </plurals>
+</resources>

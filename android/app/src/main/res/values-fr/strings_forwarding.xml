@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto-forwarding and birthday wishes (agent "forwarding", prefix fw_). -->
+<resources>
+    <!-- Auto-forwarding -->
+    <string name="fw_title">Transfert automatique</string>
+    <string name="fw_shortcut_summary">Transférez les messages de certains expéditeurs à quelqu\'un pendant une période, par ex. les alertes bancaires à votre comptable. Gratuit.</string>
+    <string name="fw_intro">Transférez les messages de certains expéditeurs à quelqu\'un pendant une période donnée, par ex. les messages de la banque et des impôts à votre comptable pendant la saison fiscale. Les transferts partent de votre propre SIM : c\'est donc gratuit, hors frais SMS habituels de votre opérateur.</string>
+    <string name="fw_new_rule">Nouvelle règle de transfert</string>
+    <string name="fw_edit_rule">Modifier la règle de transfert</string>
+    <string name="fw_empty_title">Aucune règle de transfert</string>
+    <string name="fw_empty_body">Créez-en une pour transférer les messages de certains expéditeurs, par ex. HDFC Bank et Income Tax Dept, à votre comptable jusqu\'à la date de votre choix.</string>
+    <string name="fw_field_name">Nom</string>
+    <string name="fw_field_name_hint">Documents fiscaux pour le comptable</string>
+    <string name="fw_section_from">Transférer les messages de</string>
+    <string name="fw_add_channel">Ajouter un expéditeur</string>
+    <string name="fw_remove">Retirer</string>
+    <string name="fw_filter_category">Uniquement ces catégories (facultatif)</string>
+    <string name="fw_field_keyword">Uniquement si le message contient (facultatif)</string>
+    <string name="fw_section_to">Les envoyer à</string>
+    <string name="fw_pick_contact">Choisir dans les contacts</string>
+    <string name="fw_contacts_only_note">Les transferts ne vont qu\'à des personnes enregistrées dans vos contacts. Avant chaque transfert, Dak vérifie qu\'elles y sont toujours ; sinon, la règle est suspendue.</string>
+    <string name="fw_contacts_permission_needed">Autorisez l\'accès aux contacts pour que Dak puisse vérifier, avant chaque transfert, que le destinataire figure toujours dans vos contacts.</string>
+    <string name="fw_recipient_not_contact">Non choisi dans vos contacts. Retirez-le et choisissez la personne dans vos contacts.</string>
+    <string name="fw_recipient_risky">Attention à %1$s : %2$s.</string>
+    <string name="fw_risk_recent_contact">enregistré ou modifié au cours des 7 derniers jours</string>
+    <string name="fw_risk_no_history">vous n\'avez jamais échangé de SMS avec ce numéro</string>
+    <string name="fw_risk_international">un numéro étranger</string>
+    <string name="fw_risk_unusual">pas un numéro mobile habituel</string>
+    <string name="fw_section_when">Période active</string>
+    <string name="fw_start">Début</string>
+    <string name="fw_end">Fin (incluse)</string>
+    <string name="fw_until_stopped">Jusqu\'à ce que je l\'arrête</string>
+    <string name="fw_end_before_start">La fin est antérieure au début.</string>
+    <string name="fw_period_default_note">Les nouvelles règles transfèrent pendant 1 heure. Pour plus longtemps, ou \"Jusqu\'à ce que je l\'arrête\", votre empreinte ou le verrouillage d\'écran est requis.</string>
+    <string name="fw_period_long_note">Plus d\'une heure : l\'enregistrement nécessite votre empreinte ou le verrouillage d\'écran.</string>
+    <string name="fw_date_time">%1$s, %2$s</string>
+    <string name="fw_section_message">Message</string>
+    <!-- Keep the {placeholders} in English, exactly as written: the app replaces them. %1$s = the default template (fw_default_template). -->
+    <string name="fw_template_help">Variables : {sender}, {body}, {time}, {amount}, {merchant}, {sim}. Par défaut : \"%1$s\".</string>
+    <!--
+        The text a new auto-forward sends. Keep {sender} and {body} exactly as written (the app fills them in), and
+        start with a few words of your own before the first {placeholder}: that lead marks the message as a Dak
+        forward so it is never forwarded back and forth (ForwardLoopGuard). A translation without {body} or without
+        that lead is ignored and the English default is used. Existing rules keep the template they were saved with.
+    -->
+    <string name="fw_default_template">Transféré de {sender} : {body}</string>
+    <string name="fw_include_otp">Inclure les OTP</string>
+    <string name="fw_include_otp_summary">Désactivé par défaut. L\'activer nécessite votre empreinte, votre visage ou le verrouillage d\'écran.</string>
+    <string name="fw_include_otp_warning">Toute personne qui reçoit vos OTP peut se connecter à vos comptes ou approuver des paiements. Ne transférez vos OTP qu\'à une personne en qui vous avez entièrement confiance.</string>
+    <string name="fw_free_note">Le transfert s\'exécute uniquement sur ce téléphone. Rien n\'est envoyé aux serveurs de Dak.</string>
+    <string name="fw_incomplete">Choisissez au moins un expéditeur et un destinataire dans vos contacts, et une fin postérieure au début.</string>
+    <string name="fw_issue_loop">%1$s est aussi un expéditeur de cette règle ou l\'un de vos propres numéros, ce qui transférerait les messages en boucle.</string>
+    <string name="fw_confirm_forward_title">Confirmer le transfert automatique</string>
+    <string name="fw_confirm_forward_subtitle">Vos messages seront automatiquement transférés vers un autre téléphone.</string>
+    <!-- High-risk confirmation (long / open-ended / extended period, OTPs, risky recipient) -->
+    <string name="fw_risk_title">Stop. Quelqu\'un vous a-t-il demandé de faire ça ?</string>
+    <string name="fw_risk_body">La personne qui reçoit vos messages transférés peut lire vos alertes bancaires et vos mots de passe à usage unique (OTP), et s\'en servir pour prendre le contrôle de vos comptes bancaires, UPI, e-mail et autres.
+
+Les escrocs qui se font passer pour votre banque, la police, un livreur, votre opérateur ou un service client demandent souvent de configurer un transfert de messages \"pour vérification\" ou \"pour bloquer une fraude\". Aucune banque, administration ou entreprise authentique ne vous le demandera jamais.
+
+Si quelqu\'un vous a demandé de le faire au téléphone ou par chat, arrêtez-vous maintenant et raccrochez.</string>
+    <string name="fw_risk_reasons">Pourquoi ce message s\'affiche :</string>
+    <string name="fw_risk_reason_long">Le transfert dure plus d\'une heure.</string>
+    <string name="fw_risk_reason_open">Le transfert dure jusqu\'à ce que vous l\'arrêtiez.</string>
+    <string name="fw_risk_reason_extend">Vous prolongez la durée de transfert de cette règle.</string>
+    <string name="fw_risk_reason_otp">Les mots de passe à usage unique (OTP) seront transférés.</string>
+    <string name="fw_risk_reason_recipient">%1$s : %2$s.</string>
+    <string name="fw_risk_ack">Je le configure pour moi-même. Personne ne me l\'a demandé.</string>
+    <string name="fw_risk_continue">Continuer</string>
+    <string name="fw_otp_notice_title">Des OTP sont transférés</string>
+    <string name="fw_otp_notice_body">Au moins une règle active transfère des mots de passe à usage unique. Désactivez-la dès que vous n\'en avez plus besoin.</string>
+    <string name="fw_row_route">%1$s → %2$s</string>
+    <string name="fw_row_includes_otp">OTP inclus</string>
+    <string name="fw_status_active">Active</string>
+    <string name="fw_status_scheduled">Programmée</string>
+    <string name="fw_status_paused">Suspendue</string>
+    <string name="fw_status_ended">Terminée</string>
+    <string name="fw_status_paused_contact">Suspendue : le destinataire ne figure pas dans vos contacts</string>
+    <string name="fw_status_paused_access">Suspendue : autorisez l\'accès aux contacts</string>
+    <string name="fw_row_needs_confirmation">Aucun transfert tant que vous ne confirmez pas avec votre empreinte ou le verrouillage d\'écran</string>
+    <string name="fw_row_confirm">Confirmer</string>
+    <string name="fw_enable_contact_missing">%1$s ne figure plus dans vos contacts. Modifiez la règle et choisissez un contact.</string>
+    <string name="fw_paused_notification_title">Transfert suspendu : %1$s</string>
+    <string name="fw_paused_contact_missing">%1$s ne figure plus dans vos contacts : plus rien ne lui est transféré. Les transferts ne vont qu\'aux contacts enregistrés.</string>
+    <string name="fw_paused_no_access">Dak ne peut plus lire vos contacts pour vérifier %1$s : le transfert est donc suspendu. Autorisez l\'accès aux contacts, puis réactivez la règle.</string>
+    <string name="fw_period_range">%1$s – %2$s</string>
+    <string name="fw_period_from">à partir du %1$s</string>
+    <string name="fw_period_until">jusqu\'au %1$s</string>
+    <string name="fw_period_until_stopped">jusqu\'à ce que vous l\'arrêtiez</string>
+    <string name="fw_pick_channels">Choisir les expéditeurs</string>
+    <string name="fw_pick_channels_help">Les expéditeurs regroupés comptent pour un seul : \"HDFC Bank\" couvre tous les identifiants depuis lesquels elle envoie des SMS.</string>
+    <string name="fw_search_channels">Rechercher des expéditeurs</string>
+    <string name="fw_channels_selected">%1$d sélectionné(s)</string>
+    <string name="fw_done">OK</string>
+    <string name="fw_label_forwarded">Transféré → %1$s</string>
+    <!-- Persistent status notification -->
+    <string name="fw_channel_status_name">État du transfert</string>
+    <string name="fw_channel_status_description">Un rappel discret pendant que des messages sont transférés automatiquement.</string>
+    <string name="fw_status_title_one">Transfert actif</string>
+    <string name="fw_status_title_many">%1$d règles de transfert actives</string>
+    <string name="fw_status_line">%1$s → %2$s (%3$s)</string>
+    <string name="fw_status_otp_suffix">" · OTP inclus"</string>
+
+    <!-- Birthday wishes -->
+    <string name="fw_bd_title">Anniversaires et événements</string>
+    <string name="fw_bd_shortcut_summary">Anniversaires, anniversaires de mariage et autres dates de vos contacts, avec un message prêt à envoyer le jour J.</string>
+    <string name="fw_bd_enable">Envoyer des vœux</string>
+    <string name="fw_bd_enable_summary">Rien n\'est envoyé tant que vous n\'activez pas aussi \"Envoi auto\" pour un contact.</string>
+    <string name="fw_bd_mode_ask">Me demander d\'abord</string>
+    <string name="fw_bd_mode_auto">Envoyer automatiquement</string>
+    <string name="fw_bd_mode_ask_summary">Le jour J, vous recevez une notification avec Envoyer, Modifier et Ignorer.</string>
+    <string name="fw_bd_mode_auto_summary">Le message est envoyé à l\'heure choisie sans vous demander. Nécessite le verrouillage de l\'application : sans lui, ou au-delà de la limite quotidienne de messages automatiques, vous recevez plutôt la notification Envoyer.</string>
+    <string name="fw_bd_send_time">Heure d\'envoi</string>
+    <string name="fw_bd_edit_birthday_template">Message d\'anniversaire</string>
+    <string name="fw_bd_edit_anniversary_template">Message d\'anniversaire de mariage</string>
+    <string name="fw_bd_permission_title">Autoriser l\'accès aux contacts</string>
+    <string name="fw_bd_permission_body">Dak lit les anniversaires, anniversaires de mariage et autres dates de vos contacts sur ce téléphone. Ils ne sont jamais envoyés en ligne.</string>
+    <string name="fw_bd_allow">Autoriser</string>
+    <string name="fw_bd_open_settings">Ouvrir les paramètres</string>
+    <string name="fw_bd_upcoming">60 prochains jours</string>
+    <string name="fw_bd_none_title">Rien de prévu</string>
+    <string name="fw_bd_none_body">Appuyez sur \"Ajouter une date\" pour ajouter un anniversaire, un anniversaire de mariage ou toute autre date à un contact.</string>
+    <string name="fw_bd_today">Aujourd\'hui</string>
+    <string name="fw_bd_tomorrow">Demain</string>
+    <string name="fw_bd_in_days">Dans %1$d jours</string>
+    <string name="fw_bd_turns">fête ses %1$d ans</string>
+    <string name="fw_bd_anniversary">Anniversaire de mariage</string>
+    <string name="fw_bd_choose_number">Choisir un numéro</string>
+    <string name="fw_bd_no_number">Aucun numéro de téléphone</string>
+    <string name="fw_bd_auto_send">Envoi auto</string>
+    <string name="fw_bd_feature_off_hint">Activez \"Envoyer des vœux\" ci-dessus pour l\'envoyer.</string>
+    <string name="fw_bd_template_title">Message</string>
+    <string name="fw_bd_template_field">Votre message</string>
+    <string name="fw_bd_template_help">Variables : {firstName}, {name}, {age} (uniquement si l\'année de naissance est connue), {occasion} (le libellé de la date, pour les autres dates).</string>
+    <string name="fw_bd_template_reset">Utiliser le message par défaut</string>
+    <string name="fw_bd_prompt_title">Anniversaire de %1$s aujourd\'hui</string>
+    <string name="fw_bd_prompt_title_anniversary">Anniversaire de mariage de %1$s aujourd\'hui</string>
+    <string name="fw_bd_action_send">Envoyer</string>
+    <string name="fw_bd_action_edit">Modifier</string>
+    <string name="fw_bd_action_skip">Ignorer</string>
+
+    <!-- Inbox overflow -->
+    <string name="fw_menu_forwarding">Transfert automatique</string>
+    <string name="fw_menu_birthdays">Anniversaires et événements</string>
+
+    <!-- Automations that send messages off the phone need app lock (OutboundAutomationGuard) -->
+    <string name="fw_lock_needed_title">Configurez d\'abord le verrouillage de l\'application</string>
+    <string name="fw_lock_needed_body">Le transfert automatique et les autres automatisations qui envoient des messages nécessitent le verrouillage de l\'application. Ainsi, une personne qui prend votre téléphone déverrouillé une minute, ou un escroc qui vous guide pas à pas, ne peut pas en configurer une en douce pour recevoir vos messages bancaires et vos codes.</string>
+    <string name="fw_lock_needed_action">Configurer le verrouillage</string>
+    <string name="fw_lock_needed_not_now">Plus tard</string>
+    <string name="fw_status_off_lock_off">Désactivée : le verrouillage de l\'application a été désactivé</string>
+    <string name="fw_status_off_screen_lock">Désactivée : le verrouillage d\'écran du téléphone a été supprimé</string>
+    <string name="fw_status_off_lock_needed">Désactivée : nécessite le verrouillage de l\'application</string>
+    <string name="fw_guard_disabled_title">Transfert désactivé pour votre sécurité</string>
+    <plurals name="fw_guard_disabled_body">
+        <item quantity="one">%1$d automatisation qui envoie des messages a été désactivée, car %2$s. Configurez le verrouillage de l\'application pour la réactiver.</item>
+        <item quantity="many">%1$d automatisations qui envoient des messages ont été désactivées, car %2$s. Configurez le verrouillage de l\'application pour les réactiver.</item>
+        <item quantity="other">%1$d automatisations qui envoient des messages ont été désactivées, car %2$s. Configurez le verrouillage de l\'application pour les réactiver.</item>
+    </plurals>
+    <string name="fw_guard_disabled_why">Dak exige le verrouillage de l\'application pour celles-ci afin que personne d\'autre utilisant votre téléphone ne puisse s\'envoyer vos messages.</string>
+    <string name="fw_guard_reason_lock_off">le verrouillage de l\'application a été désactivé</string>
+    <string name="fw_guard_reason_screen_lock">le verrouillage d\'écran de votre téléphone a été supprimé</string>
+    <string name="fw_guard_reason_lock_needed">le verrouillage de l\'application n\'est pas configuré</string>
+
+    <!-- "Was this you?" security alert -->
+    <string name="fw_channel_security_name">Alertes de sécurité</string>
+    <string name="fw_channel_security_description">Vous prévient lorsque le transfert automatique ou une autre automatisation qui envoie vos messages est activé ou désactivé, pour que vous remarquiez si quelqu\'un d\'autre l\'a configuré.</string>
+    <string name="fw_remind_title_forwarding">Est-ce bien vous ? Le transfert automatique est activé</string>
+    <string name="fw_remind_title_automation">Est-ce bien vous ? Une automatisation envoie des messages</string>
+    <string name="fw_remind_body">Activé %1$s : %2$s. %3$s %4$s Ce n\'est pas vous ? Désactivez-le et vérifiez la sécurité de votre téléphone. Les escrocs, ou quelqu\'un qui a eu votre téléphone un instant, utilisent le transfert pour obtenir vos messages bancaires et vos codes.</string>
+    <string name="fw_remind_still_active">Toujours actif.</string>
+    <string name="fw_remind_ended">Terminé.</string>
+    <plurals name="fw_remind_sent_count">
+        <item quantity="one">%1$d message envoyé jusqu\'à présent.</item>
+        <item quantity="many">%1$d messages envoyés jusqu\'à présent.</item>
+        <item quantity="other">%1$d messages envoyés jusqu\'à présent.</item>
+    </plurals>
+    <string name="fw_remind_action_turn_off">Désactiver</string>
+    <string name="fw_remind_action_history">Voir les envois</string>
+    <string name="fw_remind_turned_off_title">Désactivé : %1$s</string>
+    <string name="fw_remind_turned_off_body">Plus rien ne sera envoyé. Si vous ne l\'avez pas configuré, changez le code PIN de verrouillage d\'écran de votre téléphone et appuyez ici pour voir ce qui a été envoyé.</string>
+    <string name="fw_generic_summary">%1$s (%2$s)</string>
+    <string name="fw_kind_forward">transfère les SMS à %1$s</string>
+    <string name="fw_kind_reply">répond par SMS</string>
+    <string name="fw_kind_webhook">envoie à %1$s</string>
+    <string name="fw_kind_web_client">envoie à votre client Web</string>
+    <string name="fw_kind_relay">relaie vers %1$s</string>
+    <string name="fw_kind_open">ouvre des liens dans d\'autres applications</string>
+    <string name="fw_kind_unknown">une action inconnue de cette version de Dak</string>
+
+    <!-- Using an ended rule again -->
+    <string name="fw_section_ended">Terminées — appuyez pour réutiliser</string>
+    <string name="fw_row_use_again">Réutiliser</string>
+    <string name="fw_use_again_done">Transfert réactivé jusqu\'au %1$s</string>
+    <string name="fw_use_again_done_open">Transfert réactivé jusqu\'à ce que vous l\'arrêtiez</string>
+
+    <!-- History (automation run log) -->
+    <string name="fw_history_menu">Historique des transferts</string>
+    <string name="fw_history_rule_title">Historique : %1$s</string>
+    <string name="fw_history_row_cd">Historique de %1$s</string>
+    <string name="fw_history_open_message_cd">Ouvrir le message d\'origine</string>
+    <string name="fw_history_message_gone">Le message d\'origine n\'est plus sur ce téléphone.</string>
+    <string name="fw_history_empty_title">Rien d\'envoyé pour l\'instant</string>
+    <string name="fw_history_empty_body">Chaque message transféré ou envoyé par une automatisation s\'affiche ici, avec l\'heure, le message d\'origine et sa destination.</string>
+    <plurals name="fw_history_sent">
+        <item quantity="one">%1$d message envoyé à %2$s</item>
+        <item quantity="many">%1$d messages envoyés à %2$s</item>
+        <item quantity="other">%1$d messages envoyés à %2$s</item>
+    </plurals>
+    <string name="fw_history_sent_none">Aucun message envoyé</string>
+    <string name="fw_history_between">entre le %1$s et le %2$s</string>
+    <string name="fw_history_failed">%1$d échec(s)</string>
+    <string name="fw_history_skipped">%1$d ignoré(s)</string>
+    <string name="fw_history_from">de %1$s</string>
+    <string name="fw_history_to">À %1$s</string>
+    <string name="fw_outcome_sent">Envoyé</string>
+    <string name="fw_outcome_failed">Échec</string>
+    <string name="fw_outcome_skipped">Ignoré</string>
+    <string name="fw_skip_not_confirmed">Non envoyé : en attente de votre confirmation par empreinte ou verrouillage d\'écran</string>
+    <string name="fw_skip_no_app_lock">Non envoyé : le verrouillage de l\'application était désactivé</string>
+    <string name="fw_queued_auto_reply">Réponse auto</string>
+    <string name="fw_queued_auto_forward">Transfert auto</string>
+    <string name="fw_queued_automation">Automatisation</string>
+    <string name="fw_skip_contact_removed">Non envoyé : le destinataire ne figure plus dans vos contacts</string>
+    <string name="fw_skip_no_contacts_access">Non envoyé : Dak n\'a pas pu vérifier vos contacts</string>
+    <string name="fw_skip_possible_scam">Non envoyé : le message ressemblait à une arnaque</string>
+    <string name="fw_skip_premium">Non envoyé : nécessite une fonctionnalité Premium</string>
+    <string name="fw_skip_incognito">Non envoyé : le message se trouve dans une conversation privée, qui n\'est jamais transférée</string>
+    <string name="fw_limit_title">Envoi automatique suspendu pour aujourd\'hui</string>
+    <string name="fw_limit_text">Vos automatisations ont envoyé %1$d messages aujourd\'hui, soit la limite quotidienne : les transferts et réponses automatiques suivants ont été ignorés. Vérifiez vos automatisations si ce n\'était pas prévu.</string>
+
+    <!-- Snackbar after an automation rule acted on a new message, with Undo. %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_archived">Archivé par \"%1$s\"</string>
+    <!-- %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_binned">Mis à la corbeille par \"%1$s\"</string>
+</resources>

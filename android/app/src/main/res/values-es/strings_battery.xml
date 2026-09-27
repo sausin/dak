@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug-only background activity log on the self-test screen (agent G "battery"). -->
+    <string name="battery_activity_title">Actividad en segundo plano (depuración)</string>
+    <string name="battery_activity_explain">Inicios de proceso, tareas y conciliaciones por día. Un día intenso (300 SMS) debería quedar muy por debajo de una tarea por mensaje.</string>
+    <!--
+        Onboarding: how to keep a phone maker’s battery manager from killing Dak (SystemHelpers.OemGuidance).
+        Translators: the quoted names and menu paths are the phone’s own settings screens. Use the wording that
+        phone shows in your language (check a device or the maker’s help pages); keep "Dak" as is.
+    -->
+    <string name="oem_xiaomi_autostart">Abre Seguridad → Permisos → Inicio automático y activa Dak.</string>
+    <string name="oem_xiaomi_battery_saver">En Información de la aplicación → Ahorro de batería, elige \"Sin restricciones\".</string>
+    <string name="oem_xiaomi_lock_recents">En Recientes, desliza Dak hacia abajo para bloquearla y que no se cierre.</string>
+    <string name="oem_oppo_battery_usage">En Información de la aplicación → Uso de la batería, permite la actividad en segundo plano y el inicio automático.</string>
+    <string name="oem_oppo_optimise">Desactiva \"Optimizar uso de batería\" para Dak.</string>
+    <string name="oem_oppo_lock_recents">En Recientes, bloquea Dak para que no se cierre.</string>
+    <string name="oem_vivo_autostart">Abre i Manager → Administrador de aplicaciones → Administrador de inicio automático y permite Dak.</string>
+    <string name="oem_vivo_background_power">En Ajustes → Batería → Consumo de energía en segundo plano, permite Dak.</string>
+    <string name="oem_samsung_sleeping_apps">En Ajustes → Batería → Límites de uso en segundo plano, asegúrate de que Dak no esté en Aplicaciones inactivas ni en Aplicaciones en suspensión profunda.</string>
+    <string name="oem_samsung_never_sleeping">Añade Dak a \"Aplicaciones nunca inactivas\".</string>
+    <string name="oem_huawei_app_launch">Abre Ajustes → Batería → Inicio de aplicaciones, desactiva \"Gestionar automáticamente\" para Dak y permite las tres opciones.</string>
+    <!-- One numbered step in that list. %1$d = step number (1, 2, 3), %2$s = the step text above. -->
+    <string name="onboarding_oem_step">%1$d. %2$s</string>
+</resources>

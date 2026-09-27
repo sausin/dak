@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification channels, per-conversation channels and notification summaries (agent "channels", prefix ch_). -->
+<resources>
+    <!-- Channels and groups -->
+    <string name="ch_spam_desc">Désactivé par défaut : le spam reste dans l\'onglet Spam. Activez pour être notifié sans son.</string>
+    <string name="ch_automation">Envois programmés et automatisations</string>
+    <string name="ch_automation_desc">Résultats de vos règles et de vos messages programmés</string>
+    <string name="ch_group_conversations">Conversations</string>
+    <string name="ch_group_sim">SIM %1$d</string>
+    <string name="ch_group_sim_carrier">SIM %1$d · %2$s</string>
+    <string name="ch_group_other">Autres</string>
+    <string name="ch_conversation_desc">Notifications personnalisées pour cette conversation</string>
+
+    <!-- Notifications -->
+    <plurals name="ch_summary_count">
+        <item quantity="one">%d conversation</item>
+        <item quantity="many">%d conversations</item>
+        <item quantity="other">%d conversations</item>
+    </plurals>
+    <plurals name="ch_messages_count">
+        <item quantity="one">%d message</item>
+        <item quantity="many">%d messages</item>
+        <item quantity="other">%d messages</item>
+    </plurals>
+
+    <!-- Channels screen -->
+    <string name="ch_title">Canaux de notification</string>
+    <string name="ch_intro">Le son, le vibreur et les fenêtres pop-up se règlent pour chaque canal dans les paramètres Android. Appuyez sur un canal pour le modifier ; Dak ne remplace jamais vos choix.</string>
+    <string name="ch_open_settings">Ouvrir les paramètres</string>
+    <string name="ch_app_blocked_title">Les notifications sont désactivées pour Dak</string>
+    <string name="ch_app_blocked_body">Vous ne serez pas averti des nouveaux messages ni des codes.</string>
+    <string name="ch_critical_blocked_title">%1$s est désactivé</string>
+    <string name="ch_critical_blocked_body">Les messages de ce canal arrivent sans aucune notification.</string>
+    <string name="ch_importance_off">Désactivé</string>
+    <string name="ch_importance_min">Silencieux, réduit</string>
+    <string name="ch_importance_low">Silencieux</string>
+    <string name="ch_importance_default">Son</string>
+    <string name="ch_importance_high">Son et pop-up</string>
+    <string name="ch_customised">Personnalisé</string>
+    <string name="ch_conversations_title">Conversations avec notifications personnalisées</string>
+    <string name="ch_conversations_empty">Aucune pour l\'instant. Ouvrez une conversation et choisissez Notifications personnalisées dans son menu.</string>
+    <string name="ch_conversation_custom">Son et priorité propres</string>
+    <string name="ch_remove">Supprimer</string>
+    <string name="ch_remove_confirm_title">Supprimer les notifications personnalisées pour %1$s ?</string>
+    <string name="ch_remove_confirm_body">Ses messages utiliseront de nouveau les canaux de catégorie habituels.</string>
+    <string name="ch_reset">Réinitialiser les canaux</string>
+    <string name="ch_reset_summary">Recréer les canaux que vous n\'avez pas modifiés</string>
+    <string name="ch_reset_confirm_title">Réinitialiser les canaux ?</string>
+    <string name="ch_reset_confirm_body">Les canaux que vous n\'avez pas modifiés sont recréés avec les réglages par défaut de Dak. Les canaux personnalisés conservent vos réglages ; ouvrez-les pour les modifier. Les canaux des conversations ne sont pas concernés.</string>
+    <string name="ch_reset_done">Canaux réinitialisés</string>
+    <plurals name="ch_reset_done_kept">
+        <item quantity="one">Canaux réinitialisés. %d canal personnalisé a conservé vos réglages.</item>
+        <item quantity="many">Canaux réinitialisés. %d canaux personnalisés ont conservé vos réglages.</item>
+        <item quantity="other">Canaux réinitialisés. %d canaux personnalisés ont conservé vos réglages.</item>
+    </plurals>
+
+    <!-- Conversation menu and Settings -->
+    <string name="ch_action_custom_notifications">Notifications personnalisées</string>
+</resources>

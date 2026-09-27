@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UX pass (agent L): gestures, thumb-zone actions, selection mode, accessibility labels. Prefix: ux_ -->
+<resources>
+    <!-- Inbox: bottom bar and places sheet -->
+    <string name="ux_inbox_places">Autres emplacements</string>
+    <string name="ux_inbox_places_title">Aller à</string>
+
+    <!-- Inbox: OTP chip on a conversation row -->
+    <string name="ux_inbox_copy_code">Copier le code</string>
+    <string name="ux_inbox_code_copied">Copié</string>
+    <string name="ux_inbox_copy_code_description">Copier le code %1$s</string>
+
+    <!-- Inbox: row accessibility -->
+    <string name="ux_action_open">Ouvrir</string>
+    <string name="ux_action_select">Sélectionner</string>
+    <string name="ux_action_deselect">Désélectionner</string>
+    <string name="ux_selected">Sélectionné</string>
+    <plurals name="ux_unread_count">
+        <item quantity="one">%d message non lu</item>
+        <item quantity="many">%d messages non lus</item>
+        <item quantity="other">%d messages non lus</item>
+    </plurals>
+
+    <!-- Inbox: selection mode -->
+    <string name="ux_selection_more">Plus</string>
+    <string name="ux_action_read_short">Lu</string>
+    <string name="ux_action_delete_short">Supprimer</string>
+    <string name="ux_action_select_all">Tout sélectionner (chargés)</string>
+    <plurals name="ux_snack_archived_many">
+        <item quantity="one">Conversation archivée</item>
+        <item quantity="many">%d conversations archivées</item>
+        <item quantity="other">%d conversations archivées</item>
+    </plurals>
+    <plurals name="ux_snack_pinned">
+        <item quantity="one">Épinglée</item>
+        <item quantity="many">%d conversations épinglées</item>
+        <item quantity="other">%d conversations épinglées</item>
+    </plurals>
+    <plurals name="ux_snack_unpinned">
+        <item quantity="one">Désépinglée</item>
+        <item quantity="many">%d conversations désépinglées</item>
+        <item quantity="other">%d conversations désépinglées</item>
+    </plurals>
+    <plurals name="ux_snack_marked_read">
+        <item quantity="one">Marquée comme lue</item>
+        <item quantity="many">%d conversations marquées comme lues</item>
+        <item quantity="other">%d conversations marquées comme lues</item>
+    </plurals>
+
+    <!-- Conversation -->
+    <string name="ux_jump_latest">Aller au dernier message</string>
+    <string name="ux_action_reply">Répondre</string>
+    <string name="ux_action_copy_amount">Copier le montant</string>
+    <string name="ux_action_info">Détails du message</string>
+    <string name="ux_action_message_actions">Actions sur le message</string>
+    <string name="ux_snack_code_copied">Code copié</string>
+    <string name="ux_snack_amount_copied">Montant copié</string>
+    <string name="ux_snack_text_copied">Message copié</string>
+    <string name="ux_action_close">Fermer</string>
+    <string name="ux_info_from">De</string>
+    <string name="ux_info_to">À</string>
+    <string name="ux_info_time">Heure</string>
+    <string name="ux_info_sim">SIM</string>
+    <string name="ux_info_type">Type</string>
+    <string name="ux_info_category">Catégorie</string>
+    <string name="ux_info_status">État</string>
+    <string name="ux_info_confidence">%1$s (confiance : %2$d %%)</string>
+    <string name="ux_info_sms">SMS</string>
+    <string name="ux_info_mms">MMS</string>
+
+    <!-- Conversation: message multi-select -->
+    <plurals name="ux_conv_delete_selected_title">
+        <item quantity="one">Supprimer %d message ?</item>
+        <item quantity="many">Supprimer %d messages ?</item>
+        <item quantity="other">Supprimer %d messages ?</item>
+    </plurals>
+    <string name="ux_conv_delete_selected_body">Les messages supprimés sont placés dans la corbeille, d\'où vous pouvez les restaurer.</string>
+    <plurals name="ux_snack_messages_copied">
+        <item quantity="one">Message copié</item>
+        <item quantity="many">%d messages copiés</item>
+        <item quantity="other">%d messages copiés</item>
+    </plurals>
+
+    <!-- Settings accessibility -->
+    <string name="ux_expanded">Développé</string>
+    <string name="ux_collapsed">Réduit</string>
+</resources>

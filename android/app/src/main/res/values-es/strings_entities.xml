@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smart entities in message bubbles (EntityText / EntityActionSheet). -->
+<resources>
+    <string name="ent_type_otp">Código de un solo uso</string>
+    <string name="ent_type_url">Enlace</string>
+    <string name="ent_type_email">Dirección de correo</string>
+    <string name="ent_type_account">Cuenta o tarjeta</string>
+    <string name="ent_type_amount">Importe</string>
+    <string name="ent_type_upi">ID de UPI</string>
+    <string name="ent_type_pnr">PNR</string>
+    <string name="ent_type_tracking">Número de seguimiento</string>
+    <string name="ent_type_reference">Número de referencia</string>
+    <string name="ent_type_phone">Número de teléfono</string>
+
+    <string name="ent_action_call">Llamar</string>
+    <string name="ent_action_sms">Enviar SMS</string>
+    <string name="ent_action_save_contact">Guardar como contacto</string>
+    <string name="ent_action_whatsapp">Abrir en WhatsApp</string>
+    <string name="ent_action_copy">Copiar</string>
+    <string name="ent_action_copy_amount">Copiar importe</string>
+    <string name="ent_action_search_amount">Buscar este importe</string>
+    <string name="ent_action_open_passbook">Abrir en la libreta</string>
+    <string name="ent_action_track">Seguir en la web de mensajería (ID copiado)</string>
+    <string name="ent_action_email">Escribir correo</string>
+    <string name="ent_action_open_link">Abrir enlace</string>
+
+    <string name="ent_scam_warning">Los estafadores usan números como este: verifícalo con la app o el número oficial de tu banco</string>
+    <string name="ent_no_app">Ninguna app puede abrir esto</string>
+</resources>

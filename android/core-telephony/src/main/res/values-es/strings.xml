@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dak_telephony_channel_transfers">Transferencias de mensajes</string>
+    <string name="dak_telephony_mms_downloading">Descargando mensaje multimedia</string>
+    <string name="dak_telephony_channel_problems">Problemas con mensajes</string>
+    <string name="dak_telephony_sms_unsaved_title">No se pudo guardar un mensaje</string>
+    <plurals name="dak_telephony_sms_unsaved_text">
+        <item quantity="one">No se pudo guardar %d mensaje entrante después de varios intentos.</item>
+        <item quantity="many">No se pudieron guardar %d mensajes entrantes después de varios intentos.</item>
+        <item quantity="other">No se pudieron guardar %d mensajes entrantes después de varios intentos.</item>
+    </plurals>
+
+    <!-- Class 0 ("flash") SMS: shown at once, stored only if the user saves it. -->
+    <string name="dak_telephony_channel_flash">Mensajes flash</string>
+    <string name="dak_telephony_channel_flash_description">Mensajes que el remitente marcó para mostrarse al instante. No se guardan a menos que toques Guardar.</string>
+    <string name="dak_telephony_flash_title">Mensaje flash de %1$s</string>
+    <string name="dak_telephony_flash_public">Mensaje flash</string>
+    <string name="dak_telephony_flash_save">Guardar</string>
+    <string name="dak_telephony_flash_dismiss">Descartar</string>
+    <string name="dak_telephony_flash_saved">Mensaje guardado</string>
+    <string name="dak_telephony_flash_not_saved">No se pudo guardar el mensaje</string>
+
+    <!-- Composer while another app is the default SMS app. -->
+    <string name="dak_telephony_not_default_title">Dak no es tu app de SMS predeterminada</string>
+    <string name="dak_telephony_not_default_body">Puedes leer mensajes, pero el envío está en pausa. Los mensajes programados y en cola esperan y se envían cuando Dak vuelva a ser la predeterminada. Los mensajes a números de emergencia siempre se envían.</string>
+    <string name="dak_telephony_make_default">Haz que Dak sea tu app de SMS predeterminada</string>
+    <string name="dak_telephony_group_mms_off">Este operador no admite MMS de grupo: cada destinatario recibe su propia copia</string>
+    <string name="dak_telephony_mms_disabled">Este operador no admite MMS: no se pueden enviar archivos adjuntos ni mensajes a destinatarios de correo electrónico</string>
+    <string name="dak_telephony_too_many_recipients">Este operador permite como máximo %1$d destinatarios en un MMS</string>
+    <string name="dak_telephony_mms_text_too_long">El texto es demasiado largo para un MMS con este operador</string>
+</resources>

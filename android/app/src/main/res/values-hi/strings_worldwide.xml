@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Region-aware copy for countries without a curated profile (agent "worldwide"). All names prefixed ww_. -->
+<resources>
+    <string name="ww_urgent_title">स्कैम में पैसे गंवाए?</string>
+    <string name="ww_urgent_body">अपने कार्ड के पीछे या बैंक की आधिकारिक वेबसाइट पर दिए नंबर से तुरंत अपने बैंक की फ़्रॉड लाइन पर कॉल करें, और अपना कार्ड या खाता ब्लॉक करने को कहें। फिर पुलिस में इसकी शिकायत करें।</string>
+    <string name="ww_emergency_title">आपातकाल · %1$s</string>
+    <string name="ww_emergency_body">आपातकालीन नंबर (पुलिस, एम्बुलेंस, फ़ायर)। सिर्फ़ तुरंत खतरे के लिए: यह धोखाधड़ी या बैंक की लाइन नहीं है।</string>
+</resources>

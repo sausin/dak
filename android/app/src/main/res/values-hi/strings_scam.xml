@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fake credit alert warnings (docs/security/fake-credit-scams.md) -->
+    <string name="scam_notification_title">⚠ संभावित नकली क्रेडिट अलर्ट · %1$s</string>
+    <string name="scam_notification_text">कोई भी पैसा वापस भेजने से पहले अपना बैंक ऐप जांचें</string>
+    <string name="scam_action_report">शिकायत करें</string>
+    <string name="scam_action_block">ब्लॉक करें</string>
+    <string name="scam_toast_blocked">भेजने वाला ब्लॉक किया गया</string>
+    <string name="scam_toast_block_failed">इस भेजने वाले को ब्लॉक नहीं किया जा सका</string>
+
+    <string name="scam_banner_title_likely">संभावित नकली क्रेडिट अलर्ट</string>
+    <string name="scam_banner_title_suspicious">इस मैसेज से सावधान रहें</string>
+    <string name="scam_banner_claims">यह %1$s से होने का दावा करता है।</string>
+    <string name="scam_banner_verify">कोई भी पैसा वापस भेजने से पहले अपने बैंक ऐप में जांच लें।</string>
+    <string name="scam_banner_advice">बैंक कभी भी किसी मोबाइल नंबर या UPI ID पर पैसे लौटाने को नहीं कहते। अगर सच में गलती से पैसे आए हैं, तो भेजने वाले का बैंक उन्हें वापस करता है; आपको खुद कभी पैसे लौटाने की ज़रूरत नहीं है।</string>
+    <string name="scam_banner_report">धोखाधड़ी की शिकायत करें</string>
+    <string name="scam_banner_block">भेजने वाले को ब्लॉक करें</string>
+    <string name="scam_banner_blocked">भेजने वाला ब्लॉक किया गया</string>
+    <string name="scam_banner_not_scam">स्कैम नहीं है</string>
+    <string name="scam_inbox_chip">संभावित स्कैम</string>
+
+    <!-- One plain-language line per reason (app.dak.classify.scam.ScamReason) -->
+    <string name="scam_reason_phone_credit_alert">किसी निजी मोबाइल नंबर से आया बैंक क्रेडिट अलर्ट। असली बैंक रजिस्टर्ड सेंडर नाम से अलर्ट भेजते हैं, कभी 10 अंकों वाले नंबर से नहीं।</string>
+    <string name="scam_reason_phone_debit_alert">किसी निजी मोबाइल नंबर से आया बैंक डेबिट अलर्ट। असली बैंक कभी 10 अंकों वाले नंबर से अलर्ट नहीं भेजते।</string>
+    <string name="scam_reason_phone_claims_bank">एक मोबाइल नंबर बैंक होने का दिखावा कर रहा है।</string>
+    <string name="scam_reason_unknown_sender_alert">ऐसे भेजने वाले से पैसों का अलर्ट जो न तो कोई जाना-माना बैंक है और न ही आपके संपर्कों में है।</string>
+    <string name="scam_reason_lookalike_sender">भेजने वाले का नाम सिर्फ़ बैंक जैसा दिखता है। असली बैंक अलर्ट XX-HDFCBK-S जैसे रजिस्टर्ड सेंडर से आते हैं।</string>
+    <string name="scam_reason_mixed_script_sender">भेजने वाले के नाम में अलग-अलग लिपियों के अक्षर या अंक मिले हुए हैं। असली सेंडर ऐसा कभी नहीं करते; नकली करते हैं।</string>
+    <string name="scam_reason_unverified_sender">भेजने वाला बैंक के रजिस्टर्ड सेंडर में से नहीं है।</string>
+    <string name="scam_reason_unprefixed_header">भेजने वाले के नाम में वह रजिस्टर्ड प्रीफ़िक्स नहीं है जो असली बैंक अलर्ट में होता है।</string>
+    <string name="scam_reason_promotional_route">विज्ञापन के रूप में भेजा गया क्रेडिट अलर्ट। बैंक अलर्ट ट्रांज़ैक्शनल मैसेज के रूप में भेजते हैं।</string>
+    <string name="scam_reason_brand_mismatch">मैसेज में जिस बैंक का नाम है, उसे उस कंपनी ने नहीं भेजा।</string>
+    <string name="scam_reason_unknown_account">खाता नंबर इस बैंक में आपके किसी भी खाते से मेल नहीं खाता।</string>
+    <string name="scam_reason_no_account_at_bank">लगता है इस बैंक में आपका कोई खाता नहीं है।</string>
+    <string name="scam_reason_return_request">यह \"गलती से भेजे गए\" पैसे लौटाने को कहता है। यह एक आम स्कैम है।</string>
+    <string name="scam_reason_mobile_in_alert">इसमें कॉल या भुगतान करने के लिए एक मोबाइल नंबर है। बैंक ऐसा कभी नहीं कहते।</string>
+    <string name="scam_reason_payment_handle">इसमें पैसे वापस भेजने के लिए UPI ID या पेमेंट लिंक दिया गया है।</string>
+    <string name="scam_reason_link_in_alert">इसमें एक लिंक है। बैंक क्रेडिट अलर्ट में लिंक नहीं भेजते।</string>
+    <string name="scam_reason_pin_to_receive">यह पैसे पाने के लिए आपका UPI PIN मांगता है। PIN सिर्फ़ भुगतान करने के लिए चाहिए होता है, पैसे पाने के लिए कभी नहीं।</string>
+    <string name="scam_reason_collect_request">पैसे पाने की \"रिक्वेस्ट\" मंज़ूर करने से असल में आपके खाते से पैसे चले जाते हैं।</string>
+    <string name="scam_reason_follow_up">यह एक संदिग्ध क्रेडिट अलर्ट के कुछ ही देर बाद आया, उन्हीं पैसों के बारे में पूछते हुए।</string>
+    <string name="scam_reason_return_after_credit">यह हाल में आए क्रेडिट को लौटाने को कहता है। भेजने वाले से कहें कि वह अपने बैंक से संपर्क करे; खुद कभी पैसे वापस न भेजें।</string>
+    <string name="scam_link_in_flagged">यह मैसेज नकली क्रेडिट अलर्ट जैसा लगता है। इसके लिंक किसी धोखाधड़ी वाले पेज पर ले जा सकते हैं, भले ही पता असली लगे।</string>
+</resources>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Notifications, conversation, settings and self-test texts that used to be built in code (docs/i18n.md).
+-->
+<resources>
+    <!-- %1$s = the message (or sender), %2$d = how many times it arrived in a row (2 or more). Shown in notifications. -->
+    <string name="notification_repeat_count">%1$s ×%2$d</string>
+    <!-- Two short texts on one line, e.g. an OTP code and its sender, or "2 SMS" and "40 characters left". %1$s = first, %2$s = second. -->
+    <string name="text_pair_dot">%1$s · %2$s</string>
+    <!-- One line of a grouped notification summary. %1$s = sender, %2$s = message. -->
+    <string name="ch_summary_line">%1$s: %2$s</string>
+    <!-- Name shown for a multimedia message that arrived without a sender address. -->
+    <string name="unknown_sender">Remitente desconocido</string>
+    <!-- Label of a SIM that has no name and whose slot is unknown (e.g. a removed SIM). -->
+    <string name="sim_no_slot">SIM</string>
+    <!-- Settings overview line: %1$s = setting name, %2$s = its current value. -->
+    <string name="settings_inline_value">%1$s: %2$s</string>
+    <!-- Value of "Auto-archive promotions" when set to 0 days. -->
+    <string name="setting_value_never">Nunca</string>
+    <!-- When a scheduled message goes out. %1$s = time, e.g. "9:00 am" or "18:30". -->
+    <string name="sch_when_today">Hoy, %1$s</string>
+    <!-- When a scheduled message goes out. %1$s = time, e.g. "9:00 am" or "18:30". -->
+    <string name="sch_when_tomorrow">Mañana, %1$s</string>
+    <!-- Slider value in Settings. %d = number of minutes. -->
+    <plurals name="setting_value_minutes">
+        <item quantity="one">%d minuto</item>
+        <item quantity="many">%d minutos</item>
+        <item quantity="other">%d minutos</item>
+    </plurals>
+    <!-- Slider value in Settings. %d = number of days. -->
+    <plurals name="setting_value_days">
+        <item quantity="one">%d día</item>
+        <item quantity="many">%d días</item>
+        <item quantity="other">%d días</item>
+    </plurals>
+    <!-- Slider value in Settings (monthly cap). %d = number of messages. -->
+    <plurals name="setting_value_messages">
+        <item quantity="one">%d mensaje</item>
+        <item quantity="many">%d mensajes</item>
+        <item quantity="other">%d mensajes</item>
+    </plurals>
+    <!-- Composer counter: how many SMS the draft will be sent as. %d = number of SMS. -->
+    <plurals name="scr_composer_sms_parts">
+        <item quantity="one">%d SMS</item>
+        <item quantity="many">%d SMS</item>
+        <item quantity="other">%d SMS</item>
+    </plurals>
+    <!-- Composer counter: characters left before the next SMS starts. %d = number of characters. -->
+    <plurals name="scr_composer_chars_left">
+        <item quantity="one">queda %d carácter</item>
+        <item quantity="many">quedan %d caracteres</item>
+        <item quantity="other">quedan %d caracteres</item>
+    </plurals>
+    <!-- Group conversation subtitle. %d = number of people in it. -->
+    <plurals name="scr_conv_group_members_count">
+        <item quantity="one">%d persona</item>
+        <item quantity="many">%d personas</item>
+        <item quantity="other">%d personas</item>
+    </plurals>
+    <!-- Self-test result. %d = seconds the test SMS took to arrive. -->
+    <plurals name="selftest_sms_received_seconds">
+        <item quantity="one">Recibido y notificado en %d segundo. La entrega funciona.</item>
+        <item quantity="many">Recibido y notificado en %d segundos. La entrega funciona.</item>
+        <item quantity="other">Recibido y notificado en %d segundos. La entrega funciona.</item>
+    </plurals>
+    <!-- Self-test result. %d = seconds the test SMS took to arrive. -->
+    <plurals name="selftest_sms_received_no_notification_seconds">
+        <item quantity="one">Recibido en %d segundo, pero la notificación se bloqueó.</item>
+        <item quantity="many">Recibido en %d segundos, pero la notificación se bloqueó.</item>
+        <item quantity="other">Recibido en %d segundos, pero la notificación se bloqueó.</item>
+    </plurals>
+</resources>

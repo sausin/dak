@@ -45,12 +45,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -72,12 +72,13 @@ import app.dak.premium.consent.ConsentRecord
 import app.dak.premium.consent.DataFlow
 import app.dak.premium.consent.Disclosures
 import app.dak.ui.common.DakTopAppBar
+import app.dak.ui.common.RelativeTimeFormatter
+import app.dak.ui.common.rememberRelativeTimeFormatter
 import app.dak.ui.lock.ConfirmResult
 import app.dak.ui.lock.rememberAppAuthGate
 import app.dak.ui.onboarding.startSafely
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -85,8 +86,17 @@ import java.util.Locale
 /** Where the policy is published. TODO(launch): replace with the real URL before Play submission (docs/play-submission.md). */
 const val HOSTED_PRIVACY_POLICY_URL: String = "https://dak.example/privacy"
 
-/** Bundled copy of `docs/privacy-policy.md`, shown offline. */
+/** Bundled copy of `docs/privacy-policy.md`, shown offline (the English original, and the fallback). */
 private const val POLICY_ASSET = "privacy-policy.md"
+
+/**
+ * Assets to try for the policy in the language [languageTag], best first: the translation `privacy-policy-<lang>.md`
+ * (a legally reviewed translation of the English original; docs/i18n.md), then the English original.
+ */
+internal fun policyAssetCandidates(languageTag: String): List<String> {
+    val lang = languageTag.substringBefore('-').substringBefore('_').lowercase()
+    return if (lang.isEmpty() || lang == "en") listOf(POLICY_ASSET) else listOf("privacy-policy-$lang.md", POLICY_ASSET)
+}
 
 private enum class Screen { HUB, POLICY, SHARING, DELETE }
 
@@ -150,7 +160,7 @@ private fun PrivacyHub(viewModel: PrivacyViewModel, autoExport: Boolean, onBack:
             HubRow(
                 Icons.Outlined.CloudUpload,
                 stringResource(R.string.privacy_sharing_title),
-                if (allowed == 0) stringResource(R.string.privacy_sharing_summary) else "${stringResource(R.string.privacy_flow_on)}: $allowed",
+                if (allowed == 0) stringResource(R.string.privacy_sharing_summary) else pluralStringResource(R.plurals.privacy_sharing_allowed_count, allowed, allowed),
             ) { onOpen(Screen.SHARING) }
             HubRow(Icons.Outlined.FileDownload, stringResource(R.string.privacy_export_title), stringResource(R.string.privacy_export_summary)) {
                 viewModel.clearExportResult()
@@ -205,7 +215,7 @@ private fun ExportStatus(state: ExportState) {
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
         }
         is ExportState.Done -> Text(
-            stringResource(R.string.privacy_export_done, state.sections, state.rows),
+            pluralStringResource(R.plurals.privacy_export_done, state.sections, state.sections, state.rows),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
@@ -233,11 +243,13 @@ private fun ExportDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 @Composable
 private fun PolicyScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val blocks by produceState<List<PolicyMarkdown.Block>?>(initialValue = null) {
+    val language = disclosureLanguage(context)
+    val blocks by produceState<List<PolicyMarkdown.Block>?>(initialValue = null, key1 = language) {
         value = withContext(Dispatchers.IO) {
-            runCatching { context.assets.open(POLICY_ASSET).bufferedReader(Charsets.UTF_8).use { it.readText() } }
-                .map(PolicyMarkdown::parse)
-                .getOrDefault(emptyList())
+            // The policy in the app language when a translation is bundled, else the English original.
+            policyAssetCandidates(language).firstNotNullOfOrNull { name ->
+                runCatching { context.assets.open(name).bufferedReader(Charsets.UTF_8).use { it.readText() } }.getOrNull()
+            }?.let { runCatching { PolicyMarkdown.parse(it) }.getOrNull() }.orEmpty()
         }
     }
     Scaffold(topBar = { DakTopAppBar(title = stringResource(R.string.privacy_policy_title), onBack = onBack) }) { padding ->
@@ -295,7 +307,9 @@ private fun DataSharingScreen(viewModel: PrivacyViewModel, onBack: () -> Unit) {
     val records by viewModel.records.collectAsStateWithLifecycle()
     var disclosureFor by rememberSaveable { mutableStateOf<DataFlow?>(null) }
     var withdrawFor by rememberSaveable { mutableStateOf<DataFlow?>(null) }
-    val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    // Dates in the app language (CLDR skeleton), and disclosures in the language the user reads them in.
+    val formatter = rememberRelativeTimeFormatter()
+    val language = disclosureLanguage(LocalContext.current)
 
     Scaffold(topBar = { DakTopAppBar(title = stringResource(R.string.privacy_sharing_title), onBack = onBack) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
@@ -314,7 +328,7 @@ private fun DataSharingScreen(viewModel: PrivacyViewModel, onBack: () -> Unit) {
                     !state.available -> stringResource(R.string.privacy_flow_unavailable)
                     else -> stringResource(R.string.privacy_flow_off)
                 }
-                val changed = state.lastChangedAt?.let { stringResource(R.string.privacy_flow_changed, dateFormat.format(Date(it))) }
+                val changed = state.lastChangedAt?.let { stringResource(R.string.privacy_flow_changed, formatter.formatAbsolute(it)) }
                 ListItem(
                     modifier = Modifier.toggleable(
                         value = state.granted,
@@ -322,7 +336,7 @@ private fun DataSharingScreen(viewModel: PrivacyViewModel, onBack: () -> Unit) {
                         role = Role.Switch,
                         onValueChange = { on -> if (on) disclosureFor = state.flow else withdrawFor = state.flow },
                     ),
-                    headlineContent = { Text(state.title) },
+                    headlineContent = { Text(Disclosures.forFlow(state.flow, language).title) },
                     supportingContent = { Text(listOfNotNull(status, changed).joinToString(" · ")) },
                     trailingContent = { Switch(checked = state.granted, onCheckedChange = null, enabled = enabled) },
                 )
@@ -346,7 +360,7 @@ private fun DataSharingScreen(viewModel: PrivacyViewModel, onBack: () -> Unit) {
                     )
                 }
             }
-            items(records) { record -> ConsentRecordRow(record, dateFormat) }
+            items(records) { record -> ConsentRecordRow(record, formatter, language) }
         }
     }
 
@@ -358,23 +372,23 @@ private fun DataSharingScreen(viewModel: PrivacyViewModel, onBack: () -> Unit) {
                 flow = flow,
                 onAllow = {
                     disclosureFor = null
-                    viewModel.grant(flow)
+                    viewModel.grant(flow, language)
                 },
                 onDecline = {
                     disclosureFor = null
-                    viewModel.decline(flow)
+                    viewModel.decline(flow, language)
                 },
             )
         } else {
             // Read-only view of the explanation (already allowed, or not available in this build).
-            DisclosureReadOnly(flow, onClose = { disclosureFor = null })
+            DisclosureReadOnly(flow, language, onClose = { disclosureFor = null })
         }
     }
     withdrawFor?.let { flow ->
         AlertDialog(
             onDismissRequest = { withdrawFor = null },
             title = { Text(stringResource(R.string.privacy_withdraw_title)) },
-            text = { Text(stringResource(R.string.privacy_withdraw_body, Disclosures.forFlow(flow).title)) },
+            text = { Text(stringResource(R.string.privacy_withdraw_body, Disclosures.forFlow(flow, language).title)) },
             confirmButton = {
                 TextButton(onClick = {
                     withdrawFor = null
@@ -387,8 +401,8 @@ private fun DataSharingScreen(viewModel: PrivacyViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun DisclosureReadOnly(flow: DataFlow, onClose: () -> Unit) {
-    val d = Disclosures.forFlow(flow)
+private fun DisclosureReadOnly(flow: DataFlow, language: String, onClose: () -> Unit) {
+    val d = Disclosures.forFlow(flow, language)
     AlertDialog(
         onDismissRequest = onClose,
         title = { Text(d.title) },
@@ -409,16 +423,17 @@ private fun DisclosureReadOnly(flow: DataFlow, onClose: () -> Unit) {
 }
 
 @Composable
-private fun ConsentRecordRow(record: ConsentRecord, dateFormat: DateFormat) {
+private fun ConsentRecordRow(record: ConsentRecord, formatter: RelativeTimeFormatter, language: String) {
     val flow = DataFlow.byId(record.flow)
-    val title = flow?.let { Disclosures.forFlow(it).title } ?: record.flow
+    val title = flow?.let { Disclosures.forFlow(it, language).title } ?: record.flow
+    val source = recordSourceLabel(record.source)?.let { stringResource(it) } ?: record.source
     ListItem(
         headlineContent = { Text(title) },
         overlineContent = {
             Text(stringResource(if (record.granted) R.string.privacy_record_granted else R.string.privacy_record_declined))
         },
         supportingContent = {
-            Text(stringResource(R.string.privacy_record_meta, dateFormat.format(Date(record.atMillis)), record.disclosureVersion, record.source))
+            Text(stringResource(R.string.privacy_record_meta, formatter.formatAbsolute(record.atMillis), record.disclosureVersion, source))
         },
     )
 }
@@ -487,6 +502,15 @@ private fun DeleteScreen(viewModel: PrivacyViewModel, onBack: () -> Unit) {
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(android.R.string.cancel)) }
         }
     }
+}
+
+/** Where a consent was given ([ConsentRecord.source], a machine id), as words; null for an id this build does not know. */
+internal fun recordSourceLabel(source: String): Int? = when (source) {
+    "settings" -> R.string.privacy_record_source_settings
+    "privacy" -> R.string.privacy_record_source_privacy
+    "onboarding" -> R.string.privacy_record_source_onboarding
+    "restore" -> R.string.privacy_record_source_restore
+    else -> null
 }
 
 private fun openUrl(context: Context, url: String) {

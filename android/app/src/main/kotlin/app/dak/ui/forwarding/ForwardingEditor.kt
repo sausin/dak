@@ -50,19 +50,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automation.AppLocaleText
 import app.dak.automations.forwarding.ForwardingPolicy
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.safety.ValidationIssue
 import app.dak.core.model.Category
 import app.dak.core.model.SimInfo
+import app.dak.ui.common.ConversationTitles
 import app.dak.ui.common.categoryLabel
+import app.dak.ui.common.simName
 import app.dak.ui.theme.DakTheme
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import java.util.Date
 
 /**
  * The forwarding rule editor (bottom sheet body). Recipients come only from the system contact picker, after
@@ -226,7 +228,7 @@ internal fun ForwardingEditor(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = spec.subId == null, onClick = { onChange(spec.copy(subId = null)) }, label = { Text(stringResource(R.string.scr_auto_default_sim)) })
                 sims.forEach { sim ->
-                    FilterChip(selected = spec.subId == sim.subId, onClick = { onChange(spec.copy(subId = sim.subId)) }, label = { Text(sim.displayName) })
+                    FilterChip(selected = spec.subId == sim.subId, onClick = { onChange(spec.copy(subId = sim.subId)) }, label = { Text(simName(sim)) })
                 }
             }
         }
@@ -303,7 +305,7 @@ internal fun ForwardingEditor(
                 val kept = spec.sources.filter { it.conversationId in checkedIds }
                 val keptIds = kept.map { it.conversationId }.toSet()
                 scope.launch {
-                    val added = loaded.values.filter { it.conversationId !in keptIds }.map { viewModel.sourceOf(it) }
+                    val added = loaded.values.filter { it.conversationId !in keptIds }.map { viewModel.sourceOf(it, ConversationTitles.display(context.resources, it)) }
                     onChange(spec.copy(sources = kept + added))
                 }
             },
@@ -326,8 +328,8 @@ private fun issueText(issue: ValidationIssue): String = when (issue) {
     ValidationIssue.NoActions -> stringResource(R.string.fw_incomplete)
 }
 
-/** The date part of [millis] in the locale's medium format. */
-private fun formatDay(context: Context, millis: Long): String = DateFormat.getMediumDateFormat(context).format(Date(millis))
+/** The date part of [millis] in the app language ("23 Sep 2026"). */
+private fun formatDay(context: Context, millis: Long): String = AppLocaleText.date(context, millis)
 
-/** The time of [millis] in the device's 12/24-hour setting. */
-private fun formatTime(context: Context, millis: Long): String = DateFormat.getTimeFormat(context).format(Date(millis))
+/** The time of [millis] in the app language and the device's 12/24-hour setting. */
+private fun formatTime(context: Context, millis: Long): String = AppLocaleText.time(context, millis)

@@ -8,6 +8,8 @@ import app.dak.index.repo.AuditLogRepository
 import app.dak.index.repo.ScheduledSend
 import app.dak.index.repo.ScheduledSendStatus
 import app.dak.index.repo.ScheduledSendStore
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -74,7 +76,7 @@ class BirthdaySendGate @Inject constructor(
     suspend fun askInstead(send: ScheduledSend, nowMillis: Long, reason: String) {
         val tag = WishTag.decode(send.ruleId) ?: return
         val name = store.config(tag.contactId, tag.kind)?.name ?: send.addresses.firstOrNull().orEmpty()
-        audit("automatic wish not sent ($reason): asked instead")
+        audit("automatic wish not sent (${FailureReasons.english(reason)}): asked instead")
         prompt(send, tag, name, nowMillis, reason)
     }
 
@@ -118,11 +120,16 @@ class BirthdaySendGate @Inject constructor(
         birthdays.reconcile(null, nowMillis)
     }
 
+    /**
+     * Why a wish was closed, stored as the send's `failureReason`: language-neutral codes ([FailureReasons]) shown
+     * in the app language by [app.dak.telephony.FailureReasonText]. Older versions stored English sentences, which
+     * are still shown as they are.
+     */
     companion object {
-        const val REASON_ALREADY_WISHED = "already wished this year"
-        const val REASON_DISABLED = "birthday wishes turned off"
-        const val REASON_ASKED = "asked the user"
-        const val REASON_NO_APP_LOCK = "no app lock: asked the user"
-        const val REASON_DAILY_LIMIT = "daily unattended limit: asked the user"
+        val REASON_ALREADY_WISHED: String = FailureReasons.encode(Failure.BIRTHDAY_ALREADY_WISHED)
+        val REASON_DISABLED: String = FailureReasons.encode(Failure.BIRTHDAY_WISHES_OFF)
+        val REASON_ASKED: String = FailureReasons.encode(Failure.BIRTHDAY_ASKED)
+        val REASON_NO_APP_LOCK: String = FailureReasons.encode(Failure.BIRTHDAY_NO_APP_LOCK)
+        val REASON_DAILY_LIMIT: String = FailureReasons.encode(Failure.BIRTHDAY_DAILY_LIMIT)
     }
 }

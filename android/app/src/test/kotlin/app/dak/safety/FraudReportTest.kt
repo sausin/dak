@@ -50,4 +50,14 @@ class FraudReportTest {
         val noSim = FraudReport.detailsText("t", "s", date, null, labels, ist)
         assertTrue("SIM" !in noSim)
     }
+
+    @Test
+    fun detailsTextUsesTheTranslatedLabelValueFormat() {
+        val french = FraudReport.DetailLabels("Expéditeur", "Reçu", "SIM", "Message", lineFormat = "%1\$s : %2\$s", blockFormat = "%1\$s :\n%2\$s")
+        val text = FraudReport.detailsText("Gagnez 100 %1\$s", "VK-BANKXX", date, null, french, ist)
+        assertEquals("Expéditeur : VK-BANKXX\nReçu : 21/09/2026 10:15\nMessage :\nGagnez 100 %1\$s", text)
+        // A translation that lost a placeholder falls back to the English joiner rather than dropping the value.
+        val broken = FraudReport.DetailLabels("Sender", "Received", "SIM", "Message", lineFormat = "%1\$s")
+        assertTrue(FraudReport.detailsText("t", "s", date, null, broken, ist).startsWith("Sender: s\n"))
+    }
 }

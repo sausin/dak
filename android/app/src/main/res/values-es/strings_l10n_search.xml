@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search, passbook, folding, inbox and link-safety i18n fixes: plurals, filter chips, composed titles (workstream "search"). -->
+<resources>
+    <string name="search_chip_from">De: %1$s</string>
+    <string name="search_chip_sim">SIM: %1$s</string>
+    <string name="search_chip_has_attachment">Con archivo adjunto</string>
+    <string name="search_chip_has_link">Con enlace</string>
+    <string name="search_chip_has_otp">Con OTP</string>
+    <string name="search_chip_amount_exact">Importe %1$s</string>
+    <string name="search_chip_amount_between">Importe %1$s–%2$s</string>
+    <string name="search_chip_amount_over">Importe superior a %1$s</string>
+    <string name="search_chip_amount_under">Importe inferior a %1$s</string>
+    <string name="search_chip_amount_any">Cualquier importe</string>
+    <string name="search_chip_date_since">Desde el %1$s</string>
+    <string name="search_chip_date_before">Antes del %1$s</string>
+    <string name="search_chip_date_any">Cualquier fecha</string>
+    <string name="search_chip_in_inbox">En la bandeja de entrada</string>
+    <string name="search_chip_read">Leídos</string>
+    <string name="search_chip_not">Excluir: %1$s</string>
+    <plurals name="scr_search_more_matches">
+        <item quantity="one">+%1$d más en esta conversación</item>
+        <item quantity="many">+%1$d más en esta conversación</item>
+        <item quantity="other">+%1$d más en esta conversación</item>
+    </plurals>
+
+    <string name="link_brand_uidai">UIDAI (Aadhaar)</string>
+    <string name="link_brand_income_tax">Departamento del Impuesto sobre la Renta de la India</string>
+    <string name="link_brand_government_of_india">Gobierno de la India</string>
+    <string name="link_brand_india_post">Correos de la India (India Post)</string>
+
+    <string name="inst_unknown_institution">Desconocido</string>
+    <string name="inst_account_title">%1$s · %2$s</string>
+    <string name="inst_account_title_digits">%1$s · %2$s %3$s</string>
+    <string name="inst_kind_digits">%1$s %2$s</string>
+    <plurals name="scr_passbook_entries">
+        <item quantity="one">%1$d transacción</item>
+        <item quantity="many">%1$d transacciones</item>
+        <item quantity="other">%1$d transacciones</item>
+    </plurals>
+    <plurals name="inst_total_missing">
+        <item quantity="one">%1$d desconocido</item>
+        <item quantity="many">%1$d desconocidos</item>
+        <item quantity="other">%1$d desconocidos</item>
+    </plurals>
+
+    <plurals name="fold_channels_count">
+        <item quantity="one">%1$d canal</item>
+        <item quantity="many">%1$d canales</item>
+        <item quantity="other">%1$d canales</item>
+    </plurals>
+    <plurals name="fold_channel_last_seen">
+        <item quantity="one">Último mensaje %1$s · %2$d mensaje</item>
+        <item quantity="many">Último mensaje %1$s · %2$d mensajes</item>
+        <item quantity="other">Último mensaje %1$s · %2$d mensajes</item>
+    </plurals>
+    <plurals name="fold_suggestion_title">
+        <item quantity="one">Este %1$d remitente parece ser %2$s. ¿Agruparlo en una sola conversación?</item>
+        <item quantity="many">Estos %1$d remitentes parecen ser %2$s. ¿Agruparlos en una sola conversación?</item>
+        <item quantity="other">Estos %1$d remitentes parecen ser %2$s. ¿Agruparlos en una sola conversación?</item>
+    </plurals>
+    <plurals name="fold_name_title">
+        <item quantity="one">Agrupar %1$d conversación</item>
+        <item quantity="many">Agrupar %1$d conversaciones</item>
+        <item quantity="other">Agrupar %1$d conversaciones</item>
+    </plurals>
+
+    <plurals name="scr_inbox_index_waiting">
+        <item quantity="one">%1$s mensaje antiguo se organizará a la hora que elegiste</item>
+        <item quantity="many">%1$s mensajes antiguos se organizarán a la hora que elegiste</item>
+        <item quantity="other">%1$s mensajes antiguos se organizarán a la hora que elegiste</item>
+    </plurals>
+    <string name="inbox_unread_overflow">%1$s+</string>
+</resources>

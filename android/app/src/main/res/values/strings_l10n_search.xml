@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search, passbook, folding, inbox and link-safety i18n fixes: plurals, filter chips, composed titles (workstream "search"). -->
+<resources>
+    <!-- Active search filter chips. %1$s = sender name or number the search is limited to -->
+    <string name="search_chip_from">From: %1$s</string>
+    <!-- %1$s = SIM name the search is limited to (a slot number uses sim_n instead) -->
+    <string name="search_chip_sim">SIM: %1$s</string>
+    <string name="search_chip_has_attachment">Has attachment</string>
+    <string name="search_chip_has_link">Has link</string>
+    <string name="search_chip_has_otp">Has OTP</string>
+    <!-- %1$s = an amount without currency, e.g. "250" -->
+    <string name="search_chip_amount_exact">Amount %1$s</string>
+    <!-- %1$s = lowest amount, %2$s = highest amount (both included), e.g. "Amount 100–500" -->
+    <string name="search_chip_amount_between">Amount %1$s–%2$s</string>
+    <!-- %1$s = an amount; the search keeps amounts above it -->
+    <string name="search_chip_amount_over">Amount over %1$s</string>
+    <!-- %1$s = an amount; the search keeps amounts below it -->
+    <string name="search_chip_amount_under">Amount under %1$s</string>
+    <string name="search_chip_amount_any">Any amount</string>
+    <!-- %1$s = a date, e.g. "12 Sep"; messages from that day on -->
+    <string name="search_chip_date_since">Since %1$s</string>
+    <!-- %1$s = a date, e.g. "12 Sep"; messages before that day -->
+    <string name="search_chip_date_before">Before %1$s</string>
+    <string name="search_chip_date_any">Any date</string>
+    <string name="search_chip_in_inbox">In inbox</string>
+    <!-- Filter chip: only messages already read -->
+    <string name="search_chip_read">Read</string>
+    <!-- A negated filter. %1$s = the filter's own chip text, e.g. "Exclude: From: Amazon" -->
+    <string name="search_chip_not">Exclude: %1$s</string>
+    <!-- %1$d = number of further matching messages in the same conversation -->
+    <plurals name="scr_search_more_matches">
+        <item quantity="one">+%1$d more in this conversation</item>
+        <item quantity="other">+%1$d more in this conversation</item>
+    </plurals>
+
+    <!-- Names of official sites a lookalike link imitates, used in scr_link_lookalike -->
+    <string name="link_brand_uidai">UIDAI (Aadhaar)</string>
+    <string name="link_brand_income_tax">Income Tax Department</string>
+    <string name="link_brand_government_of_india">Government of India</string>
+    <string name="link_brand_india_post">India Post</string>
+
+    <!-- Passbook: institution of an account whose SMS never named its bank -->
+    <string name="inst_unknown_institution">Unknown</string>
+    <!-- Account title. %1$s = institution ("HDFC Bank"), %2$s = kind in lower case ("debit card") -->
+    <string name="inst_account_title">%1$s %2$s</string>
+    <!-- Account title. %1$s = institution ("HDFC Bank"), %2$s = kind in lower case ("debit card"), %3$s = visible digits ("••1234") -->
+    <string name="inst_account_title_digits">%1$s %2$s %3$s</string>
+    <!-- %1$s = kind in lower case ("debit card"), %2$s = visible digits ("••5678") -->
+    <string name="inst_kind_digits">%1$s %2$s</string>
+    <!-- %1$d = number of transactions of an account -->
+    <plurals name="scr_passbook_entries">
+        <item quantity="one">%1$d transaction</item>
+        <item quantity="other">%1$d transactions</item>
+    </plurals>
+    <!-- Part of a group total: %1$d = number of accounts whose amount is not known -->
+    <plurals name="inst_total_missing">
+        <item quantity="one">%1$d not known</item>
+        <item quantity="other">%1$d not known</item>
+    </plurals>
+
+    <!-- %1$d = number of sender IDs folded into one conversation -->
+    <plurals name="fold_channels_count">
+        <item quantity="one">%1$d channel</item>
+        <item quantity="other">%1$d channels</item>
+    </plurals>
+    <!-- %1$s = date and time of the last message, %2$d = number of messages from this sender ID -->
+    <plurals name="fold_channel_last_seen">
+        <item quantity="one">Last message %1$s · %2$d message</item>
+        <item quantity="other">Last message %1$s · %2$d messages</item>
+    </plurals>
+    <!-- %1$d = number of sender IDs, %2$s = the brand they seem to belong to ("Amazon") -->
+    <plurals name="fold_suggestion_title">
+        <item quantity="one">This %1$d sender looks like %2$s. Fold it into one conversation?</item>
+        <item quantity="other">These %1$d senders look like %2$s. Fold them into one conversation?</item>
+    </plurals>
+    <!-- Dialog title. %1$d = number of selected conversations to fold together -->
+    <plurals name="fold_name_title">
+        <item quantity="one">Fold %1$d conversation</item>
+        <item quantity="other">Fold %1$d conversations</item>
+    </plurals>
+
+    <!-- %1$s = number of older messages still to organise, already formatted ("12,345") -->
+    <plurals name="scr_inbox_index_waiting">
+        <item quantity="one">%1$s older message will be organised when your chosen time comes</item>
+        <item quantity="other">%1$s older messages will be organised when your chosen time comes</item>
+    </plurals>
+    <!-- Unread badge above 99. %1$s = "99" in the app language's digits -->
+    <string name="inbox_unread_overflow">%1$s+</string>
+</resources>

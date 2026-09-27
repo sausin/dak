@@ -164,10 +164,13 @@ class ForwardingViewModel @Inject constructor(
         }
     }
 
-    /** Builds the source for a picked conversation, with its raw sender addresses (for loop checks). */
-    suspend fun sourceOf(summary: ConversationSummary): ForwardingSource = ForwardingSource(
+    /**
+     * Builds the source for a picked conversation, with its raw sender addresses (for loop checks). [name] is the
+     * title as shown in the app language (see `ConversationTitles`); it is stored with the rule.
+     */
+    suspend fun sourceOf(summary: ConversationSummary, name: String = summary.title): ForwardingSource = ForwardingSource(
         conversationId = summary.conversationId,
-        name = summary.title,
+        name = name,
         mergeKey = ConversationIds.mergeKeyOf(summary.conversationId),
         addresses = runCatching { conversations.addressesFor(summary.conversationId) }.getOrDefault(emptyList())
             .ifEmpty { listOf(summary.address) }

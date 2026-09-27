@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common actions -->
+    <string name="action_back">Atrás</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_clear">Borrar</string>
+    <string name="action_continue">Continuar</string>
+    <string name="action_finish">Finalizar</string>
+    <string name="action_fix">Solucionar</string>
+    <string name="action_got_it">Entendido</string>
+    <string name="action_more">Más opciones</string>
+    <string name="action_reset">Restablecer</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_skip">Omitir</string>
+    <string name="action_try_again">Reintentar</string>
+    <string name="state_granted">Concedido</string>
+    <string name="state_ok">OK</string>
+    <string name="state_problem">Requiere atención</string>
+
+    <!-- Categories (tabs, chips) -->
+    <string name="category_personal">Personal</string>
+    <string name="category_transactions">Transacciones</string>
+    <string name="category_otp">OTP</string>
+    <string name="category_promotions">Promociones</string>
+    <string name="category_spam">Spam</string>
+    <string name="category_other">Otros</string>
+    <string name="premium">Premium</string>
+    <!-- Short SIM label on chips. %1$d = slot number (1, 2). -->
+    <string name="sim_n">SIM %1$d</string>
+
+    <!-- Relative time -->
+    <string name="time_now">Ahora</string>
+    <string name="time_minutes_format">%d min</string>
+    <string name="time_yesterday">Ayer</string>
+
+    <!-- Notification channels -->
+    <string name="channel_group_messages">Mensajes entrantes</string>
+    <string name="channel_group_app">App</string>
+    <string name="channel_personal">Mensajes</string>
+    <string name="channel_personal_desc">Mensajes de personas, con respuesta</string>
+    <string name="channel_otp">Códigos OTP</string>
+    <string name="channel_otp_desc">Contraseñas de un solo uso, en grande y copiadas para ti</string>
+    <string name="channel_alerts">Alertas</string>
+    <string name="channel_alerts_desc">Alertas de banco, tarjetas y pagos, y avisos de fraude</string>
+    <string name="channel_promotions">Promociones</string>
+    <string name="channel_promotions_desc">Ofertas y marketing, entregados en silencio</string>
+    <string name="channel_other">General</string>
+    <string name="channel_other_desc">Mensajes que Dak no pudo clasificar</string>
+    <string name="channel_spam">Spam (silencioso)</string>
+    <string name="channel_spam_desc">Probable spam, nunca emite sonido</string>
+    <string name="channel_otp_consumed">OTP ya usados por una app (silencioso)</string>
+    <string name="channel_otp_consumed_desc">Códigos que una app o un navegador leyó automáticamente</string>
+    <string name="channel_failures">Errores de envío</string>
+    <string name="channel_failures_desc">Mensajes que no se pudieron enviar</string>
+    <string name="channel_mms">Descargas de MMS</string>
+    <string name="channel_mms_desc">Progreso de los mensajes con fotos y videos</string>
+    <string name="channel_self_test">Autoprueba</string>
+    <string name="channel_self_test_desc">Notificaciones de prueba de la pantalla de autoprueba</string>
+    <string name="channel_reliability">Avisos de fiabilidad</string>
+    <string name="channel_reliability_desc">Cuando algo puede retrasar tus mensajes</string>
+
+    <!-- Notifications -->
+    <string name="action_copy_code">Copiar código</string>
+    <string name="action_delete_now">Eliminar ahora</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_mark_read">Marcar como leído</string>
+    <string name="action_reply">Responder</string>
+    <string name="action_reply_hint">Responder por SMS</string>
+    <string name="otp_in_call_warning">Estás en una llamada. Nunca compartas este código con quien te llama: los bancos y las apps nunca lo piden.</string>
+    <!-- Under a one-time code another app already read. %1$s = that app's name. -->
+    <string name="otp_used_by">Usado por %1$s</string>
+    <!-- Next to the large code on the OTP notification, once it is on the clipboard. -->
+    <string name="otp_copied">Copiado</string>
+    <!-- OTP notification title when the code was copied automatically (shown on watches, in summaries, to screen readers). -->
+    <string name="otp_code_copied">Código %1$s copiado</string>
+    <string name="notification_you">Tú</string>
+    <string name="notification_group_title">Mensaje de grupo</string>
+    <string name="notification_new_message">Mensaje nuevo</string>
+    <string name="notification_new_code">Nuevo código de verificación</string>
+    <string name="notification_photo">Foto</string>
+    <string name="notification_attachment">Archivo adjunto</string>
+    <string name="clip_label_code">Código de verificación</string>
+    <!-- Toast after copying. %1$s = the copied code, or the word for "message" when it is sensitive. -->
+    <string name="toast_code_copied">Se copió %1$s</string>
+    <string name="toast_delete_failed">Aún no se pudo eliminar. Vuelve a intentarlo desde la conversación.</string>
+    <string name="toast_reply_failed">No se envió la respuesta. Abre la conversación para reintentar.</string>
+
+    <!-- Reliability -->
+    <string name="reliability_banner_title">Los mensajes pueden retrasarse</string>
+    <string name="reliability_banner_not_default">Dak no es tu app de SMS</string>
+    <string name="reliability_banner_body">Algo en este teléfono puede impedir que Dak muestre mensajes nuevos. Toca Solucionar para revisarlo.</string>
+    <string name="reliability_background_restricted">El uso en segundo plano de Dak está restringido. Abre Información de la app → Batería y elige Sin restricciones.</string>
+    <string name="check_default_sms">App de SMS predeterminada</string>
+    <string name="check_default_sms_problem">Otra app recibe tus mensajes. Configura Dak como app de SMS predeterminada.</string>
+    <string name="check_notification_permission">Permiso de notificaciones</string>
+    <string name="check_notification_permission_problem">Dak no tiene permiso para mostrar notificaciones.</string>
+    <string name="check_app_notifications">Notificaciones de la app</string>
+    <string name="check_app_notifications_problem">Las notificaciones de Dak están desactivadas en los ajustes del sistema.</string>
+    <string name="check_channels">Alertas personales, de OTP y de transacciones</string>
+    <string name="check_channels_problem">Una de estas categorías de notificación está desactivada.</string>
+    <string name="check_battery">Optimización de batería</string>
+    <string name="check_battery_problem">El sistema puede pausar Dak para ahorrar batería, lo que retrasa los OTP.</string>
+    <string name="check_background">Actividad en segundo plano</string>
+    <string name="check_background_problem">El uso en segundo plano está restringido, así que es posible que los mensajes nuevos no se notifiquen.</string>
+
+    <!-- Self-test -->
+    <string name="selftest_title">Autoprueba de notificaciones</string>
+    <string name="selftest_restricted_body">Soluciona los elementos de abajo para que los OTP y las alertas del banco siempre te lleguen.</string>
+    <string name="selftest_checks">Comprobaciones</string>
+    <string name="selftest_local_section">Notificación de prueba</string>
+    <string name="selftest_local_explain">Muestra una notificación ahora mismo para comprobar el sonido y la notificación emergente.</string>
+    <string name="selftest_local_button">Mostrar notificación de prueba</string>
+    <string name="selftest_local_title">Notificación de prueba de Dak</string>
+    <string name="selftest_local_body">Si ves esto, Dak puede mostrar notificaciones.</string>
+    <string name="selftest_local_posted">Publicada. Comprueba que apareció con sonido.</string>
+    <string name="selftest_local_blocked">Bloqueada: las notificaciones de Dak están desactivadas.</string>
+    <string name="selftest_sms_section">Envíate un SMS de prueba</string>
+    <string name="selftest_sms_explain">Envía un SMS a tu propio número y mide cuánto tarda en llegar y notificarse. Tu operador puede cobrar la tarifa normal de SMS.</string>
+    <string name="selftest_own_number">Tu número</string>
+    <string name="selftest_sms_button">Enviar SMS de prueba</string>
+    <!-- Body of the test SMS sent to the user's own number. %1$s = a random code Dak looks for to recognise it: keep it. -->
+    <string name="selftest_sms_body">Autoprueba de Dak %1$s. Si ves esto como notificación, la entrega funciona.</string>
+    <string name="selftest_sms_sending">Enviando…</string>
+    <string name="selftest_sms_waiting">Enviado. Esperando a que llegue…</string>
+    <!-- %1$s = why sending failed, from the phone or carrier (core-telephony strings_failures.xml). -->
+    <string name="selftest_sms_failed">No se pudo enviar: %1$s</string>
+    <string name="selftest_sms_timeout">No llegó nada en 2 minutos. Revisa el número o prueba con la otra SIM.</string>
+    <string name="selftest_sms_carrier_note">Algunos operadores retrasan o descartan los mensajes que te envías a ti mismo; un tiempo de espera agotado aquí no siempre indica un problema con Dak.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_search_hint">Buscar en ajustes</string>
+    <!-- %1$s = what the user typed in the settings search box. -->
+    <string name="settings_no_results">Ningún ajuste coincide con \"%1$s\"</string>
+    <string name="settings_advanced">Avanzado</string>
+    <string name="settings_reset_group">Restablecer valores predeterminados</string>
+    <!-- %1$s = name of a settings section, e.g. "Notifications". -->
+    <string name="settings_reset_title">¿Restablecer %1$s?</string>
+    <string name="settings_reset_body">Todos los ajustes de esta sección vuelven a su valor predeterminado. Tus mensajes no se ven afectados.</string>
+    <string name="settings_action_unavailable">Aún no disponible en esta versión</string>
+    <string name="upgrade_title">Dak Premium</string>
+    <string name="upgrade_body">Premium añade funciones con servidor y para usuarios avanzados. La app gratuita sigue funcionando completamente en el dispositivo.</string>
+    <string name="upgrade_unavailable">Premium aún no está a la venta. Todo lo que ves aquí se desbloqueará sin reiniciar en cuanto mejores tu plan.</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Te damos la bienvenida a Dak</string>
+    <string name="onboarding_welcome_body">Los mensajes que importan, organizados: OTP, alertas del banco y billetes, clasificados y fáciles de buscar.</string>
+    <string name="onboarding_limits_title">Lo que el SMS no puede hacer</string>
+    <string name="onboarding_limit_typing">No hay indicador de escritura</string>
+    <string name="onboarding_limit_receipts">No hay confirmaciones de lectura</string>
+    <string name="onboarding_limit_reactions">No se pueden enviar reacciones (las reacciones de iPhone llegan como texto; Dak las ordena)</string>
+    <string name="onboarding_limit_media">Las fotos y los videos se comprimen al límite de MMS de tu operador</string>
+    <string name="onboarding_limit_delivery">Los informes de entrega sustituyen a las confirmaciones de lectura si tu operador los admite.</string>
+    <string name="onboarding_rcs_title">Perderás el chat RCS</string>
+    <string name="onboarding_rcs_body">RCS (las funciones de chat de Google Messages) solo funciona en la app de Google. Después del cambio, esas conversaciones continúan como SMS y MMS. Puedes volver cuando quieras.</string>
+    <string name="onboarding_private_title">Se queda en tu teléfono</string>
+    <string name="onboarding_private_body">Dak nunca sube tus mensajes. Todo lo que saldría del dispositivo está desactivado hasta que lo actives.</string>
+    <string name="onboarding_role_title">Haz que Dak sea tu app de SMS</string>
+    <string name="onboarding_role_body">Android solo permite que la app de SMS predeterminada reciba, envíe y organice mensajes. Tus mensajes actuales se quedan exactamente donde están.</string>
+    <string name="onboarding_role_button">Establecer como predeterminada</string>
+    <string name="onboarding_role_point_receive">Los mensajes nuevos llegan a Dak</string>
+    <string name="onboarding_role_point_receive_body">Los OTP, las alertas del banco y los chats se notifican aquí en lugar de en tu app actual.</string>
+    <string name="onboarding_role_point_switch">Nada queda atado</string>
+    <string name="onboarding_role_point_switch_body">Los mensajes se quedan en el almacenamiento del sistema, así que cualquier app de SMS puede leerlos si vuelves a cambiar.</string>
+    <string name="onboarding_role_declined">Dak no puede funcionar si no es la app de SMS predeterminada. Elige Dak en el siguiente cuadro de diálogo para continuar.</string>
+    <string name="onboarding_permissions_title">Unos permisos más</string>
+    <string name="onboarding_permissions_body">Todos son opcionales, pero Dak funciona mejor con los tres.</string>
+    <string name="onboarding_permissions_button">Permitir</string>
+    <string name="onboarding_perm_notifications">Notificaciones</string>
+    <string name="onboarding_perm_notifications_body">Para que los OTP y las alertas te lleguen en cuanto llegan.</string>
+    <string name="onboarding_perm_contacts">Contactos</string>
+    <string name="onboarding_perm_contacts_body">Muestra nombres en lugar de números y ayuda a distinguir personas de empresas.</string>
+    <string name="onboarding_perm_phone">Teléfono y SIM</string>
+    <string name="onboarding_perm_phone_body">Distingue tus SIM, conoce tu propio número y te avisa cuando llega un OTP durante una llamada.</string>
+    <string name="onboarding_index_title">Organiza tus mensajes antiguos</string>
+    <string name="onboarding_index_body">Tus mensajes más recientes ya están listos. La clasificación y la búsqueda de los antiguos pueden ejecutarse cuando te convenga.</string>
+    <string name="onboarding_index_now">Ahora</string>
+    <string name="onboarding_index_now_body">Lo más rápido. Usa algo de batería durante unos minutos si tienes muchos mensajes.</string>
+    <string name="onboarding_index_plugged">Al cargar</string>
+    <string name="onboarding_index_plugged_body">La próxima vez que cargues el teléfono. Sin gasto de batería.</string>
+    <string name="onboarding_index_tonight">Esta noche</string>
+    <string name="onboarding_index_tonight_body">Durante la noche, mientras no usas el teléfono.</string>
+    <string name="onboarding_reliability_title">No te pierdas ningún OTP</string>
+    <string name="onboarding_reliability_body">Algunos teléfonos pausan las apps en segundo plano para ahorrar batería, lo que retrasa los mensajes. Dos ajustes rápidos lo evitan.</string>
+    <string name="onboarding_battery_title">Optimización de batería</string>
+    <string name="onboarding_battery_body">Permite que Dak se ejecute en segundo plano para que los mensajes nuevos siempre se notifiquen. Se abrirán los ajustes de batería del teléfono: busca Dak y desactiva la optimización de batería.</string>
+    <string name="onboarding_battery_done">Listo: Dak puede ejecutarse en segundo plano.</string>
+    <string name="onboarding_battery_button">Abrir ajustes de batería</string>
+    <!-- %1$s = phone brand as printed on the phone, e.g. "Xiaomi" (not translated). -->
+    <string name="onboarding_oem_title">Paso adicional en teléfonos %1$s</string>
+    <string name="onboarding_oem_button">Abrir ajustes</string>
+    <string name="onboarding_selftest_hint">Puedes revisarlo todo más tarde en Ajustes → Notificaciones → Autoprueba de notificaciones.</string>
+</resources>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Conversation extras: contact details from the thread header (prefix cd_), send-later from the composer (sch_),
+  incognito / vanishing chats (inc_), accounts removed from the Passbook (pb_), other dates for wishes (occ_).
+-->
+<resources>
+    <!-- Contact details sheet (tap the thread header) -->
+    <string name="cd_open_details">संपर्क की जानकारी देखें</string>
+    <string name="cd_not_saved">आपके संपर्कों में नहीं है</string>
+    <!-- %1$s = the contact’s name -->
+    <string name="cd_saved_as">%1$s नाम से सेव है</string>
+    <string name="cd_business_sender">बिज़नेस सेंडर · कॉल या सेव नहीं किया जा सकता</string>
+    <string name="cd_no_contacts_permission">Dak आपके संपर्क नहीं पढ़ सकता, इसलिए सेव किए गए नाम नहीं दिखते। इन्हें देखने के लिए सेटिंग्स में संपर्कों का ऐक्सेस दें।</string>
+    <string name="cd_call">कॉल करें</string>
+    <string name="cd_copy_number">नंबर कॉपी करें</string>
+    <string name="cd_number_copied">नंबर कॉपी हो गया</string>
+    <string name="cd_view_contact">संपर्क देखें</string>
+    <string name="cd_save_contact">नए संपर्क के रूप में सेव करें</string>
+    <string name="cd_add_to_existing">मौजूदा संपर्क में जोड़ें</string>
+
+    <!-- Send later -->
+    <string name="sch_send_later">बाद में भेजें</string>
+    <string name="sch_tray_schedule">शेड्यूल करें</string>
+    <string name="sch_pick_date_time">तारीख और समय चुनें…</string>
+    <string name="sch_write_first">पहले अपना मैसेज लिखें, फिर चुनें कि यह कब जाए</string>
+    <string name="sch_pick_future">अभी से कम से कम एक मिनट बाद का समय चुनें</string>
+    <!-- %1$s = when it will be sent, e.g. "Tomorrow, 9:00 am" -->
+    <string name="sch_strip_when">शेड्यूल किया गया · %1$s</string>
+    <string name="sch_cancel">शेड्यूल किया गया मैसेज रद्द करें</string>
+    <!-- %1$d = number of other scheduled messages in this conversation. -->
+    <plurals name="sch_strip_more">
+        <item quantity="one">%1$d और शेड्यूल किया गया मैसेज</item>
+        <item quantity="other">%1$d और शेड्यूल किए गए मैसेज</item>
+    </plurals>
+
+    <!-- Incognito (vanishing) chats -->
+    <string name="inc_label">इनकॉग्निटो चैट</string>
+    <string name="inc_action_on">इनकॉग्निटो चालू करें</string>
+    <string name="inc_action_off">इनकॉग्निटो बंद करें</string>
+    <string name="inc_turn_off">बंद करें</string>
+    <string name="inc_dialog_title">इनकॉग्निटो चैट चालू करें?</string>
+    <string name="inc_dialog_body">• आपके भेजे मैसेज भेजते ही इस फ़ोन से गायब हो जाते हैं।\n• आपको मिलने वाले मैसेज सूचनाओं में छिपे रहते हैं और यहां पढ़ने के बाद गायब हो जाते हैं।\n• अगर कोई मैसेज नहीं भेजा जा सका, तो आप चुनते हैं: फिर से कोशिश करें, मिटाएं, या बाद में कोशिश के लिए रखें।\n• गायब हुए मैसेज रीसायकल बिन में नहीं जाते और वापस नहीं लाए जा सकते।\n• इस चैट के पहले के मैसेज जैसे हैं वैसे ही रहते हैं।</string>
+    <string name="inc_intro_other_side_title">सिर्फ़ आपकी कॉपी गायब होती है</string>
+    <string name="inc_intro_other_side_body">Dak सिर्फ़ इसी फ़ोन पर मैसेज मिटा सकता है। दूसरे व्यक्ति के फ़ोन पर आपके भेजे सभी मैसेज रहते हैं, और SMS में उन्हें वहां से मिटाने का कोई तरीका नहीं है। उनके पास स्क्रीनशॉट या बैकअप भी हो सकते हैं।</string>
+    <string name="inc_dialog_confirm">मैं समझ गया/गई, चालू करें</string>
+    <string name="inc_banner_title">इनकॉग्निटो चैट</string>
+    <string name="inc_banner_body">मैसेज भेजने या पढ़ने के बाद इस फ़ोन से गायब हो जाते हैं। दूसरे व्यक्ति के पास उनकी कॉपी रहती है।</string>
+    <string name="inc_inbox_snippet">इनकॉग्निटो चैट · पढ़ने के लिए खोलें</string>
+    <string name="inc_notification_body">नया इनकॉग्निटो मैसेज · पढ़ने के लिए Dak खोलें</string>
+    <string name="inc_vanishing">मैसेज गायब हो रहा है</string>
+    <string name="inc_countdown">यह मैसेज कुछ सेकंड में गायब हो जाएगा</string>
+    <string name="inc_snack_on">इनकॉग्निटो चालू · सिर्फ़ आपकी कॉपी गायब होगी</string>
+    <string name="inc_failed_first">नहीं भेजा गया। फिर से कोशिश करें, या मिटा दें?</string>
+    <string name="inc_failed_again">अब भी नहीं भेजा गया। बाद में कोशिश के लिए रखें, या मिटा दें?</string>
+    <!-- %1$d = seconds left before the message is deleted. -->
+    <plurals name="inc_failed_deletes_in">
+        <item quantity="one">अगर आप नहीं चुनते, तो %1$d सेकंड में मिट जाएगा</item>
+        <item quantity="other">अगर आप नहीं चुनते, तो %1$d सेकंड में मिट जाएगा</item>
+    </plurals>
+    <string name="inc_failed_retry">फिर से कोशिश करें</string>
+    <string name="inc_failed_keep">रखें</string>
+    <string name="inc_failed_delete">मिटाएं</string>
+
+    <!-- Passbook: removing accounts that are not relevant -->
+    <string name="pb_hide">पासबुक से हटाएं</string>
+    <string name="pb_unhide">पासबुक में दिखाएं</string>
+    <string name="pb_hidden_snack">पासबुक से हटाया गया</string>
+    <!-- %1$d = number of hidden accounts -->
+    <string name="pb_hidden_header">छिपे हुए खाते (%1$d)</string>
+    <string name="pb_hidden_summary">पासबुक और उसके कुल योग से बाहर रखे गए। इनके SMS आपके मैसेज में रहते हैं।</string>
+    <string name="pb_restore">दिखाएं</string>
+
+    <!-- Birthdays & occasions: anniversaries and other dates -->
+    <string name="occ_include">शामिल करें</string>
+    <string name="occ_kind_birthdays">जन्मदिन</string>
+    <string name="occ_kind_anniversaries">सालगिरह</string>
+    <string name="occ_kind_other">अन्य तारीखें</string>
+    <string name="occ_other_date">खास दिन</string>
+    <!-- What {occasion} reads in a wish template when a contact’s date has no label ("Happy special day, Anita!"). Lower case: it sits mid-sentence. -->
+    <string name="wish_fallback_occasion">खास दिन</string>
+    <string name="occ_edit_other_template">अन्य तारीख का मैसेज</string>
+    <string name="occ_add_date">तारीख जोड़ें</string>
+    <!-- %1$s = contact name -->
+    <string name="occ_prompt_title_other">आज %1$s का खास दिन है</string>
+</resources>

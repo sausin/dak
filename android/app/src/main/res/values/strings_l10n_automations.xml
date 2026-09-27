@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Automations and forwarding i18n fixes: plurals, whole sentences instead of joined fragments, action and
+     channel names, default rule and preset names, template values (workstream "automations"). -->
+<resources>
+    <!-- Title of the ongoing "forwarding is on" notification. %1$d = number of live forwarding rules (never 0) -->
+    <plurals name="fw_status_title">
+        <item quantity="one">Forwarding active</item>
+        <item quantity="other">%1$d forwarding rules active</item>
+    </plurals>
+    <!-- A forwarding rule that includes OTPs. %1$s = senders (a list), %2$s = recipients (a list), %3$s = period, e.g. "until 31 Jul 2026, 17:30" -->
+    <string name="fw_status_line_otp">%1$s → %2$s (%3$s) · includes OTPs</string>
+    <!-- A rule's status and its period, e.g. "Ended · 1 Jul – 31 Jul". %1$s = status, %2$s = period or summary line -->
+    <string name="fw_status_with_period">%1$s · %2$s</string>
+    <!-- Notification body. %1$d = number of rules turned off, %2$s = why, e.g. "app lock was switched off" -->
+    <plurals name="fw_guard_disabled_text">
+        <item quantity="one">%1$d automation that sends messages was turned off because %2$s. Set up app lock to turn it back on. Dak needs app lock for it so nobody else using your phone can send your messages to themselves.</item>
+        <item quantity="other">%1$d automations that send messages were turned off because %2$s. Set up app lock to turn them back on. Dak needs app lock for them so nobody else using your phone can send your messages to themselves.</item>
+    </plurals>
+
+    <!-- History header. %1$d = messages sent, %2$s = recipients (a list), %3$s = first date, %4$s = last date -->
+    <plurals name="fw_history_sent_between">
+        <item quantity="one">%1$d message sent to %2$s between %3$s and %4$s</item>
+        <item quantity="other">%1$d messages sent to %2$s between %3$s and %4$s</item>
+    </plurals>
+    <!-- History header when nothing went out. %1$s = first date, %2$s = last date -->
+    <string name="fw_history_sent_none_between">No messages sent between %1$s and %2$s</string>
+    <!-- Recipients of a history header beyond the first few. %1$s = the first recipients (a list), %2$d = how many more -->
+    <string name="fw_history_to_more">%1$s +%2$d</string>
+    <!-- %1$d = number of failed sends -->
+    <plurals name="fw_history_failed">
+        <item quantity="one">%1$d failed</item>
+        <item quantity="other">%1$d failed</item>
+    </plurals>
+    <!-- %1$d = number of skipped sends -->
+    <plurals name="fw_history_skipped">
+        <item quantity="one">%1$d skipped</item>
+        <item quantity="other">%1$d skipped</item>
+    </plurals>
+
+    <!-- A scheduled message's time and SIM. %1$s = date and time, %2$s = SIM name -->
+    <string name="scr_auto_sched_when_sim">%1$s · %2$s</string>
+    <!-- Relay rule channels -->
+    <string name="scr_auto_relay_channel_sms">SMS</string>
+    <string name="scr_auto_relay_channel_whatsapp">WhatsApp (one tap)</string>
+    <string name="scr_auto_relay_channel_webhook">Webhook</string>
+    <!-- Rule summary actions besides the scr_auto_action_* ones -->
+    <string name="scr_auto_action_web_client">Send to web client</string>
+    <string name="scr_auto_action_unknown">Unknown action</string>
+
+    <!-- Names of rules saved without a name, from their action. %1$s = the label -->
+    <string name="scr_auto_default_name_label">Label \"%1$s\"</string>
+    <string name="scr_auto_default_name_archive">Archive</string>
+    <string name="scr_auto_default_name_notify">Notify</string>
+    <!-- %1$s = phone number -->
+    <string name="scr_auto_default_name_forward">Forward to %1$s</string>
+    <string name="scr_auto_default_name_reply">Auto-reply</string>
+    <string name="scr_auto_default_name_delete">Move to bin</string>
+    <string name="scr_auto_default_name_open">Open link</string>
+    <string name="scr_auto_default_name_webhook">Webhook</string>
+    <!-- %1$s = phone number or recipient -->
+    <string name="scr_auto_default_name_relay">Relay to %1$s</string>
+
+    <!-- Names of the example rules (Automations → Add examples) -->
+    <string name="preset_archive_old_promotions_name">Archive promotions older than 14 days</string>
+    <string name="preset_label_amazon_deliveries_name">Label Amazon deliveries</string>
+    <string name="preset_otp_big_notification_name">Loud, big OTP notification</string>
+
+    <!-- {sim} in forward/relay templates (goes into the SMS). %1$d = SIM slot number (1, 2) -->
+    <string name="auto_tpl_sim">SIM %1$d</string>
+    <!-- {sim} when the slot is unknown. %1$d = the phone's internal subscription ID -->
+    <string name="auto_tpl_sim_sub">SIM (ID %1$d)</string>
+</resources>

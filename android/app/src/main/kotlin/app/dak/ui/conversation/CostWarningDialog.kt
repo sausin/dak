@@ -30,6 +30,7 @@ import app.dak.R
 import app.dak.telephony.cost.CostKind
 import app.dak.telephony.cost.CostSeverity
 import app.dak.telephony.cost.CostVerdict
+import app.dak.ui.common.text.rememberDisplayLocale
 import app.dak.ui.theme.DakTheme
 import java.util.Locale
 
@@ -112,7 +113,7 @@ fun costReason(verdict: CostVerdict): String = when (verdict.kind) {
     CostKind.PREMIUM_RATE -> stringResource(R.string.safe_cost_premium)
     CostKind.UNKNOWN_SHORT_CODE -> stringResource(R.string.safe_cost_unknown_short_code)
     CostKind.INTERNATIONAL -> verdict.destinationRegion
-        ?.let { stringResource(R.string.safe_cost_international_to, countryName(it)) }
+        ?.let { stringResource(R.string.safe_cost_international_to, countryName(it, rememberDisplayLocale())) }
         ?: stringResource(R.string.safe_cost_international)
     CostKind.ROAMING -> stringResource(R.string.safe_cost_roaming)
     CostKind.ALPHANUMERIC -> stringResource(R.string.safe_cost_alphanumeric)
@@ -122,5 +123,6 @@ fun costReason(verdict: CostVerdict): String = when (verdict.kind) {
     CostKind.NORMAL -> ""
 }
 
-private fun countryName(region: String): String =
-    runCatching { Locale.Builder().setRegion(region).build().displayCountry }.getOrNull()?.ifBlank { null } ?: region
+/** The country's name in the app language ([inLocale]), not the phone's. */
+private fun countryName(region: String, inLocale: Locale): String =
+    runCatching { Locale.Builder().setRegion(region).build().getDisplayCountry(inLocale) }.getOrNull()?.ifBlank { null } ?: region

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scheduled messages: heads-up before a send goes out, emergency-number refusal, scheduled list (prefix sched_). -->
+<resources>
+    <!-- Channel -->
+    <string name="sched_channel_name">शेड्यूल किए गए मैसेज</string>
+    <string name="sched_channel_desc">शेड्यूल किया गया मैसेज या अपने-आप जाने वाली जन्मदिन की शुभकामना भेजे जाने से थोड़ा पहले एक सूचना, अभी भेजें, टालें और रद्द करें के साथ</string>
+
+    <!-- Heads-up notification. %1$s = recipient(s), %2$s = time -->
+    <string name="sched_hu_title">%1$s को · %2$s</string>
+    <!-- Heads-up notification. %1$s = recipient(s), %2$s = time -->
+    <string name="sched_hu_title_birthday">%1$s को जन्मदिन की शुभकामना · %2$s</string>
+    <!-- Heads-up notification. %1$s = broadcast list name, %2$s = time -->
+    <string name="sched_hu_title_broadcast">%1$s को ब्रॉडकास्ट · %2$s</string>
+    <!-- %1$s = broadcast list name, %2$d = number of people on it -->
+    <plurals name="sched_hu_broadcast_recipients">
+        <item quantity="one">%1$s (%2$d व्यक्ति)</item>
+        <item quantity="other">%1$s (%2$d लोग)</item>
+    </plurals>
+    <string name="sched_hu_public_text">एक शेड्यूल किया गया मैसेज जल्द ही जाएगा</string>
+    <!-- Lock-screen text. %1$s = time the message goes out, e.g. "14:30" -->
+    <string name="sched_hu_public_text_at">%1$s पर जाएगा</string>
+    <string name="sched_hu_delay_prompt">कब तक टालें?</string>
+    <string name="sched_hu_action_send_now">अभी भेजें</string>
+    <string name="sched_hu_action_delay">टालें</string>
+    <string name="sched_hu_action_delay_hour">+1 घंटा</string>
+    <string name="sched_hu_action_delay_tomorrow">कल, इसी समय</string>
+    <string name="sched_hu_action_pick_time">समय चुनें</string>
+    <string name="sched_hu_action_cancel">रद्द करें</string>
+
+    <!-- Group summary -->
+    <plurals name="sched_hu_summary_title">
+        <item quantity="one">%d शेड्यूल किया गया मैसेज जल्द ही जाएगा</item>
+        <item quantity="other">%d शेड्यूल किए गए मैसेज जल्द ही जाएंगे</item>
+    </plurals>
+    <plurals name="sched_hu_summary_more">
+        <item quantity="one">+%d और</item>
+        <item quantity="other">+%d और</item>
+    </plurals>
+
+    <!-- Emergency numbers -->
+    <string name="sched_emergency_refused">आपातकालीन सेवाओं को अभी आपकी बात सुननी है — शेड्यूल करने के बजाय इसे अभी भेजें।</string>
+    <!-- %1$s = the emergency number the scheduled text was for. -->
+    <string name="sched_emergency_cancelled_title">%1$s को शेड्यूल किया गया मैसेज नहीं भेजा गया</string>
+    <string name="sched_emergency_cancelled_text">आपातकालीन नंबरों पर मैसेज शेड्यूल नहीं किए जा सकते, इसलिए इसे रद्द कर दिया गया। अगर आपको अब भी मदद चाहिए, तो अभी आपातकालीन सेवाओं से संपर्क करें।</string>
+
+    <!-- Scheduled list -->
+    <string name="sched_focus_title">आपकी सूचना से</string>
+    <string name="sched_focus_gone">यह मैसेज पहले ही भेजा या रद्द किया जा चुका है।</string>
+    <string name="sched_action_change_time">समय बदलें</string>
+    <string name="sched_time_in_past">भविष्य का कोई समय चुनें।</string>
+    <!-- Snackbar. %1$s = new date and time of the scheduled message. -->
+    <string name="sched_moved">%1$s पर कर दिया गया</string>
+</resources>

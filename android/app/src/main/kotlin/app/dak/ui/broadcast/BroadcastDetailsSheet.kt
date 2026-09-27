@@ -156,15 +156,14 @@ private fun stateText(view: RecipientView): String {
     }
 }
 
-/** "3 delivered · 5 sent · 2 pending · 1 failed". */
+/** "3 delivered · 5 sent · 2 pending · 1 failed": one plural per count, so each agrees with its own number. */
 @Composable
-internal fun statusLine(details: BroadcastDetails): String = stringResource(
-    R.string.bc_status_line,
-    details.count(CopyState.DELIVERED),
-    details.count(CopyState.SENT),
-    details.count(CopyState.SCHEDULED) + details.count(CopyState.SENDING),
-    details.count(CopyState.FAILED),
-)
+internal fun statusLine(details: BroadcastDetails): String = listOf(
+    pluralText(R.plurals.bc_status_delivered, details.count(CopyState.DELIVERED)),
+    pluralText(R.plurals.bc_status_sent, details.count(CopyState.SENT)),
+    pluralText(R.plurals.bc_status_pending, details.count(CopyState.SCHEDULED) + details.count(CopyState.SENDING)),
+    pluralText(R.plurals.bc_status_failed, details.count(CopyState.FAILED)),
+).joinToString(" · ")
 
 @Composable
 private fun SectionTitle(text: String) {

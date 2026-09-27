@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification channels, per-conversation channels and notification summaries (agent "channels", prefix ch_). -->
+<resources>
+    <!-- Channels and groups -->
+    <string name="ch_spam_desc">डिफ़ॉल्ट रूप से बंद: स्पैम, स्पैम टैब में रहता है। बिना आवाज़ सूचना पाने के लिए चालू करें।</string>
+    <string name="ch_automation">शेड्यूल किए गए मैसेज और ऑटोमेशन</string>
+    <string name="ch_automation_desc">आपके नियमों और शेड्यूल किए गए मैसेज के नतीजे</string>
+    <string name="ch_group_conversations">बातचीत</string>
+    <string name="ch_group_sim">SIM %1$d</string>
+    <string name="ch_group_sim_carrier">SIM %1$d · %2$s</string>
+    <string name="ch_group_other">अन्य</string>
+    <string name="ch_conversation_desc">इस बातचीत के लिए कस्टम सूचनाएं</string>
+
+    <!-- Notifications -->
+    <plurals name="ch_summary_count">
+        <item quantity="one">%d बातचीत</item>
+        <item quantity="other">%d बातचीत</item>
+    </plurals>
+    <plurals name="ch_messages_count">
+        <item quantity="one">%d मैसेज</item>
+        <item quantity="other">%d मैसेज</item>
+    </plurals>
+
+    <!-- Channels screen -->
+    <string name="ch_title">सूचना चैनल</string>
+    <string name="ch_intro">आवाज़, वाइब्रेशन और पॉप-अप हर चैनल के लिए Android सेटिंग्स में सेट होते हैं। बदलने के लिए किसी चैनल पर टैप करें; Dak कभी आपकी पसंद नहीं बदलता।</string>
+    <string name="ch_open_settings">सेटिंग्स खोलें</string>
+    <string name="ch_app_blocked_title">Dak की सूचनाएं बंद हैं</string>
+    <string name="ch_app_blocked_body">आपको नए मैसेज या कोड के बारे में नहीं बताया जाएगा।</string>
+    <string name="ch_critical_blocked_title">%1$s बंद है</string>
+    <string name="ch_critical_blocked_body">इस चैनल के मैसेज बिना किसी सूचना के आते हैं।</string>
+    <string name="ch_importance_off">बंद</string>
+    <string name="ch_importance_min">बिना आवाज़, छोटा किया हुआ</string>
+    <string name="ch_importance_low">बिना आवाज़</string>
+    <string name="ch_importance_default">आवाज़</string>
+    <string name="ch_importance_high">आवाज़ और पॉप-अप</string>
+    <string name="ch_customised">बदला हुआ</string>
+    <string name="ch_conversations_title">कस्टम सूचनाओं वाली बातचीत</string>
+    <string name="ch_conversations_empty">अभी कोई नहीं। कोई बातचीत खोलें और उसके मेन्यू से कस्टम सूचनाएं चुनें।</string>
+    <string name="ch_conversation_custom">अपनी आवाज़ और प्राथमिकता</string>
+    <string name="ch_remove">हटाएं</string>
+    <string name="ch_remove_confirm_title">%1$s के लिए कस्टम सूचनाएं हटाएं?</string>
+    <string name="ch_remove_confirm_body">इसके मैसेज फिर से सामान्य कैटेगरी चैनल इस्तेमाल करेंगे।</string>
+    <string name="ch_reset">चैनल रीसेट करें</string>
+    <string name="ch_reset_summary">जिन चैनलों को आपने नहीं बदला, उन्हें फिर से बनाएं</string>
+    <string name="ch_reset_confirm_title">चैनल रीसेट करें?</string>
+    <string name="ch_reset_confirm_body">जिन चैनलों को आपने नहीं बदला, वे Dak की डिफ़ॉल्ट सेटिंग के साथ फिर से बनाए जाते हैं। आपके बदले हुए चैनल आपकी सेटिंग रखते हैं; उन्हें बदलने के लिए उन्हें खोलें। बातचीत के चैनलों पर कोई असर नहीं पड़ता।</string>
+    <string name="ch_reset_done">चैनल रीसेट हो गए</string>
+    <plurals name="ch_reset_done_kept">
+        <item quantity="one">चैनल रीसेट हो गए। %d बदले हुए चैनल ने आपकी सेटिंग रखी।</item>
+        <item quantity="other">चैनल रीसेट हो गए। %d बदले हुए चैनलों ने आपकी सेटिंग रखी।</item>
+    </plurals>
+
+    <!-- Conversation menu and Settings -->
+    <string name="ch_action_custom_notifications">कस्टम सूचनाएं</string>
+</resources>

@@ -1,6 +1,7 @@
 package app.dak.automation
 
 import android.content.Context
+import android.util.Log
 import app.dak.R
 import app.dak.automations.history.RunOutcome
 import app.dak.automations.history.SkipReason
@@ -14,6 +15,8 @@ import app.dak.index.repo.ScheduledSendStore
 import app.dak.safety.SendCostGuard
 import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.MessageSender
 import app.dak.telephony.NumberNormalizer
 import app.dak.telephony.OutgoingSms
@@ -95,7 +98,7 @@ class ScheduledSendExecutor @Inject constructor(
     /** One due, PENDING row; true when it was handed to the platform. */
     private suspend fun sendOne(current: ScheduledSend, nowMillis: Long, securityReady: () -> Boolean): Boolean {
         if (current.addresses.isEmpty()) {
-            store.markStatus(current.id, ScheduledSendStatus.FAILED, "no recipient")
+            store.markStatus(current.id, ScheduledSendStatus.FAILED, FailureReasons.encode(Failure.NO_RECIPIENT))
             return false
         }
         val emergencyAddress = ScheduledEmergencyPolicy.firstEmergency(current.addresses) { emergency.isEmergency(it, current.subId) }
@@ -148,7 +151,11 @@ class ScheduledSendExecutor @Inject constructor(
                     requestDeliveryReport = settings.get(DakSettings.deliveryReports),
                 ),
             )
-        }.getOrElse { SendResult.Failed(it.message ?: "send failed") }
+        }.getOrElse {
+            // The exception's (English, technical) message goes to the log; the row gets a code shown in the app language.
+            Log.w(TAG, "scheduled send ${current.id} failed", it)
+            SendResult.Failed(FailureReasons.encode(Failure.SMS_FAILED))
+        }
         // A role lost between the check above and the send makes the sender keep a held copy (sent when the
         // role is back) and answer Queued: the row is then SENT, since leaving it PENDING would send it twice.
         when (result) {
@@ -201,8 +208,10 @@ class ScheduledSendExecutor @Inject constructor(
 
     private companion object {
         const val SLOT_GRACE_MILLIS = 5_000L
-        const val PREMIUM_REFUSED = "premium-rate number not approved"
-        const val NO_APP_LOCK = "no app lock"
+        const val TAG = "ScheduledSend"
+        // Older versions stored "premium-rate number not approved" / "no app lock"; those rows still show that text.
+        val PREMIUM_REFUSED = FailureReasons.encode(Failure.SCHEDULED_PREMIUM_REFUSED)
+        val NO_APP_LOCK = FailureReasons.encode(Failure.SCHEDULED_NO_APP_LOCK)
     }
 }
 

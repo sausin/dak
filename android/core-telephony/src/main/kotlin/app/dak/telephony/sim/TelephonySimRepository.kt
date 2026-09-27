@@ -86,7 +86,8 @@ class TelephonySimRepository @Inject constructor(
         return SimInfo(
             subId = info.subscriptionId,
             slotIndex = slot,
-            displayName = info.displayName?.toString()?.takeIf { it.isNotBlank() } ?: "SIM ${slot + 1}",
+            // Blank when the SIM has no name: the app shows "SIM 1" (sim_n) in the app language instead.
+            displayName = info.displayName?.toString()?.takeIf { it.isNotBlank() }.orEmpty(),
             carrierName = info.carrierName?.toString()?.takeIf { it.isNotBlank() },
             countryIso = info.countryIso?.takeIf { it.isNotBlank() }?.lowercase(),
             colorArgb = info.iconTint,

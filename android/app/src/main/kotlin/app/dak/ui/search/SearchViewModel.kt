@@ -1,5 +1,6 @@
 package app.dak.ui.search
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import app.dak.search.SearchQuery
 import app.dak.search.Suggestion
 import app.dak.telephony.SimRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +45,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
+import java.util.Locale
 import javax.inject.Inject
 
 /** State of the premium natural-language search entry. */
@@ -57,6 +60,7 @@ enum class AiSearchState { LOCKED, AVAILABLE, OFFLINE }
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val savedState: SavedStateHandle,
     private val search: SearchRepository,
     private val savedSearches: SavedSearchRepository,
@@ -213,7 +217,12 @@ class SearchViewModel @Inject constructor(
         savedState[KEY_SCROLL_OFFSET] = 0
     }
 
-    private fun parse(text: String): SearchQuery = QueryParser.parse(text, ZonedDateTime.now())
+    /**
+     * Numeric dates (`before:03/04/2026`) are read in the app language's order, not the phone's (they differ on
+     * Android 8–12 when a per-app language is set).
+     */
+    private fun parse(text: String): SearchQuery =
+        QueryParser.parse(text, ZonedDateTime.now(), context.resources.configuration.locales[0] ?: Locale.getDefault())
 
     private companion object {
         const val KEY_TEXT = "search.text"

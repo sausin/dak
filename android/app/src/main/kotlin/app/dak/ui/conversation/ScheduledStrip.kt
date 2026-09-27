@@ -4,7 +4,6 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
 import android.text.format.DateFormat
-import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +29,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.dak.R
+import app.dak.automation.AppLocaleText
 import app.dak.index.repo.ScheduledSend
+import java.time.Instant
+import java.time.ZoneId
 import java.util.Calendar
 
 /**
@@ -76,12 +78,20 @@ fun ScheduledStrip(items: List<ScheduledSend>, onOpen: (Long) -> Unit, onCancel:
     }
 }
 
-/** "Tomorrow, 9:00 am" / "Fri, 12 Oct, 6:30 pm" in the device's locale and 12/24-hour setting. */
-private fun whenText(context: Context, millis: Long): String {
-    val flags = DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_ALL
-    val day = DateUtils.getRelativeTimeSpanString(millis, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_ABBREV_ALL)
-    val relativeDay = millis - System.currentTimeMillis() < 2 * DateUtils.DAY_IN_MILLIS
-    return if (relativeDay) "$day, ${DateUtils.formatDateTime(context, millis, DateUtils.FORMAT_SHOW_TIME)}" else DateUtils.formatDateTime(context, millis, flags)
+/**
+ * "Tomorrow, 9:00 am" / "Fri 12 Oct, 18:30" in the app language and the 12/24-hour setting: today and tomorrow
+ * through a string (the translation places the time), other days from one CLDR skeleton (the locale orders the
+ * weekday, date and time and picks the joiner).
+ */
+private fun whenText(context: Context, millis: Long, nowMillis: Long = System.currentTimeMillis()): String {
+    val zone = ZoneId.systemDefault()
+    val day = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+    val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+    return when (day) {
+        today -> context.getString(R.string.sch_when_today, AppLocaleText.time(context, millis))
+        today.plusDays(1) -> context.getString(R.string.sch_when_tomorrow, AppLocaleText.time(context, millis))
+        else -> AppLocaleText.format(context, "EEEdMMM" + AppLocaleText.hourSkeleton(context), millis)
+    }
 }
 
 /**

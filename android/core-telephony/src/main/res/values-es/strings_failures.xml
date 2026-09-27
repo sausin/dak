@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Why a message could not be sent or downloaded, shown under a failed bubble, in the composer's "Could not send"
+    snackbar and in broadcast / scheduled-send details. One string per app.dak.telephony.Failure entry, named
+    dak_telephony_fail_<entry in lower case>, with the entry's English text: FailureReasonsTest checks both.
+    Keep them short (one line under a message bubble). docs/i18n.md.
+-->
+<resources>
+    <string name="dak_telephony_fail_message_empty">El mensaje está vacío</string>
+    <string name="dak_telephony_fail_no_recipient">Sin destinatario</string>
+    <string name="dak_telephony_fail_not_default_app">Dak no es la app de SMS predeterminada</string>
+    <string name="dak_telephony_fail_waiting_not_default_app">En espera: Dak no es la app de SMS predeterminada</string>
+    <string name="dak_telephony_fail_save_failed_not_default">No se pudo guardar el mensaje; ¿Dak es la app de SMS predeterminada?</string>
+    <string name="dak_telephony_fail_conversation_failed_not_default">No se pudo abrir la conversación; ¿Dak es la app de SMS predeterminada?</string>
+    <string name="dak_telephony_fail_emergency_refused">El teléfono rechazó enviar el mensaje de emergencia</string>
+    <string name="dak_telephony_fail_message_not_found">No se encontró el mensaje</string>
+    <string name="dak_telephony_fail_send_interrupted">Se interrumpió el envío; toca para reintentar</string>
+    <!-- %1$d = size of the message in KB, %2$d = the carrier's limit in KB -->
+    <string name="dak_telephony_fail_mms_too_large_for_carrier">Demasiado grande para este operador: %1$d KB (límite %2$d KB)</string>
+    <string name="dak_telephony_fail_sms_sent">Enviado</string>
+    <string name="dak_telephony_fail_sms_failed">Error al enviar</string>
+    <string name="dak_telephony_fail_sms_radio_off">La radio móvil está desactivada (modo avión o la otra SIM está ocupada)</string>
+    <string name="dak_telephony_fail_sms_not_encoded">No se pudo codificar el mensaje</string>
+    <string name="dak_telephony_fail_sms_no_service">Sin servicio móvil</string>
+    <string name="dak_telephony_fail_sms_limit_exceeded">Demasiados mensajes enviados; esperando para reintentar</string>
+    <string name="dak_telephony_fail_sms_fdn_blocked">Bloqueado por los números de marcación fija</string>
+    <string name="dak_telephony_fail_sms_short_code_not_allowed">No se permite enviar a este número corto</string>
+    <string name="dak_telephony_fail_sms_radio_not_available">La radio móvil no está disponible</string>
+    <string name="dak_telephony_fail_sms_network_reject">La red rechazó el mensaje</string>
+    <string name="dak_telephony_fail_sms_bad_format">No se pudo enviar el mensaje en este formato</string>
+    <string name="dak_telephony_fail_sms_invalid_smsc">El número del centro de mensajes de la SIM no es válido</string>
+    <string name="dak_telephony_fail_sms_not_allowed">No se permite enviar en este momento</string>
+    <string name="dak_telephony_fail_sms_cancelled">Se canceló el envío</string>
+    <string name="dak_telephony_fail_sms_not_supported">Esta SIM no admite el envío</string>
+    <string name="dak_telephony_fail_sms_temporary_error">Error temporal del teléfono</string>
+    <string name="dak_telephony_fail_sms_network_error">Error de red</string>
+    <!-- %1$d = the phone's numeric error code -->
+    <string name="dak_telephony_fail_sms_unknown_code">Error al enviar (código %1$d)</string>
+    <string name="dak_telephony_fail_sms_not_delivered">No entregado</string>
+    <!-- %1$d = parts sent, %2$d = parts in the message -->
+    <string name="dak_telephony_fail_sms_partial">Solo se enviaron %1$d de %2$d partes. Al reintentar se vuelve a enviar el mensaje completo, así que el destinatario podría ver una parte dos veces</string>
+    <string name="dak_telephony_fail_mms_ok">OK</string>
+    <string name="dak_telephony_fail_mms_failed">Error de MMS</string>
+    <string name="dak_telephony_fail_mms_invalid_apn">Falta la configuración de MMS (APN) de esta SIM o no es válida</string>
+    <string name="dak_telephony_fail_mms_cannot_connect">No se pudo conectar con el servidor MMS del operador</string>
+    <string name="dak_telephony_fail_mms_http_failure">El servidor MMS del operador devolvió un error</string>
+    <string name="dak_telephony_fail_mms_io_error">Error de red al transferir el MMS</string>
+    <string name="dak_telephony_fail_mms_retry_later">El operador pidió reintentar más tarde</string>
+    <string name="dak_telephony_fail_mms_not_configured">MMS no está configurado para esta SIM</string>
+    <string name="dak_telephony_fail_mms_no_data">No hay conexión de datos móviles para MMS</string>
+    <string name="dak_telephony_fail_mms_sim_unavailable">La SIM de este mensaje no está disponible</string>
+    <string name="dak_telephony_fail_mms_sim_inactive">La SIM de este mensaje está inactiva</string>
+    <string name="dak_telephony_fail_mms_data_off">Los datos móviles están desactivados</string>
+    <string name="dak_telephony_fail_mms_disabled_by_carrier">El operador desactivó MMS</string>
+    <!-- %1$d = the phone's numeric error code -->
+    <string name="dak_telephony_fail_mms_unknown_code">Error de MMS (código %1$d)</string>
+    <!-- %1$s = one of the MMS failure reasons above, %2$d = HTTP status code from the carrier's server (e.g. 404) -->
+    <string name="dak_telephony_fail_mms_with_http_status">%1$s (HTTP %2$d)</string>
+    <string name="dak_telephony_fail_mms_tap_to_download">Toca para descargar</string>
+    <string name="dak_telephony_fail_mms_tap_to_download_large">Mensaje muy grande: toca para descargar</string>
+    <string name="dak_telephony_fail_mms_tap_to_download_roaming">Roaming: toca para descargar</string>
+    <string name="dak_telephony_fail_mms_tap_to_download_many">Muchos mensajes a la vez: toca para descargar</string>
+    <string name="dak_telephony_fail_mms_not_downloaded">Aún no descargado</string>
+    <string name="dak_telephony_fail_mms_expired">Caducó en el servidor del operador</string>
+    <string name="dak_telephony_fail_mms_invalid_link">Enlace de descarga no válido</string>
+    <string name="dak_telephony_fail_mms_timed_out">Se agotó el tiempo de espera del operador</string>
+    <string name="dak_telephony_fail_mms_save_failed">No se pudo guardar el mensaje</string>
+    <string name="dak_telephony_fail_mms_too_large">El mensaje es demasiado grande</string>
+    <string name="dak_telephony_fail_mms_empty_response">El operador devolvió un mensaje vacío</string>
+    <string name="dak_telephony_fail_mms_unreadable">MMS ilegible</string>
+    <string name="dak_telephony_fail_mms_unexpected_response">Respuesta inesperada del operador</string>
+    <string name="dak_telephony_fail_mms_carrier_could_not_deliver">El operador no pudo entregar este mensaje</string>
+    <string name="dak_telephony_fail_birthday_already_wished">Ya se felicitó este año</string>
+    <string name="dak_telephony_fail_birthday_wishes_off">Felicitaciones de cumpleaños desactivadas</string>
+    <string name="dak_telephony_fail_birthday_asked">Se preguntó primero al usuario</string>
+    <string name="dak_telephony_fail_birthday_no_app_lock">Sin bloqueo de la app: se preguntó al usuario</string>
+    <string name="dak_telephony_fail_birthday_daily_limit">Límite diario de envíos automáticos: se preguntó al usuario</string>
+    <string name="dak_telephony_fail_scheduled_premium_refused">Número de tarifa premium no aprobado</string>
+    <string name="dak_telephony_fail_scheduled_no_app_lock">No se había configurado el bloqueo de la app</string>
+    <string name="dak_telephony_fail_scheduled_emergency_cancelled">No se permiten mensajes programados a números de emergencia</string>
+</resources>

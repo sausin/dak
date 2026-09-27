@@ -5,7 +5,6 @@ import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.text.format.DateFormat
-import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -67,11 +66,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.dak.R
+import app.dak.automation.AppLocaleText
 import app.dak.automation.ForwardingHold
 import app.dak.automation.ForwardingStatusNotifier
 import app.dak.automation.RuleEntry
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.forwarding.ForwardingStatus
+import app.dak.automations.presets.Presets
+import app.dak.automations.rule.ActionSpec
 import app.dak.automations.rule.RelayChannel
 import app.dak.automations.rule.isExpired
 import app.dak.automations.safety.ValidationIssue
@@ -88,6 +90,7 @@ import app.dak.ui.common.LockChip
 import app.dak.ui.common.WarningBanner
 import app.dak.ui.common.categoryLabel
 import app.dak.ui.common.rememberRelativeTimeFormatter
+import app.dak.ui.common.simName
 import app.dak.ui.forwarding.AppLockNeededDialog
 import app.dak.ui.settings.UpgradeSheet
 import app.dak.ui.theme.DakTheme
@@ -137,10 +140,7 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         pickDateTime(context, send.sendAtMillis) { at ->
             viewModel.moveScheduled(send, at) { moved ->
                 val text = if (moved) {
-                    context.getString(
-                        R.string.sched_moved,
-                        DateUtils.formatDateTime(context, at, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME),
-                    )
+                    context.getString(R.string.sched_moved, AppLocaleText.dateTime(context, at))
                 } else {
                     context.getString(R.string.sched_time_in_past)
                 }
@@ -177,7 +177,7 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             DakTopAppBar(title = stringResource(R.string.scr_automations_title), onBack = { navigator.back() }) {
-                TextButton(onClick = { viewModel.addPresets() }) { Text(stringResource(R.string.scr_auto_add_examples)) }
+                TextButton(onClick = { viewModel.addPresets { id -> presetName(context, id) } }) { Text(stringResource(R.string.scr_auto_add_examples)) }
             }
         },
         floatingActionButton = {
@@ -325,7 +325,7 @@ fun AutomationsScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                 onChange = { editing = it },
                 onLocked = { upgradeFor = it },
                 onSave = {
-                    when (val check = viewModel.trySave(draft)) {
+                    when (val check = viewModel.trySave(draft, defaultRuleName(context, draft))) {
                         SaveCheck.Saved -> editing = null
                         SaveCheck.Incomplete -> issues = listOf(ValidationIssue.NoActions)
                         is SaveCheck.Invalid -> issues = check.issues
@@ -433,11 +433,59 @@ private fun describe(entry: RuleEntry): String {
     if (spec != null) {
         val now = System.currentTimeMillis()
         val line = ForwardingStatusNotifier.summaryLine(context, spec, now)
-        return if (spec.status(now) == ForwardingStatus.ENDED) "$ended · $line" else line
+        return if (spec.status(now) == ForwardingStatus.ENDED) stringResource(R.string.fw_status_with_period, ended, line) else line
     }
-    val actions = rule.actions.joinToString { it::class.simpleName.orEmpty() }
+    val actions = AppLocaleText.list(context, rule.actions.map { actionSpecLabel(it) }.distinct())
     return stringResource(R.string.scr_auto_rule_summary, actions)
 }
+
+/** What an action does, for a rule's summary ("Does: Add label and Notify me"); never the Kotlin type name. */
+@Composable
+private fun actionSpecLabel(action: ActionSpec): String = stringResource(
+    when (action) {
+        is ActionSpec.Label -> R.string.scr_auto_action_label
+        ActionSpec.Archive -> R.string.scr_auto_action_archive
+        is ActionSpec.Notify -> R.string.scr_auto_action_notify
+        is ActionSpec.ForwardSms -> R.string.scr_auto_action_forward
+        is ActionSpec.ScheduleReply -> R.string.scr_auto_action_reply
+        is ActionSpec.LaunchIntent -> R.string.scr_auto_action_open
+        ActionSpec.Delete -> R.string.scr_auto_action_delete
+        is ActionSpec.Webhook -> R.string.scr_auto_action_webhook
+        is ActionSpec.RelayToWebClient -> R.string.scr_auto_action_web_client
+        is ActionSpec.RelayRule -> R.string.scr_auto_action_relay
+        is ActionSpec.Unknown -> R.string.scr_auto_action_unknown
+    },
+)
+
+/** The name a rule saved without one gets, from its action ("Forward to +91…"), in the app language. */
+private fun defaultRuleName(context: Context, draft: RuleDraft): String = when (draft.action) {
+    ActionKind.LABEL -> context.getString(R.string.scr_auto_default_name_label, draft.label.trim())
+    ActionKind.ARCHIVE -> context.getString(R.string.scr_auto_default_name_archive)
+    ActionKind.NOTIFY -> context.getString(R.string.scr_auto_default_name_notify)
+    ActionKind.FORWARD_SMS -> context.getString(R.string.scr_auto_default_name_forward, draft.forwardTo.trim())
+    ActionKind.SCHEDULE_REPLY -> context.getString(R.string.scr_auto_default_name_reply)
+    ActionKind.DELETE -> context.getString(R.string.scr_auto_default_name_delete)
+    ActionKind.OPEN_LINK -> context.getString(R.string.scr_auto_default_name_open)
+    ActionKind.WEBHOOK -> context.getString(R.string.scr_auto_default_name_webhook)
+    ActionKind.RELAY -> context.getString(R.string.scr_auto_default_name_relay, draft.forwardTo.trim())
+}
+
+/** A built-in preset's name in the app language, by preset id; null (keep the English name) for an unknown id. */
+private fun presetName(context: Context, id: String): String? = when (id) {
+    Presets.ID_ARCHIVE_OLD_PROMOTIONS -> context.getString(R.string.preset_archive_old_promotions_name)
+    Presets.ID_LABEL_AMAZON_DELIVERIES -> context.getString(R.string.preset_label_amazon_deliveries_name)
+    Presets.ID_OTP_BIG_NOTIFICATION -> context.getString(R.string.preset_otp_big_notification_name)
+    else -> null
+}
+
+@Composable
+private fun relayChannelLabel(channel: RelayChannel): String = stringResource(
+    when (channel) {
+        RelayChannel.SMS -> R.string.scr_auto_relay_channel_sms
+        RelayChannel.WHATSAPP_ONE_TAP -> R.string.scr_auto_relay_channel_whatsapp
+        RelayChannel.WEBHOOK -> R.string.scr_auto_relay_channel_webhook
+    },
+)
 
 @Composable
 private fun ScheduledRow(
@@ -456,12 +504,13 @@ private fun ScheduledRow(
             ListItemDefaults.colors()
         },
         leadingContent = { Icon(Icons.Outlined.Schedule, contentDescription = null) },
-        headlineContent = { Text(send.addresses.joinToString(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        headlineContent = { Text(AppLocaleText.list(LocalContext.current, send.addresses), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Column {
                 Text(send.body, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val at = formatter.formatAbsolute(send.sendAtMillis)
                 Text(
-                    formatter.formatAbsolute(send.sendAtMillis) + (sim?.let { " · " + it.displayName }.orEmpty()),
+                    if (sim == null) at else stringResource(R.string.scr_auto_sched_when_sim, at, simName(sim)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -542,7 +591,7 @@ private fun RuleEditor(
                     FilterChip(
                         selected = draft.simSlot == sim.slotIndex,
                         onClick = { onChange(draft.copy(simSlot = sim.slotIndex)) },
-                        label = { Text(stringResource(R.string.sim_n, (sim.slotIndex + 1).toString())) },
+                        label = { Text(stringResource(R.string.sim_n, sim.slotIndex + 1)) },
                     )
                 }
             }
@@ -582,7 +631,7 @@ private fun RuleEditor(
                 if (draft.action == ActionKind.RELAY) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         RelayChannel.entries.forEach { ch ->
-                            FilterChip(selected = draft.relayChannel == ch, onClick = { onChange(draft.copy(relayChannel = ch)) }, label = { Text(ch.name) })
+                            FilterChip(selected = draft.relayChannel == ch, onClick = { onChange(draft.copy(relayChannel = ch)) }, label = { Text(relayChannelLabel(ch)) })
                         }
                     }
                 } else {
@@ -623,7 +672,7 @@ private fun SendSimPicker(draft: RuleDraft, sims: List<SimInfo>, onChange: (Rule
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         FilterChip(selected = draft.sendSubId == null, onClick = { onChange(draft.copy(sendSubId = null)) }, label = { Text(stringResource(R.string.scr_auto_default_sim)) })
         sims.forEach { sim ->
-            FilterChip(selected = draft.sendSubId == sim.subId, onClick = { onChange(draft.copy(sendSubId = sim.subId)) }, label = { Text(sim.displayName) })
+            FilterChip(selected = draft.sendSubId == sim.subId, onClick = { onChange(draft.copy(sendSubId = sim.subId)) }, label = { Text(simName(sim)) })
         }
     }
 }

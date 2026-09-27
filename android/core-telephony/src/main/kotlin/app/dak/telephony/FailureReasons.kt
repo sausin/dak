@@ -13,7 +13,8 @@ import java.util.Locale
  *
  * Adding a reason: add an entry with its English text (a `String.format` pattern when it takes arguments), a
  * `dak_telephony_fail_<name in lower case>` string with the same text in res/values/strings_failures.xml, and its
- * line in [FailureReasonText]; FailureReasonsTest checks all three agree.
+ * line in [FailureReasonText]; FailureReasonsTest checks all three agree (new strings may also live in
+ * res/values/strings_l10n_core.xml).
  */
 enum class Failure(val english: String) {
     // Before sending
@@ -82,12 +83,45 @@ enum class Failure(val english: String) {
     MMS_SAVE_FAILED("Could not save the message"),
     MMS_TOO_LARGE("The message is too large"),
     MMS_EMPTY_RESPONSE("The carrier returned an empty message"),
-    MMS_UNREADABLE("Unreadable MMS: %1\$s"),
+    // The decoder's (English) detail goes to the log only; reasons stored with it by older versions still decode.
+    MMS_UNREADABLE("Unreadable MMS"),
     MMS_UNEXPECTED_RESPONSE("Unexpected response from the carrier"),
     MMS_CARRIER_COULD_NOT_DELIVER("The carrier could not deliver this message"),
+
+    // MMSC X-Mms-Response-Status of a rejected send (mms/MmscStatusReasons), English as ResponseStatus.describe has it
+    MMSC_SERVICE_DENIED("Service denied"),
+    MMSC_FORMAT_CORRUPT("Message format corrupt"),
+    MMSC_ADDRESS_UNRESOLVED("Recipient address not resolved"),
+    MMSC_MESSAGE_NOT_FOUND("Message not found"),
+    MMSC_NETWORK_PROBLEM("Network problem"),
+    MMSC_CONTENT_NOT_ACCEPTED("Content not accepted"),
+    MMSC_UNSUPPORTED_MESSAGE("Unsupported message"),
+    MMSC_REPLY_CHARGING_LIMITATIONS("Reply charging limitations not met"),
+    MMSC_REPLY_CHARGING_REJECTED("Reply charging request not accepted"),
+    MMSC_REPLY_CHARGING_FORWARDING_DENIED("Reply charging forwarding denied"),
+    MMSC_REPLY_CHARGING_NOT_SUPPORTED("Reply charging not supported"),
+    MMSC_ADDRESS_HIDING_NOT_SUPPORTED("Address hiding not supported"),
+    MMSC_LACK_OF_PREPAID_CREDIT("Lack of prepaid credit"),
+    MMSC_TEMPORARY_FAILURE("Temporary MMSC failure (0x%1\$s)"),
+    MMSC_ERROR("MMSC error (0x%1\$s)"),
+
+    // Birthday wishes not sent (app BirthdaySendGate); the wish is closed, or a prompt is posted instead
+    BIRTHDAY_ALREADY_WISHED("Already wished this year"),
+    BIRTHDAY_WISHES_OFF("Birthday wishes turned off"),
+    BIRTHDAY_ASKED("Asked the user first"),
+    BIRTHDAY_NO_APP_LOCK("No app lock: asked the user"),
+    BIRTHDAY_DAILY_LIMIT("Daily unattended limit: asked the user"),
+
+    // Scheduled sends not sent (app ScheduledSendExecutor); older versions stored the English text of each
+    SCHEDULED_PREMIUM_REFUSED("Premium-rate number not approved"),
+    SCHEDULED_NO_APP_LOCK("No app lock was set up"),
+    SCHEDULED_EMERGENCY_CANCELLED("Scheduled texts to emergency numbers are not allowed"),
     ;
 
-    /** Name of the string resource with this reason's text (core-telephony res/values/strings_failures.xml). */
+    /**
+     * Name of the string resource with this reason's text (core-telephony res/values/strings_failures.xml, or
+     * strings_l10n_core.xml for the MMSC statuses).
+     */
     val resourceName: String get() = "dak_telephony_fail_${name.lowercase()}"
 }
 
@@ -127,6 +161,8 @@ object FailureReasons {
         val expected = argCount(failure.english)
         // A free-text last argument may itself contain '|': join the surplus back.
         if (rest.size > expected && expected > 0) rest = rest.take(expected - 1) + rest.drop(expected - 1).joinToString("|")
+        // A reason that no longer takes arguments (MMS_UNREADABLE kept a decoder detail before): drop the old ones.
+        if (expected == 0) rest = emptyList()
         if (rest.size != expected) return null
         return FailureReason(failure, rest.map { it.toIntOrNull() ?: it }, http)
     }

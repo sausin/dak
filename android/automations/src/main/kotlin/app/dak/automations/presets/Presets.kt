@@ -12,9 +12,14 @@ import java.time.ZoneId
 /**
  * A handful of built-in example rules, exportable/importable via `app.dak.automations.rule.RuleCodec`
  * (they are ordinary [Rule]s; nothing about them is special once created). `:app` offers them as
- * one-tap starting points in the automations UI.
+ * one-tap starting points in the automations UI. The names here are English; `:app` passes the name in the app
+ * language for each preset id ([all]'s `localizedName`), and a saved preset keeps the name it was saved with.
  */
 public object Presets {
+
+    public const val ID_ARCHIVE_OLD_PROMOTIONS: String = "preset-archive-old-promotions"
+    public const val ID_LABEL_AMAZON_DELIVERIES: String = "preset-label-amazon-deliveries"
+    public const val ID_OTP_BIG_NOTIFICATION: String = "preset-otp-big-notification"
 
     /**
      * Archives promotional messages on arrival. "Older than N days" (as named in the build plan) is a
@@ -24,7 +29,7 @@ public object Presets {
      * runs in (the device's by default).
      */
     public fun archiveOldPromotions(now: Long, zoneId: String = ZoneId.systemDefault().id): Rule = Rule(
-        id = "preset-archive-old-promotions",
+        id = ID_ARCHIVE_OLD_PROMOTIONS,
         name = "Archive promotions older than 14 days",
         trigger = Trigger.Schedule(
             ScheduleSpec.Recurring(Recurrence.Daily(hour = 3, minute = 0, zoneId = zoneId)),
@@ -37,7 +42,7 @@ public object Presets {
 
     /** Labels messages that look like an Amazon delivery/order update. */
     public fun labelAmazonDeliveries(now: Long): Rule = Rule(
-        id = "preset-label-amazon-deliveries",
+        id = ID_LABEL_AMAZON_DELIVERIES,
         name = "Label Amazon deliveries",
         trigger = Trigger.MessageReceived(),
         conditions = Condition.Any(
@@ -53,7 +58,7 @@ public object Presets {
 
     /** Sends a large, tap-to-copy-friendly notification for every OTP (mirrors the most-requested SMS Organizer feature). */
     public fun otpBigNotification(now: Long): Rule = Rule(
-        id = "preset-otp-big-notification",
+        id = ID_OTP_BIG_NOTIFICATION,
         name = "Loud, big OTP notification",
         trigger = Trigger.MessageReceived(),
         conditions = Condition.HasOtp,
@@ -62,9 +67,13 @@ public object Presets {
         updatedAt = now,
     )
 
-    public fun all(now: Long): List<Rule> = listOf(
+    /**
+     * Every preset. [localizedName] gives the display name for a preset id (`:app` reads it from resources); null
+     * keeps the English name.
+     */
+    public fun all(now: Long, localizedName: (id: String) -> String? = { null }): List<Rule> = listOf(
         archiveOldPromotions(now),
         labelAmazonDeliveries(now),
         otpBigNotification(now),
-    )
+    ).map { rule -> localizedName(rule.id)?.takeIf { it.isNotBlank() }?.let { rule.copy(name = it) } ?: rule }
 }

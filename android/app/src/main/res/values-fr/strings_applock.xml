@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App lock: lock screen, PIN pad, confirmations, App lock settings (agent "applock", prefix lock_). -->
+<resources>
+    <!-- Lock screen -->
+    <string name="lock_title">Dak est verrouillé</string>
+    <string name="lock_body_device">Utilisez votre empreinte, votre visage ou le verrouillage de l\'écran du téléphone pour ouvrir vos messages.</string>
+    <string name="lock_unlock_button">Déverrouiller Dak</string>
+    <string name="lock_enter_pin">Saisissez votre code PIN Dak</string>
+    <string name="lock_prompt_title">Déverrouiller Dak</string>
+    <string name="lock_prompt_subtitle">Vos messages restent masqués jusqu\'au déverrouillage</string>
+    <string name="lock_device_unavailable">Le verrouillage de l\'écran du téléphone n\'est pas disponible pour le moment.</string>
+    <string name="lock_biometric_locked_out">Trop de tentatives. Utilisez le verrouillage de l\'écran ou votre code PIN, ou réessayez plus tard.</string>
+    <string name="lock_use_pin">Utiliser le code PIN</string>
+    <string name="lock_use_fingerprint">Utiliser l\'empreinte</string>
+    <string name="lock_cancel">Annuler</string>
+    <string name="lock_unlock_action">Déverrouiller</string>
+
+    <!-- PIN pad -->
+    <string name="lock_pin_delete">Effacer le chiffre</string>
+    <string name="lock_pin_enter">Valider le code</string>
+    <string name="lock_pin_wrong">Code PIN incorrect. Réessayez.</string>
+    <plurals name="lock_pin_wrong_attempts">
+        <item quantity="one">Code PIN incorrect. Encore %1$d essai avant un bref blocage.</item>
+        <item quantity="many">Code PIN incorrect. Encore %1$d essais avant un bref blocage.</item>
+        <item quantity="other">Code PIN incorrect. Encore %1$d essais avant un bref blocage.</item>
+    </plurals>
+    <string name="lock_pin_locked_out">Trop de codes PIN incorrects. Réessayez dans %1$s.</string>
+    <string name="lock_pin_missing">Aucun code PIN d\'application n\'est défini sur ce téléphone.</string>
+
+    <!-- PIN setup -->
+    <string name="lock_setup_title">Choisissez un code PIN pour Dak</string>
+    <string name="lock_setup_hint">4 à 8 chiffres, pas un code évident comme 1234</string>
+    <string name="lock_setup_confirm_title">Saisissez à nouveau le code PIN</string>
+    <string name="lock_setup_confirm_hint">Pour vérifier que vous l\'avez bien saisi</string>
+    <string name="lock_setup_too_easy">Ce code PIN est trop facile à deviner. Choisissez-en un autre.</string>
+    <string name="lock_setup_mismatch">Les codes PIN ne correspondent pas. Recommencez.</string>
+    <string name="lock_setup_invalid">Utilisez 4 à 8 chiffres.</string>
+
+    <!-- Sensitive screens -->
+    <string name="lock_sensitive_prompt">Déverrouiller %1$s</string>
+    <string name="lock_sensitive_title">Cet écran est protégé</string>
+    <string name="lock_sensitive_body">Déverrouillez pour l\'afficher. Vous pouvez modifier ce réglage dans Paramètres → Verrouillage de l\'application.</string>
+
+    <!-- Onboarding -->
+    <string name="lock_onboarding_title">Protégez Dak avec le verrouillage de l\'application</string>
+    <string name="lock_onboarding_body">Recommandé : vos messages contiennent des alertes bancaires et des codes à usage unique. Demandez votre empreinte, votre visage ou un code PIN à chaque ouverture de Dak.</string>
+    <string name="lock_onboarding_done">Le verrouillage de l\'application est activé. Modifiez-le à tout moment dans Paramètres → Verrouillage de l\'application.</string>
+    <string name="lock_onboarding_button">Activer le verrouillage</string>
+
+    <!-- App lock settings -->
+    <string name="lock_settings_title">Verrouillage de l\'application</string>
+    <string name="lock_status_ready">L\'empreinte ou le visage enregistrés sur votre téléphone, ainsi que son verrouillage de l\'écran, peuvent déverrouiller Dak.</string>
+    <string name="lock_status_no_biometric">Aucune empreinte ni aucun visage n\'est configuré sur ce téléphone ; Dak demandera donc le code, le schéma ou le mot de passe du téléphone. Vous pouvez en ajouter un dans les paramètres système.</string>
+    <string name="lock_status_no_screen_lock">Ce téléphone n\'a pas de verrouillage de l\'écran. Configurez-en un dans les paramètres système, ou protégez Dak avec son propre code PIN.</string>
+    <string name="lock_open_security_settings">Ouvrir les paramètres de sécurité</string>
+    <string name="lock_toggle_title">Verrouillage de l\'application</string>
+    <string name="lock_toggle_on">Dak vous demande de le déverrouiller avant d\'afficher les messages</string>
+    <string name="lock_toggle_off">Désactivé. Toute personne utilisant votre téléphone déverrouillé peut lire vos messages dans Dak.</string>
+    <string name="lock_method_label">Déverrouiller avec</string>
+    <string name="lock_method_device">Verrouillage de l\'écran du téléphone</string>
+    <string name="lock_method_device_summary">Empreinte ou visage, ou code, schéma ou mot de passe du téléphone</string>
+    <string name="lock_method_device_no_biometric">Code, schéma ou mot de passe du téléphone</string>
+    <string name="lock_method_device_unavailable">Configurez d\'abord un verrouillage de l\'écran sur votre téléphone</string>
+    <string name="lock_method_pin">Code PIN de l\'application</string>
+    <string name="lock_method_pin_summary">Un code PIN distinct de 4 à 8 chiffres, réservé à Dak</string>
+    <string name="lock_method_fallback">La méthode choisie n\'est pas disponible sur ce téléphone pour le moment ; Dak utilise donc l\'autre.</string>
+    <string name="lock_set_pin">Définir le code PIN de l\'application</string>
+    <string name="lock_set_pin_summary">Aucun code PIN d\'application n\'est encore enregistré sur ce téléphone</string>
+    <string name="lock_change_pin">Modifier le code PIN de l\'application</string>
+    <string name="lock_change_pin_summary">Choisir un nouveau code PIN pour Dak</string>
+    <string name="lock_remove_pin">Supprimer le code PIN de l\'application</string>
+    <string name="lock_remove_pin_summary">Ne plus utiliser de code PIN distinct pour Dak</string>
+    <string name="lock_fingerprint_title">Utiliser l\'empreinte au lieu du code PIN</string>
+    <string name="lock_fingerprint_summary">Déverrouiller avec une empreinte ou le visage ; le code PIN de l\'application fonctionne toujours en cas d\'échec de lecture</string>
+    <string name="lock_fingerprint_enroll_hint">Ajoutez une empreinte dans les paramètres système pour l\'utiliser à la place du code PIN de l\'application.</string>
+    <string name="lock_when_label">Quand verrouiller</string>
+    <string name="lock_auto_title">Verrouillage automatique</string>
+    <string name="lock_auto_immediately">Dès que vous quittez Dak</string>
+    <string name="lock_auto_30s">30 secondes après avoir quitté Dak</string>
+    <string name="lock_auto_1m">1 minute après avoir quitté Dak</string>
+    <string name="lock_auto_5m">5 minutes après avoir quitté Dak</string>
+    <string name="lock_auto_15m">15 minutes après avoir quitté Dak</string>
+    <string name="lock_screen_off_title">Verrouiller quand l\'écran s\'éteint</string>
+    <string name="lock_screen_off_summary">Quel que soit le délai de verrouillage automatique</string>
+    <string name="lock_recents_title">Masquer le contenu dans les apps récentes</string>
+    <string name="lock_recents_summary">Bloque aussi les captures d\'écran de Dak</string>
+    <string name="lock_recents_when_on">Quand le verrouillage de l\'application est activé</string>
+    <string name="lock_recents_always">Toujours</string>
+    <string name="lock_recents_never">Jamais</string>
+    <string name="lock_sensitive_setting_title">Protéger les écrans sensibles</string>
+    <string name="lock_sensitive_setting_summary">Demander le déverrouillage avant d\'ouvrir la corbeille, le relevé, la sauvegarde, les automatisations et le transfert, même si le verrouillage de l\'application est désactivé</string>
+    <string name="lock_notifications_info">Lorsque le verrouillage de l\'application est activé, « Copier le code » et « Marquer comme lu » fonctionnent toujours depuis les notifications. « Répondre » et « Supprimer » ouvrent Dak pour que vous le déverrouilliez d\'abord.</string>
+    <string name="lock_privacy_full_warning">Les notifications sur l\'écran de verrouillage affichent les messages en entier. Modifiez ce réglage dans Notifications → Confidentialité sur l\'écran de verrouillage.</string>
+    <string name="lock_privacy_switched">Les notifications sur l\'écran de verrouillage masquent désormais le texte des messages. Vous pouvez modifier ce réglage dans Notifications.</string>
+    <string name="lock_needs_screen_lock">Configurez d\'abord un verrouillage de l\'écran sur votre téléphone, ou utilisez un code PIN d\'application.</string>
+    <string name="lock_confirm_change_title">Confirmez votre identité</string>
+    <string name="lock_verify_device_title">Confirmez votre verrouillage de l\'écran</string>
+    <string name="lock_verify_fingerprint_title">Confirmez votre empreinte</string>
+    <string name="lock_now">Verrouiller maintenant</string>
+
+    <!-- Turning app lock off while automations that send messages are on -->
+    <string name="lock_outbound_off_title">Désactiver le verrouillage de l\'application ?</string>
+    <string name="lock_outbound_pin_title">Supprimer le code PIN de l\'application ?</string>
+    <plurals name="lock_outbound_off_body">
+        <item quantity="one">Cette automatisation envoie des messages depuis votre téléphone et sera désactivée :</item>
+        <item quantity="many">Ces %1$d automatisations envoient des messages depuis votre téléphone et seront désactivées :</item>
+        <item quantity="other">Ces %1$d automatisations envoient des messages depuis votre téléphone et seront désactivées :</item>
+    </plurals>
+    <plurals name="lock_outbound_more">
+        <item quantity="one">et %1$d autre</item>
+        <item quantity="many">et %1$d autres</item>
+        <item quantity="other">et %1$d autres</item>
+    </plurals>
+    <string name="lock_outbound_off_why">Le transfert et l\'envoi automatique nécessitent le verrouillage de l\'application, afin que personne d\'autre utilisant votre téléphone ne puisse les modifier pour s\'envoyer vos messages bancaires et vos codes. Vous pourrez les réactiver après avoir configuré le verrouillage de l\'application.</string>
+    <string name="lock_outbound_off_confirm">Désactiver le verrouillage et les automatisations</string>
+    <string name="lock_outbound_pin_confirm">Supprimer le code PIN et les automatisations</string>
+</resources>

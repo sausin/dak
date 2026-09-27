@@ -37,12 +37,11 @@ data class SectionState(
     val rows: List<RowState>,
     val advanced: List<RowState>,
 ) {
-    /** Up to three current values for the section's overview line ("24 hours · Sender only"). */
-    val inlineSummary: String
-        get() = rows.asSequence()
-            .filter { !it.locked && it.def.control !is ControlType.Action && it.valueLabel != null }
-            .take(3)
-            .joinToString(" · ") { "${it.title}: ${it.valueLabel}" }
+    /** Up to three current values for the section's overview line ("Auto-delete: 24 hours · …"), in [labels]' language. */
+    fun inlineSummary(labels: SettingsLabels): String = rows.asSequence()
+        .filter { !it.locked && it.def.control !is ControlType.Action && it.valueLabel != null }
+        .take(3)
+        .joinToString(" · ") { labels.inlineValue(it.title, it.valueLabel.orEmpty()) }
 }
 
 data class SearchHit(val row: RowState, val sectionId: String, val sectionTitle: String)
@@ -63,8 +62,8 @@ internal fun sectionIdOf(def: SettingDef<*>, isAppearance: Boolean): String =
 internal fun valueLabel(def: SettingDef<*>, raw: String, labels: SettingsLabels = SettingsLabels.English): String? = when (val control = def.control) {
     is ControlType.Toggle -> labels.onOff(raw.toBooleanStrictOrNull() == true)
     is ControlType.SingleChoice -> control.options.firstOrNull { it.value == raw }?.let { labels.option(def, it) } ?: raw
-    is ControlType.Slider -> raw
-    is ControlType.Text -> raw.ifBlank { null }
+    is ControlType.Slider -> raw.toIntOrNull()?.let { labels.sliderValue(def, it) } ?: raw
+    is ControlType.Text -> raw.ifBlank { labels.blankText(def) }
     is ControlType.Action -> null
 }
 

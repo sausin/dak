@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Broadcast and birthday i18n fixes: plurals and composed lines (workstream "broadcast"). -->
+<resources>
+    <plurals name="bc_sent_snack">
+        <item quantity="one">Enviando a %d persona</item>
+        <item quantity="many">Enviando a %d personas</item>
+        <item quantity="other">Enviando a %d personas</item>
+    </plurals>
+    <plurals name="bc_scheduled_snack">
+        <item quantity="one">Programado para %d persona</item>
+        <item quantity="many">Programado para %d personas</item>
+        <item quantity="other">Programado para %d personas</item>
+    </plurals>
+    <plurals name="bc_confirm_title">
+        <item quantity="one">¿Enviar a %d persona?</item>
+        <item quantity="many">¿Enviar a %d personas?</item>
+        <item quantity="other">¿Enviar a %d personas?</item>
+    </plurals>
+    <plurals name="bc_confirm_title_scheduled">
+        <item quantity="one">¿Programar para %d persona?</item>
+        <item quantity="many">¿Programar para %d personas?</item>
+        <item quantity="other">¿Programar para %d personas?</item>
+    </plurals>
+    <string name="bc_confirm_cost">%1$s (%2$s, %3$s). Se aplican las tarifas habituales de tu operador a cada uno.</string>
+    <plurals name="bc_cost_sms_total">
+        <item quantity="one">%d SMS en total</item>
+        <item quantity="many">%d SMS en total</item>
+        <item quantity="other">%d SMS en total</item>
+    </plurals>
+    <plurals name="bc_cost_parts_each">
+        <item quantity="one">hasta %d parte cada uno</item>
+        <item quantity="many">hasta %d partes cada uno</item>
+        <item quantity="other">hasta %d partes cada uno</item>
+    </plurals>
+    <plurals name="bc_confirm_international">
+        <item quantity="one">%d número internacional: se aplican tarifas de SMS internacionales.</item>
+        <item quantity="many">%d números internacionales: se aplican tarifas de SMS internacionales.</item>
+        <item quantity="other">%d números internacionales: se aplican tarifas de SMS internacionales.</item>
+    </plurals>
+    <string name="bc_excluded_line">%1$s: %2$s</string>
+    <plurals name="bc_problem_too_many">
+        <item quantity="one">%1$d persona recibiría esto, pero una difusión puede llegar como máximo a %2$d. Quita a algunas de la lista primero.</item>
+        <item quantity="many">%1$d personas recibirían esto, pero una difusión puede llegar como máximo a %2$d. Quita a algunas de la lista primero.</item>
+        <item quantity="other">%1$d personas recibirían esto, pero una difusión puede llegar como máximo a %2$d. Quita a algunas de la lista primero.</item>
+    </plurals>
+    <plurals name="bc_problem_daily">
+        <item quantity="one">Límite diario alcanzado: solo puede enviarse %1$d mensaje de difusión más en las próximas 24 horas (límite: %2$d).</item>
+        <item quantity="many">Límite diario alcanzado: solo pueden enviarse %1$d mensajes de difusión más en las próximas 24 horas (límite: %2$d).</item>
+        <item quantity="other">Límite diario alcanzado: solo pueden enviarse %1$d mensajes de difusión más en las próximas 24 horas (límite: %2$d).</item>
+    </plurals>
+    <plurals name="bc_status_delivered">
+        <item quantity="one">%d entregado</item>
+        <item quantity="many">%d entregados</item>
+        <item quantity="other">%d entregados</item>
+    </plurals>
+    <plurals name="bc_status_sent">
+        <item quantity="one">%d enviado</item>
+        <item quantity="many">%d enviados</item>
+        <item quantity="other">%d enviados</item>
+    </plurals>
+    <plurals name="bc_status_pending">
+        <item quantity="one">%d pendiente</item>
+        <item quantity="many">%d pendientes</item>
+        <item quantity="other">%d pendientes</item>
+    </plurals>
+    <plurals name="bc_status_failed">
+        <item quantity="one">%d con error</item>
+        <item quantity="many">%d con error</item>
+        <item quantity="other">%d con error</item>
+    </plurals>
+    <plurals name="bc_edit_over_cap">
+        <item quantity="one">Una lista puede tener como máximo %d persona.</item>
+        <item quantity="many">Una lista puede tener como máximo %d personas.</item>
+        <item quantity="other">Una lista puede tener como máximo %d personas.</item>
+    </plurals>
+    <plurals name="fw_bd_in_days">
+        <item quantity="one">Dentro de %1$d día</item>
+        <item quantity="many">Dentro de %1$d días</item>
+        <item quantity="other">Dentro de %1$d días</item>
+    </plurals>
+    <plurals name="fw_bd_turns">
+        <item quantity="one">cumple %1$d</item>
+        <item quantity="many">cumple %1$d</item>
+        <item quantity="other">cumple %1$d</item>
+    </plurals>
+    <string name="fw_bd_preview_quoted">«%1$s»</string>
+    <string name="fw_bd_lang_hinglish">Hinglish</string>
+</resources>

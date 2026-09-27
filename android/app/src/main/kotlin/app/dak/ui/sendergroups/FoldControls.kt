@@ -1,5 +1,6 @@
 package app.dak.ui.sendergroups
 
+import android.icu.text.ListFormatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import app.dak.R
 import app.dak.index.repo.FoldChannel
 import app.dak.index.repo.FoldTarget
 import app.dak.ui.common.text.BidiText
+import app.dak.ui.common.text.rememberDisplayLocale
 
 /** "All senders / VM-HDFCBK / HDFCBN …" chips above a folded thread; shown only with two or more channels. */
 @Composable
@@ -90,7 +92,7 @@ fun UnfoldChannelDialog(channels: List<FoldChannel>, onPick: (FoldChannel) -> Un
                         val others = channel.addresses.drop(1)
                         if (others.isNotEmpty()) {
                             Text(
-                                stringResource(R.string.fold_channel_also, others.joinToString { BidiText.displaySafe(it) }),
+                                stringResource(R.string.fold_channel_also, ListFormatter.getInstance(rememberDisplayLocale()).format(others.map { BidiText.displaySafe(it) })),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

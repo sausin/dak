@@ -67,8 +67,15 @@
     <string name="dak_telephony_fail_mms_save_failed">Could not save the message</string>
     <string name="dak_telephony_fail_mms_too_large">The message is too large</string>
     <string name="dak_telephony_fail_mms_empty_response">The carrier returned an empty message</string>
-    <!-- %1$s = technical detail from the MMS decoder (English, not translated) -->
-    <string name="dak_telephony_fail_mms_unreadable">Unreadable MMS: %1$s</string>
+    <string name="dak_telephony_fail_mms_unreadable">Unreadable MMS</string>
     <string name="dak_telephony_fail_mms_unexpected_response">Unexpected response from the carrier</string>
     <string name="dak_telephony_fail_mms_carrier_could_not_deliver">The carrier could not deliver this message</string>
+    <string name="dak_telephony_fail_birthday_already_wished">Already wished this year</string>
+    <string name="dak_telephony_fail_birthday_wishes_off">Birthday wishes turned off</string>
+    <string name="dak_telephony_fail_birthday_asked">Asked the user first</string>
+    <string name="dak_telephony_fail_birthday_no_app_lock">No app lock: asked the user</string>
+    <string name="dak_telephony_fail_birthday_daily_limit">Daily unattended limit: asked the user</string>
+    <string name="dak_telephony_fail_scheduled_premium_refused">Premium-rate number not approved</string>
+    <string name="dak_telephony_fail_scheduled_no_app_lock">No app lock was set up</string>
+    <string name="dak_telephony_fail_scheduled_emergency_cancelled">Scheduled texts to emergency numbers are not allowed</string>
 </resources>

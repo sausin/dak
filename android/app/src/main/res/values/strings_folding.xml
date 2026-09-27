@@ -7,7 +7,6 @@
     <string name="fold_empty_body">Senders that share a brand fold together automatically. Long-press conversations in the inbox and choose Fold together to fold others.</string>
     <string name="fold_suggestions_header">Suggestions</string>
     <string name="fold_groups_header">Folded conversations</string>
-    <string name="fold_suggestion_title">These %1$d senders look like %2$s. Fold them into one conversation?</string>
     <string name="fold_suggestion_same_brand">Same brand</string>
     <string name="fold_suggestion_similar">Similar sender names</string>
     <string name="fold_action_fold">Fold</string>
@@ -21,31 +20,32 @@
     <string name="fold_action_unfold_channel">Unfold a sender…</string>
     <string name="fold_action_manage">Sender groups</string>
     <string name="fold_action_select">Select</string>
-    <string name="fold_channels_count">%1$d channels</string>
-    <string name="fold_channel_last_seen">Last message %1$s · %2$d messages</string>
+    <!-- %1$s = list of other sender names, e.g. "HDFCBK and HDFCBN". -->
     <string name="fold_channel_also">Also as %1$s</string>
     <string name="fold_channel_manual">Folded by you</string>
     <string name="fold_group_manual">Your group</string>
     <string name="fold_group_brand">Folded by brand</string>
     <string name="fold_rename_title">Rename group</string>
     <string name="fold_rename_label">Name</string>
-    <string name="fold_name_title">Fold %1$d conversations</string>
     <string name="fold_name_hint">Name the folded conversation (optional)</string>
     <string name="fold_into_title">Fold into</string>
     <string name="fold_into_empty">No other conversations to fold into yet.</string>
     <string name="fold_unfold_title">Unfold a sender</string>
+    <!-- %1$s = the sender group's name. -->
     <string name="fold_dissolve_confirm">Show every sender of %1$s as its own conversation again?</string>
     <string name="fold_snack_folded">Folded</string>
     <string name="fold_snack_unfolded">Unfolded</string>
     <string name="fold_snack_failed">Could not fold these conversations</string>
-    <string name="fold_selected_count">%1$d selected</string>
     <string name="fold_filter_all">All senders</string>
+    <!-- %1$s = the sender name (SMS header) the message came from. -->
     <string name="fold_chip_channel">via %1$s</string>
 
     <!-- Repeated messages -->
     <string name="fold_repeat_chip">×%1$d · last %2$s</string>
+    <!-- Screen reader label. %1$d = number of times received; %2$s = date and time of the last one. -->
     <string name="fold_repeat_chip_description">Received %1$d times, last at %2$s. Tap to show each.</string>
     <string name="fold_repeat_hide">Hide copies</string>
+    <!-- %1$s = date and time received. -->
     <string name="fold_repeat_occurrence">Received %1$s</string>
     <!-- Repeat count badge, e.g. "×3". Symbol and number only: not translated. -->
     <string name="fold_inbox_repeat" translatable="false">×%1$d</string>
@@ -65,5 +65,6 @@
     <string name="fold_alias_merge_empty">No other accounts from this bank.</string>
     <string name="fold_alias_merged_header">Also includes</string>
     <string name="fold_alias_unmerge">Unmerge</string>
+    <!-- A/c = account. %1$s = last digits of the account number. -->
     <string name="fold_alias_account_number">A/c ••%1$s</string>
 </resources>

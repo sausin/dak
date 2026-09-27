@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sender groups (folding) -->
+    <string name="fold_screen_title">Groupes d\'expéditeurs</string>
+    <string name="fold_screen_intro">Les banques, boutiques et transporteurs envoient des SMS depuis de nombreux en-têtes et numéros. Dak les regroupe dans une seule conversation ; dégroupez un canal pour l\'afficher séparément. Vos messages ne sont jamais modifiés.</string>
+    <string name="fold_empty_title">Aucune conversation regroupée pour l\'instant</string>
+    <string name="fold_empty_body">Les expéditeurs d\'une même marque sont regroupés automatiquement. Appuyez de manière prolongée sur des conversations dans la boîte de réception et choisissez « Regrouper » pour en regrouper d\'autres.</string>
+    <string name="fold_suggestions_header">Suggestions</string>
+    <string name="fold_groups_header">Conversations regroupées</string>
+    <string name="fold_suggestion_same_brand">Même marque</string>
+    <string name="fold_suggestion_similar">Noms d\'expéditeurs similaires</string>
+    <string name="fold_action_fold">Regrouper</string>
+    <string name="fold_action_not_now">Pas maintenant</string>
+    <string name="fold_action_rename">Renommer</string>
+    <string name="fold_action_unfold">Dégrouper</string>
+    <string name="fold_action_dissolve">Tout dégrouper</string>
+    <string name="fold_action_open">Ouvrir la conversation</string>
+    <string name="fold_action_fold_together">Regrouper</string>
+    <string name="fold_action_fold_into">Regrouper dans…</string>
+    <string name="fold_action_unfold_channel">Dégrouper un expéditeur…</string>
+    <string name="fold_action_manage">Groupes d\'expéditeurs</string>
+    <string name="fold_action_select">Sélectionner</string>
+    <string name="fold_channel_also">Aussi sous %1$s</string>
+    <string name="fold_channel_manual">Regroupé par vous</string>
+    <string name="fold_group_manual">Votre groupe</string>
+    <string name="fold_group_brand">Regroupé par marque</string>
+    <string name="fold_rename_title">Renommer le groupe</string>
+    <string name="fold_rename_label">Nom</string>
+    <string name="fold_name_hint">Nom de la conversation regroupée (facultatif)</string>
+    <string name="fold_into_title">Regrouper dans</string>
+    <string name="fold_into_empty">Aucune autre conversation dans laquelle regrouper pour l\'instant.</string>
+    <string name="fold_unfold_title">Dégrouper un expéditeur</string>
+    <string name="fold_dissolve_confirm">Afficher de nouveau chaque expéditeur de %1$s dans sa propre conversation ?</string>
+    <string name="fold_snack_folded">Regroupé</string>
+    <string name="fold_snack_unfolded">Dégroupé</string>
+    <string name="fold_snack_failed">Impossible de regrouper ces conversations</string>
+    <string name="fold_filter_all">Tous les expéditeurs</string>
+    <string name="fold_chip_channel">via %1$s</string>
+
+    <!-- Repeated messages -->
+    <string name="fold_repeat_chip">×%1$d · dernier %2$s</string>
+    <string name="fold_repeat_chip_description">Reçu %1$d fois, la dernière fois à %2$s. Appuyez pour afficher chacun.</string>
+    <string name="fold_repeat_hide">Masquer les copies</string>
+    <string name="fold_repeat_occurrence">Reçu %1$s</string>
+
+    <!-- Account alias confirmation -->
+    <string name="fold_alias_question">%1$s est-il identique à %2$s (%3$s) ?</string>
+    <string name="fold_alias_explain">La banque affiche désormais une autre partie du numéro de compte. S\'il s\'agit du même compte, ses messages sont réunis dans un seul registre.</string>
+    <string name="fold_alias_explain_same_digits">Il semble s\'agir d\'un seul compte utilisé de deux façons (par exemple UPI et débits du compte).</string>
+    <string name="fold_alias_same">Même compte</string>
+    <string name="fold_alias_different">Différent</string>
+    <string name="fold_alias_show_messages">Afficher les messages</string>
+    <string name="fold_alias_hide_messages">Masquer les messages</string>
+    <string name="fold_alias_sample_unavailable">Message plus disponible</string>
+    <string name="fold_alias_merged_snack">Fusionné en un seul compte</string>
+    <string name="fold_alias_merge_with">Fusionner avec…</string>
+    <string name="fold_alias_merge_title">Fusionner ce compte avec</string>
+    <string name="fold_alias_merge_empty">Aucun autre compte de cette banque.</string>
+    <string name="fold_alias_merged_header">Comprend aussi</string>
+    <string name="fold_alias_unmerge">Séparer</string>
+    <string name="fold_alias_account_number">Cpte ••%1$s</string>
+</resources>

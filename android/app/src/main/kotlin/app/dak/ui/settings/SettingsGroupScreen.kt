@@ -128,7 +128,7 @@ fun SettingsGroupScreen(navigator: DakNavigator, modifier: Modifier = Modifier, 
                                     Text(stringResource(R.string.settings_advanced), style = MaterialTheme.typography.titleSmall)
                                 },
                                 supportingContent = {
-                                    if (!advancedOpen) Text(section.advanced.joinToString(", ") { it.title })
+                                    if (!advancedOpen) Text(rememberSettingsLabels().list(section.advanced.map { it.title }))
                                 },
                                 trailingContent = {
                                     Icon(

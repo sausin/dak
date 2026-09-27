@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fake credit alert warnings (docs/security/fake-credit-scams.md) -->
+    <string name="scam_notification_title">⚠ Possible fausse alerte de crédit · %1$s</string>
+    <string name="scam_notification_text">Vérifiez dans l\'application de votre banque avant de renvoyer de l\'argent</string>
+    <string name="scam_action_report">Signaler</string>
+    <string name="scam_action_block">Bloquer</string>
+    <string name="scam_toast_blocked">Expéditeur bloqué</string>
+    <string name="scam_toast_block_failed">Impossible de bloquer cet expéditeur</string>
+
+    <string name="scam_banner_title_likely">Possible fausse alerte de crédit</string>
+    <string name="scam_banner_title_suspicious">Méfiez-vous de ce message</string>
+    <string name="scam_banner_claims">Il prétend venir de %1$s.</string>
+    <string name="scam_banner_verify">Vérifiez dans l\'application de votre banque avant de renvoyer de l\'argent.</string>
+    <string name="scam_banner_advice">Les banques ne vous demandent jamais de rembourser de l\'argent vers un numéro de mobile ou un identifiant UPI. Si de l\'argent est vraiment arrivé par erreur, la banque de l\'expéditeur annule l\'opération ; vous n\'avez jamais à le rembourser vous-même.</string>
+    <string name="scam_banner_report">Signaler une fraude</string>
+    <string name="scam_banner_block">Bloquer l\'expéditeur</string>
+    <string name="scam_banner_blocked">Expéditeur bloqué</string>
+    <string name="scam_banner_not_scam">Pas une arnaque</string>
+    <string name="scam_inbox_chip">Arnaque possible</string>
+
+    <!-- One plain-language line per reason (app.dak.classify.scam.ScamReason) -->
+    <string name="scam_reason_phone_credit_alert">Une alerte de crédit bancaire provenant d\'un numéro de mobile personnel. Les vraies banques envoient leurs alertes depuis des noms d\'expéditeur enregistrés, jamais depuis des numéros à 10 chiffres.</string>
+    <string name="scam_reason_phone_debit_alert">Une alerte de débit bancaire provenant d\'un numéro de mobile personnel. Les vraies banques n\'envoient jamais d\'alertes depuis des numéros à 10 chiffres.</string>
+    <string name="scam_reason_phone_claims_bank">Un numéro de mobile se fait passer pour une banque.</string>
+    <string name="scam_reason_unknown_sender_alert">Une alerte financière provenant d\'un expéditeur qui n\'est ni une banque connue ni l\'un de vos contacts.</string>
+    <string name="scam_reason_lookalike_sender">Le nom de l\'expéditeur ressemble seulement à celui d\'une banque. Les vraies alertes bancaires proviennent d\'expéditeurs enregistrés comme XX-HDFCBK-S.</string>
+    <string name="scam_reason_mixed_script_sender">Le nom de l\'expéditeur mélange des lettres ou des chiffres de différents alphabets. Les vrais expéditeurs ne le font jamais ; les imitations, si.</string>
+    <string name="scam_reason_unverified_sender">L\'expéditeur ne fait pas partie des expéditeurs enregistrés de la banque.</string>
+    <string name="scam_reason_unprefixed_header">Il manque au nom de l\'expéditeur le préfixe enregistré que portent les vraies alertes bancaires.</string>
+    <string name="scam_reason_promotional_route">Une alerte de crédit envoyée comme publicité. Les banques envoient leurs alertes sous forme de messages transactionnels.</string>
+    <string name="scam_reason_brand_mismatch">La banque citée dans le message n\'est pas l\'entreprise qui l\'a envoyé.</string>
+    <string name="scam_reason_unknown_account">Le numéro de compte ne correspond à aucun de vos comptes dans cette banque.</string>
+    <string name="scam_reason_no_account_at_bank">Vous ne semblez pas avoir de compte dans cette banque.</string>
+    <string name="scam_reason_return_request">Il vous demande de rembourser de l\'argent \"envoyé par erreur\". C\'est une arnaque courante.</string>
+    <string name="scam_reason_mobile_in_alert">Il contient un numéro de mobile à appeler ou à payer. Les banques ne demandent jamais cela.</string>
+    <string name="scam_reason_payment_handle">Il indique un identifiant UPI ou un lien de paiement pour renvoyer l\'argent.</string>
+    <string name="scam_reason_link_in_alert">Il contient un lien. Les banques n\'envoient pas de liens dans les alertes de crédit.</string>
+    <string name="scam_reason_pin_to_receive">Il demande votre code PIN UPI pour recevoir de l\'argent. Un code PIN n\'est nécessaire que pour payer, jamais pour recevoir.</string>
+    <string name="scam_reason_collect_request">Approuver une \"demande\" pour recevoir de l\'argent envoie en réalité de l\'argent depuis votre compte.</string>
+    <string name="scam_reason_follow_up">Il est arrivé peu après une alerte de crédit suspecte et concerne le même argent.</string>
+    <string name="scam_reason_return_after_credit">Il vous demande de rembourser un crédit récent. Demandez plutôt à l\'expéditeur de contacter sa banque ; ne renvoyez jamais l\'argent vous-même.</string>
+    <string name="scam_link_in_flagged">Ce message ressemble à une fausse alerte de crédit. Ses liens peuvent mener à une page frauduleuse, même si l\'adresse semble authentique.</string>
+</resources>

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.telephony.SubscriptionManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -18,6 +19,8 @@ import app.dak.notifications.NotificationChannels
 import app.dak.notifications.ReliabilityChecker
 import app.dak.notifications.ReliabilityReport
 import app.dak.notifications.SelfTestMonitor
+import app.dak.telephony.Failure
+import app.dak.telephony.FailureReasons
 import app.dak.telephony.MessageSender
 import app.dak.telephony.OutgoingSms
 import app.dak.telephony.SendResult
@@ -144,7 +147,11 @@ class SelfTestViewModel @Inject constructor(
         viewModelScope.launch {
             val result = runCatching {
                 sender.sendSms(OutgoingSms(addresses = listOf(number), body = body, subId = subId, requestDeliveryReport = false))
-            }.getOrElse { SendResult.Failed(it.message ?: it.javaClass.simpleName) }
+            }.getOrElse {
+                // The exception's message is English and technical: log it, show the localized "Sending failed".
+                Log.w("DakSelfTest", "Test SMS failed: ${it.javaClass.simpleName}: ${it.message}")
+                SendResult.Failed(FailureReasons.encode(Failure.SMS_FAILED))
+            }
             when (result) {
                 is SendResult.Queued -> {
                     _state.update { if (it.sms is SmsTestState.Sending) it.copy(sms = SmsTestState.Waiting) else it }

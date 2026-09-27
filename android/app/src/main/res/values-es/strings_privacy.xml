@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings → Privacy: privacy policy, prominent disclosures and consent, export and delete of Dak’s own data. -->
+<resources>
+    <string name="privacy_title">Privacidad</string>
+    <string name="privacy_settings_entry_summary">Política de privacidad, qué puede salir de tu teléfono, exportar o eliminar tus datos de Dak</string>
+    <string name="privacy_summary_title">Tus mensajes se quedan en este teléfono</string>
+    <string name="privacy_summary_body">Dak ordena, busca y guarda tus mensajes en este teléfono. No se envía nada a Dak a menos que actives una de las funciones de abajo, y cada una te lo pregunta primero.</string>
+
+    <string name="privacy_policy_title">Política de privacidad</string>
+    <string name="privacy_policy_summary">Qué hace Dak con tus datos, en lenguaje sencillo</string>
+    <string name="privacy_policy_online">Abrir la última versión en línea</string>
+    <string name="privacy_policy_unavailable">No se pudo cargar la política de privacidad. También está disponible en línea.</string>
+
+    <string name="privacy_sharing_title">Datos que salen de tu teléfono</string>
+    <string name="privacy_sharing_summary">Desactivado hasta que lo permitas. Consulta o retira tus decisiones.</string>
+    <string name="privacy_sharing_intro">Cada uno de estos enviaría algunos datos fuera de tu teléfono. Están desactivados salvo que los hayas permitido, y desactivar uno lo detiene al instante.</string>
+    <string name="privacy_flow_on">Permitido</string>
+    <string name="privacy_flow_off">Desactivado</string>
+    <string name="privacy_flow_unavailable">No disponible en esta versión</string>
+    <string name="privacy_flow_changed">Último cambio: %1$s</string>
+    <string name="privacy_flow_details">Qué se envía</string>
+    <string name="privacy_withdraw_title">¿Desactivar esto?</string>
+    <string name="privacy_withdraw_body">%1$s se detendrá de inmediato y no se enviará nada más. Puedes volver a permitirlo más adelante.</string>
+    <string name="privacy_withdraw_confirm">Desactivar</string>
+    <string name="privacy_records_title">Tu historial de consentimientos</string>
+    <string name="privacy_records_empty">Aún no has permitido ni rechazado nada.</string>
+    <string name="privacy_record_granted">Permitido</string>
+    <string name="privacy_record_declined">Rechazado o retirado</string>
+    <string name="privacy_record_meta">%1$s · versión de la explicación %2$d · desde %3$s</string>
+
+    <string name="privacy_export_title">Exportar mis datos de Dak</string>
+    <string name="privacy_export_summary">Ajustes, reglas, historial de ejecuciones, registro de actividad, cuentas, libro de movimientos, etiquetas y registros de consentimiento, en un archivo que tú eliges</string>
+    <string name="privacy_export_warning">La exportación no está cifrada: cualquiera que obtenga el archivo puede leerlo. Tus mensajes SMS no se incluyen; para guardarlos, usa Copia de seguridad, datos y privacidad → Exportar.</string>
+    <string name="privacy_export_start">Elegir dónde guardar</string>
+    <string name="privacy_export_running">Exportando…</string>
+    <string name="privacy_export_failed">La exportación falló. No se guardó nada.</string>
+    <string name="privacy_export_auth">Exportar tus datos de Dak</string>
+
+    <string name="privacy_delete_title">Eliminar mis datos de Dak</string>
+    <string name="privacy_delete_summary">Borrar todo lo que Dak guarda en este teléfono</string>
+    <string name="privacy_delete_erased_title">Qué se borra</string>
+    <string name="privacy_delete_erased_body">El índice de Dak (categorías, etiquetas, OTP, cuentas y libro de movimientos), las reglas y su historial de ejecuciones, el registro de actividad, los mensajes programados, la papelera, los ajustes, el bloqueo de la app, la frase de contraseña y la programación de las copias de seguridad, los registros de consentimiento y las claves de cifrado de Dak. Después Dak se cierra y la próxima vez empieza de cero.</string>
+    <string name="privacy_delete_kept_title">Qué no se borra</string>
+    <string name="privacy_delete_kept_body">Tus mensajes SMS y MMS se quedan en el almacén de mensajes del teléfono, que comparten otras apps. Para quitarlos, elimina primero las conversaciones en Dak o usa los ajustes del teléfono. Las copias de seguridad y exportaciones que guardaste en una carpeta o en la nube se quedan ahí hasta que las elimines. Dak sigue siendo tu app de SMS predeterminada hasta que elijas otra.</string>
+    <string name="privacy_delete_backup_hint">Consejo: exporta tus datos o haz una copia de seguridad antes si crees que podrías querer recuperarlos.</string>
+    <string name="privacy_delete_confirm_check">Entiendo que esto no se puede deshacer</string>
+    <string name="privacy_delete_button">Eliminar mis datos de Dak</string>
+    <string name="privacy_delete_auth">Confirma que eres tú para eliminar los datos de Dak</string>
+    <string name="privacy_delete_failed">Dak no pudo borrar todos sus datos. Usa Ajustes → Aplicaciones → Dak → Almacenamiento → Borrar almacenamiento.</string>
+
+    <string name="privacy_disclosure_kicker">Antes de activarlo</string>
+    <string name="privacy_disclosure_what">Qué se envía</string>
+    <string name="privacy_disclosure_not">Qué no se envía</string>
+    <string name="privacy_disclosure_to">Quién lo recibe</string>
+    <string name="privacy_disclosure_why">Por qué</string>
+    <string name="privacy_disclosure_when">Cuándo</string>
+    <string name="privacy_disclosure_retention">Cuánto tiempo se conserva</string>
+    <string name="privacy_disclosure_off">Cómo desactivarlo</string>
+    <string name="privacy_disclosure_read_policy">Leer la política de privacidad</string>
+    <string name="privacy_disclosure_adult">Tengo 18 años o más</string>
+    <string name="privacy_disclosure_version">Versión de la explicación %1$d. Tu decisión se guarda en este teléfono con la fecha y esta versión.</string>
+    <string name="privacy_disclosure_allow">Permitir</string>
+    <string name="privacy_disclosure_decline">Ahora no</string>
+
+    <string name="onboarding_privacy_policy">Leer la política de privacidad</string>
+
+    <string name="battery_settings_hint">Abre la lista de optimización de batería del teléfono. Busca Dak, elige \"No optimizar\" (o \"Sin restricciones\") y vuelve.</string>
+</resources>

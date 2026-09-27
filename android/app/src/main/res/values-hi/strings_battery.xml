@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug-only background activity log on the self-test screen (agent G "battery"). -->
+    <string name="battery_activity_title">बैकग्राउंड गतिविधि (डीबग)</string>
+    <string name="battery_activity_explain">हर दिन के प्रोसेस स्टार्ट, जॉब और रीकॉन्साइल। भारी दिन (300 SMS) पर भी यह हर मैसेज पर एक जॉब से काफ़ी कम रहना चाहिए।</string>
+    <!--
+        Onboarding: how to keep a phone maker’s battery manager from killing Dak (SystemHelpers.OemGuidance).
+        Translators: the quoted names and menu paths are the phone’s own settings screens. Use the wording that
+        phone shows in your language (check a device or the maker’s help pages); keep "Dak" as is.
+    -->
+    <string name="oem_xiaomi_autostart">सुरक्षा → अनुमतियां → ऑटोस्टार्ट खोलें और Dak चालू करें।</string>
+    <string name="oem_xiaomi_battery_saver">ऐप की जानकारी → बैटरी सेवर में, \"कोई प्रतिबंध नहीं\" चुनें।</string>
+    <string name="oem_xiaomi_lock_recents">हाल के ऐप में, Dak को नीचे खींचकर लॉक करें ताकि वह बंद न हो।</string>
+    <string name="oem_oppo_battery_usage">ऐप की जानकारी → बैटरी उपयोग में, बैकग्राउंड गतिविधि और ऑटो लॉन्च की अनुमति दें।</string>
+    <string name="oem_oppo_optimise">Dak के लिए \"बैटरी उपयोग ऑप्टिमाइज़ करें\" बंद करें।</string>
+    <string name="oem_oppo_lock_recents">हाल के ऐप में, Dak को लॉक करें ताकि वह बंद न हो।</string>
+    <string name="oem_vivo_autostart">i Manager → ऐप मैनेजर → ऑटोस्टार्ट मैनेजर खोलें और Dak को अनुमति दें।</string>
+    <string name="oem_vivo_background_power">सेटिंग्स → बैटरी → बैकग्राउंड बिजली खपत में, Dak को अनुमति दें।</string>
+    <string name="oem_samsung_sleeping_apps">सेटिंग्स → बैटरी → बैकग्राउंड उपयोग की सीमाएं में, पक्का करें कि Dak स्लीपिंग या डीप स्लीपिंग ऐप्स में न हो।</string>
+    <string name="oem_samsung_never_sleeping">Dak को \"कभी स्लीप न होने वाले ऐप्स\" में जोड़ें।</string>
+    <string name="oem_huawei_app_launch">सेटिंग्स → बैटरी → ऐप लॉन्च खोलें, Dak के लिए \"अपने-आप प्रबंधित करें\" बंद करें और तीनों विकल्पों की अनुमति दें।</string>
+    <!-- One numbered step in that list. %1$d = step number (1, 2, 3), %2$s = the step text above. -->
+    <string name="onboarding_oem_step">%1$d. %2$s</string>
+</resources>

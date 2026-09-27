@@ -193,6 +193,15 @@ public class LookalikeDomainChecker(
         /** Second-level labels of government domains under a country code (`gov.uk`, `gouv.fr`, `gob.es`, `nic.in`...). */
         private val GOVERNMENT_SECOND_LEVEL = setOf("gov", "gouv", "gob", "govt", "go", "gc", "nic", "mil", "gv")
 
+        /**
+         * Brand names that are descriptions rather than proper nouns: the app shows them translated (matched by these
+         * exact values), while matching here keeps using the English words.
+         */
+        public const val BRAND_UIDAI: String = "UIDAI (Aadhaar)"
+        public const val BRAND_INCOME_TAX: String = "Income Tax Department"
+        public const val BRAND_GOVERNMENT_OF_INDIA: String = "Government of India"
+        public const val BRAND_INDIA_POST: String = "India Post"
+
         /** Bundled official domain -> brand name. Not exhaustive; a starting set for v1. */
         public fun defaultOfficialDomains(): Map<String, String> = mapOf(
             "hdfcbank.com" to "HDFC Bank",
@@ -221,10 +230,10 @@ public class LookalikeDomainChecker(
             "jio.com" to "Jio",
             "airtel.in" to "Airtel",
             "myvi.in" to "Vi",
-            "uidai.gov.in" to "UIDAI (Aadhaar)",
-            "incometax.gov.in" to "Income Tax Department",
-            "india.gov.in" to "Government of India",
-            "indiapost.gov.in" to "India Post",
+            "uidai.gov.in" to BRAND_UIDAI,
+            "incometax.gov.in" to BRAND_INCOME_TAX,
+            "india.gov.in" to BRAND_GOVERNMENT_OF_INDIA,
+            "indiapost.gov.in" to BRAND_INDIA_POST,
         )
 
         public fun defaultShorteners(): Set<String> = setOf(

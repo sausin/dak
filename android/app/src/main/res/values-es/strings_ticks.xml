@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Delivery ticks on outgoing messages (agent O "ticks"). -->
+<resources>
+    <string name="tick_sending">Enviando</string>
+    <string name="tick_sent">Enviado</string>
+    <string name="tick_delivered">Entregado</string>
+    <string name="tick_failed">Error: toca para reintentar</string>
+    <!-- Short visible label next to the red glyph. -->
+    <string name="tick_failed_short">Error</string>
+    <string name="tick_not_delivered">No entregado</string>
+    <!-- Message details dialog: label of the delivery time line. -->
+    <string name="tick_info_delivered_at">Entregado</string>
+</resources>

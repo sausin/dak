@@ -48,7 +48,10 @@ sealed class Filter {
     data class Not(val filter: Filter) : Filter()
 }
 
-/** A UI chip for one filter, with a human-readable [label]. */
+/**
+ * A UI chip for one filter. [label] is an English description for tests and logs only: the app renders the chip text
+ * from [filter] in the app language (`filterChipText`).
+ */
 data class Chip(val label: String, val filter: Filter)
 
 /**

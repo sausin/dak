@@ -31,8 +31,12 @@ object RepeatCollapse {
     fun isRepeat(previousKey: String?, previousAtMillis: Long, key: String, atMillis: Long, windowMillis: Long = WINDOW_MILLIS): Boolean =
         previousKey != null && previousKey.isNotEmpty() && previousKey == key && atMillis - previousAtMillis in 0..windowMillis
 
-    /** [text] with a "×N" suffix when [count] > 1. */
-    fun withCount(text: String, count: Int): String = if (count > 1) "$text ×$count" else text
+    /** The English / test form of a repeat count ("text ×3"); the app formats it from `notification_repeat_count`. */
+    val DEFAULT_FORMAT: (text: String, count: Int) -> String = { text, count -> "$text ×$count" }
+
+    /** [text] with a "×N" count when [count] > 1, laid out by [format] (the app's string resource, locale digits). */
+    fun withCount(text: String, count: Int, format: (text: String, count: Int) -> String = DEFAULT_FORMAT): String =
+        if (count > 1) format(text, count) else text
 
     /**
      * Running state of one conversation's informational notification, carried in the notification's extras so it
@@ -51,8 +55,9 @@ object RepeatCollapse {
         /** Every message folded into this notification. */
         val total: Int,
     ) {
-        /** Display lines with their "×N" suffixes. */
-        fun displayLines(): List<String> = lines.mapIndexed { i, line -> withCount(line, counts.getOrElse(i) { 1 }) }
+        /** Display lines with their "×N" counts (see [withCount] for [format]). */
+        fun displayLines(format: (text: String, count: Int) -> String = DEFAULT_FORMAT): List<String> =
+            lines.mapIndexed { i, line -> withCount(line, counts.getOrElse(i) { 1 }, format) }
 
         val isRepeat: Boolean get() = count > 1
     }

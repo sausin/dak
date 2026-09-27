@@ -3,6 +3,8 @@ package app.dak.premium.consent
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.IOException
+import java.security.MessageDigest
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -34,13 +36,14 @@ class ConsentLedgerHardeningTest {
         val ledger = ConsentLedger(storage, clock)
         ledger.grant(DataFlow.WEBHOOKS, "settings")
         assertEquals(
-            """[{"flow":"webhooks","granted":true,"atMillis":1700000000000,"disclosureVersion":1,""" +
-                """"disclosureHash":"${Disclosures.webhooks.textHash}","source":"settings"}]""",
+            """[{"flow":"webhooks","granted":true,"atMillis":1700000000000,"disclosureVersion":2,""" +
+                """"disclosureHash":"${Disclosures.webhooks.textHash}","source":"settings","language":"en"}]""",
             storage.read(),
         )
-        // And a file written by an older build (or with extra future fields) still reads.
+        // And a file written by an older build (no language, the version-1 English hash, extra future fields) still
+        // reads and still counts: that text says what version 2 says.
         val legacy = """[{"flow":"ai_search","granted":true,"atMillis":5,"disclosureVersion":1,""" +
-            """"disclosureHash":"${Disclosures.aiSearch.textHash}","source":"privacy","futureField":42}]"""
+            """"disclosureHash":"$LEGACY_AI_V1","source":"privacy","futureField":42}]"""
         assertTrue(ConsentLedger(InMemoryConsentStorage(legacy), clock).isGranted(DataFlow.AI_SEARCH))
     }
 
@@ -184,10 +187,10 @@ class ConsentLedgerHardeningTest {
     @Test
     fun `disclosure text changes must come with a version bump`() {
         val golden = mapOf(
-            DataFlow.CLOUD_CLASSIFICATION to (2 to GOLDEN_CLOUD),
-            DataFlow.WEBHOOKS to (1 to GOLDEN_WEBHOOKS),
-            DataFlow.WEB_RELAY to (1 to GOLDEN_RELAY),
-            DataFlow.AI_SEARCH to (1 to GOLDEN_AI),
+            DataFlow.CLOUD_CLASSIFICATION to (3 to GOLDEN_CLOUD),
+            DataFlow.WEBHOOKS to (2 to GOLDEN_WEBHOOKS),
+            DataFlow.WEB_RELAY to (2 to GOLDEN_RELAY),
+            DataFlow.AI_SEARCH to (2 to GOLDEN_AI),
         )
         assertEquals(DataFlow.entries.toSet(), golden.keys, "every flow needs a pinned disclosure")
         val actual = DataFlow.entries.joinToString("\n") { "$it ${Disclosures.forFlow(it).version} ${Disclosures.forFlow(it).textHash}" }
@@ -213,6 +216,7 @@ class ConsentLedgerHardeningTest {
             base.copy(howToTurnOff = "x"),
             base.copy(version = 99),
             base.copy(flow = DataFlow.WEBHOOKS),
+            base.copy(language = "hi"),
             // Moving an item between the lists must also change the hash.
             base.copy(whatIsSent = base.whatIsSent + base.whatIsNotSent, whatIsNotSent = emptyList()),
         )
@@ -221,10 +225,124 @@ class ConsentLedgerHardeningTest {
         assertFalse(base.textHash in hashes)
     }
 
+    /**
+     * Pins every translation's version and hash the same way. A translation edit changes its hash, so users who
+     * allowed it in that language are asked again: only change one with a reviewed text, then update the golden.
+     */
+    @Test
+    fun `translated disclosure changes are pinned too`() {
+        val golden = mapOf(
+            "hi" to listOf(
+                DataFlow.CLOUD_CLASSIFICATION to "c59a03d8e8ab1cf230bf24eff004f5b2427e722a76b0eb2935152ea8b27c5f64",
+                DataFlow.WEBHOOKS to "927c34b270d72882f8796e19ecfbb580653cf5e775c9fbc8c4a7fe0cfa7d9cc4",
+                DataFlow.WEB_RELAY to "f4df7d4f0dc795fbfeae85f6bcbc9b4d2c81822a4c3625dd7bdf3aa705e2b85d",
+                DataFlow.AI_SEARCH to "9f53700bae5bf0f616ef210d480efe51f7bbeec4a551d236fb5646965b10fa75",
+            ),
+            "es" to listOf(
+                DataFlow.CLOUD_CLASSIFICATION to "0078bdca9484beacbfee34d80e4085752db41a21a666ed5595bc3472c0fce533",
+                DataFlow.WEBHOOKS to "92fba3470926040d8dae0cf54f4f779c8f8b989c4ad734a6f9f8b0fede95e929",
+                DataFlow.WEB_RELAY to "bc037b61ec9de1cfb3d94d2a2b8aeb16d955435c6e77a351dd8982a35efd032c",
+                DataFlow.AI_SEARCH to "99aac42660a644ad3df43f9e026a47025daee4f2e28d8779b3ba29852df75522",
+            ),
+            "fr" to listOf(
+                DataFlow.CLOUD_CLASSIFICATION to "db204bd26ec9975c4c027117a8b5ac5ac0bb3d14ae78705f34015bafe2e50f9f",
+                DataFlow.WEBHOOKS to "ab1207d9cf2d0e9682d795444b31264bdd5be42b498c2553c352da8dbbc95966",
+                DataFlow.WEB_RELAY to "cf23b1de035a35a293b9a6ac8757e6dc6f0ad7241a296e88b2bba7ef6c5320c8",
+                DataFlow.AI_SEARCH to "36f3bb189ed1879de7a16121a283f7ce67bf3e8d7eb294f07dab316bcf885ced",
+            ),
+        )
+        assertEquals(Disclosures.TRANSLATED_LANGUAGES.toSet(), golden.keys)
+        for ((lang, flows) in golden) {
+            assertEquals(DataFlow.entries.toSet(), flows.map { it.first }.toSet(), lang)
+            for ((flow, hash) in flows) {
+                val d = Disclosures.forFlow(flow, lang)
+                assertEquals(lang, d.language, "$lang $flow: translation missing or made for another version")
+                assertEquals(Disclosures.forFlow(flow).version, d.version)
+                assertEquals(hash, d.textHash, "$lang $flow: text changed? use a reviewed translation and update this golden")
+            }
+        }
+    }
+
+    /**
+     * The English wording of the current versions is exactly the text of the versions before them: the bump only added
+     * the language to the canonical text. This is what lets [Disclosures.EQUIVALENT_EARLIER] keep old consents valid.
+     */
+    @Test
+    fun `the current English text is the earlier text, so earlier consents still count`() {
+        for (earlier in Disclosures.EQUIVALENT_EARLIER) {
+            val d = Disclosures.forFlow(earlier.flow)
+            assertEquals(d.version, earlier.sameAsVersion, "${earlier.flow}: a new version retires the equivalence")
+            assertEquals(earlier.hash, sha256(earlierCanonicalText(d.copy(version = earlier.version))), "${earlier.flow}")
+        }
+        assertEquals(LEGACY_AI_V1, Disclosures.EQUIVALENT_EARLIER.first { it.flow == DataFlow.AI_SEARCH }.hash)
+        // A record of the earlier version whose hash is not the earlier text does not count.
+        val forged = """[{"flow":"webhooks","granted":true,"atMillis":1,"disclosureVersion":1,"disclosureHash":"${"0".repeat(64)}","source":"s"}]"""
+        assertFalse(ConsentLedger(InMemoryConsentStorage(forged), clock).isGranted(DataFlow.WEBHOOKS))
+    }
+
+    @Test
+    fun `a consent given in one language stays valid when the app language changes`() {
+        val storage = InMemoryConsentStorage()
+        var language = "hi"
+        val ledger = ConsentLedger(storage, clock, displayLanguage = { language })
+        val record = ledger.grant(DataFlow.WEB_RELAY, "privacy")
+        assertEquals("hi", record.language)
+        assertEquals(Disclosures.forFlow(DataFlow.WEB_RELAY, "hi").textHash, record.disclosureHash)
+        assertTrue(record.disclosureHash != Disclosures.webRelay.textHash, "the Hindi text was recorded, not the English")
+        language = "fr"
+        assertTrue(ledger.isGranted(DataFlow.WEB_RELAY))
+        assertTrue(ConsentLedger(storage, clock).isGranted(DataFlow.WEB_RELAY), "and after a restart")
+        // A region or an unknown language falls back sensibly.
+        assertEquals("fr", ledger.disclosure(DataFlow.WEB_RELAY, "fr-CA").language)
+        assertEquals("en", ledger.disclosure(DataFlow.WEB_RELAY, "de").language)
+        assertEquals("en", ledger.grant(DataFlow.AI_SEARCH, "privacy", language = "de").language)
+    }
+
+    @Test
+    fun `a translation made for an older version is not shown and does not validate a consent`() {
+        val storage = InMemoryConsentStorage()
+        ConsentLedger(storage, clock, displayLanguage = { "es" }).grant(DataFlow.WEBHOOKS, "privacy")
+        val next = Disclosures.webhooks.copy(version = Disclosures.webhooks.version + 1)
+        val ledger = ConsentLedger(storage, clock, disclosures = { if (it == DataFlow.WEBHOOKS) next else Disclosures.forFlow(it) })
+        // The Spanish text is of the previous version: English is shown, and the Spanish consent no longer counts.
+        assertEquals("en", ledger.disclosure(DataFlow.WEBHOOKS, "es").language)
+        assertFalse(ledger.isGranted(DataFlow.WEBHOOKS))
+    }
+
+    @Test
+    fun `a record naming a language whose text changed does not count`() {
+        val hi = Disclosures.forFlow(DataFlow.AI_SEARCH, "hi")
+        val raw = """[{"flow":"ai_search","granted":true,"atMillis":1,"disclosureVersion":${hi.version},""" +
+            """"disclosureHash":"${hi.textHash}","source":"s","language":"hi"}]"""
+        assertTrue(ConsentLedger(InMemoryConsentStorage(raw), clock).isGranted(DataFlow.AI_SEARCH))
+        // The same hash claimed for English (or the English hash claimed for Hindi) is not the text that was shown.
+        assertFalse(ConsentLedger(InMemoryConsentStorage(raw.replace("\"language\":\"hi\"", "\"language\":\"en\"")), clock).isGranted(DataFlow.AI_SEARCH))
+        val englishHashAsHindi = raw.replace(hi.textHash, Disclosures.aiSearch.textHash)
+        assertFalse(ConsentLedger(InMemoryConsentStorage(englishHashAsHindi), clock).isGranted(DataFlow.AI_SEARCH))
+    }
+
+    /** [Disclosure.canonicalText] as builds before translations wrote it (no language line). */
+    private fun earlierCanonicalText(d: Disclosure): String = buildString {
+        append(d.flow.id).append('\n').append(d.version).append('\n').append(d.title).append('\n')
+        d.whatIsSent.forEach { append("sent: ").append(it).append('\n') }
+        d.whatIsNotSent.forEach { append("not sent: ").append(it).append('\n') }
+        append("to: ").append(d.sentTo).append('\n')
+        append("why: ").append(d.why).append('\n')
+        append("when: ").append(d.whenSent).append('\n')
+        append("retention: ").append(d.retention).append('\n')
+        append("turn off: ").append(d.howToTurnOff)
+    }
+
+    private fun sha256(text: String): String =
+        MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(Locale.ROOT, it) }
+
     private companion object {
-        const val GOLDEN_CLOUD = "2e31a1655dbe17dedc9fd51006e00d4184d5bc64bfbcfb1df7d1074567c9cf23"
-        const val GOLDEN_WEBHOOKS = "79631b8a562a8b42babad5e3b0980ff666932a16d7ca75c41188bfe4ac2afc35"
-        const val GOLDEN_RELAY = "bbeac96d43b8e5dfae0ef34473ddad3813f505605dfdd9e6dad4c502b1d74b6d"
-        const val GOLDEN_AI = "5c0bf2f65a5afcb5a42080b2d3c93479a8709443fe3ca6eef8bcd0864dd0f3ad"
+        const val GOLDEN_CLOUD = "d2caa21987ff90cca69b22d0092a09a3e1ec3d759caa788b2133d8d9b2fe0e78"
+        const val GOLDEN_WEBHOOKS = "73209eccf146914dd0a8c98e88657e3193d3d036c6f04d9897031fbdcd15e04e"
+        const val GOLDEN_RELAY = "30a9ff10e99a1abda9d3a9dcdb4e664c05d426abc02dd6ca38911c54750c8078"
+        const val GOLDEN_AI = "595efe4f8fa83d97b2e226d6303766527e46b633f06e80f2b4dced3d1aa0d46e"
+
+        /** The AI search disclosure hash (version 1) recorded by builds before translations. */
+        const val LEGACY_AI_V1 = "5c0bf2f65a5afcb5a42080b2d3c93479a8709443fe3ca6eef8bcd0864dd0f3ad"
     }
 }

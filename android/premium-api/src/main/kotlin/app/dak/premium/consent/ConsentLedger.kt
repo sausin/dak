@@ -15,6 +15,8 @@ import kotlinx.serialization.json.Json
  * @param granted true for "Allow", false for a decline or a withdrawal.
  * @param disclosureVersion / [disclosureHash] identify the exact disclosure text shown ([Disclosure.textHash]).
  * @param source where it happened, e.g. `settings`, `privacy`, `onboarding`, `restore`.
+ * @param language language of the disclosure text shown ([Disclosure.language]); null in records written before
+ *   disclosures were translated, which were all English.
  */
 @Serializable
 data class ConsentRecord(
@@ -24,6 +26,7 @@ data class ConsentRecord(
     val disclosureVersion: Int,
     val disclosureHash: String,
     val source: String,
+    val language: String? = null,
 )
 
 /** Where the ledger keeps its JSON. The app backs it with a file in no-backup storage; tests use memory. */
@@ -44,12 +47,24 @@ class InMemoryConsentStorage(private var value: String? = null) : ConsentStorage
  * decline, or a disclosure whose text has changed since the user agreed all read as "not allowed". Defaults are
  * therefore off, and a corrupt or missing store also reads as "not allowed" (fail closed).
  *
+ * A consent is to one version of a disclosure in the language it was shown in: it stays valid when the app language
+ * changes later (every translation of a version says the same thing), and the record keeps the language and the hash
+ * of the exact text shown. Consents given to an earlier text with the same meaning
+ * ([Disclosures.EQUIVALENT_EARLIER]) also count.
+ *
  * Thread-safe; writes are synchronous and small (at most [MAX_RECORDS] records).
+ *
+ * @param disclosures the current disclosure of each flow in the source language; it sets the current version.
+ * @param translations the translation of the current disclosure into a language, if any (see [Disclosures.translation]).
+ * @param displayLanguage the language the app shows disclosures in now (a BCP 47 tag); used when a caller of
+ *   [grant] or [decline] does not name one.
  */
 class ConsentLedger(
     private val storage: ConsentStorage,
     private val clock: () -> Long = System::currentTimeMillis,
     private val disclosures: (DataFlow) -> Disclosure = Disclosures::forFlow,
+    private val translations: (DataFlow, String) -> Disclosure? = Disclosures::translation,
+    private val displayLanguage: () -> String = { Disclosures.SOURCE_LANGUAGE },
 ) {
     private val lock = Any()
     private val state = MutableStateFlow(load())
@@ -62,15 +77,27 @@ class ConsentLedger(
     /** Flows currently allowed. */
     fun granted(): Set<DataFlow> = DataFlow.entries.filterTo(LinkedHashSet()) { isGranted(it) }
 
-    /** Records an explicit "Allow" of the current disclosure for [flow]. */
-    fun grant(flow: DataFlow, source: String): ConsentRecord = append(flow, granted = true, source = source)
+    /**
+     * The disclosure to show for [flow] to someone using [language]: the translation of the current version when there
+     * is one, else the source (English) text. [grant] records exactly this text.
+     */
+    fun disclosure(flow: DataFlow, language: String = displayLanguage()): Disclosure {
+        val source = disclosures(flow)
+        if (Disclosures.normalizeLanguage(language) == source.language) return source
+        return translations(flow, language)?.takeIf { it.flow == flow && it.version == source.version } ?: source
+    }
+
+    /** Records an explicit "Allow" of the current disclosure for [flow], as shown in [language]. */
+    fun grant(flow: DataFlow, source: String, language: String = displayLanguage()): ConsentRecord =
+        append(flow, granted = true, source = source, language = language)
 
     /** Records "Not now" on a disclosure; only an audit entry, the flow stays off. */
-    fun decline(flow: DataFlow, source: String): ConsentRecord = append(flow, granted = false, source = source)
+    fun decline(flow: DataFlow, source: String, language: String = displayLanguage()): ConsentRecord =
+        append(flow, granted = false, source = source, language = language)
 
     /** Withdraws consent; returns null (and writes nothing) when the flow was not allowed anyway. */
     fun withdraw(flow: DataFlow, source: String): ConsentRecord? = synchronized(lock) {
-        if (!isGranted(flow)) null else append(flow, granted = false, source = source)
+        if (!isGranted(flow)) null else append(flow, granted = false, source = source, language = displayLanguage())
     }
 
     /** Forgets everything (used by "Delete my Dak data"). */
@@ -83,8 +110,8 @@ class ConsentLedger(
     /** The records as pretty JSON, for the data export. */
     fun exportJson(): String = prettyJson.encodeToString(ListSerializer(ConsentRecord.serializer()), state.value)
 
-    private fun append(flow: DataFlow, granted: Boolean, source: String): ConsentRecord = synchronized(lock) {
-        val disclosure = disclosures(flow)
+    private fun append(flow: DataFlow, granted: Boolean, source: String, language: String): ConsentRecord = synchronized(lock) {
+        val disclosure = disclosure(flow, language)
         val record = ConsentRecord(
             flow = flow.id,
             granted = granted,
@@ -92,6 +119,7 @@ class ConsentLedger(
             disclosureVersion = disclosure.version,
             disclosureHash = disclosure.textHash,
             source = source.take(MAX_SOURCE_CHARS),
+            language = disclosure.language,
         )
         val next = trimmed(state.value + record)
         if (granted) {
@@ -108,8 +136,14 @@ class ConsentLedger(
 
     private fun isGranted(flow: DataFlow, all: List<ConsentRecord>): Boolean {
         val latest = all.lastOrNull { it.flow == flow.id } ?: return false
+        if (!latest.granted) return false
         val current = disclosures(flow)
-        return latest.granted && latest.disclosureVersion == current.version && latest.disclosureHash == current.textHash
+        if (latest.disclosureVersion == current.version) {
+            // The text of this version in the language it was shown in (records without one predate translations).
+            val shown = disclosure(flow, latest.language ?: Disclosures.SOURCE_LANGUAGE)
+            return latest.disclosureHash == shown.textHash
+        }
+        return Disclosures.isEquivalentEarlier(flow, latest.disclosureVersion, latest.disclosureHash, current.version)
     }
 
     private fun load(): List<ConsentRecord> {

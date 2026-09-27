@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Broadcast and birthday i18n fixes: plurals and composed lines (workstream "broadcast"). -->
+<resources>
+    <plurals name="bc_sent_snack">
+        <item quantity="one">%d व्यक्ति को भेजा जा रहा है</item>
+        <item quantity="other">%d लोगों को भेजा जा रहा है</item>
+    </plurals>
+    <plurals name="bc_scheduled_snack">
+        <item quantity="one">%d व्यक्ति के लिए शेड्यूल किया गया</item>
+        <item quantity="other">%d लोगों के लिए शेड्यूल किया गया</item>
+    </plurals>
+    <plurals name="bc_confirm_title">
+        <item quantity="one">%d व्यक्ति को भेजें?</item>
+        <item quantity="other">%d लोगों को भेजें?</item>
+    </plurals>
+    <plurals name="bc_confirm_title_scheduled">
+        <item quantity="one">%d व्यक्ति के लिए शेड्यूल करें?</item>
+        <item quantity="other">%d लोगों के लिए शेड्यूल करें?</item>
+    </plurals>
+    <string name="bc_confirm_cost">%1$s (%2$s, %3$s)। हर एक पर आपके ऑपरेटर के सामान्य शुल्क लगेंगे।</string>
+    <plurals name="bc_cost_sms_total">
+        <item quantity="one">कुल %d SMS</item>
+        <item quantity="other">कुल %d SMS</item>
+    </plurals>
+    <plurals name="bc_cost_parts_each">
+        <item quantity="one">हर एक को ज़्यादा से ज़्यादा %d हिस्सा</item>
+        <item quantity="other">हर एक को ज़्यादा से ज़्यादा %d हिस्से</item>
+    </plurals>
+    <plurals name="bc_confirm_international">
+        <item quantity="one">%d अंतरराष्ट्रीय नंबर: अंतरराष्ट्रीय SMS दरें लागू होंगी।</item>
+        <item quantity="other">%d अंतरराष्ट्रीय नंबर: अंतरराष्ट्रीय SMS दरें लागू होंगी।</item>
+    </plurals>
+    <string name="bc_excluded_line">%1$s: %2$s</string>
+    <plurals name="bc_problem_too_many">
+        <item quantity="one">%1$d व्यक्ति को यह मिलेगा, लेकिन एक ब्रॉडकास्ट ज़्यादा से ज़्यादा %2$d लोगों को जा सकता है। पहले सूची से कुछ लोगों को हटाएं।</item>
+        <item quantity="other">%1$d लोगों को यह मिलेगा, लेकिन एक ब्रॉडकास्ट ज़्यादा से ज़्यादा %2$d लोगों को जा सकता है। पहले सूची से कुछ लोगों को हटाएं।</item>
+    </plurals>
+    <plurals name="bc_problem_daily">
+        <item quantity="one">रोज़ की सीमा पूरी: अगले 24 घंटों में सिर्फ़ %1$d और ब्रॉडकास्ट मैसेज भेजा जा सकता है (सीमा %2$d)।</item>
+        <item quantity="other">रोज़ की सीमा पूरी: अगले 24 घंटों में सिर्फ़ %1$d और ब्रॉडकास्ट मैसेज भेजे जा सकते हैं (सीमा %2$d)।</item>
+    </plurals>
+    <plurals name="bc_status_delivered">
+        <item quantity="one">%d पहुंचा</item>
+        <item quantity="other">%d पहुंचे</item>
+    </plurals>
+    <plurals name="bc_status_sent">
+        <item quantity="one">%d भेजा</item>
+        <item quantity="other">%d भेजे</item>
+    </plurals>
+    <plurals name="bc_status_pending">
+        <item quantity="one">%d बाकी</item>
+        <item quantity="other">%d बाकी</item>
+    </plurals>
+    <plurals name="bc_status_failed">
+        <item quantity="one">%d नहीं भेजा जा सका</item>
+        <item quantity="other">%d नहीं भेजे जा सके</item>
+    </plurals>
+    <plurals name="bc_edit_over_cap">
+        <item quantity="one">एक सूची में ज़्यादा से ज़्यादा %d व्यक्ति हो सकता है।</item>
+        <item quantity="other">एक सूची में ज़्यादा से ज़्यादा %d लोग हो सकते हैं।</item>
+    </plurals>
+    <plurals name="fw_bd_in_days">
+        <item quantity="one">%1$d दिन में</item>
+        <item quantity="other">%1$d दिन में</item>
+    </plurals>
+    <plurals name="fw_bd_turns">
+        <item quantity="one">%1$d साल के होंगे</item>
+        <item quantity="other">%1$d साल के होंगे</item>
+    </plurals>
+    <string name="fw_bd_preview_quoted">“%1$s”</string>
+    <string name="fw_bd_lang_hinglish">हिंग्लिश</string>
+</resources>

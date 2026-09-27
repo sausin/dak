@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.dak.R
@@ -36,6 +37,9 @@ import app.dak.finance.passbook.GroupTotals
 import app.dak.finance.passbook.TotalKind
 import app.dak.ui.common.text.MoneyDisplay
 import app.dak.ui.common.text.rememberDisplayLocale
+import java.math.BigDecimal
+import java.text.NumberFormat
+import java.util.Locale
 
 /** Section title of a Passbook group. */
 @StringRes
@@ -155,6 +159,16 @@ internal fun InstitutionBadge(institution: String, modifier: Modifier = Modifier
     }
 }
 
+/** [account]'s badge: its institution's initials, "?" when no SMS named the institution. */
+@Composable
+internal fun InstitutionBadge(account: Account, modifier: Modifier = Modifier) =
+    InstitutionBadge(if (account.institutionKnown) account.institution else "", modifier)
+
+/** [account]'s institution as shown, with a translated word when no SMS named one ([Account.UNKNOWN_INSTITUTION]). */
+@Composable
+internal fun institutionName(account: Account): String =
+    if (account.institutionKnown) account.institution else stringResource(R.string.inst_unknown_institution)
+
 /** Up to two initials of an institution name ("HDFC Bank" -> "HB", "Paytm" -> "P"); "?" when there are none. */
 internal fun initialsOf(name: String): String {
     val words = name.split(' ', '-', '_').filter { w -> w.isNotBlank() && w.first().isLetterOrDigit() }
@@ -191,20 +205,32 @@ internal fun totalsLine(totals: GroupTotals): String {
         else -> stringResource(R.string.inst_total_nothing_spent)
     }
     return if (totals.amounts.isNotEmpty() && totals.missingCount > 0) {
-        main + " · " + stringResource(R.string.inst_total_missing, totals.missingCount)
+        main + " · " + pluralStringResource(R.plurals.inst_total_missing, totals.missingCount, totals.missingCount)
     } else {
         main
     }
 }
 
-/** "1,127.89" style: a units / shares figure as the SMS stated it, grouped for reading; the raw string if unparsable. */
-internal fun unitsText(units: String): String = runCatching {
-    val value = java.math.BigDecimal(units)
-    val format = java.text.NumberFormat.getNumberInstance()
+/**
+ * "1,127.89" style: a units / shares figure as the SMS stated it, grouped and with the separators of [locale] (the app
+ * language), every decimal kept; the raw string if unparsable.
+ */
+internal fun unitsText(units: String, locale: Locale): String = runCatching {
+    val value = BigDecimal(units)
+    val format = NumberFormat.getNumberInstance(locale)
     format.maximumFractionDigits = maxOf(0, value.scale())
     format.minimumFractionDigits = 0
     format.format(value)
 }.getOrDefault(units)
 
 /** "₹109.4563": a NAV / price per unit with every decimal the SMS gave, in [currency]'s symbol (or ISO code). */
-internal fun unitPriceText(price: String, currency: String): String = CurrencyTable.symbolFor(currency) + unitsText(price)
+internal fun unitPriceText(price: String, currency: String, locale: Locale): String = CurrencyTable.symbolFor(currency) + unitsText(price, locale)
+
+/** [value] rounded to at most [maxFractionDigits] decimals, with [locale]'s separators ("2.5" in English, "2,5" in French). */
+internal fun decimalText(value: BigDecimal, maxFractionDigits: Int, locale: Locale): String {
+    val format = NumberFormat.getNumberInstance(locale)
+    format.minimumFractionDigits = 0
+    format.maximumFractionDigits = maxFractionDigits
+    format.roundingMode = java.math.RoundingMode.HALF_UP
+    return format.format(value)
+}

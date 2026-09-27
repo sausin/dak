@@ -43,6 +43,12 @@ data class ConversationSummary(
     val lastDeliveryStatus: DeliveryStatus = DeliveryStatus.NONE,
     /** Incognito (vanishing) chat: the inbox shows no preview of its messages. */
     val incognito: Boolean = false,
+    /**
+     * For a group conversation (several participants, no merge-group or brand name): each participant's contact name
+     * or raw address, in order. The UI joins them the way the app language writes a list; [title] holds a plain
+     * ", "-joined fallback. Empty when [title] is a single name.
+     */
+    val titleParts: List<String> = emptyList(),
 )
 
 /** OTP details on a message. */
@@ -121,6 +127,8 @@ data class SearchHit(
     val highlights: List<IntRange>,
     /** Set when the hit is a recycle-bin entry (`in:bin`); [message] then describes the deleted copy. */
     val binId: Long? = null,
+    /** As [ConversationSummary.titleParts]: the participants a group title lists, for the UI to join; else empty. */
+    val conversationTitleParts: List<String> = emptyList(),
 )
 
 /** One recycle-bin entry. */

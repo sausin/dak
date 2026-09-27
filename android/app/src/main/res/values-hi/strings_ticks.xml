@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Delivery ticks on outgoing messages (agent O "ticks"). -->
+<resources>
+    <string name="tick_sending">भेजा जा रहा है</string>
+    <string name="tick_sent">भेजा गया</string>
+    <string name="tick_delivered">डिलीवर हुआ</string>
+    <string name="tick_failed">नहीं भेजा जा सका — फिर कोशिश के लिए टैप करें</string>
+    <!-- Short visible label next to the red glyph. -->
+    <string name="tick_failed_short">विफल</string>
+    <string name="tick_not_delivered">डिलीवर नहीं हुआ</string>
+    <!-- Message details dialog: label of the delivery time line. -->
+    <string name="tick_info_delivered_at">डिलीवर हुआ</string>
+</resources>

@@ -8,8 +8,8 @@ public data class WishTemplate(val id: String, val language: String, val text: S
 /**
  * Birthday/anniversary/other-date wish templates. Placeholders: `{firstName}`, `{name}` (full display name), `{age}`
  * (empty when the birth year is unknown) and `{occasion}` (the date's label from Contacts, e.g. "graduation day";
- * empty when there is none). Unknown placeholders pass through unchanged; the result is trimmed and
- * double spaces left by an empty placeholder are collapsed.
+ * empty when there is none). Unknown placeholders pass through unchanged; the result is trimmed, and the space
+ * before an empty placeholder is dropped (never a space the template itself puts before punctuation, as French does).
  */
 public object WishTemplates {
 
@@ -19,11 +19,15 @@ public object WishTemplates {
         WishTemplate("en_formal", "en", "Dear {name}, many happy returns of the day. Best wishes for the year ahead."),
         WishTemplate("hi_warm", "hi", "जन्मदिन की हार्दिक शुभकामनाएँ, {firstName}! आपका आने वाला साल खुशियों से भरा हो।"),
         WishTemplate("hi_latin", "hi-Latn", "Janamdin ki dher saari shubhkamnayein, {firstName}!"),
+        WishTemplate("es_warm", "es", "¡Feliz cumpleaños, {firstName}! Que tengas un año maravilloso."),
+        WishTemplate("fr_warm", "fr", "Joyeux anniversaire, {firstName} ! Je te souhaite une merveilleuse année."),
     )
 
     public val anniversaryDefaults: List<WishTemplate> = listOf(
         WishTemplate("en_anniv", "en", "Happy anniversary, {firstName}! Wishing you many more happy years together."),
         WishTemplate("hi_anniv", "hi", "सालगिरह की हार्दिक शुभकामनाएँ, {firstName}!"),
+        WishTemplate("es_anniv", "es", "¡Feliz aniversario, {firstName}! Que vengan muchos años más de felicidad juntos."),
+        WishTemplate("fr_anniv", "fr", "Joyeux anniversaire de mariage, {firstName} ! Encore beaucoup d'années de bonheur à deux."),
     )
 
     /** For any other date saved on a contact (a custom label such as "Graduation", or "Other"). */
@@ -31,6 +35,8 @@ public object WishTemplates {
         WishTemplate("en_other", "en", "Happy {occasion}, {firstName}! Thinking of you today."),
         WishTemplate("en_other_short", "en", "Thinking of you today, {firstName}! 🎉"),
         WishTemplate("hi_other", "hi", "आज के खास दिन की शुभकामनाएँ, {firstName}!"),
+        WishTemplate("es_other", "es", "¡Pensando en ti en este día especial, {firstName}!"),
+        WishTemplate("fr_other", "fr", "Je pense à toi en ce jour spécial, {firstName} !"),
     )
 
     public val DEFAULT_BIRTHDAY: String = birthdayDefaults.first().text
@@ -89,11 +95,22 @@ public object WishTemplates {
             }
             out.append(template, i, open)
             val key = template.substring(open + 1, close)
-            out.append(values[key] ?: "{$key}")
+            val value = values[key]
+            // An empty value takes the space before it along when a space or punctuation follows ("Turning {age}!"
+            // → "Turning!"). Only that space: a space the template puts before punctuation on purpose (French
+            // "{firstName} !") is kept.
+            if (value != null && value.isEmpty() && (close + 1 >= template.length || template[close + 1] in GAP_AFTER)) {
+                while (out.isNotEmpty() && out[out.length - 1] == ' ') out.setLength(out.length - 1)
+            }
+            out.append(value ?: "{$key}")
             i = close + 1
         }
-        return out.toString().replace(Regex(" {2,}"), " ").replace(" ,", ",").replace(" !", "!").trim()
+        return out.toString().replace(Regex(" {2,}"), " ").trim()
     }
+
+    /** What may follow an empty placeholder for the space before it to go too. */
+    private const val GAP_AFTER = " ,.!?;:)"
+
 
     /** What `{occasion}` reads when a date has no label of its own (English; the app passes its translation). */
     public const val FALLBACK_OCCASION: String = "special day"

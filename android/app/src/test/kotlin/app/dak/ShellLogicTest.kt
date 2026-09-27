@@ -78,5 +78,10 @@ class ShellLogicTest {
         assertEquals("24 hours", valueLabel(DakSettings.otpAutoDelete, "24h"))
         assertEquals("On", valueLabel(DakSettings.quickActions, "true"))
         assertNull(valueLabel(DakSettings.selfTest, ""))
+        // Blank SIM names show the default name; a stored name (also an old "SIM 1" default) shows as typed.
+        assertEquals("SIM 2", valueLabel(DakSettings.sim2Name, ""))
+        assertEquals("Work", valueLabel(DakSettings.sim1Name, "Work"))
+        assertNull(valueLabel(DakSettings.homeCurrency, ""))
+        assertEquals("10", valueLabel(DakSettings.consumedOtpWindowMinutes, "10"))
     }
 }

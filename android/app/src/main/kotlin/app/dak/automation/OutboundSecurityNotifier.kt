@@ -76,8 +76,7 @@ class OutboundSecurityNotifier @Inject constructor(@ApplicationContext private v
         if (rules.isEmpty() || !canNotify()) return
         val manager = NotificationManagerCompat.from(context)
         ensureChannel(manager)
-        val text = context.resources.getQuantityString(R.plurals.fw_guard_disabled_body, rules.size, rules.size, reasonText(reason)) +
-            " " + context.getString(R.string.fw_guard_disabled_why)
+        val text = context.resources.getQuantityString(R.plurals.fw_guard_disabled_text, rules.size, rules.size, reasonText(reason))
         val route = if (rules.all { ForwardingSpec.isForwarding(it) }) Routes.FORWARDING else Routes.AUTOMATIONS
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_dak)
@@ -198,7 +197,7 @@ class OutboundSecurityNotifier @Inject constructor(@ApplicationContext private v
                     else -> context.getString(R.string.fw_kind_unknown)
                 }
             }.distinct()
-            return context.getString(R.string.fw_generic_summary, rule.name, parts.joinToString(", "))
+            return context.getString(R.string.fw_generic_summary, rule.name, AppLocaleText.list(context, parts))
         }
     }
 }

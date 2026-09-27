@@ -1,11 +1,14 @@
 package app.dak.ui.conversation
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import app.dak.R
+import app.dak.automation.AppLocaleText
 import app.dak.automation.IndexAuditSink
 import app.dak.automation.ScheduledSendOrigin
 import app.dak.automation.ScheduledSendScheduler
@@ -39,8 +42,10 @@ import app.dak.telephony.MmsDownloadState
 import app.dak.telephony.MmsDownloads
 import app.dak.telephony.SendResult
 import app.dak.telephony.SimRepository
+import app.dak.telephony.mms.MmsUnknownSender
 import app.dak.telephony.region.RegionProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -108,6 +113,7 @@ sealed interface ConversationEvent {
  */
 @HiltViewModel
 class ConversationViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     savedState: SavedStateHandle,
     private val conversations: ConversationRepository,
     private val merges: SenderMergeRepository,
@@ -406,8 +412,12 @@ class ConversationViewModel @Inject constructor(
         val mergeKey = ConversationIds.mergeKeyOf(runCatching { conversations.resolveConversationId(conversationId) }.getOrDefault(conversationId))
         val mergeName = mergeKey?.let { runCatching { merges.group(it).first()?.displayName }.getOrNull() }
         val matches = addresses.map { it to contacts.find(it) }
-        val names = matches.map { (address, match) -> match?.displayName ?: address }
-        val title = mergeName ?: names.joinToString(", ").ifBlank { mergeKey ?: conversationId }
+        // An MMS without a sender is filed under a placeholder address: name it in the app language.
+        val unknown = appContext.getString(R.string.unknown_sender)
+        fun nameOf(address: String, match: ContactMatch?): String =
+            match?.displayName ?: if (MmsUnknownSender.isUnknown(address)) unknown else address
+        val names = matches.map { (address, match) -> nameOf(address, match) }
+        val title = mergeName ?: AppLocaleText.list(appContext, names).ifBlank { mergeKey ?: conversationId }
         val first = addresses.firstOrNull().orEmpty()
         ConversationHeader(
             title = title,
@@ -415,7 +425,7 @@ class ConversationViewModel @Inject constructor(
             isGroup = addresses.size > 1,
             isBusiness = mergeKey != null || (first.isNotEmpty() && first.none { it.isDigit() }),
             photoUri = matches.singleOrNull()?.second?.photoUri,
-            names = matches.associate { (address, match) -> address to (match?.displayName ?: address) },
+            names = matches.associate { (address, match) -> address to nameOf(address, match) },
             contacts = matches.mapNotNull { (address, match) -> match?.let { address to it } }.toMap(),
             canReadContacts = contacts.hasPermission(),
         )

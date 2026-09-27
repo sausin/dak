@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="fw_status_title">
+        <item quantity="one">Reenvío activo</item>
+        <item quantity="many">%1$d reglas de reenvío activas</item>
+        <item quantity="other">%1$d reglas de reenvío activas</item>
+    </plurals>
+    <string name="fw_status_line_otp">%1$s → %2$s (%3$s) · incluye OTP</string>
+    <string name="fw_status_with_period">%1$s · %2$s</string>
+    <plurals name="fw_guard_disabled_text">
+        <item quantity="one">Se desactivó %1$d automatización que envía mensajes porque %2$s. Configura el bloqueo de la app para volver a activarla. Dak la requiere para que nadie más que use tu teléfono pueda enviarse tus mensajes.</item>
+        <item quantity="many">Se desactivaron %1$d automatizaciones que envían mensajes porque %2$s. Configura el bloqueo de la app para volver a activarlas. Dak lo requiere para que nadie más que use tu teléfono pueda enviarse tus mensajes.</item>
+        <item quantity="other">Se desactivaron %1$d automatizaciones que envían mensajes porque %2$s. Configura el bloqueo de la app para volver a activarlas. Dak lo requiere para que nadie más que use tu teléfono pueda enviarse tus mensajes.</item>
+    </plurals>
+
+    <plurals name="fw_history_sent_between">
+        <item quantity="one">%1$d mensaje enviado a %2$s entre el %3$s y el %4$s</item>
+        <item quantity="many">%1$d mensajes enviados a %2$s entre el %3$s y el %4$s</item>
+        <item quantity="other">%1$d mensajes enviados a %2$s entre el %3$s y el %4$s</item>
+    </plurals>
+    <string name="fw_history_sent_none_between">No se envió ningún mensaje entre el %1$s y el %2$s</string>
+    <string name="fw_history_to_more">%1$s +%2$d</string>
+    <plurals name="fw_history_failed">
+        <item quantity="one">%1$d con error</item>
+        <item quantity="many">%1$d con error</item>
+        <item quantity="other">%1$d con error</item>
+    </plurals>
+    <plurals name="fw_history_skipped">
+        <item quantity="one">%1$d omitido</item>
+        <item quantity="many">%1$d omitidos</item>
+        <item quantity="other">%1$d omitidos</item>
+    </plurals>
+
+    <string name="scr_auto_sched_when_sim">%1$s · %2$s</string>
+    <string name="scr_auto_relay_channel_sms">SMS</string>
+    <string name="scr_auto_relay_channel_whatsapp">WhatsApp (un toque)</string>
+    <string name="scr_auto_relay_channel_webhook">Webhook</string>
+    <string name="scr_auto_action_web_client">Enviar al cliente web</string>
+    <string name="scr_auto_action_unknown">Acción desconocida</string>
+
+    <string name="scr_auto_default_name_label">Etiqueta \"%1$s\"</string>
+    <string name="scr_auto_default_name_archive">Archivar</string>
+    <string name="scr_auto_default_name_notify">Notificar</string>
+    <string name="scr_auto_default_name_forward">Reenviar a %1$s</string>
+    <string name="scr_auto_default_name_reply">Respuesta automática</string>
+    <string name="scr_auto_default_name_delete">Mover a la papelera</string>
+    <string name="scr_auto_default_name_open">Abrir enlace</string>
+    <string name="scr_auto_default_name_webhook">Webhook</string>
+    <string name="scr_auto_default_name_relay">Retransmitir a %1$s</string>
+
+    <string name="preset_archive_old_promotions_name">Archivar promociones de más de 14 días</string>
+    <string name="preset_label_amazon_deliveries_name">Etiquetar entregas de Amazon</string>
+    <string name="preset_otp_big_notification_name">Notificación de OTP grande y sonora</string>
+
+    <string name="auto_tpl_sim">SIM %1$d</string>
+    <string name="auto_tpl_sim_sub">SIM (ID %1$d)</string>
+</resources>

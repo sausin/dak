@@ -79,7 +79,16 @@ data class Account(
 
     val type: AccountType get() = AccountType.of(instrument)
 
+    /** False when no SMS named the institution ([institution] is then [UNKNOWN_INSTITUTION]; the app shows its own word). */
+    val institutionKnown: Boolean get() = institution != UNKNOWN_INSTITUTION
+
     companion object {
+        /**
+         * [institution] of an account whose messages never named one. A stable key, not display text (it is also in
+         * ledgers stored by earlier versions): the app shows a translated word for it.
+         */
+        const val UNKNOWN_INSTITUTION: String = "Unknown"
+
         /**
          * Derives a stable account id from institution + instrument + the account's visible digits (usually the
          * last 4; all of them when the bank shows more, e.g. `440065` for `XX440065`), as sender-merge groups do for

@@ -76,10 +76,11 @@ import app.dak.navigation.Routes
 import app.dak.ui.common.Avatar
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.EmptyState
+import app.dak.ui.common.simName
 import app.dak.ui.forwarding.AppLockNeededDialog
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
+import java.util.Locale
 
 /** What the template sheet edits: a global default, or one contact's own wish. */
 private sealed interface TemplateTarget {
@@ -291,7 +292,11 @@ private fun GlobalSettings(
                     DateFormat.is24HourFormat(context),
                 ).show()
             }) {
-                Text(LocalTime.of(settings.hour.coerceIn(0, 23), settings.minute.coerceIn(0, 59)).format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)))
+                // App language and the phone's 12/24-hour setting (a CLDR skeleton, not the default locale's SHORT style).
+                val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+                val skeleton = if (DateFormat.is24HourFormat(context)) "Hm" else "hm"
+                val timeFormat = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale)
+                Text(LocalTime.of(settings.hour.coerceIn(0, 23), settings.minute.coerceIn(0, 59)).format(timeFormat))
             }
         }
         if (sims.size > 1) {
@@ -299,7 +304,7 @@ private fun GlobalSettings(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = settings.subId == null, onClick = { onSim(null) }, label = { Text(stringResource(R.string.scr_auto_default_sim)) })
                 sims.forEach { sim ->
-                    FilterChip(selected = settings.subId == sim.subId, onClick = { onSim(sim.subId) }, label = { Text(sim.displayName) })
+                    FilterChip(selected = settings.subId == sim.subId, onClick = { onSim(sim.subId) }, label = { Text(simName(sim)) })
                 }
             }
         }
@@ -340,20 +345,22 @@ private fun OccasionRow(
 ) {
     val o = item.occasion
     var numberMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val whenText = when (item.daysUntil) {
         0 -> stringResource(R.string.fw_bd_today)
         1 -> stringResource(R.string.fw_bd_tomorrow)
-        else -> stringResource(R.string.fw_bd_in_days, item.daysUntil)
+        else -> context.resources.getQuantityString(R.plurals.fw_bd_in_days, item.daysUntil, item.daysUntil)
     }
-    // Day and month in the user's own order ("5 Mar" in India / UK, "Mar 5" in the US).
-    val dateText = item.date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "dMMM")))
+    // Day and month in the app language's order ("5 Mar" in India / UK, "Mar 5" in the US).
+    val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+    val dateText = item.date.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "dMMM"), locale))
     val kindText = when (o.kind) {
         OccasionKind.BIRTHDAY -> null
         OccasionKind.ANNIVERSARY -> stringResource(R.string.fw_bd_anniversary)
         OccasionKind.OTHER -> o.label ?: stringResource(R.string.occ_other_date)
     }
     val detail = listOfNotNull(whenText, dateText, kindText).joinToString(" · ")
-    val ageText = item.age?.let { stringResource(R.string.fw_bd_turns, it) }
+    val ageText = item.age?.let { context.resources.getQuantityString(R.plurals.fw_bd_turns, it, it) }
     ListItem(
         modifier = Modifier.clickable(onClick = onEditTemplate),
         leadingContent = { Avatar(name = o.name, key = "contact:${o.contactId}", photoUri = o.photoUri) },
@@ -377,7 +384,7 @@ private fun OccasionRow(
                     Text(stringResource(R.string.fw_bd_no_number), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                 }
                 Text(
-                    "“" + item.preview + "”",
+                    stringResource(R.string.fw_bd_preview_quoted, item.preview),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -418,7 +425,7 @@ private fun TemplateEditor(
             ListItem(
                 modifier = Modifier.clickable { text = preset.text },
                 headlineContent = { Text(preset.text, style = MaterialTheme.typography.bodyMedium) },
-                supportingContent = { Text(preset.language, style = MaterialTheme.typography.labelSmall) },
+                supportingContent = { Text(presetLanguageName(preset.language), style = MaterialTheme.typography.labelSmall) },
             )
         }
         OutlinedTextField(
@@ -435,4 +442,17 @@ private fun TemplateEditor(
             Button(onClick = { onSave(text) }) { Text(stringResource(R.string.action_save)) }
         }
     }
+}
+
+/**
+ * A preset's language (a BCP 47 tag) named in the app language: "Hindi", "Spanish", "हिन्दी"… Hinglish (`hi-Latn`,
+ * Hindi in Latin letters) has no CLDR name of its own, so it has a string.
+ */
+@Composable
+private fun presetLanguageName(tag: String): String {
+    val parsed = Locale.forLanguageTag(tag)
+    if (parsed.language == "hi" && parsed.script == "Latn") return stringResource(R.string.fw_bd_lang_hinglish)
+    val appLocale = LocalContext.current.resources.configuration.locales[0] ?: Locale.getDefault()
+    val name = parsed.getDisplayLanguage(appLocale)
+    return if (name.isBlank()) tag else name.replaceFirstChar { it.titlecase(appLocale) }
 }

@@ -8,6 +8,7 @@
     <!-- Inbox: OTP chip on a conversation row -->
     <string name="ux_inbox_copy_code">Copy code</string>
     <string name="ux_inbox_code_copied">Copied</string>
+    <!-- Screen reader label. %1$s = the one-time code. -->
     <string name="ux_inbox_copy_code_description">Copy code %1$s</string>
 
     <!-- Inbox: row accessibility -->
@@ -15,6 +16,7 @@
     <string name="ux_action_select">Select</string>
     <string name="ux_action_deselect">Deselect</string>
     <string name="ux_selected">Selected</string>
+    <!-- %d = number of unread messages. -->
     <plurals name="ux_unread_count">
         <item quantity="one">%d unread message</item>
         <item quantity="other">%d unread messages</item>
@@ -25,18 +27,22 @@
     <string name="ux_action_read_short">Read</string>
     <string name="ux_action_delete_short">Delete</string>
     <string name="ux_action_select_all">Select all loaded</string>
+    <!-- %d = number of conversations. -->
     <plurals name="ux_snack_archived_many">
         <item quantity="one">Conversation archived</item>
         <item quantity="other">%d conversations archived</item>
     </plurals>
+    <!-- %d = number of conversations. -->
     <plurals name="ux_snack_pinned">
         <item quantity="one">Pinned</item>
         <item quantity="other">%d conversations pinned</item>
     </plurals>
+    <!-- %d = number of conversations. -->
     <plurals name="ux_snack_unpinned">
         <item quantity="one">Unpinned</item>
         <item quantity="other">%d conversations unpinned</item>
     </plurals>
+    <!-- %d = number of conversations. -->
     <plurals name="ux_snack_marked_read">
         <item quantity="one">Marked as read</item>
         <item quantity="other">%d conversations marked as read</item>
@@ -59,6 +65,7 @@
     <string name="ux_info_type">Type</string>
     <string name="ux_info_category">Category</string>
     <string name="ux_info_status">Status</string>
+    <!-- %1$s = the message category; %2$d = percentage. Keep %% (a literal percent sign). -->
     <string name="ux_info_confidence">%1$s (%2$d%% confident)</string>
     <string name="ux_info_sms">SMS</string>
     <string name="ux_info_mms">MMS</string>
@@ -69,6 +76,7 @@
         <item quantity="other">Delete %d messages?</item>
     </plurals>
     <string name="ux_conv_delete_selected_body">Deleted messages go to the recycle bin, where you can restore them.</string>
+    <!-- %d = number of messages. -->
     <plurals name="ux_snack_messages_copied">
         <item quantity="one">Message copied</item>
         <item quantity="other">%d messages copied</item>

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup results, the personal data export, consent history, helplines and fraud report details, app lock and bin
+    (i18n workstream "privacy"). Counts are plurals; the consent disclosures themselves are translated in
+    premium-api (disclosures-<lang>.json), the privacy policy in assets/privacy-policy-<lang>.md.
+-->
+<resources>
+    <!-- Backup screen: result of a backup. %1$d = number of messages. -->
+    <plurals name="scr_backup_done_backup">
+        <item quantity="one">Backed up %1$d message</item>
+        <item quantity="other">Backed up %1$d messages</item>
+    </plurals>
+    <!-- Backup screen: result of an export. %1$d = number of messages. -->
+    <plurals name="scr_backup_done_export">
+        <item quantity="one">Exported %1$d message</item>
+        <item quantity="other">Exported %1$d messages</item>
+    </plurals>
+    <!-- Backup screen: result of an import. %1$d = messages added (chooses the form), %2$d = messages already present or unreadable. -->
+    <plurals name="scr_backup_done_import">
+        <item quantity="one">Imported %1$d message (%2$d already here or skipped)</item>
+        <item quantity="other">Imported %1$d messages (%2$d already here or skipped)</item>
+    </plurals>
+    <!-- Backup screen: result of a restore. %1$d = messages added (chooses the form), %2$d = messages already present or unreadable. -->
+    <plurals name="scr_backup_done_restore">
+        <item quantity="one">Restored %1$d message (%2$d already here or skipped)</item>
+        <item quantity="other">Restored %1$d messages (%2$d already here or skipped)</item>
+    </plurals>
+    <!-- Backup screen: result of a restore from a snapshot. %1$d = messages added (chooses the form), %2$d = messages already present or unreadable, %3$s = date and time of the newest restored message. -->
+    <plurals name="scr_backup_done_restore_upto">
+        <item quantity="one">Restored %1$d message (%2$d already here or skipped). Includes messages up to %3$s.</item>
+        <item quantity="other">Restored %1$d messages (%2$d already here or skipped). Includes messages up to %3$s.</item>
+    </plurals>
+    <!-- Backup screen, last backup. %1$s = date and time of the backup, %2$d = number of messages in it (chooses the form). -->
+    <plurals name="scr_backup_last_value">
+        <item quantity="one">%1$s · %2$d message</item>
+        <item quantity="other">%1$s · %2$d messages</item>
+    </plurals>
+
+    <!-- Recycle bin snackbar after emptying it. %1$d = number of messages removed. -->
+    <plurals name="scr_bin_emptied">
+        <item quantity="one">Removed %1$d message for good</item>
+        <item quantity="other">Removed %1$d messages for good</item>
+    </plurals>
+
+    <!-- App lock PIN pad, spoken by screen readers. %1$d = number of digits typed so far. -->
+    <plurals name="lock_pin_entered">
+        <item quantity="one">%1$d digit entered</item>
+        <item quantity="other">%1$d digits entered</item>
+    </plurals>
+
+    <!-- Privacy hub: summary of "Data that leaves your phone" when some are allowed. %1$d = number of features allowed. -->
+    <plurals name="privacy_sharing_allowed_count">
+        <item quantity="one">%1$d feature allowed</item>
+        <item quantity="other">%1$d features allowed</item>
+    </plurals>
+    <!-- Privacy hub: result of "Export my Dak data". %1$d = number of sections (chooses the form), %2$d = total entries. -->
+    <plurals name="privacy_export_done">
+        <item quantity="one">Saved %1$d section (%2$d entries).</item>
+        <item quantity="other">Saved %1$d sections (%2$d entries).</item>
+    </plurals>
+
+    <!-- Consent history: where a choice was made, shown as "from …" in privacy_record_meta. -->
+    <string name="privacy_record_source_settings">Settings</string>
+    <string name="privacy_record_source_privacy">Privacy settings</string>
+    <string name="privacy_record_source_onboarding">Setup</string>
+    <string name="privacy_record_source_restore">Restore</string>
+
+    <!-- Personal data export (a ZIP the user reads): README title and text. File and folder names stay in English. -->
+    <string name="privacy_export_readme_title">Dak personal data export</string>
+    <string name="privacy_export_readme_body">This file contains the data the Dak app stored about you on your phone, as plain JSON.\nIt is NOT encrypted: anyone with this file can read it. Keep it somewhere safe and delete it when you are done.\n\nmanifest.json lists every file with its size, SHA-256 checksum and a short description.\ndata/*.json files hold one JSON document each; data/*.jsonl files hold one JSON object per line.\nTimes are milliseconds since 1970-01-01 UTC.\n\nNot included: your SMS and MMS messages (use Settings > Backup, data and privacy > Export for those),\nsecrets such as keys and PINs, and data Dak can rebuild from your messages.\n\nQuestions: see the privacy policy in the app (Settings > Privacy > Privacy policy).\n</string>
+    <!-- Personal data export: what is not in the file (manifest.json). -->
+    <string name="privacy_export_not_included_messages">Your SMS and MMS messages themselves: they live in the phone\'s shared message store. Use Backup → Export to save them.</string>
+    <string name="privacy_export_not_included_secrets">Keys and secrets: the index key, the backup passphrase and recovery code, the app-lock PIN and webhook secrets.</string>
+    <string name="privacy_export_not_included_rebuildable">Data Dak can rebuild: the search index and installed-app OTP hashes.</string>
+    <!-- Personal data export: description of each part in manifest.json. -->
+    <string name="privacy_export_desc_settings">Your Dak settings (only values you changed).</string>
+    <string name="privacy_export_desc_sender_groups">How you grouped senders, and names you gave them.</string>
+    <string name="privacy_export_desc_user_labels">Labels you or your rules put on messages, by message key (for example sms:123).</string>
+    <string name="privacy_export_desc_consent_records">Each time you allowed, declined or withdrew a feature that sends data off the phone.</string>
+    <string name="privacy_export_desc_automation_rules">Your automation rules (the rule definition is the \"json\" column).</string>
+    <string name="privacy_export_desc_automation_runs">What each rule sent, failed to send or skipped, and where to.</string>
+    <string name="privacy_export_desc_activity_log">Automatic and destructive actions (rules firing, auto-deletes, restores).</string>
+    <string name="privacy_export_desc_scheduled_messages">Messages you scheduled, including sent and cancelled ones.</string>
+    <string name="privacy_export_desc_saved_searches">Searches you saved.</string>
+    <string name="privacy_export_desc_search_history">Your recent searches.</string>
+    <string name="privacy_export_desc_accounts">Bank accounts and cards in the Passbook, with balances.</string>
+    <string name="privacy_export_desc_ledger">Transactions Dak found in your messages.</string>
+    <string name="privacy_export_desc_account_links">Accounts you merged or kept apart.</string>
+    <string name="privacy_export_desc_account_types">Account types you set by hand.</string>
+    <string name="privacy_export_desc_hidden_accounts">Accounts you removed from the Passbook.</string>
+    <string name="privacy_export_desc_conversation_settings">Per-conversation choices: pinned, muted, archived, reply SIM, colour.</string>
+    <string name="privacy_export_desc_sender_names">Sender groups and the names shown for them.</string>
+    <string name="privacy_export_desc_sender_addresses">Which addresses belong to which sender group.</string>
+    <string name="privacy_export_desc_message_flags">Messages you starred or archived.</string>
+    <string name="privacy_export_desc_message_categories">The category and labels Dak gave each message (no message text).</string>
+    <string name="privacy_export_desc_recycle_bin">Messages in the recycle bin (deleted, waiting to be purged). Includes their text.</string>
+
+    <!--
+        Helplines from assets/helplines-v1.json, by id. The English text must equal the bundle's (HelplineTextTest):
+        a translation is shown only while the bundle entry still says what was translated.
+    -->
+    <string name="helpline_in_cybercrime_1930_name">National Cyber Crime Helpline</string>
+    <string name="helpline_in_cybercrime_1930_purpose">Lost money to online or UPI fraud? Call immediately: reporting within the first hours gives the best chance of freezing the money.</string>
+    <string name="helpline_in_cybercrime_portal_name">National Cyber Crime Reporting Portal</string>
+    <string name="helpline_in_cybercrime_portal_purpose">File a complaint about financial fraud or any other cyber crime online, and track it.</string>
+    <string name="helpline_in_chakshu_name">Chakshu (Sanchar Saathi)</string>
+    <string name="helpline_in_chakshu_purpose">Report suspected fraud calls, SMS or WhatsApp messages (fake KYC, impersonation, fake customer care) to the Department of Telecommunications.</string>
+    <string name="helpline_in_trai_1909_sms_name">TRAI spam complaint (1909)</string>
+    <string name="helpline_in_trai_1909_sms_purpose">Report unsolicited commercial SMS (spam) to your operator under TRAI\'s rules. Send the message text, the sender and the date.</string>
+    <string name="helpline_in_trai_1909_call_name">TRAI DND and spam complaints (call 1909)</string>
+    <string name="helpline_in_trai_1909_call_purpose">Call your operator\'s 1909 line to register a spam complaint or change your Do Not Disturb preferences.</string>
+    <string name="helpline_in_emergency_112_name">Emergency (112)</string>
+    <string name="helpline_in_emergency_112_purpose">Police, fire, ambulance: India\'s single emergency number.</string>
+    <string name="helpline_in_rbi_cms_name">RBI Complaint Management System</string>
+    <string name="helpline_in_rbi_cms_purpose">Complain to the RBI Ombudsman when your bank, card issuer or payment app hasn\'t resolved your complaint.</string>
+    <string name="helpline_in_rbi_contact_centre_name">RBI Contact Centre (14448)</string>
+    <string name="helpline_in_rbi_contact_centre_purpose">Help with filing a complaint against a bank or payment company with the RBI.</string>
+    <string name="helpline_in_rbi_sachet_name">RBI Sachet</string>
+    <string name="helpline_in_rbi_sachet_purpose">Report companies illegally collecting deposits or running unregulated investment schemes.</string>
+
+    <!-- Fraud report details copied for a reporting form: one field. %1$s = field name (safe_detail_sender …), %2$s = its value. -->
+    <string name="safe_detail_line">%1$s: %2$s</string>
+    <!-- Fraud report details: the message, its text on the lines below. %1$s = field name (safe_detail_message), %2$s = the message text. -->
+    <string name="safe_detail_block">%1$s:\n%2$s</string>
+</resources>

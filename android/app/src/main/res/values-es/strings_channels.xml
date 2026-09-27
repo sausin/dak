@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification channels, per-conversation channels and notification summaries (agent "channels", prefix ch_). -->
+<resources>
+    <!-- Channels and groups -->
+    <string name="ch_spam_desc">Desactivado de forma predeterminada: el spam se queda en la pestaña Spam. Actívalo para recibir notificaciones silenciosas.</string>
+    <string name="ch_automation">Envíos programados y automatizaciones</string>
+    <string name="ch_automation_desc">Resultados de tus reglas y mensajes programados</string>
+    <string name="ch_group_conversations">Conversaciones</string>
+    <string name="ch_group_sim">SIM %1$d</string>
+    <string name="ch_group_sim_carrier">SIM %1$d · %2$s</string>
+    <string name="ch_group_other">Otros</string>
+    <string name="ch_conversation_desc">Notificaciones personalizadas para esta conversación</string>
+
+    <!-- Notifications -->
+    <plurals name="ch_summary_count">
+        <item quantity="one">%d conversación</item>
+        <item quantity="many">%d conversaciones</item>
+        <item quantity="other">%d conversaciones</item>
+    </plurals>
+    <plurals name="ch_messages_count">
+        <item quantity="one">%d mensaje</item>
+        <item quantity="many">%d mensajes</item>
+        <item quantity="other">%d mensajes</item>
+    </plurals>
+
+    <!-- Channels screen -->
+    <string name="ch_title">Canales de notificación</string>
+    <string name="ch_intro">El sonido, la vibración y las ventanas emergentes se configuran por canal en los ajustes de Android. Toca un canal para cambiarlo; Dak nunca anula tus preferencias.</string>
+    <string name="ch_open_settings">Abrir ajustes</string>
+    <string name="ch_app_blocked_title">Las notificaciones de Dak están desactivadas</string>
+    <string name="ch_app_blocked_body">No se te avisará de nuevos mensajes ni códigos.</string>
+    <string name="ch_critical_blocked_title">%1$s está desactivado</string>
+    <string name="ch_critical_blocked_body">Los mensajes de este canal llegan sin ninguna notificación.</string>
+    <string name="ch_importance_off">Desactivado</string>
+    <string name="ch_importance_min">Silencioso, minimizado</string>
+    <string name="ch_importance_low">Silencioso</string>
+    <string name="ch_importance_default">Sonido</string>
+    <string name="ch_importance_high">Sonido y ventana emergente</string>
+    <string name="ch_customised">Personalizado</string>
+    <string name="ch_conversations_title">Conversaciones con notificaciones personalizadas</string>
+    <string name="ch_conversations_empty">Ninguna todavía. Abre una conversación y elige Notificaciones personalizadas en su menú.</string>
+    <string name="ch_conversation_custom">Sonido y prioridad propios</string>
+    <string name="ch_remove">Quitar</string>
+    <string name="ch_remove_confirm_title">¿Quitar las notificaciones personalizadas de %1$s?</string>
+    <string name="ch_remove_confirm_body">Sus mensajes volverán a usar los canales de categoría habituales.</string>
+    <string name="ch_reset">Restablecer canales</string>
+    <string name="ch_reset_summary">Volver a crear los canales que no has cambiado</string>
+    <string name="ch_reset_confirm_title">¿Restablecer canales?</string>
+    <string name="ch_reset_confirm_body">Los canales que no has cambiado se vuelven a crear con los valores predeterminados de Dak. Los canales que personalizaste conservan tus ajustes; ábrelos para cambiarlos. Los canales de conversación no se ven afectados.</string>
+    <string name="ch_reset_done">Canales restablecidos</string>
+    <plurals name="ch_reset_done_kept">
+        <item quantity="one">Canales restablecidos. %d canal personalizado conservó tus ajustes.</item>
+        <item quantity="many">Canales restablecidos. %d canales personalizados conservaron tus ajustes.</item>
+        <item quantity="other">Canales restablecidos. %d canales personalizados conservaron tus ajustes.</item>
+    </plurals>
+
+    <!-- Conversation menu and Settings -->
+    <string name="ch_action_custom_notifications">Notificaciones personalizadas</string>
+</resources>

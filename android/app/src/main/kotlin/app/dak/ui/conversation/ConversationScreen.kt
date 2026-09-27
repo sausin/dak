@@ -56,6 +56,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,7 +78,9 @@ import app.dak.index.MessageItem
 import app.dak.navigation.DakNavigator
 import app.dak.navigation.Routes
 import app.dak.telephony.MmsDownloadState
+import app.dak.telephony.mms.MmsUnknownSender
 import app.dak.ui.common.Avatar
+import app.dak.ui.common.simName
 import app.dak.ui.common.text.BidiText
 import app.dak.ui.notifications.CustomNotifications
 import app.dak.ui.sendergroups.ChannelFilterRow
@@ -297,8 +300,8 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                         Avatar(name = header.title, key = header.addresses.firstOrNull() ?: viewModel.conversationId, size = 36.dp, photoUri = header.photoUri, isBusiness = header.isBusiness)
                         Column {
                             Text(BidiText.displaySafe(header.title), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                            val subtitle = header.addresses.singleOrNull()?.takeIf { it != header.title }
-                                ?: if (header.isGroup) stringResource(R.string.scr_conv_group_members, header.addresses.size) else null
+                            val subtitle = header.addresses.singleOrNull()?.takeIf { it != header.title && !MmsUnknownSender.isUnknown(it) }
+                                ?: if (header.isGroup) pluralStringResource(R.plurals.scr_conv_group_members_count, header.addresses.size, header.addresses.size) else null
                             if (subtitle != null) Text(BidiText.isolate(subtitle), maxLines = 1, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (prefs.pinned) Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.scr_pinned), modifier = Modifier.size(16.dp))
@@ -379,8 +382,7 @@ fun ConversationScreen(navigator: DakNavigator, modifier: Modifier = Modifier) {
                             fontScale = prefs.fontScale,
                             outgoingColors = prefs.bubbleStyle?.let { DakTheme.colors.avatars.getOrNull(Math.floorMod(it, DakTheme.colors.avatars.size)) },
                             forwardedTo = forwarded[item.key.toString()],
-                            labels = (item.labels - LinkSafety.UNKNOWN_SENDER_LINK_LABEL).filterNotTo(HashSet<String>(), ScamLabels::isScamLabel) +
-                                userLabels[item.key.toString()].orEmpty(),
+                            labels = userLabels[item.key.toString()].orEmpty(),
                             channelLabel = if (foldChannels.size > 1 && !item.isOutgoing) item.address else null,
                             sims = if (item.repeatCount > 1) sims else emptyList(),
                             canReply = composerUi.enabled && !header.isBusiness,
@@ -586,7 +588,7 @@ private fun SimChooserDialog(sims: List<SimInfo>, selected: Int?, onChoose: (Int
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         app.dak.ui.common.SimChip(sim = sim)
-                        Text(sim.carrierName ?: sim.displayName, modifier = Modifier.weight(1f))
+                        Text(sim.carrierName ?: simName(sim), modifier = Modifier.weight(1f))
                         if (sim.subId == selected) Icon(Icons.Outlined.Check, contentDescription = null)
                     }
                 }

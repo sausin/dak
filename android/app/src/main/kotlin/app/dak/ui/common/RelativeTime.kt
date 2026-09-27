@@ -65,6 +65,12 @@ class RelativeTimeFormatter(
     /** Absolute time for accessibility / detail sheets, e.g. "12 Sep 2025, 14:32". */
     fun formatAbsolute(epochMillis: Long): String = dateTime.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
 
+    /**
+     * Date only, e.g. "12 Sep 2025" ("Sep 12, 2025" in en-US), from the `dMMMy` skeleton. Never cut [formatAbsolute]
+     * apart: the date/time joiner and the order differ by locale.
+     */
+    fun formatDate(epochMillis: Long): String = dayMonthYear.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
+
     companion object {
         /** Formatter for the device's current locale, zone and 12/24 h preference. */
         fun create(context: Context): RelativeTimeFormatter = RelativeTimeFormatter(

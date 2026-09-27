@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Broadcast lists (agent "broadcast", prefix bc_). -->
+<resources>
+    <string name="bc_title">ब्रॉडकास्ट सूचियां</string>
+    <string name="bc_shortcut_summary">जान-पहचान के कई लोगों को एक ही मैसेज अलग-अलग SMS में भेजें</string>
+    <string name="bc_new_message_entry">ब्रॉडकास्ट सूची को भेजें</string>
+
+    <!-- First-use terms sheet -->
+    <string name="bc_terms_title">ब्रॉडकास्ट सोच-समझकर इस्तेमाल करें</string>
+    <string name="bc_terms_intro">ब्रॉडकास्ट एक ही मैसेज हर व्यक्ति को आपके नंबर से अलग SMS के रूप में भेजता है। जवाब हर व्यक्ति से अलग-अलग आपको आते हैं।</string>
+    <string name="bc_terms_personal">सिर्फ़ निजी, गैर-व्यावसायिक इस्तेमाल के लिए: परिवार, दोस्त, आपकी हाउसिंग सोसाइटी या टीम।</string>
+    <string name="bc_terms_expect">सिर्फ़ उन्हीं लोगों को भेजें जो आपको जानते हैं और आपके मैसेज की उम्मीद करते हैं।</string>
+    <string name="bc_terms_spam">स्पैम और बिना मांगे प्रमोशनल मैसेज Dak की शर्तों और आपके ऑपरेटर व टेलीकॉम नियामक के नियमों का उल्लंघन हैं।</string>
+    <string name="bc_terms_india">भारत में, बिना मांगे व्यावसायिक संचार पर TRAI के नियम (TCCCPR 2018) निजी नंबरों पर भी लागू होते हैं: लोग 1909 पर आपके नंबर की शिकायत कर सकते हैं, और उसे बंद या ब्लैकलिस्ट किया जा सकता है।</string>
+    <string name="bc_terms_throttle">ऑपरेटर थोक में मैसेज भेजने वाले नंबरों को धीमा, ब्लॉक या निलंबित कर सकते हैं।</string>
+    <string name="bc_terms_charges">हर पाने वाले के लिए, और लंबे मैसेज के हर हिस्से के लिए, आपके सामान्य SMS शुल्क लगते हैं।</string>
+    <string name="bc_terms_limits">Dak एक ब्रॉडकास्ट को %1$d लोगों और रोज़ %2$d मैसेज तक सीमित रखता है, और मैसेज के बीच अंतर रखता है।</string>
+    <string name="bc_terms_checkbox">मैं समझता/समझती हूं, और सिर्फ़ उन्हीं लोगों को भेजूंगा/भेजूंगी जो मेरे मैसेज की उम्मीद करते हैं</string>
+    <string name="bc_terms_accept">स्वीकार करें</string>
+    <string name="bc_terms_decline">अभी नहीं</string>
+    <string name="bc_terms_read_full">स्वीकार्य उपयोग पढ़ें</string>
+    <string name="bc_terms_accepted_on">शर्तें %s को स्वीकार कीं</string>
+
+    <!-- Acceptable use (mirrors docs/terms-acceptable-use.md) -->
+    <string name="bc_aup_title">स्वीकार्य उपयोग</string>
+    <string name="bc_aup_body">Dak एक निजी मैसेजिंग ऐप है। ब्रॉडकास्ट सूचियां, शेड्यूल किए मैसेज, फ़ॉरवर्डिंग और ऑटोमेशन इसलिए हैं ताकि आप जान-पहचान के लोगों से बात कर सकें।\n\nआप Dak का इस्तेमाल स्पैम भेजने के लिए नहीं कर सकते: बिना मांगे व्यावसायिक या प्रमोशनल मैसेज, उन लोगों को मैसेज जिन्होंने आपसे सुनने की सहमति नहीं दी, या खरीदे गए, स्क्रेप किए गए या दूसरों से जुटाए गए नंबरों पर मैसेज।\n\nभारत: TRAI के टेलीकॉम कमर्शियल कम्युनिकेशंस कस्टमर प्रेफ़रेंस रेगुलेशंस, 2018 (TCCCPR) बिना रजिस्ट्रेशन वाले भेजने वालों, जिनमें निजी नंबर भी शामिल हैं, से बिना मांगे व्यावसायिक संचार पर रोक लगाते हैं। पाने वाले ऐसे मैसेज की शिकायत 1909 पर SMS या कॉल करके, या DND ऐप में कर सकते हैं। ऑपरेटरों को शिकायतों पर कार्रवाई करनी होती है और वे नंबर को चेतावनी दे सकते हैं, उस पर रोक लगा सकते हैं, उसे बंद और ब्लैकलिस्ट कर सकते हैं।\n\nहर जगह: ऑपरेटर थोक में मैसेज भेजने वाले नंबरों को धीमा, ब्लॉक या निलंबित करते हैं, और कई देशों में स्पैम-विरोधी कानून हैं। कारोबारों को निजी SIM नहीं, बल्कि रजिस्टर्ड बल्क-SMS प्रोवाइडर का इस्तेमाल करना होगा।\n\nDak की सीमाएं: हर ब्रॉडकास्ट में ज़्यादा से ज़्यादा 50 लोग और किसी भी 24 घंटे में 100 ब्रॉडकास्ट मैसेज, जो अंतर रखकर छोटे-छोटे बैच में भेजे जाते हैं; दोहराए जाने वाले ब्रॉडकास्ट नहीं; ऑटोमेशन कभी ब्रॉडकास्ट शुरू नहीं कर सकते; प्रीमियम-रेट, शॉर्ट-कोड और अक्षरों वाले नंबरों पर कभी ब्रॉडकास्ट नहीं होता।\n\nआपके भेजे हर मैसेज पर आपके ऑपरेटर के SMS शुल्क लगते हैं, जिसमें ब्रॉडकास्ट की हर कॉपी और लंबे मैसेज का हर हिस्सा शामिल है।\n\nआप अपने भेजे मैसेज के लिए खुद ज़िम्मेदार हैं। गलत इस्तेमाल पर आपका ऑपरेटर आपका नंबर बंद कर सकता है।</string>
+    <string name="bc_close">बंद करें</string>
+
+    <!-- Lists screen -->
+    <string name="bc_empty_title">अभी कोई ब्रॉडकास्ट सूची नहीं</string>
+    <string name="bc_empty_body">जान-पहचान के कई लोगों को एक मैसेज भेजने के लिए सूची बनाएं। हर किसी को अपना अलग SMS मिलता है, और जवाब हर व्यक्ति से अलग-अलग आपको आते हैं।</string>
+    <string name="bc_new_list">नई सूची</string>
+    <string name="bc_limits_note">हर ब्रॉडकास्ट में %1$d लोग तक और रोज़ %2$d ब्रॉडकास्ट मैसेज तक। सिर्फ़ निजी इस्तेमाल के लिए।</string>
+    <string name="bc_last_sent">आखिरी बार %s भेजा</string>
+    <plurals name="bc_members_count">
+        <item quantity="one">%d व्यक्ति</item>
+        <item quantity="other">%d लोग</item>
+    </plurals>
+
+    <!-- List editor -->
+    <string name="bc_edit_title_new">नई ब्रॉडकास्ट सूची</string>
+    <string name="bc_edit_title">सूची बदलें</string>
+    <string name="bc_edit_name">सूची का नाम</string>
+    <string name="bc_edit_search">लोग जोड़ें: नाम या नंबर</string>
+    <string name="bc_edit_numbers">या कॉमा लगाकर नंबर टाइप करें</string>
+    <string name="bc_edit_add">जोड़ें</string>
+    <string name="bc_edit_members">सदस्य (%2$d में से %1$d)</string>
+    <string name="bc_edit_remove">%s को हटाएं</string>
+    <string name="bc_edit_save">सेव करें</string>
+    <string name="bc_edit_delete">सूची मिटाएं</string>
+    <string name="bc_edit_delete_confirm">\"%s\" मिटाएं? पहले से भेजे मैसेज हर बातचीत में बने रहेंगे।</string>
+    <string name="bc_edit_contacts_off">नाम से खोजने के लिए संपर्कों की अनुमति दें।</string>
+    <string name="bc_edit_allow">अनुमति दें</string>
+    <string name="bc_edit_default_name">मेरी सूची</string>
+
+    <!-- List thread + composer -->
+    <string name="bc_thread_empty">इस सूची को अभी तक कुछ नहीं भेजा गया। यहां से भेजा गया मैसेज हर व्यक्ति को उसके अपने SMS के रूप में जाता है।</string>
+    <string name="bc_composer_hint">सबके लिए मैसेज</string>
+    <string name="bc_insert_first_name">{firstName}</string>
+    <string name="bc_insert_name">{name}</string>
+    <string name="bc_placeholders_label">नाम जोड़ें:</string>
+    <string name="bc_preview_for">%1$s के लिए प्रीव्यू: %2$s</string>
+    <string name="bc_send">भेजें</string>
+    <string name="bc_send_later">बाद में भेजें</string>
+    <string name="bc_scheduled_for">%s भेजा जाएगा</string>
+    <string name="bc_send_now_instead">इसकी जगह अभी भेजें</string>
+    <string name="bc_sim_label">%s से</string>
+    <string name="bc_edit_list">सूची बदलें</string>
+    <string name="bc_cancel">रद्द करें</string>
+    <string name="bc_send_failed">ब्रॉडकास्ट कतार में नहीं डाला जा सका। रोज़ की सीमा जांचें और फिर कोशिश करें।</string>
+    <string name="bc_list_missing">यह सूची मिटा दी गई थी।</string>
+
+    <!-- Confirmation -->
+    <string name="bc_confirm_eta_single_batch">सभी तुरंत भेजे जाएंगे।</string>
+    <string name="bc_confirm_eta">ऑपरेटर की सीमाओं में रहने के लिए छोटे बैच में भेजे जाते हैं: आखिरी मैसेज लगभग %s में जाएगा।</string>
+    <string name="bc_confirm_eta_scheduled">%1$s शुरू होगा; आखिरी मैसेज लगभग %2$s बाद जाएगा।</string>
+    <string name="bc_confirm_excluded">छोड़े गए (%d):</string>
+    <string name="bc_confirm_roaming">आपका SIM रोमिंग में है, इसलिए हर SMS ज़्यादा महंगा हो सकता है।</string>
+    <string name="bc_confirm_reminder">सिर्फ़ उन्हीं लोगों को भेजें जो इस मैसेज की उम्मीद करते हैं। स्पैम Dak की शर्तों और ऑपरेटर / TRAI के नियमों का उल्लंघन है।</string>
+    <string name="bc_confirm_quota">रोज़ के %2$d ब्रॉडकास्ट मैसेज में से %1$d बाकी।</string>
+    <string name="bc_risk_promo_title">यह प्रमोशनल मैसेज जैसा लगता है</string>
+    <string name="bc_risk_promo_body">लिंक और ऑफ़र, सेल, डिस्काउंट या क्लिक जैसे शब्द आम तौर पर स्पैम में होते हैं। निजी नंबर से बिना मांगे प्रमोशनल SMS भेजना भारत में TRAI के नियमों और आपके ऑपरेटर की शर्तों का उल्लंघन है: आपके नंबर की 1909 पर शिकायत हो सकती है और उसे बंद किया जा सकता है।</string>
+    <string name="bc_risk_large_title">यह बड़ी संख्या में भेजना है</string>
+    <string name="bc_risk_large_body">ऑपरेटर उन नंबरों पर नज़र रखते हैं जो एक साथ कई लोगों को मैसेज भेजते हैं। पक्का करें कि सूची में सभी लोग आपसे मैसेज की उम्मीद करते हैं।</string>
+    <string name="bc_confirm_expect">ये लोग मुझे जानते हैं और इस मैसेज की उम्मीद करते हैं</string>
+    <string name="bc_confirm_send">भेजें</string>
+    <string name="bc_confirm_schedule">शेड्यूल करें</string>
+    <string name="bc_problem_empty">पहले मैसेज टाइप करें।</string>
+    <string name="bc_problem_no_recipients">इस सूची में कोई भी इसे नहीं पा सकता।</string>
+    <string name="bc_problem_past">आगे का कोई समय चुनें।</string>
+    <string name="bc_problem_far">अगले 30 दिनों के अंदर का समय चुनें।</string>
+
+    <!-- Exclusion reasons -->
+    <string name="bc_excl_duplicate">दोहराया गया नंबर</string>
+    <string name="bc_excl_blocked">ब्लॉक किया गया</string>
+    <string name="bc_excl_own">आपका अपना नंबर</string>
+    <string name="bc_excl_short_code">शॉर्ट कोड</string>
+    <string name="bc_excl_alphanumeric">SMS नहीं पा सकता</string>
+    <string name="bc_excl_special">प्रीमियम-रेट या सर्विस नंबर</string>
+    <string name="bc_excl_invalid">फ़ोन नंबर नहीं है</string>
+
+    <!-- Sent broadcast + details -->
+    <string name="bc_details_title">ब्रॉडकास्ट की जानकारी</string>
+    <string name="bc_details_recipients">पाने वाले</string>
+    <string name="bc_details_replies">जवाब</string>
+    <string name="bc_details_no_replies">अभी कोई जवाब नहीं।</string>
+    <string name="bc_retry">फिर कोशिश करें</string>
+    <string name="bc_cancel_unsent">न भेजे गए रद्द करें</string>
+    <string name="bc_delete_record">इस सूची के इतिहास से हटाएं</string>
+    <string name="bc_state_scheduled">%s के लिए शेड्यूल</string>
+    <string name="bc_state_sending">भेजा जा रहा है</string>
+    <string name="bc_state_sent">भेजा गया</string>
+    <string name="bc_state_delivered">पहुंच गया</string>
+    <string name="bc_state_failed">नहीं भेजा जा सका</string>
+    <string name="bc_state_cancelled">रद्द किया गया</string>
+    <string name="bc_open_conversation">%s के साथ बातचीत खोलें</string>
+    <plurals name="bc_reply_count">
+        <item quantity="one">%d जवाब</item>
+        <item quantity="other">%d जवाब</item>
+    </plurals>
+</resources>

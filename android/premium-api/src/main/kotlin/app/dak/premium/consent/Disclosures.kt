@@ -1,7 +1,10 @@
 package app.dak.premium.consent
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Every path by which Dak itself could move message content or message metadata off the phone to a server. Each one
@@ -34,8 +37,9 @@ enum class DataFlow(val id: String) {
 }
 
 /**
- * The text of one prominent disclosure. [version] must be bumped whenever the meaning of any field changes: a consent
- * given to an older version no longer counts (see [ConsentLedger.isGranted]), so the user sees the new text first.
+ * The text of one prominent disclosure, in one [language]. [version] must be bumped whenever the meaning of any field
+ * changes: a consent given to an older version no longer counts (see [ConsentLedger.isGranted]), so the user sees the
+ * new text first. All translations of one version say the same thing; each has its own [textHash].
  */
 data class Disclosure(
     val flow: DataFlow,
@@ -50,10 +54,14 @@ data class Disclosure(
     val whenSent: String,
     val retention: String,
     val howToTurnOff: String,
+    /** Language of the text (a BCP 47 language subtag such as `en` or `hi`); part of [canonicalText]. */
+    val language: String = Disclosures.SOURCE_LANGUAGE,
 ) {
-    /** The exact text shown, in a stable order; its hash goes into every consent record. */
+    /** The exact text shown, in a stable order, with its language; its hash goes into every consent record. */
     fun canonicalText(): String = buildString {
-        append(flow.id).append('\n').append(version).append('\n').append(title).append('\n')
+        append(flow.id).append('\n').append(version).append('\n')
+        append("lang: ").append(language).append('\n')
+        append(title).append('\n')
         whatIsSent.forEach { append("sent: ").append(it).append('\n') }
         whatIsNotSent.forEach { append("not sent: ").append(it).append('\n') }
         append("to: ").append(sentTo).append('\n')
@@ -74,13 +82,25 @@ data class Disclosure(
  * The current disclosure for each [DataFlow]. Plain language, no legalese; the same facts as `docs/privacy-policy.md`.
  * Server-side promises here (retention, no training, no sale) are requirements on the premium backend, which does not
  * exist yet: `docs/privacy-compliance.md` tracks them.
+ *
+ * The English text below is the source. Translations live in `disclosures-<lang>.json` next to this class (Java
+ * resources, so the hash is computed here and in JVM tests exactly as on the phone); a translation is used only when
+ * it was made for the current [Disclosure.version], otherwise the English text is shown. Translations are legal text:
+ * they need a reviewed translation (docs/i18n.md), and changing one changes its hash, so consents given in that
+ * language are asked again.
  */
 object Disclosures {
+    /** Language of the source text in this file. */
+    const val SOURCE_LANGUAGE: String = "en"
+
+    /** Languages with a bundled translation (`disclosures-<lang>.json`). */
+    val TRANSLATED_LANGUAGES: List<String> = listOf("hi", "es", "fr")
+
     private const val TURN_OFF = "Settings → Privacy → Data that leaves your phone. Turning it off stops it at once."
 
     val cloudClassification = Disclosure(
         flow = DataFlow.CLOUD_CLASSIFICATION,
-        version = 2,
+        version = 3,
         title = "Send unclear messages for a second opinion (Jev)",
         whatIsSent = listOf(
             "The sender ID of a business message Dak could not sort on its own, such as \"VM-HDFCBK\" or a short code.",
@@ -100,7 +120,7 @@ object Disclosures {
 
     val webhooks = Disclosure(
         flow = DataFlow.WEBHOOKS,
-        version = 1,
+        version = 2,
         title = "Send messages to your own web address (webhooks)",
         whatIsSent = listOf(
             "For each message that matches a rule with a webhook: the sender (address or sender ID), an internal message ID, and the text your rule's template produces (by default the whole message, which can include OTPs).",
@@ -118,7 +138,7 @@ object Disclosures {
 
     val webRelay = Disclosure(
         flow = DataFlow.WEB_RELAY,
-        version = 1,
+        version = 2,
         title = "Read and reply from your computer (relay)",
         whatIsSent = listOf(
             "Messages you choose to relay, encrypted on this phone with a key shared only with your paired computer (set up by scanning a QR code).",
@@ -136,7 +156,7 @@ object Disclosures {
 
     val aiSearch = Disclosure(
         flow = DataFlow.AI_SEARCH,
-        version = 1,
+        version = 2,
         title = "Ask questions about your messages in plain language (AI search)",
         whatIsSent = listOf(
             "Only the question you type in search, for example \"how much did I spend on Swiggy last month\".",
@@ -151,7 +171,87 @@ object Disclosures {
         howToTurnOff = "$TURN_OFF Search then uses keywords and filters only.",
     )
 
+    /** The current disclosures in the source language (English). */
     val all: List<Disclosure> = listOf(cloudClassification, webhooks, webRelay, aiSearch)
 
+    /** The current disclosure for [flow] in the source language (English). */
     fun forFlow(flow: DataFlow): Disclosure = all.first { it.flow == flow }
+
+    /**
+     * The current disclosure for [flow] as shown to someone using [language] (a BCP 47 tag such as `hi` or `fr-CA`):
+     * its translation when one exists for the current version, else the English text.
+     */
+    fun forFlow(flow: DataFlow, language: String): Disclosure = translation(flow, language) ?: forFlow(flow)
+
+    /** The translation of the current disclosure for [flow] into [language], or null (none, or made for another version). */
+    fun translation(flow: DataFlow, language: String): Disclosure? {
+        val lang = normalizeLanguage(language)
+        if (lang == SOURCE_LANGUAGE) return null
+        val source = forFlow(flow)
+        return translations(lang)[flow]?.takeIf { it.version == source.version }
+    }
+
+    /** `fr-CA` → `fr`, `hi_IN` → `hi`: disclosures are translated per language, not per region. */
+    fun normalizeLanguage(tag: String): String = tag.trim().substringBefore('-').substringBefore('_').lowercase().ifEmpty { SOURCE_LANGUAGE }
+
+    /**
+     * Texts shown by earlier builds that say exactly what the current version says, so a consent given to them still
+     * counts. Version 3 (Jev) and version 2 (the others) only added the language to [Disclosure.canonicalText] (for
+     * translations); the English wording is unchanged. An entry applies only while the flow's current version is
+     * [EquivalentText.sameAsVersion]: the next version bump (a change of meaning) retires it by itself.
+     */
+    internal val EQUIVALENT_EARLIER: List<EquivalentText> = listOf(
+        EquivalentText(DataFlow.CLOUD_CLASSIFICATION, 2, "2e31a1655dbe17dedc9fd51006e00d4184d5bc64bfbcfb1df7d1074567c9cf23", sameAsVersion = 3),
+        EquivalentText(DataFlow.WEBHOOKS, 1, "79631b8a562a8b42babad5e3b0980ff666932a16d7ca75c41188bfe4ac2afc35", sameAsVersion = 2),
+        EquivalentText(DataFlow.WEB_RELAY, 1, "bbeac96d43b8e5dfae0ef34473ddad3813f505605dfdd9e6dad4c502b1d74b6d", sameAsVersion = 2),
+        EquivalentText(DataFlow.AI_SEARCH, 1, "5c0bf2f65a5afcb5a42080b2d3c93479a8709443fe3ca6eef8bcd0864dd0f3ad", sameAsVersion = 2),
+    )
+
+    /** True when ([version], [hash]) is an earlier text of [flow] with the same meaning as its [currentVersion]. */
+    internal fun isEquivalentEarlier(flow: DataFlow, version: Int, hash: String, currentVersion: Int): Boolean =
+        EQUIVALENT_EARLIER.any { it.flow == flow && it.version == version && it.hash == hash && it.sameAsVersion == currentVersion }
+
+    private val cache = ConcurrentHashMap<String, Map<DataFlow, Disclosure>>()
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /** The bundled translations into [lang] by flow; empty (English is shown) when missing or unreadable. */
+    internal fun translations(lang: String): Map<DataFlow, Disclosure> = cache.getOrPut(lang) {
+        if (lang !in TRANSLATED_LANGUAGES) return@getOrPut emptyMap()
+        runCatching<Map<DataFlow, Disclosure>> {
+            val stream = Disclosures::class.java.getResourceAsStream("/app/dak/premium/consent/disclosures-$lang.json")
+                ?: return@runCatching emptyMap()
+            val file = stream.bufferedReader(Charsets.UTF_8).use { json.decodeFromString(TranslationFile.serializer(), it.readText()) }
+            if (normalizeLanguage(file.language) != lang) return@runCatching emptyMap()
+            file.disclosures.mapNotNull { it.toDisclosure(lang) }.associateBy { it.flow }
+        }.getOrDefault(emptyMap())
+    }
+}
+
+/** See [Disclosures.EQUIVALENT_EARLIER]. */
+internal data class EquivalentText(val flow: DataFlow, val version: Int, val hash: String, val sameAsVersion: Int)
+
+/** `disclosures-<lang>.json`: one entry per flow, each naming the source version it translates. */
+@Serializable
+internal data class TranslationFile(val language: String, val disclosures: List<TranslatedDisclosure>)
+
+@Serializable
+internal data class TranslatedDisclosure(
+    val flow: String,
+    val version: Int,
+    val title: String,
+    val whatIsSent: List<String>,
+    val whatIsNotSent: List<String> = emptyList(),
+    val sentTo: String,
+    val why: String,
+    val whenSent: String,
+    val retention: String,
+    val howToTurnOff: String,
+) {
+    /** Null for an unknown flow or an incomplete entry: the English text is shown instead. */
+    fun toDisclosure(language: String): Disclosure? {
+        val dataFlow = DataFlow.byId(flow) ?: return null
+        val fields = listOf(title, sentTo, why, whenSent, retention, howToTurnOff) + whatIsSent + whatIsNotSent
+        if (whatIsSent.isEmpty() || fields.any { it.isBlank() }) return null
+        return Disclosure(dataFlow, version, title, whatIsSent, whatIsNotSent, sentTo, why, whenSent, retention, howToTurnOff, language)
+    }
 }

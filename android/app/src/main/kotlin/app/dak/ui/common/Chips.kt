@@ -59,11 +59,9 @@ fun TokenChip(
  */
 @Composable
 fun SimChip(sim: SimInfo, modifier: Modifier = Modifier, compact: Boolean = false, onClick: (() -> Unit)? = null) {
-    val slotLabel = if (sim.slotIndex >= 0) (sim.slotIndex + 1).toString() else "?"
     val label = when {
-        compact -> slotLabel
-        sim.displayName.isNotBlank() -> sim.displayName
-        else -> stringResource(R.string.sim_n, slotLabel)
+        compact -> if (sim.slotIndex >= 0) (sim.slotIndex + 1).toString() else "?"
+        else -> simName(sim)
     }
     TokenChip(
         label = label,

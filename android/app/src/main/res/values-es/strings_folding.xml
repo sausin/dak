@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sender groups (folding) -->
+    <string name="fold_screen_title">Grupos de remitentes</string>
+    <string name="fold_screen_intro">Bancos, tiendas y mensajerías escriben desde muchos encabezados y números. Dak los agrupa en una sola conversación; separa cualquier canal para verlo por su cuenta. Tus mensajes nunca se modifican.</string>
+    <string name="fold_empty_title">Aún no hay conversaciones agrupadas</string>
+    <string name="fold_empty_body">Los remitentes de una misma marca se agrupan automáticamente. Mantén pulsadas conversaciones en la bandeja de entrada y elige Agrupar para agrupar otras.</string>
+    <string name="fold_suggestions_header">Sugerencias</string>
+    <string name="fold_groups_header">Conversaciones agrupadas</string>
+    <string name="fold_suggestion_same_brand">Misma marca</string>
+    <string name="fold_suggestion_similar">Nombres de remitente similares</string>
+    <string name="fold_action_fold">Agrupar</string>
+    <string name="fold_action_not_now">Ahora no</string>
+    <string name="fold_action_rename">Cambiar nombre</string>
+    <string name="fold_action_unfold">Separar</string>
+    <string name="fold_action_dissolve">Separar todo</string>
+    <string name="fold_action_open">Abrir conversación</string>
+    <string name="fold_action_fold_together">Agrupar</string>
+    <string name="fold_action_fold_into">Agrupar en…</string>
+    <string name="fold_action_unfold_channel">Separar un remitente…</string>
+    <string name="fold_action_manage">Grupos de remitentes</string>
+    <string name="fold_action_select">Seleccionar</string>
+    <string name="fold_channel_also">También como %1$s</string>
+    <string name="fold_channel_manual">Agrupado por ti</string>
+    <string name="fold_group_manual">Tu grupo</string>
+    <string name="fold_group_brand">Agrupado por marca</string>
+    <string name="fold_rename_title">Cambiar nombre del grupo</string>
+    <string name="fold_rename_label">Nombre</string>
+    <string name="fold_name_hint">Nombre de la conversación agrupada (opcional)</string>
+    <string name="fold_into_title">Agrupar en</string>
+    <string name="fold_into_empty">Aún no hay otras conversaciones en las que agrupar.</string>
+    <string name="fold_unfold_title">Separar un remitente</string>
+    <string name="fold_dissolve_confirm">¿Volver a mostrar cada remitente de %1$s como su propia conversación?</string>
+    <string name="fold_snack_folded">Agrupado</string>
+    <string name="fold_snack_unfolded">Separado</string>
+    <string name="fold_snack_failed">No se pudieron agrupar estas conversaciones</string>
+    <string name="fold_filter_all">Todos los remitentes</string>
+    <string name="fold_chip_channel">mediante %1$s</string>
+
+    <!-- Repeated messages -->
+    <string name="fold_repeat_chip">×%1$d · último %2$s</string>
+    <string name="fold_repeat_chip_description">Recibido %1$d veces, la última a las %2$s. Toca para ver cada una.</string>
+    <string name="fold_repeat_hide">Ocultar copias</string>
+    <string name="fold_repeat_occurrence">Recibido %1$s</string>
+
+    <!-- Account alias confirmation -->
+    <string name="fold_alias_question">¿%1$s es la misma que %2$s (%3$s)?</string>
+    <string name="fold_alias_explain">El banco ahora muestra otra parte del número de cuenta. Si es la misma cuenta, sus mensajes van a un solo libro de movimientos.</string>
+    <string name="fold_alias_explain_same_digits">Parece una sola cuenta usada de dos formas (por ejemplo, UPI y cargos en cuenta).</string>
+    <string name="fold_alias_same">Misma cuenta</string>
+    <string name="fold_alias_different">Distinta</string>
+    <string name="fold_alias_show_messages">Mostrar mensajes</string>
+    <string name="fold_alias_hide_messages">Ocultar mensajes</string>
+    <string name="fold_alias_sample_unavailable">El mensaje ya no está disponible</string>
+    <string name="fold_alias_merged_snack">Combinadas en una sola cuenta</string>
+    <string name="fold_alias_merge_with">Combinar con…</string>
+    <string name="fold_alias_merge_title">Combinar esta cuenta con</string>
+    <string name="fold_alias_merge_empty">No hay otras cuentas de este banco.</string>
+    <string name="fold_alias_merged_header">También incluye</string>
+    <string name="fold_alias_unmerge">Separar</string>
+    <string name="fold_alias_account_number">Cta. ••%1$s</string>
+</resources>

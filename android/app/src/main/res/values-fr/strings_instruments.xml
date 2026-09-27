@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Passbook instrument groups (agent I "instruments") -->
+    <string name="inst_group_bank_accounts">Comptes bancaires</string>
+    <string name="inst_group_credit_cards">Cartes de crédit</string>
+    <string name="inst_group_debit_cards">Cartes de débit</string>
+    <string name="inst_group_wallets">Portefeuilles</string>
+    <string name="inst_group_upi">UPI</string>
+    <string name="inst_group_prepaid">Cartes prépayées et devises</string>
+    <string name="inst_group_loans">Prêts</string>
+    <string name="inst_group_investments">Investissements</string>
+    <string name="inst_group_other">Autres</string>
+    <string name="inst_group_expand">Afficher %1$s</string>
+    <string name="inst_group_collapse">Masquer %1$s</string>
+
+    <!-- Header totals, per currency, never converted -->
+    <string name="inst_total_balance">Solde %1$s</string>
+    <string name="inst_total_outstanding">Encours %1$s</string>
+    <string name="inst_total_spent">Dépensé ce mois-ci %1$s</string>
+    <string name="inst_total_nothing_spent">Aucune dépense ce mois-ci</string>
+    <string name="inst_total_no_balance">Aucun solde indiqué pour l\'instant</string>
+    <string name="inst_total_no_outstanding">Définissez les jours de relevé pour voir l\'encours</string>
+    <string name="inst_total_value">Valeur actuelle %1$s</string>
+    <string name="inst_total_no_value">Aucune valeur actuelle indiquée pour l\'instant</string>
+
+    <!-- Account title kinds ("HDFC Bank debit card ••1234") -->
+    <string name="inst_kind_account">compte</string>
+    <string name="inst_kind_credit_card">carte de crédit</string>
+    <string name="inst_kind_debit_card">carte de débit</string>
+    <string name="inst_kind_wallet">portefeuille</string>
+    <string name="inst_kind_upi">UPI</string>
+    <string name="inst_kind_prepaid">carte prépayée</string>
+    <string name="inst_kind_loan">prêt</string>
+    <string name="inst_kind_investment">investissement</string>
+    <string name="inst_kind_mutual_fund">folio de fonds commun</string>
+    <string name="inst_kind_demat">compte-titres</string>
+    <string name="inst_kind_other">compte</string>
+
+    <!-- Type chips -->
+    <string name="inst_chip_account">Compte</string>
+    <string name="inst_chip_credit_card">Carte de crédit</string>
+    <string name="inst_chip_debit_card">Carte de débit</string>
+    <string name="inst_chip_wallet">Portefeuille</string>
+    <string name="inst_chip_upi">UPI</string>
+    <string name="inst_chip_prepaid">Prépayée</string>
+    <string name="inst_chip_loan">Prêt</string>
+    <string name="inst_chip_mutual_fund">Fonds commun</string>
+    <string name="inst_chip_demat">Titres</string>
+    <string name="inst_chip_other">Autre</string>
+
+    <!-- Account rows -->
+    <string name="inst_row_spent_month">Ce mois-ci %1$s</string>
+    <string name="inst_row_outstanding">Encours %1$s</string>
+    <string name="inst_row_linked_to">Lié à %1$s</string>
+    <string name="inst_row_card_no_balance">Dépenses par carte uniquement ; pas de solde propre</string>
+    <string name="inst_row_via">via %1$s</string>
+    <string name="inst_row_no_value">Aucune valeur actuelle indiquée pour l\'instant</string>
+    <string name="inst_units_held">%1$s parts détenues</string>
+
+    <!-- Account screen per type -->
+    <string name="inst_balance_account">Solde</string>
+    <string name="inst_balance_wallet">Solde du portefeuille</string>
+    <string name="inst_balance_prepaid">Solde de la carte</string>
+    <string name="inst_balance_loan">Encours (tel qu\'indiqué)</string>
+    <string name="inst_balance_upi">Paiements UPI</string>
+    <string name="inst_upi_note">Messages UPI qui ne mentionnent aucun compte bancaire. Les soldes s\'affichent sur le compte lui-même lorsqu\'un message le mentionne.</string>
+    <string name="inst_loan_no_outstanding">Aucun message n\'a encore indiqué le montant restant dû.</string>
+    <string name="inst_loan_paid_from">Mensualités payées depuis %1$s</string>
+    <string name="inst_debit_linked_header">Compte bancaire lié</string>
+    <string name="inst_debit_unlinked">Aucun message n\'a encore mentionné le compte débité par cette carte ; ses dépenses sont donc affichées ici sans solde.</string>
+    <string name="inst_debit_stated_balance">Solde disponible indiqué avec une dépense par carte (celui du compte bancaire, pas de la carte)</string>
+    <string name="inst_open_linked">Ouvrir le compte</string>
+    <string name="inst_balance_investment">Valeur actuelle (telle qu\'indiquée)</string>
+    <string name="inst_investment_no_value">Aucun message n\'a encore indiqué la valeur actuelle de cet investissement. Les messages de valorisation, de positions et de CAS la mettent à jour.</string>
+    <string name="inst_investment_note">Les achats ici sont votre propre argent transféré depuis la banque ; ils ne comptent donc jamais comme des dépenses.</string>
+
+    <!-- Investment entries and months -->
+    <string name="inst_action_purchase">Achat / SIP</string>
+    <string name="inst_action_redemption">Rachat</string>
+    <string name="inst_action_switch">Arbitrage</string>
+    <string name="inst_action_dividend">Dividende / IDCW</string>
+    <string name="inst_action_buy">Acheté</string>
+    <string name="inst_action_sell">Vendu</string>
+    <string name="inst_action_valuation">Valorisation</string>
+    <string name="inst_entry_units_at">%1$s parts à %2$s</string>
+    <string name="inst_entry_units">%1$s parts</string>
+    <string name="inst_entry_price">VL / cours %1$s</string>
+    <string name="inst_entry_value">Valeur actuelle</string>
+    <string name="inst_entry_value_after">Valeur %1$s</string>
+    <string name="inst_entry_own_transfer">Vers vos investissements · pas une dépense</string>
+    <string name="inst_month_invested">Investi</string>
+    <string name="inst_month_redeemed">Racheté / vendu</string>
+    <string name="inst_month_dividends">Dividendes</string>
+    <string name="inst_month_transfers">Transféré vers vos investissements %1$s · retour %2$s (pas des dépenses)</string>
+
+    <!-- Manual type -->
+    <string name="inst_type_label">Type</string>
+    <string name="inst_type_detected">Détecté à partir des messages</string>
+    <string name="inst_type_set_by_you">Défini par vous</string>
+    <string name="inst_type_change">Changer de type</string>
+    <string name="inst_type_dialog_title">De quoi s\'agit-il ?</string>
+    <string name="inst_type_reset">Utiliser le type détecté</string>
+    <string name="inst_type_option_account">Un compte bancaire</string>
+    <string name="inst_type_option_credit_card">C\'est une carte de crédit</string>
+    <string name="inst_type_option_debit_card">C\'est une carte de débit</string>
+    <string name="inst_type_option_wallet">Un portefeuille</string>
+    <string name="inst_type_option_upi">Paiements UPI</string>
+    <string name="inst_type_option_prepaid">Une carte prépayée, de devises ou cadeau</string>
+    <string name="inst_type_option_loan">Un prêt ou un compte de mensualités</string>
+    <string name="inst_type_option_mutual_fund">Un folio de fonds commun</string>
+    <string name="inst_type_option_demat">Un compte-titres / de courtage</string>
+    <string name="inst_type_option_other">Autre chose</string>
+</resources>

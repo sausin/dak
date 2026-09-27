@@ -603,8 +603,9 @@ pull request, about 1,850 unit tests, coverage floors, fuzzers and the adversari
 
 **Next up and known gaps:**
 
-- [ ] **Translations.** The app is ready for them: a language picker, translatable resources, pseudo-locales in
-      debug builds and a CI completeness check. No language besides English ships yet. Contributions are welcome
+- [ ] **Translations.** English, Hindi, Spanish and French ship (language picker, translatable resources,
+      pseudo-locales in debug builds and a CI completeness check). The Hindi, Spanish and French texts are a first,
+      AI-assisted pass that still needs native-speaker review; corrections and new languages are welcome
       ([`docs/i18n.md`](docs/i18n.md)).
 - [ ] The last two corpus `known-gap` lines ("wrong number" openers), and `MoneyParser`'s pattern, which is now
       the largest remaining parser cost ([`performance.md`](docs/performance.md#next)).

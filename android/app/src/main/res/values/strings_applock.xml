@@ -18,12 +18,13 @@
     <!-- PIN pad -->
     <string name="lock_pin_delete">Delete digit</string>
     <string name="lock_pin_enter">Enter PIN</string>
-    <string name="lock_pin_entered">%1$d digits entered</string>
     <string name="lock_pin_wrong">Wrong PIN. Try again.</string>
+    <!-- %1$d = number of PIN tries left. -->
     <plurals name="lock_pin_wrong_attempts">
         <item quantity="one">Wrong PIN. %1$d try left before a short lockout.</item>
         <item quantity="other">Wrong PIN. %1$d tries left before a short lockout.</item>
     </plurals>
+    <!-- %1$s = time left until the PIN can be tried again, e.g. "4:59". -->
     <string name="lock_pin_locked_out">Too many wrong PINs. Try again in %1$s.</string>
     <string name="lock_pin_missing">No app PIN is set on this phone.</string>
 
@@ -101,10 +102,12 @@
     <!-- Turning app lock off while automations that send messages are on -->
     <string name="lock_outbound_off_title">Turn off app lock?</string>
     <string name="lock_outbound_pin_title">Remove app PIN?</string>
+    <!-- %1$d = number of automations that will be turned off. -->
     <plurals name="lock_outbound_off_body">
         <item quantity="one">This automation sends messages from your phone and will be turned off:</item>
         <item quantity="other">These %1$d automations send messages from your phone and will be turned off:</item>
     </plurals>
+    <!-- %1$d = number of further automations not listed by name. -->
     <plurals name="lock_outbound_more">
         <item quantity="one">and %1$d more</item>
         <item quantity="other">and %1$d more</item>

@@ -10,6 +10,7 @@
 
     <string name="scam_banner_title_likely">Possible fake credit alert</string>
     <string name="scam_banner_title_suspicious">Be careful with this message</string>
+    <!-- %1$s = the organisation the message claims to be from. -->
     <string name="scam_banner_claims">It claims to be from %1$s.</string>
     <string name="scam_banner_verify">Verify in your bank app before you send any money back.</string>
     <string name="scam_banner_advice">Banks never ask you to return money to a mobile number or UPI ID. If money really arrived by mistake, the sender\'s bank reverses it; you never need to pay it back yourself.</string>

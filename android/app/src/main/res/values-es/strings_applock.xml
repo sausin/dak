@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App lock: lock screen, PIN pad, confirmations, App lock settings (agent "applock", prefix lock_). -->
+<resources>
+    <!-- Lock screen -->
+    <string name="lock_title">Dak está bloqueado</string>
+    <string name="lock_body_device">Usa tu huella, tu cara o el bloqueo de pantalla del teléfono para abrir tus mensajes.</string>
+    <string name="lock_unlock_button">Desbloquear Dak</string>
+    <string name="lock_enter_pin">Introduce tu PIN de Dak</string>
+    <string name="lock_prompt_title">Desbloquear Dak</string>
+    <string name="lock_prompt_subtitle">Tus mensajes permanecen ocultos hasta que desbloquees</string>
+    <string name="lock_device_unavailable">El bloqueo de pantalla del teléfono no está disponible ahora mismo.</string>
+    <string name="lock_biometric_locked_out">Demasiados intentos. Usa el bloqueo de pantalla o el PIN, o inténtalo más tarde.</string>
+    <string name="lock_use_pin">Usar PIN</string>
+    <string name="lock_use_fingerprint">Usar huella</string>
+    <string name="lock_cancel">Cancelar</string>
+    <string name="lock_unlock_action">Desbloquear</string>
+
+    <!-- PIN pad -->
+    <string name="lock_pin_delete">Borrar dígito</string>
+    <string name="lock_pin_enter">Introducir PIN</string>
+    <string name="lock_pin_wrong">PIN incorrecto. Inténtalo de nuevo.</string>
+    <plurals name="lock_pin_wrong_attempts">
+        <item quantity="one">PIN incorrecto. Te queda %1$d intento antes de un breve bloqueo.</item>
+        <item quantity="many">PIN incorrecto. Te quedan %1$d intentos antes de un breve bloqueo.</item>
+        <item quantity="other">PIN incorrecto. Te quedan %1$d intentos antes de un breve bloqueo.</item>
+    </plurals>
+    <string name="lock_pin_locked_out">Demasiados PIN incorrectos. Inténtalo de nuevo en %1$s.</string>
+    <string name="lock_pin_missing">No hay ningún PIN de la app configurado en este teléfono.</string>
+
+    <!-- PIN setup -->
+    <string name="lock_setup_title">Elige un PIN para Dak</string>
+    <string name="lock_setup_hint">De 4 a 8 dígitos, distinto de los obvios como 1234</string>
+    <string name="lock_setup_confirm_title">Vuelve a introducir el PIN</string>
+    <string name="lock_setup_confirm_hint">Para comprobar que lo escribiste bien</string>
+    <string name="lock_setup_too_easy">Ese PIN es demasiado fácil de adivinar. Elige otro.</string>
+    <string name="lock_setup_mismatch">Los PIN no coinciden. Empieza de nuevo.</string>
+    <string name="lock_setup_invalid">Usa de 4 a 8 dígitos.</string>
+
+    <!-- Sensitive screens -->
+    <string name="lock_sensitive_prompt">Desbloquear %1$s</string>
+    <string name="lock_sensitive_title">Esta pantalla está protegida</string>
+    <string name="lock_sensitive_body">Desbloquea para verla. Puedes cambiarlo en Ajustes → Bloqueo de la app.</string>
+
+    <!-- Onboarding -->
+    <string name="lock_onboarding_title">Protege Dak con el bloqueo de la app</string>
+    <string name="lock_onboarding_body">Recomendado: tus mensajes incluyen alertas bancarias y códigos de un solo uso. Pide tu huella, tu cara o tu PIN cada vez que se abra Dak.</string>
+    <string name="lock_onboarding_done">El bloqueo de la app está activado. Cámbialo cuando quieras en Ajustes → Bloqueo de la app.</string>
+    <string name="lock_onboarding_button">Activar bloqueo de la app</string>
+
+    <!-- App lock settings -->
+    <string name="lock_settings_title">Bloqueo de la app</string>
+    <string name="lock_status_ready">La huella o la cara registradas en tu teléfono y su bloqueo de pantalla pueden desbloquear Dak.</string>
+    <string name="lock_status_no_biometric">No hay ninguna huella ni cara configurada en este teléfono, así que Dak te pedirá el PIN, el patrón o la contraseña del teléfono. Puedes añadir una en los ajustes del sistema.</string>
+    <string name="lock_status_no_screen_lock">Este teléfono no tiene bloqueo de pantalla. Configura uno en los ajustes del sistema o protege Dak con su propio PIN de la app.</string>
+    <string name="lock_open_security_settings">Abrir ajustes de seguridad</string>
+    <string name="lock_toggle_title">Bloqueo de la app</string>
+    <string name="lock_toggle_on">Dak te pide desbloquearlo antes de mostrar los mensajes</string>
+    <string name="lock_toggle_off">Desactivado. Cualquiera que use tu teléfono desbloqueado puede leer tus mensajes en Dak.</string>
+    <string name="lock_method_label">Desbloquear con</string>
+    <string name="lock_method_device">Bloqueo de pantalla del teléfono</string>
+    <string name="lock_method_device_summary">Huella o cara, o el PIN, el patrón o la contraseña del teléfono</string>
+    <string name="lock_method_device_no_biometric">El PIN, el patrón o la contraseña del teléfono</string>
+    <string name="lock_method_device_unavailable">Primero configura un bloqueo de pantalla en el teléfono</string>
+    <string name="lock_method_pin">PIN de la app</string>
+    <string name="lock_method_pin_summary">Un PIN aparte de 4 a 8 dígitos solo para Dak</string>
+    <string name="lock_method_fallback">El método que elegiste no está disponible ahora mismo en este teléfono, así que Dak usa el otro.</string>
+    <string name="lock_set_pin">Configurar PIN de la app</string>
+    <string name="lock_set_pin_summary">Aún no hay ningún PIN de la app guardado en este teléfono</string>
+    <string name="lock_change_pin">Cambiar PIN de la app</string>
+    <string name="lock_change_pin_summary">Elige un PIN nuevo para Dak</string>
+    <string name="lock_remove_pin">Quitar PIN de la app</string>
+    <string name="lock_remove_pin_summary">Dejar de usar un PIN aparte para Dak</string>
+    <string name="lock_fingerprint_title">Usar huella en lugar del PIN</string>
+    <string name="lock_fingerprint_summary">Desbloquea con huella o cara; tu PIN de la app sigue funcionando cuando no se puedan leer</string>
+    <string name="lock_fingerprint_enroll_hint">Añade una huella en los ajustes del sistema para usarla en lugar del PIN de la app.</string>
+    <string name="lock_when_label">Cuándo bloquear</string>
+    <string name="lock_auto_title">Bloqueo automático</string>
+    <string name="lock_auto_immediately">Inmediatamente al salir de Dak</string>
+    <string name="lock_auto_30s">30 segundos después de salir de Dak</string>
+    <string name="lock_auto_1m">1 minuto después de salir de Dak</string>
+    <string name="lock_auto_5m">5 minutos después de salir de Dak</string>
+    <string name="lock_auto_15m">15 minutos después de salir de Dak</string>
+    <string name="lock_screen_off_title">Bloquear al apagarse la pantalla</string>
+    <string name="lock_screen_off_summary">Sea cual sea el tiempo de bloqueo automático</string>
+    <string name="lock_recents_title">Ocultar contenido en Recientes</string>
+    <string name="lock_recents_summary">También impide las capturas de pantalla de Dak</string>
+    <string name="lock_recents_when_on">Con el bloqueo de la app activado</string>
+    <string name="lock_recents_always">Siempre</string>
+    <string name="lock_recents_never">Nunca</string>
+    <string name="lock_sensitive_setting_title">Proteger pantallas sensibles</string>
+    <string name="lock_sensitive_setting_summary">Pedir desbloqueo antes de abrir la papelera, la libreta, la copia de seguridad, las automatizaciones y el reenvío, incluso con el bloqueo de la app desactivado</string>
+    <string name="lock_notifications_info">Con el bloqueo de la app activado, Copiar código y Marcar como leído siguen funcionando desde las notificaciones. Responder y Eliminar abren Dak para que primero lo desbloquees.</string>
+    <string name="lock_privacy_full_warning">Las notificaciones de la pantalla de bloqueo muestran los mensajes completos. Cámbialo en Notificaciones → Privacidad en la pantalla de bloqueo.</string>
+    <string name="lock_privacy_switched">Las notificaciones de la pantalla de bloqueo ahora ocultan el texto de los mensajes. Puedes cambiarlo en Notificaciones.</string>
+    <string name="lock_needs_screen_lock">Primero configura un bloqueo de pantalla en el teléfono o usa un PIN de la app.</string>
+    <string name="lock_confirm_change_title">Confirma que eres tú</string>
+    <string name="lock_verify_device_title">Confirma tu bloqueo de pantalla</string>
+    <string name="lock_verify_fingerprint_title">Confirma tu huella</string>
+    <string name="lock_now">Bloquear ahora</string>
+
+    <!-- Turning app lock off while automations that send messages are on -->
+    <string name="lock_outbound_off_title">¿Desactivar el bloqueo de la app?</string>
+    <string name="lock_outbound_pin_title">¿Quitar el PIN de la app?</string>
+    <plurals name="lock_outbound_off_body">
+        <item quantity="one">Esta automatización envía mensajes desde tu teléfono y se desactivará:</item>
+        <item quantity="many">Estas %1$d automatizaciones envían mensajes desde tu teléfono y se desactivarán:</item>
+        <item quantity="other">Estas %1$d automatizaciones envían mensajes desde tu teléfono y se desactivarán:</item>
+    </plurals>
+    <plurals name="lock_outbound_more">
+        <item quantity="one">y %1$d más</item>
+        <item quantity="many">y %1$d más</item>
+        <item quantity="other">y %1$d más</item>
+    </plurals>
+    <string name="lock_outbound_off_why">El reenvío y el envío automático necesitan el bloqueo de la app, para que nadie más que use tu teléfono pueda cambiarlos y enviarse tus mensajes bancarios y códigos. Puedes volver a activarlos después de configurar el bloqueo de la app.</string>
+    <string name="lock_outbound_off_confirm">Desactivar bloqueo y automatizaciones</string>
+    <string name="lock_outbound_pin_confirm">Quitar PIN y automatizaciones</string>
+</resources>

@@ -1,7 +1,9 @@
 package app.dak.automation
 
+import android.content.Context
 import android.util.Log
 import app.dak.automations.MessageEvent
+import app.dak.automations.PlaceholderFormatter
 import app.dak.automations.TemplateRenderer
 import app.dak.automations.forwarding.ForwardingSpec
 import app.dak.automations.history.RunHistory
@@ -11,6 +13,7 @@ import app.dak.automations.rule.ActionSpec
 import app.dak.automations.rule.Rule
 import app.dak.index.db.entity.AutomationRunRow
 import app.dak.index.repo.AutomationRunStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,10 +25,16 @@ import javax.inject.Singleton
  * stop the automation.
  */
 @Singleton
-class AutomationRunLog @Inject constructor(private val store: AutomationRunStore) {
+class AutomationRunLog @Inject constructor(
+    private val store: AutomationRunStore,
+    @ApplicationContext private val context: Context,
+) {
 
     suspend fun record(rule: Rule, action: ActionSpec, event: MessageEvent, outcome: RunOutcome, reason: String? = null) {
-        runCatching { store.add(rowFor(rule, action, event, outcome, reason, System.currentTimeMillis())) }
+        runCatching {
+            // The preview renders `{time}`, `{amount}` and `{sim}` as the sent text does: in the app language.
+            store.add(rowFor(rule, action, event, outcome, reason, System.currentTimeMillis(), formatter = AppPlaceholderFormatter(context)))
+        }
             .onFailure { Log.w(TAG, "could not write the run log", it) }
     }
 
@@ -82,6 +91,7 @@ class AutomationRunLog @Inject constructor(private val store: AutomationRunStore
             reason: String?,
             nowMillis: Long,
             zoneId: String = ZoneId.systemDefault().id,
+            formatter: PlaceholderFormatter = PlaceholderFormatter.Default,
         ): AutomationRunRow = AutomationRunRow(
             ruleId = rule.id,
             ruleName = rule.name,
@@ -94,7 +104,7 @@ class AutomationRunLog @Inject constructor(private val store: AutomationRunStore
             destination = RunHistory.destinationOf(action, replyTo = event.address),
             outcome = outcome.name,
             reason = reason,
-            textPreview = sentText(action, event, zoneId)?.let { RunHistory.preview(it, otpCode = event.otp?.code) },
+            textPreview = sentText(action, event, zoneId, formatter)?.let { RunHistory.preview(it, otpCode = event.otp?.code) },
         )
 
         /** The contact name of a forwarding recipient, when the rule knows it. */
@@ -106,11 +116,16 @@ class AutomationRunLog @Inject constructor(private val store: AutomationRunStore
         }
 
         /** What [action] sends for [event]; null for an "open" intent (its URI is not message text). */
-        fun sentText(action: ActionSpec, event: MessageEvent, zoneId: String): String? = when (action) {
-            is ActionSpec.ForwardSms -> TemplateRenderer.render(action.template, event, zoneId)
-            is ActionSpec.Webhook -> TemplateRenderer.render(action.template, event, zoneId)
-            is ActionSpec.RelayToWebClient -> TemplateRenderer.render(action.template, event, zoneId)
-            is ActionSpec.RelayRule -> TemplateRenderer.render(action.template, event, zoneId)
+        fun sentText(
+            action: ActionSpec,
+            event: MessageEvent,
+            zoneId: String,
+            formatter: PlaceholderFormatter = PlaceholderFormatter.Default,
+        ): String? = when (action) {
+            is ActionSpec.ForwardSms -> TemplateRenderer.render(action.template, event, zoneId, formatter)
+            is ActionSpec.Webhook -> TemplateRenderer.render(action.template, event, zoneId, formatter)
+            is ActionSpec.RelayToWebClient -> TemplateRenderer.render(action.template, event, zoneId, formatter)
+            is ActionSpec.RelayRule -> TemplateRenderer.render(action.template, event, zoneId, formatter)
             is ActionSpec.ScheduleReply -> action.text
             else -> null
         }

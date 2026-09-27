@@ -35,6 +35,8 @@ import app.dak.settings.DakSettings
 import app.dak.settings.SettingsStore
 import app.dak.telephony.IncomingMessageHandler
 import app.dak.telephony.SimRepository
+import app.dak.telephony.mms.MmsUnknownSender
+import app.dak.ui.common.SimNames
 import app.dak.ui.common.text.BidiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -196,14 +198,14 @@ class MessageNotifier @Inject constructor(
         val warning = if (inCall) context.getString(R.string.otp_in_call_warning) else null
         val usedBy = consumer?.let { context.getString(R.string.otp_used_by, labelOf(it)) }
         // Isolated (FSI…PDI): the sender name sits next to the code and "Used by …" in one line.
-        val shownSender = RepeatCollapse.withCount(BidiText.isolate(sender), count)
+        val shownSender = RepeatCollapse.withCount(BidiText.isolate(sender), count, this::repeatCount)
         val copiedLabel = if (copied) context.getString(R.string.otp_copied) else null
 
         val collapsed = RemoteViews(context.packageName, R.layout.notification_otp).apply {
             setTextViewText(R.id.otp_code, otp.code)
             setTextViewTextSize(R.id.otp_code, TypedValue.COMPLEX_UNIT_SP, if (large) 32f else 24f)
             copiedLabel?.let { showOtpStatus(this, it) }
-            setTextViewText(R.id.otp_sender, warning ?: listOfNotNull(shownSender, usedBy).joinToString(" · "))
+            setTextViewText(R.id.otp_sender, warning ?: senderLine(shownSender, usedBy))
         }
         val expanded = RemoteViews(context.packageName, R.layout.notification_otp_big).apply {
             setTextViewText(R.id.otp_code, otp.code)
@@ -213,14 +215,14 @@ class MessageNotifier @Inject constructor(
                 setViewVisibility(R.id.otp_warning, View.VISIBLE)
                 setTextViewText(R.id.otp_warning, warning)
             }
-            setTextViewText(R.id.otp_sender, listOfNotNull(shownSender, usedBy).joinToString(" · "))
+            setTextViewText(R.id.otp_sender, senderLine(shownSender, usedBy))
             setTextViewText(R.id.otp_body, shownBody)
         }
 
         // The title is what watches, summaries and screen readers show; the custom views draw the code themselves.
         val title = if (copied) context.getString(R.string.otp_code_copied, otp.code) else otp.code
         val builder = baseBuilder(channel = channel, message = message, smallIcon = R.drawable.ic_stat_otp, category = Category.OTP)
-            .setContentTitle("$title · $shownSender")
+            .setContentTitle(context.getString(R.string.text_pair_dot, title, shownSender))
             .setContentText(warning ?: shownBody)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsed)
@@ -297,7 +299,7 @@ class MessageNotifier @Inject constructor(
             RepeatCollapse.isRepeat(extras.getString(EXTRA_REPEAT_KEY), extras.getLong(EXTRA_REPEAT_AT), key, now) &&
             removeLastMessage(style)
         val count = if (repeat) extras.getInt(EXTRA_REPEAT_COUNT, 1) + 1 else 1
-        val shown = RepeatCollapse.withCount(body, count)
+        val shown = RepeatCollapse.withCount(body, count, this::repeatCount)
         style.addMessage(shown, message.dateMillis, from)
 
         val conversationId = custom?.second ?: ConversationChannels.conversationIdFor(message.address, message.threadId)
@@ -397,13 +399,13 @@ class MessageNotifier @Inject constructor(
         val body = displayBody(message)
         val now = System.currentTimeMillis()
         val state = RepeatCollapse.next(readState(activeTarget(target)?.notification?.extras), body, RepeatCollapse.template(body), now)
-        val latest = RepeatCollapse.withCount(body, state.count)
+        val latest = RepeatCollapse.withCount(body, state.count, this::repeatCount)
         val channel = channels.channelFor(ChannelRouting.baseChannel(category, labels = labels), message.subId, sims.sims.value)
         val style = if (state.lines.size > 1) {
             NotificationCompat.InboxStyle()
                 .setBigContentTitle(sender)
                 .setSummaryText(context.resources.getQuantityString(R.plurals.ch_messages_count, state.total, state.total))
-                .also { inbox -> state.displayLines().forEach { inbox.addLine(it) } }
+                .also { inbox -> state.displayLines(this::repeatCount).forEach { inbox.addLine(it) } }
         } else {
             NotificationCompat.BigTextStyle().bigText(latest)
         }
@@ -518,6 +520,13 @@ class MessageNotifier @Inject constructor(
         return action(R.drawable.ic_action_delete, R.string.action_delete, intent, NotificationCompat.Action.SEMANTIC_ACTION_DELETE, opensApp = locked)
     }
 
+    /** "text ×3" in the app language (locale digits, the translation's word order). */
+    private fun repeatCount(text: String, count: Int): String = context.getString(R.string.notification_repeat_count, text, count)
+
+    /** The OTP layout's sender line: "HDFC Bank · Used by Google Pay", or just the sender. */
+    private fun senderLine(sender: String, usedBy: String?): String =
+        if (usedBy == null) sender else context.getString(R.string.text_pair_dot, sender, usedBy)
+
     /** Shows [label] ("Copied") beside the code in an OTP layout. */
     private fun showOtpStatus(views: RemoteViews, label: String) {
         views.setTextViewText(R.id.otp_status, label)
@@ -574,10 +583,15 @@ class MessageNotifier @Inject constructor(
 
     private fun threadTarget(message: Message) = NotificationActions.Target(tag = "thread:${message.threadId}", id = ID_CONVERSATION)
 
-    private fun senderName(message: Message, classification: Classification): String =
-        BidiText.sanitizeDisplayName(
+    private fun senderName(message: Message, classification: Classification): String {
+        // An MMS without a From address has no sender to show (blank, or the provider thread's placeholder).
+        if (MmsUnknownSender.isUnknown(message.address) && classification.canonicalSender.isNullOrBlank()) {
+            return context.getString(R.string.unknown_sender)
+        }
+        return BidiText.sanitizeDisplayName(
             contacts.displayName(message.address) ?: classification.canonicalSender ?: message.address,
         )
+    }
 
     private fun displayBody(message: Message): String = when {
         message.body.isNotBlank() -> NotificationText.body(message.body)
@@ -598,7 +612,7 @@ class MessageNotifier @Inject constructor(
     private fun simLabel(subId: Int): String? {
         if (sims.sims.value.size < 2) return null
         val sim = sims.sim(subId) ?: return null
-        return sim.displayName.ifBlank { context.getString(R.string.sim_n, (sim.slotIndex + 1).toString()) }
+        return SimNames.label(context.resources, sim)
     }
 
     private companion object {

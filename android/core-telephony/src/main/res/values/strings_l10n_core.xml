@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Why the carrier's MMS server (MMSC) refused a message (X-Mms-Response-Status), one string per
+    app.dak.telephony.Failure MMSC_* entry, named like strings_failures.xml (FailureReasonsTest checks both). docs/i18n.md.
+-->
+<resources>
+    <string name="dak_telephony_fail_mmsc_service_denied">Service denied</string>
+    <string name="dak_telephony_fail_mmsc_format_corrupt">Message format corrupt</string>
+    <string name="dak_telephony_fail_mmsc_address_unresolved">Recipient address not resolved</string>
+    <string name="dak_telephony_fail_mmsc_message_not_found">Message not found</string>
+    <string name="dak_telephony_fail_mmsc_network_problem">Network problem</string>
+    <string name="dak_telephony_fail_mmsc_content_not_accepted">Content not accepted</string>
+    <string name="dak_telephony_fail_mmsc_unsupported_message">Unsupported message</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_limitations">Reply charging limitations not met</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_rejected">Reply charging request not accepted</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_forwarding_denied">Reply charging forwarding denied</string>
+    <string name="dak_telephony_fail_mmsc_reply_charging_not_supported">Reply charging not supported</string>
+    <string name="dak_telephony_fail_mmsc_address_hiding_not_supported">Address hiding not supported</string>
+    <string name="dak_telephony_fail_mmsc_lack_of_prepaid_credit">Lack of prepaid credit</string>
+    <!-- %1$s = the status code in hexadecimal, e.g. E0 (not translated) -->
+    <string name="dak_telephony_fail_mmsc_temporary_failure">Temporary MMSC failure (0x%1$s)</string>
+    <!-- %1$s = the status code in hexadecimal, e.g. E0 (not translated) -->
+    <string name="dak_telephony_fail_mmsc_error">MMSC error (0x%1$s)</string>
+</resources>

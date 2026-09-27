@@ -61,6 +61,7 @@ import app.dak.broadcast.BroadcastDetails
 import app.dak.navigation.DakNavigator
 import app.dak.ui.common.DakTopAppBar
 import app.dak.ui.common.relativeTime
+import app.dak.ui.common.simName
 import java.util.Calendar
 
 /**
@@ -94,7 +95,11 @@ fun BroadcastListScreen(navigator: DakNavigator, modifier: Modifier = Modifier) 
         viewModel.events.collect { event ->
             when (event) {
                 is BroadcastEvent.Queued -> snackbar.showSnackbar(
-                    context.getString(if (event.scheduled) R.string.bc_scheduled_snack else R.string.bc_sent_snack, event.count),
+                    context.resources.getQuantityString(
+                        if (event.scheduled) R.plurals.bc_scheduled_snack else R.plurals.bc_sent_snack,
+                        event.count,
+                        event.count,
+                    ),
                 )
                 BroadcastEvent.Failed -> snackbar.showSnackbar(context.getString(R.string.bc_send_failed))
                 is BroadcastEvent.OpenConversation -> navigator.openConversation(event.conversationId)
@@ -182,7 +187,7 @@ fun BroadcastListScreen(navigator: DakNavigator, modifier: Modifier = Modifier) 
                             FilterChip(
                                 selected = subId == sim.subId,
                                 onClick = { viewModel.selectSim(if (subId == sim.subId) null else sim.subId) },
-                                label = { Text(sim.displayName) },
+                                label = { Text(simName(sim)) },
                             )
                         }
                     }
@@ -221,8 +226,8 @@ fun BroadcastListScreen(navigator: DakNavigator, modifier: Modifier = Modifier) 
     }
 
     preview?.let { p ->
-        val simName = sims.firstOrNull { it.subId == p.subId }?.displayName
-        BroadcastConfirmDialog(p, simName = simName, onConfirm = viewModel::confirmSend, onDismiss = viewModel::dismissPreview)
+        val sendingSim = sims.firstOrNull { it.subId == p.subId }?.let { simName(it) }
+        BroadcastConfirmDialog(p, simName = sendingSim, onConfirm = viewModel::confirmSend, onDismiss = viewModel::dismissPreview)
     }
     if (openRecordId != null) {
         val shown = selected?.takeIf { it.record.id == openRecordId }

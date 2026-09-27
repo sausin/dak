@@ -1,6 +1,8 @@
 package app.dak.telephony
 
+import app.dak.mms.pdu.ResponseStatus
 import app.dak.telephony.mms.MmsResultCodes
+import app.dak.telephony.mms.MmscStatusReasons
 import app.dak.telephony.sms.SmsResultCodes
 import org.junit.Test
 import org.w3c.dom.Element
@@ -56,26 +58,41 @@ class FailureReasonsTest {
             SmsResultCodes.partial(1, 4),
             MmsResultCodes.failureOf(MmsResultCodes.HTTP_FAILURE, 503),
             MmsResultCodes.failureOf(99, null),
-            FailureReason(Failure.MMS_UNREADABLE, listOf("bad header | at 12")),
+            FailureReason(Failure.MMS_UNREADABLE),
+            MmscStatusReasons.failureOf(0xC7),
         )
         for (c in cases) assertEquals(c, FailureReasons.decode(c.encode()), c.encode())
         assertNull(FailureReasons.decode("No mobile service"))
         assertNull(FailureReasons.decode(null))
         assertNull(FailureReasons.decode("dak-fail:NOT_A_FAILURE"))
         assertNull(FailureReasons.decode("dak-fail:SMS_PARTIAL|1"))
+        // Stored by older versions with the decoder's detail: still decodes, the detail is no longer shown.
+        assertEquals(FailureReason(Failure.MMS_UNREADABLE), FailureReasons.decode("dak-fail:MMS_UNREADABLE|bad header | at 12"))
         assertEquals("Sending was interrupted; tap to retry", FailureReasons.english("Sending was interrupted; tap to retry"))
         assertEquals("dak-fail:SMS_NO_SERVICE", SmsResultCodes.failureOf(SmsResultCodes.NO_SERVICE).encode())
     }
 
     @Test
     fun `every failure has a resource with its english text`() {
-        val xml = readStrings(File("src/main/res/values/strings_failures.xml"))
+        val xml = readStrings(File("src/main/res/values/strings_failures.xml")) + readStrings(File("src/main/res/values/strings_l10n_core.xml"))
         Failure.entries.forEach { f ->
             assertEquals(f.english, xml[f.resourceName], f.name)
             val field = checkNotNull(runCatching { R.string::class.java.getField(f.resourceName) }.getOrNull()) { "no R.string.${f.resourceName}" }
             assertEquals(field.getInt(null), FailureReasonText.stringRes(f), f.name)
         }
         assertTrue(xml.keys.filter { it.startsWith("dak_telephony_fail_") }.all { name -> Failure.entries.any { it.resourceName == name } })
+    }
+
+    @Test
+    fun `mmsc statuses read as ResponseStatus describe in english`() {
+        for (status in 0x81..0xFF) {
+            assertEquals(ResponseStatus.describe(status), MmscStatusReasons.failureOf(status).english(), "0x%02X".format(Locale.ROOT, status))
+        }
+        assertEquals("dak-fail:MMSC_LACK_OF_PREPAID_CREDIT", MmscStatusReasons.reason(0xEC, "No credit left"))
+        // Statuses without a text of their own fall back to the carrier's response text, then to the code.
+        assertEquals("Try again tomorrow", MmscStatusReasons.reason(0xF0, " Try again tomorrow "))
+        assertEquals("dak-fail:MMSC_ERROR|F0", MmscStatusReasons.reason(0xF0, null))
+        assertEquals("Temporary MMSC failure (0xC7)", FailureReasons.english(MmscStatusReasons.reason(0xC7, "")))
     }
 
     private fun readStrings(file: File): Map<String, String> {

@@ -1,0 +1,75 @@
+{
+  "_comment": "French translation of the consent disclosures in Disclosures.kt. Legal text: needs a reviewed translation before release (docs/i18n.md). Each entry names the source version it translates; a stale one is not shown. Editing any text changes its hash: users who allowed it in French are asked again.",
+  "language": "fr",
+  "disclosures": [
+    {
+      "flow": "cloud_classification",
+      "version": 3,
+      "title": "Envoyer les messages ambigus pour un deuxième avis (Jev)",
+      "whatIsSent": [
+        "L’identifiant d’expéditeur d’un message professionnel que Dak n’a pas pu classer seul, par exemple « VM-HDFCBK » ou un code court.",
+        "Une copie masquée de ce message : avant qu’il ne quitte le téléphone, les nombres, montants, numéros de carte, liens, adresses e-mail et noms probables sont remplacés par des marqueurs tels que <NUM>."
+      ],
+      "whatIsNotSent": [
+        "Les codes OTP, montants, numéros de compte et liens (ils sont masqués).",
+        "Rien de ce qui vient d’une personne : les messages envoyés depuis des numéros de téléphone, et ces numéros, ne quittent jamais le téléphone.",
+        "Les messages que Dak sait déjà classer sur le téléphone, vos contacts et vos autres messages."
+      ],
+      "sentTo": "Le service de classement de Dak (exploité par Dak ou par un sous-traitant travaillant pour Dak), via une connexion chiffrée.",
+      "why": "Pour ranger le message dans la bonne catégorie (par exemple Transactions ou Spam) lorsque le classement sur l’appareil n’est pas sûr.",
+      "whenSent": "Uniquement pour des messages entrants nouveaux et isolés que le téléphone ne peut pas classer avec certitude, dans la limite de votre quota mensuel (Paramètres → Catégories et spam → Paramètres avancés).",
+      "retention": "Le service renvoie une catégorie et ne conserve pas le texte. Il n’est pas utilisé pour entraîner des modèles ni à des fins publicitaires, et il n’est pas vendu.",
+      "howToTurnOff": "Paramètres → Confidentialité → Données qui quittent votre téléphone. La désactivation l’arrête immédiatement."
+    },
+    {
+      "flow": "webhooks",
+      "version": 2,
+      "title": "Envoyer des messages à votre propre adresse web (webhooks)",
+      "whatIsSent": [
+        "Pour chaque message correspondant à une règle avec webhook : l’expéditeur (adresse ou identifiant d’expéditeur), un identifiant interne du message et le texte produit par le modèle de votre règle (par défaut le message entier, qui peut contenir des OTP)."
+      ],
+      "whatIsNotSent": [
+        "Les messages qui ne correspondent à aucune de vos règles de webhook.",
+        "Le secret de signature du webhook (seule une signature produite avec lui est envoyée)."
+      ],
+      "sentTo": "L’adresse web que vous saisissez dans la règle (votre propre serveur, ou un service comme un bot Slack ou Telegram). Dak ne la lit pas.",
+      "why": "Pour que votre règle puisse transmettre le message à un système que vous contrôlez.",
+      "whenSent": "Automatiquement, à chaque arrivée d’un message correspondant, tant que la règle est activée.",
+      "retention": "Celui qui exploite cette adresse web décide de la durée de conservation. Dak garde sur ce téléphone un journal de chaque envoi (Automatisations → historique).",
+      "howToTurnOff": "Paramètres → Confidentialité → Données qui quittent votre téléphone. La désactivation l’arrête immédiatement. Vous pouvez aussi désactiver ou supprimer la règle dans Automatisations."
+    },
+    {
+      "flow": "web_relay",
+      "version": 2,
+      "title": "Lire et répondre depuis votre ordinateur (relais)",
+      "whatIsSent": [
+        "Les messages que vous choisissez de relayer, chiffrés sur ce téléphone avec une clé partagée uniquement avec votre ordinateur associé (configurée en scannant un code QR).",
+        "Les informations de distribution dont le relais de Dak a besoin pour les acheminer : un identifiant d’association, ainsi que la taille et l’heure de chaque élément chiffré."
+      ],
+      "whatIsNotSent": [
+        "Le texte lisible : le serveur relais de Dak ne détient jamais que des données chiffrées qu’il ne peut pas ouvrir."
+      ],
+      "sentTo": "Le serveur relais de Dak, qui transmet les données chiffrées à votre client web associé.",
+      "why": "Pour que vous puissiez lire des messages et y répondre depuis un ordinateur.",
+      "whenSent": "Tant qu’un appareil est associé et que le relais est activé.",
+      "retention": "Les éléments chiffrés sont supprimés du relais dès leur distribution, et au plus tard après 7 jours s’ils ne sont jamais distribués.",
+      "howToTurnOff": "Paramètres → Confidentialité → Données qui quittent votre téléphone. La désactivation l’arrête immédiatement. Dissocier l’ordinateur l’arrête aussi."
+    },
+    {
+      "flow": "ai_search",
+      "version": 2,
+      "title": "Poser des questions sur vos messages en langage courant (recherche par IA)",
+      "whatIsSent": [
+        "Uniquement la question que vous saisissez dans la recherche, par exemple « combien ai-je dépensé sur Swiggy le mois dernier »."
+      ],
+      "whatIsNotSent": [
+        "Vos messages. Le service transforme votre question en filtres de recherche ; la recherche elle-même s’effectue sur ce téléphone."
+      ],
+      "sentTo": "Un service de modèle de langage utilisé par Dak pour comprendre la question, via une connexion chiffrée.",
+      "why": "Pour transformer votre question en filtres (expéditeur, date, montant) que Dak applique ensuite sur le téléphone.",
+      "whenSent": "À chaque recherche en langage courant effectuée pendant que cette option est activée.",
+      "retention": "La question n’est pas conservée une fois la réponse renvoyée et n’est pas utilisée pour l’entraînement ni à des fins publicitaires.",
+      "howToTurnOff": "Paramètres → Confidentialité → Données qui quittent votre téléphone. La désactivation l’arrête immédiatement. La recherche n’utilise alors que des mots-clés et des filtres."
+    }
+  ]
+}

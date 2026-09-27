@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug-only background activity log on the self-test screen (agent G "battery"). -->
+    <string name="battery_activity_title">Activité en arrière-plan (débogage)</string>
+    <string name="battery_activity_explain">Démarrages du processus, tâches et rapprochements par jour. Une journée chargée (300 SMS) doit rester bien en dessous d\'une tâche par message.</string>
+    <!--
+        Onboarding: how to keep a phone maker’s battery manager from killing Dak (SystemHelpers.OemGuidance).
+        Translators: the quoted names and menu paths are the phone’s own settings screens. Use the wording that
+        phone shows in your language (check a device or the maker’s help pages); keep "Dak" as is.
+    -->
+    <string name="oem_xiaomi_autostart">Ouvrez Sécurité → Autorisations → Démarrage automatique et activez Dak.</string>
+    <string name="oem_xiaomi_battery_saver">Dans Infos sur l\'appli → Économiseur de batterie, choisissez \"Aucune restriction\".</string>
+    <string name="oem_xiaomi_lock_recents">Dans les applications récentes, faites glisser Dak vers le bas pour le verrouiller afin qu\'il ne soit pas fermé.</string>
+    <string name="oem_oppo_battery_usage">Dans Infos sur l\'application → Utilisation de la batterie, autorisez l\'activité en arrière-plan et le lancement automatique.</string>
+    <string name="oem_oppo_optimise">Désactivez \"Optimiser l\'utilisation de la batterie\" pour Dak.</string>
+    <string name="oem_oppo_lock_recents">Dans les applications récentes, verrouillez Dak afin qu\'il ne soit pas fermé.</string>
+    <string name="oem_vivo_autostart">Ouvrez i Manager → Gestionnaire d\'applications → Gestionnaire de démarrage automatique et autorisez Dak.</string>
+    <string name="oem_vivo_background_power">Dans Paramètres → Batterie → Consommation d\'énergie en arrière-plan, autorisez Dak.</string>
+    <string name="oem_samsung_sleeping_apps">Dans Paramètres → Batterie → Limites d\'utilisation en arrière-plan, vérifiez que Dak ne figure pas dans Applications en veille ou Applications en veille prolongée.</string>
+    <string name="oem_samsung_never_sleeping">Ajoutez Dak aux \"Applications jamais en veille\".</string>
+    <string name="oem_huawei_app_launch">Ouvrez Paramètres → Batterie → Lancement d\'applications, désactivez \"Gérer automatiquement\" pour Dak et autorisez les trois options.</string>
+    <!-- One numbered step in that list. %1$d = step number (1, 2, 3), %2$s = the step text above. -->
+    <string name="onboarding_oem_step">%1$d. %2$s</string>
+</resources>

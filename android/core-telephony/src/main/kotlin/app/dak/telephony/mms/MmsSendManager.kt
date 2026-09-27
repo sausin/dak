@@ -118,7 +118,7 @@ class MmsSendManager @Inject constructor(
                 sent.dispatch(key)
             } else {
                 handleFailure(
-                    id, attempt, ResponseStatus.describe(conf.responseStatus),
+                    id, attempt, MmscStatusReasons.reason(conf.responseStatus, conf.responseText),
                     ResponseStatus.isTransient(conf.responseStatus), conf.responseStatus,
                 )
             }

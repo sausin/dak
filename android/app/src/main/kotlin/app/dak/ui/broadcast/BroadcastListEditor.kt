@@ -166,7 +166,7 @@ fun BroadcastListEditor(
             }
             if (overCap) {
                 Text(
-                    stringResource(R.string.bc_edit_over_cap, max),
+                    pluralText(R.plurals.bc_edit_over_cap, max),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )

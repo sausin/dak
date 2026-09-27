@@ -17,6 +17,7 @@ import app.dak.automations.action.Labeler
 import app.dak.automations.action.Notifier
 import app.dak.automations.action.ReplyScheduler
 import app.dak.automations.action.SmsForwarder
+import app.dak.automations.PlaceholderFormatter
 import app.dak.automations.TemplateRenderer
 import app.dak.automations.action.ActionResult
 import app.dak.automations.forwarding.ForwardingRecipient
@@ -271,14 +272,15 @@ class AutomationRunner @Inject constructor(
     private fun contextFor(planned: PlannedAction, event: MessageEvent): ActionContext {
         val clock: () -> Long = { System.currentTimeMillis() }
         val zone = ZoneId.systemDefault().id
+        val placeholders = AppPlaceholderFormatter(context)
         return RunContext(
             entitlements = entitlements,
             premiumGateway = premiumGateway,
             smsForwarder = smsForwarder,
             notifier = object : Notifier {
                 override suspend fun notify(title: String?, text: String?): Boolean = notifications.post(
-                    title = title?.let { TemplateRenderer.render(it, event, zone) }?.takeIf { it.isNotBlank() } ?: planned.ruleName,
-                    text = text?.let { TemplateRenderer.render(it, event, zone) } ?: event.body,
+                    title = title?.let { TemplateRenderer.render(it, event, zone, placeholders) }?.takeIf { it.isNotBlank() } ?: planned.ruleName,
+                    text = text?.let { TemplateRenderer.render(it, event, zone, placeholders) } ?: event.body,
                 )
             },
             labeler = labeler,
@@ -291,6 +293,7 @@ class AutomationRunner @Inject constructor(
             auditSink = auditSink,
             clockMillis = clock,
             zoneId = zone,
+            placeholderFormatter = placeholders,
         )
     }
 
@@ -307,6 +310,7 @@ class AutomationRunner @Inject constructor(
         override val auditSink: AuditSink,
         override val clockMillis: () -> Long,
         override val zoneId: String,
+        override val placeholderFormatter: PlaceholderFormatter,
     ) : ActionContext
 
     companion object {

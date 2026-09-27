@@ -1,5 +1,6 @@
 package app.dak.ui.passbook
 
+import android.icu.text.ListFormatter
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -64,7 +65,6 @@ import app.dak.ui.common.text.MoneyDisplay
 import app.dak.ui.common.text.rememberDisplayLocale
 import app.dak.ui.theme.DakTheme
 import kotlinx.coroutines.launch
-import java.math.RoundingMode
 
 /**
  * One account or card: honest balance, card outstanding for the current cycle (with the statement day), monthly
@@ -290,9 +290,9 @@ private fun AccountMonthSummary(month: MonthlyTotal) {
                 // "$"), since it is ambiguous while travelling (USD/CAD/AUD/SGD/HKD/...).
                 stringResource(
                     R.string.scr_account_month_foreign,
-                    foreign.joinToString {
-                        MoneyDisplay.format(month.debitsByCurrency.getValue(it), locale, homeCurrency = month.debitsHome.currencyUpper)
-                    },
+                    ListFormatter.getInstance(locale).format(
+                        foreign.map { MoneyDisplay.format(month.debitsByCurrency.getValue(it), locale, homeCurrency = month.debitsHome.currencyUpper) },
+                    ),
                 ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -392,10 +392,11 @@ private fun unitsLine(entry: LedgerEntry): String? {
     val units = entry.units
     val price = entry.unitPrice
     val currency = entry.original.currencyUpper
+    val locale = rememberDisplayLocale()
     return when {
-        units != null && price != null -> stringResource(R.string.inst_entry_units_at, unitsText(units), unitPriceText(price, currency))
-        units != null -> stringResource(R.string.inst_entry_units, unitsText(units))
-        price != null -> stringResource(R.string.inst_entry_price, unitPriceText(price, currency))
+        units != null && price != null -> stringResource(R.string.inst_entry_units_at, unitsText(units, locale), unitPriceText(price, currency, locale))
+        units != null -> stringResource(R.string.inst_entry_units, unitsText(units, locale))
+        price != null -> stringResource(R.string.inst_entry_price, unitPriceText(price, currency, locale))
         else -> null
     }
 }
@@ -405,12 +406,13 @@ private fun unitsLine(entry: LedgerEntry): String? {
 private fun ForeignLine(entry: LedgerEntry) {
     if (!entry.isForeign) return
     val formatter = rememberRelativeTimeFormatter()
+    val locale = rememberDisplayLocale()
     val home = entry.indicativeHome
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     when {
         home == null -> Text(stringResource(R.string.scr_account_no_rate), style = MaterialTheme.typography.labelSmall, color = muted)
         entry.settled -> {
-            val markup = entry.effectiveMarkupPercent?.setScale(2, RoundingMode.HALF_UP)?.stripTrailingZeros()?.toPlainString()
+            val markup = entry.effectiveMarkupPercent?.let { decimalText(it, maxFractionDigits = 2, locale) }
             Text(
                 if (markup != null) stringResource(R.string.scr_account_settled_markup, moneyText(home), markup) else stringResource(R.string.scr_account_settled, moneyText(home)),
                 style = MaterialTheme.typography.labelSmall,
@@ -418,8 +420,8 @@ private fun ForeignLine(entry: LedgerEntry) {
             )
         }
         else -> {
-            val rate = entry.rate?.setScale(4, RoundingMode.HALF_UP)?.stripTrailingZeros()?.toPlainString()
-            val date = entry.rateDateMillis?.let { formatter.formatAbsolute(it).substringBefore(',') }
+            val rate = entry.rate?.let { decimalText(it, maxFractionDigits = 4, locale) }
+            val date = entry.rateDateMillis?.let { formatter.formatDate(it) }
             Text(
                 if (rate != null) {
                     stringResource(R.string.scr_account_indicative_rate, moneyText(home, indicative = true), rate, date ?: "—")

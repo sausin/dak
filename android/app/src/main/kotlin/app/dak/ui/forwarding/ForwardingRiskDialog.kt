@@ -23,11 +23,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.dak.R
+import app.dak.automation.AppLocaleText
 import app.dak.automations.forwarding.RecipientRisk
 
 /**
@@ -83,9 +85,9 @@ private fun reasonLines(risk: ForwardingRisk): List<String> = buildList {
     }
 }
 
-/** "saved or edited in the last 7 days, a foreign number" for a recipient's risk flags. */
+/** "saved or edited in the last 7 days and a foreign number" (the app language's list pattern) for a recipient's risk flags. */
 @Composable
-internal fun riskText(flags: Set<RecipientRisk>): String = flags.map { flag ->
+internal fun riskText(flags: Set<RecipientRisk>): String = AppLocaleText.list(LocalContext.current, flags.map { flag ->
     stringResource(
         when (flag) {
             RecipientRisk.RECENTLY_CHANGED_CONTACT -> R.string.fw_risk_recent_contact
@@ -94,4 +96,4 @@ internal fun riskText(flags: Set<RecipientRisk>): String = flags.map { flag ->
             RecipientRisk.UNUSUAL_NUMBER -> R.string.fw_risk_unusual
         },
     )
-}.joinToString(", ")
+})

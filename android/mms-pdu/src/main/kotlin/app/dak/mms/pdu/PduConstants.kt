@@ -1,5 +1,7 @@
 package app.dak.mms.pdu
 
+import java.util.Locale
+
 /**
  * `X-Mms-Message-Type` values (OMA-MMS-ENC §7.3.30). These octets are also what the Telephony provider stores in
  * `Telephony.Mms.MESSAGE_TYPE` (`m_type`), e.g. 128 = send-req, 130 = notification-ind, 132 = retrieve-conf.
@@ -51,6 +53,10 @@ object ResponseStatus {
     /** Transient errors (0xC0..0xDF, plus the legacy 1.0 "network problem") may succeed on retry. */
     fun isTransient(status: Int): Boolean = status in 0xC0..0xDF || status == ERROR_NETWORK_PROBLEM
 
+    /**
+     * English description of [status], for logs and tests. Not shown to users: core-telephony maps the status to a
+     * localized failure code (`MmscStatusReasons`), with the carrier's response text as the fallback.
+     */
     fun describe(status: Int): String = when (status) {
         OK -> "OK"
         ERROR_SERVICE_DENIED, 0xE1 -> "Service denied"
@@ -66,8 +72,8 @@ object ResponseStatus {
         0xE9 -> "Reply charging not supported"
         0xEB -> "Address hiding not supported"
         0xEC -> "Lack of prepaid credit"
-        else -> if (isTransient(status)) "Temporary MMSC failure (0x%02X)".format(status)
-        else "MMSC error (0x%02X)".format(status)
+        else -> if (isTransient(status)) "Temporary MMSC failure (0x%02X)".format(Locale.ROOT, status)
+        else "MMSC error (0x%02X)".format(Locale.ROOT, status)
     }
 }
 

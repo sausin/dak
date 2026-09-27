@@ -51,6 +51,36 @@ class PrivacyPolicyTest {
     }
 
     @Test
+    fun `each translated policy has the English structure and links the hosted copy`() {
+        val english = PolicyMarkdown.parse(policyAsset().readText())
+        for (lang in listOf("hi", "es", "fr")) {
+            val file = File(policyAsset().parentFile, "privacy-policy-$lang.md")
+            assertTrue(file.exists(), "missing ${file.name}")
+            val blocks = PolicyMarkdown.parse(file.readText())
+            // Same sections, bullets and paragraphs in the same order: a translation that dropped or added a part
+            // is not a translation of this version.
+            assertEquals(english.map { it::class to (it as? PolicyMarkdown.Block.Heading)?.level }, blocks.map { it::class to (it as? PolicyMarkdown.Block.Heading)?.level }, lang)
+            val links = blocks.flatMap { b ->
+                val text = when (b) {
+                    is PolicyMarkdown.Block.Heading -> b.text
+                    is PolicyMarkdown.Block.Paragraph -> b.text
+                    is PolicyMarkdown.Block.Bullet -> b.text
+                }
+                PolicyMarkdown.spans(text).mapNotNull { it.url }
+            }
+            assertTrue(HOSTED_PRIVACY_POLICY_URL in links, "$lang policy should link $HOSTED_PRIVACY_POLICY_URL")
+        }
+    }
+
+    @Test
+    fun `the policy asset is picked by app language with the English original as fallback`() {
+        assertEquals(listOf("privacy-policy.md"), policyAssetCandidates("en-IN"))
+        assertEquals(listOf("privacy-policy-hi.md", "privacy-policy.md"), policyAssetCandidates("hi"))
+        assertEquals(listOf("privacy-policy-fr.md", "privacy-policy.md"), policyAssetCandidates("fr-CA"))
+        assertEquals(listOf("privacy-policy-es.md", "privacy-policy.md"), policyAssetCandidates("es-419"))
+    }
+
+    @Test
     fun `markdown subset - headings, bullets with continuation, paragraphs, comments`() {
         val md = """
             <!-- note -->

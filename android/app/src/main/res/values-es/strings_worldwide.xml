@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Region-aware copy for countries without a curated profile (agent "worldwide"). All names prefixed ww_. -->
+<resources>
+    <string name="ww_urgent_title">¿Perdiste dinero por una estafa?</string>
+    <string name="ww_urgent_body">Llama de inmediato a la línea antifraude de tu banco, usando el número del reverso de tu tarjeta o de la web oficial del banco, y pide que bloqueen tu tarjeta o cuenta. Después denúncialo a la policía.</string>
+    <string name="ww_emergency_title">Emergencias · %1$s</string>
+    <string name="ww_emergency_body">Número de emergencias (policía, ambulancia, bomberos). Solo para peligro inmediato: no es una línea de fraude ni del banco.</string>
+</resources>

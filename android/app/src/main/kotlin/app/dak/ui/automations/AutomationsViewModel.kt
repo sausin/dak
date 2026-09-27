@@ -115,9 +115,12 @@ class AutomationsViewModel @Inject constructor(
 
     fun isLocked(kind: ActionKind): Boolean = kind.premium?.let { !entitlements.has(it) } ?: false
 
-    /** Validates [draft]; saves it right away unless it needs a biometric confirmation first. */
-    fun trySave(draft: RuleDraft): SaveCheck {
-        val rule = draft.toRule(System.currentTimeMillis()) ?: return SaveCheck.Incomplete
+    /**
+     * Validates [draft]; saves it right away unless it needs a biometric confirmation first. [defaultName] names a rule
+     * saved without a name (in the app language).
+     */
+    fun trySave(draft: RuleDraft, defaultName: String): SaveCheck {
+        val rule = draft.toRule(System.currentTimeMillis(), defaultName) ?: return SaveCheck.Incomplete
         val own = sims.sims.value.mapNotNull { it.number }.filter { it.isNotBlank() }.toSet()
         val issues = RuleValidator.validate(rule, entitlements, own)
         if (issues.isNotEmpty()) return SaveCheck.Invalid(issues)
@@ -189,11 +192,14 @@ class AutomationsViewModel @Inject constructor(
         }
     }
 
-    /** Adds the built-in example rules (disabled, so nothing happens until the user turns one on). */
-    fun addPresets() {
+    /**
+     * Adds the built-in example rules (disabled, so nothing happens until the user turns one on), named in the app
+     * language by [localizedName] (preset id → name); a preset keeps the name it was saved with.
+     */
+    fun addPresets(localizedName: (String) -> String?) {
         viewModelScope.launch {
             val existing = entries.value.orEmpty().map { it.stored.id }.toSet()
-            Presets.all(System.currentTimeMillis())
+            Presets.all(System.currentTimeMillis(), localizedName)
                 .filter { it.id !in existing }
                 .forEach { rules.save(it.copy(enabled = false)) }
         }

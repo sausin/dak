@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Conversation extras: contact details from the thread header (prefix cd_), send-later from the composer (sch_),
+  incognito / vanishing chats (inc_), accounts removed from the Passbook (pb_), other dates for wishes (occ_).
+-->
+<resources>
+    <!-- Contact details sheet (tap the thread header) -->
+    <string name="cd_open_details">Voir les coordonnées</string>
+    <string name="cd_not_saved">Ne figure pas dans vos contacts</string>
+    <!-- %1$s = the contact’s name -->
+    <string name="cd_saved_as">Enregistré sous %1$s</string>
+    <string name="cd_business_sender">Expéditeur professionnel · impossible de l\'appeler ou de l\'enregistrer</string>
+    <string name="cd_no_contacts_permission">Dak ne peut pas lire vos contacts ; les noms enregistrés ne s\'affichent donc pas. Autorisez l\'accès aux contacts dans les paramètres pour les voir.</string>
+    <string name="cd_call">Appeler</string>
+    <string name="cd_copy_number">Copier le numéro</string>
+    <string name="cd_number_copied">Numéro copié</string>
+    <string name="cd_view_contact">Voir le contact</string>
+    <string name="cd_save_contact">Enregistrer comme nouveau contact</string>
+    <string name="cd_add_to_existing">Ajouter à un contact existant</string>
+
+    <!-- Send later -->
+    <string name="sch_send_later">Envoyer plus tard</string>
+    <string name="sch_tray_schedule">Programmer</string>
+    <string name="sch_pick_date_time">Choisir la date et l\'heure…</string>
+    <string name="sch_write_first">Rédigez d\'abord votre message, puis choisissez quand il part</string>
+    <string name="sch_pick_future">Choisissez une heure au moins une minute plus tard</string>
+    <!-- %1$s = when it will be sent, e.g. "Tomorrow, 9:00 am" -->
+    <string name="sch_strip_when">Programmé · %1$s</string>
+    <string name="sch_cancel">Annuler le message programmé</string>
+    <!-- %1$d = number of other scheduled messages in this conversation. -->
+    <plurals name="sch_strip_more">
+        <item quantity="one">%1$d autre message programmé</item>
+        <item quantity="many">%1$d autres messages programmés</item>
+        <item quantity="other">%1$d autres messages programmés</item>
+    </plurals>
+
+    <!-- Incognito (vanishing) chats -->
+    <string name="inc_label">Discussion privée</string>
+    <string name="inc_action_on">Activer le mode privé</string>
+    <string name="inc_action_off">Désactiver le mode privé</string>
+    <string name="inc_turn_off">Désactiver</string>
+    <string name="inc_dialog_title">Activer la discussion privée ?</string>
+    <string name="inc_dialog_body">• Les messages que vous envoyez disparaissent de ce téléphone dès leur envoi.\n• Les messages que vous recevez sont masqués dans les notifications et disparaissent une fois lus ici.\n• Si un message ne peut pas être envoyé, vous choisissez : réessayer, supprimer ou le garder pour réessayer plus tard.\n• Les messages disparus ne passent pas par la corbeille et ne peuvent pas être restaurés.\n• Les messages précédents de cette discussion restent inchangés.</string>
+    <string name="inc_intro_other_side_title">Seule votre copie disparaît</string>
+    <string name="inc_intro_other_side_body">Dak ne peut supprimer des messages que sur ce téléphone. Le téléphone de votre correspondant conserve tout ce que vous lui envoyez, et les SMS ne permettent pas de le supprimer à distance. Il peut aussi avoir des captures d\'écran ou des sauvegardes.</string>
+    <string name="inc_dialog_confirm">J\'ai compris, activer</string>
+    <string name="inc_banner_title">Discussion privée</string>
+    <string name="inc_banner_body">Les messages disparaissent de ce téléphone une fois envoyés ou lus. Votre correspondant conserve sa copie.</string>
+    <string name="inc_inbox_snippet">Discussion privée · ouvrir pour lire</string>
+    <string name="inc_notification_body">Nouveau message privé · ouvrez Dak pour le lire</string>
+    <string name="inc_vanishing">Message en cours de disparition</string>
+    <string name="inc_countdown">Ce message disparaît dans quelques secondes</string>
+    <string name="inc_snack_on">Mode privé activé · seule votre copie disparaît</string>
+    <string name="inc_failed_first">Non envoyé. Réessayer ou le supprimer ?</string>
+    <string name="inc_failed_again">Toujours pas envoyé. Le garder pour réessayer plus tard, ou le supprimer ?</string>
+    <!-- %1$d = seconds left before the message is deleted. -->
+    <plurals name="inc_failed_deletes_in">
+        <item quantity="one">Supprimé dans %1$d seconde si vous ne choisissez pas</item>
+        <item quantity="many">Supprimé dans %1$d secondes si vous ne choisissez pas</item>
+        <item quantity="other">Supprimé dans %1$d secondes si vous ne choisissez pas</item>
+    </plurals>
+    <string name="inc_failed_retry">Réessayer</string>
+    <string name="inc_failed_keep">Garder</string>
+    <string name="inc_failed_delete">Supprimer</string>
+
+    <!-- Passbook: removing accounts that are not relevant -->
+    <string name="pb_hide">Retirer du relevé</string>
+    <string name="pb_unhide">Afficher dans le relevé</string>
+    <string name="pb_hidden_snack">Retiré du relevé</string>
+    <!-- %1$d = number of hidden accounts -->
+    <string name="pb_hidden_header">Comptes masqués (%1$d)</string>
+    <string name="pb_hidden_summary">Exclus du relevé et de ses totaux. Leurs SMS restent dans vos messages.</string>
+    <string name="pb_restore">Afficher</string>
+
+    <!-- Birthdays & occasions: anniversaries and other dates -->
+    <string name="occ_include">Inclure</string>
+    <string name="occ_kind_birthdays">Anniversaires</string>
+    <string name="occ_kind_anniversaries">Anniversaires de mariage</string>
+    <string name="occ_kind_other">Autres dates</string>
+    <string name="occ_other_date">Jour spécial</string>
+    <!-- What {occasion} reads in a wish template when a contact’s date has no label ("Happy special day, Anita!"). Lower case: it sits mid-sentence. -->
+    <string name="wish_fallback_occasion">jour spécial</string>
+    <string name="occ_edit_other_template">Message pour les autres dates</string>
+    <string name="occ_add_date">Ajouter une date</string>
+    <!-- %1$s = contact name -->
+    <string name="occ_prompt_title_other">Un jour spécial pour %1$s aujourd\'hui</string>
+</resources>

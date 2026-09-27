@@ -156,10 +156,10 @@ class FraudHelpViewModel @Inject constructor(
             .getOrDefault(ComplaintSim.Choice(NO_SUB_ID, null, isReceivingSim = false))
 
     /** Plain-text details of the reported message, for pasting into a reporting form (Chakshu / cybercrime.gov.in in India). */
-    fun details(labels: FraudReport.DetailLabels, simLabel: (Int) -> String?): String? {
+    fun details(labels: FraudReport.DetailLabels, appLocale: java.util.Locale, simLabel: (Int) -> String?): String? {
         val message = base.value.message ?: return null
-        // Indian portals get dd/MM/yyyy; elsewhere the user's own date format.
-        val locale = if (base.value.reportsToTrai) null else java.util.Locale.getDefault()
+        // Indian portals get dd/MM/yyyy; elsewhere the date format of the app language.
+        val locale = if (base.value.reportsToTrai) null else appLocale
         return FraudReport.detailsText(message.body, message.sender, message.dateMillis, simLabel(message.subId), labels, locale = locale)
     }
 

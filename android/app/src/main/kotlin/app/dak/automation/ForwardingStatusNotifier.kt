@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.text.format.DateFormat
 import android.util.Log
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -21,7 +20,6 @@ import app.dak.navigation.IntentRoutes
 import app.dak.notifications.NotificationChannels
 import app.dak.navigation.Routes
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.Date
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -69,11 +67,7 @@ class ForwardingStatusNotifier @Inject constructor(
         if (!canNotify()) return
         ensureChannel(manager)
         val lines = live.map { summaryLine(context, it, nowMillis) }
-        val title = if (live.size == 1) {
-            context.getString(R.string.fw_status_title_one)
-        } else {
-            context.getString(R.string.fw_status_title_many, live.size)
-        }
+        val title = context.resources.getQuantityString(R.plurals.fw_status_title, live.size, live.size)
         val open = PendingIntent.getActivity(
             context,
             REQUEST_CODE,
@@ -155,26 +149,21 @@ class ForwardingStatusNotifier @Inject constructor(
 
         /** "HDFC Bank, Zerodha → Sharma CA (until 31 Jul 2026, 17:30)" / "(from …)" / "(until you stop it)". */
         fun summaryLine(context: Context, spec: ForwardingSpec, nowMillis: Long): String {
-            val from = spec.sources.joinToString(", ") { it.name }
-            val to = spec.recipients.joinToString(", ") { it.label }
+            val from = AppLocaleText.list(context, spec.sources.map { it.name })
+            val to = AppLocaleText.list(context, spec.recipients.map { it.label })
             val end = spec.endMillis
             val period = when {
                 nowMillis < spec.startMillis -> context.getString(R.string.fw_period_from, formatInstant(context, spec.startMillis))
                 end != null -> context.getString(R.string.fw_period_until, formatInstant(context, end))
                 else -> context.getString(R.string.fw_period_until_stopped)
             }
-            val line = context.getString(R.string.fw_status_line, from, to, period)
-            return if (spec.includeOtp) line + context.getString(R.string.fw_status_otp_suffix) else line
+            return context.getString(if (spec.includeOtp) R.string.fw_status_line_otp else R.string.fw_status_line, from, to, period)
         }
 
-        /** "23 Sep 2026, 17:30" / "Sep 23, 2026, 5:30 PM": locale date plus time in the device's 12/24-hour setting. */
-        fun formatInstant(context: Context, millis: Long): String {
-            val date = Date(millis)
-            return context.getString(
-                R.string.fw_date_time,
-                DateFormat.getMediumDateFormat(context).format(date),
-                DateFormat.getTimeFormat(context).format(date),
-            )
-        }
+        /**
+         * "23 Sep 2026, 17:30" / "Sep 23, 2026, 5:30 PM": one CLDR skeleton in the app language (the locale orders
+         * and joins date and time), in the device's 12/24-hour setting.
+         */
+        fun formatInstant(context: Context, millis: Long): String = AppLocaleText.dateTime(context, millis)
     }
 }

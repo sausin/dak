@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto-forwarding and birthday wishes (agent "forwarding", prefix fw_). -->
+<resources>
+    <!-- Auto-forwarding -->
+    <string name="fw_title">ऑटो-फ़ॉरवर्डिंग</string>
+    <string name="fw_shortcut_summary">चुने हुए भेजने वालों के मैसेज कुछ समय के लिए किसी को फ़ॉरवर्ड करें, जैसे बैंक अलर्ट आपके CA को। मुफ़्त।</string>
+    <string name="fw_intro">चुने हुए भेजने वालों के मैसेज तय समय के लिए किसी को फ़ॉरवर्ड करें, जैसे टैक्स के मौसम में बैंक और टैक्स के मैसेज आपके CA को। फ़ॉरवर्ड आपके अपने SIM से भेजे जाते हैं, इसलिए यह मुफ़्त है; आपके ऑपरेटर के सामान्य SMS शुल्क लागू होते हैं।</string>
+    <string name="fw_new_rule">नया फ़ॉरवर्डिंग नियम</string>
+    <string name="fw_edit_rule">फ़ॉरवर्डिंग नियम बदलें</string>
+    <string name="fw_empty_title">कोई फ़ॉरवर्डिंग नियम नहीं</string>
+    <string name="fw_empty_body">चुने हुए भेजने वालों, जैसे HDFC Bank और Income Tax Dept, के मैसेज आपकी चुनी तारीख तक अपने CA को फ़ॉरवर्ड करने के लिए एक नियम बनाएं।</string>
+    <string name="fw_field_name">नाम</string>
+    <string name="fw_field_name_hint">CA के लिए टैक्स के कागज़</string>
+    <string name="fw_section_from">इनके मैसेज फ़ॉरवर्ड करें</string>
+    <string name="fw_add_channel">भेजने वाला जोड़ें</string>
+    <string name="fw_remove">हटाएं</string>
+    <string name="fw_filter_category">सिर्फ़ ये कैटेगरी (वैकल्पिक)</string>
+    <string name="fw_field_keyword">सिर्फ़ तब, जब मैसेज में यह हो (वैकल्पिक)</string>
+    <string name="fw_section_to">इन्हें भेजें</string>
+    <string name="fw_pick_contact">संपर्कों से चुनें</string>
+    <string name="fw_contacts_only_note">फ़ॉरवर्ड सिर्फ़ आपके संपर्कों में सेव लोगों को जाते हैं। हर फ़ॉरवर्ड से पहले Dak जांचता है कि वे अब भी सेव हैं; नहीं तो नियम रुक जाता है।</string>
+    <string name="fw_contacts_permission_needed">संपर्कों की अनुमति दें, ताकि Dak हर फ़ॉरवर्ड से पहले जांच सके कि पाने वाला अब भी आपके संपर्कों में है।</string>
+    <string name="fw_recipient_not_contact">यह आपके संपर्कों से नहीं चुना गया। इसे हटाएं और व्यक्ति को अपने संपर्कों से चुनें।</string>
+    <string name="fw_recipient_risky">%1$s के साथ सावधान रहें: %2$s।</string>
+    <string name="fw_risk_recent_contact">पिछले 7 दिनों में सेव या बदला गया</string>
+    <string name="fw_risk_no_history">आपने इस नंबर से कभी SMS का लेन-देन नहीं किया</string>
+    <string name="fw_risk_international">विदेशी नंबर</string>
+    <string name="fw_risk_unusual">सामान्य मोबाइल नंबर नहीं</string>
+    <string name="fw_section_when">चालू रहने का समय</string>
+    <string name="fw_start">शुरू</string>
+    <string name="fw_end">खत्म (इस दिन समेत)</string>
+    <string name="fw_until_stopped">जब तक मैं बंद न करूं</string>
+    <string name="fw_end_before_start">खत्म होने का समय शुरू से पहले है।</string>
+    <string name="fw_period_default_note">नए नियम 1 घंटे तक फ़ॉरवर्ड करते हैं। इससे लंबे समय, या \"जब तक मैं बंद न करूं\", के लिए आपका फ़िंगरप्रिंट या स्क्रीन लॉक चाहिए।</string>
+    <string name="fw_period_long_note">1 घंटे से ज़्यादा: सेव करने के लिए आपका फ़िंगरप्रिंट या स्क्रीन लॉक चाहिए।</string>
+    <string name="fw_section_message">मैसेज</string>
+    <!-- Keep the {placeholders} in English, exactly as written: the app replaces them. %1$s = the default template (fw_default_template). -->
+    <string name="fw_template_help">प्लेसहोल्डर: {sender}, {body}, {time}, {amount}, {merchant}, {sim}। डिफ़ॉल्ट: \"%1$s\"।</string>
+    <!--
+        The text a new auto-forward sends. Keep {sender} and {body} exactly as written (the app fills them in), and
+        start with a few words of your own before the first {placeholder}: that lead marks the message as a Dak
+        forward so it is never forwarded back and forth (ForwardLoopGuard). A translation without {body} or without
+        that lead is ignored and the English default is used. Existing rules keep the template they were saved with.
+    -->
+    <string name="fw_default_template">फ़ॉरवर्ड ({sender} से): {body}</string>
+    <string name="fw_include_otp">OTP भी भेजें</string>
+    <string name="fw_include_otp_summary">शुरू में बंद। चालू करने के लिए आपका फ़िंगरप्रिंट, चेहरा या स्क्रीन लॉक चाहिए।</string>
+    <string name="fw_include_otp_warning">जिसे भी आपके OTP मिलते हैं, वह आपके खातों में लॉग इन कर सकता है या पेमेंट मंज़ूर कर सकता है। OTP सिर्फ़ उसी को फ़ॉरवर्ड करें जिस पर आपको पूरा भरोसा हो।</string>
+    <string name="fw_free_note">फ़ॉरवर्डिंग सिर्फ़ इसी फ़ोन पर चलती है। Dak के सर्वर पर कुछ नहीं भेजा जाता।</string>
+    <string name="fw_incomplete">अपने संपर्कों से कम से कम एक भेजने वाला और एक पाने वाला चुनें, और खत्म होने का समय शुरू के बाद रखें।</string>
+    <string name="fw_issue_loop">%1$s इस नियम का भेजने वाला भी है या आपका अपना नंबर है, जिससे मैसेज लूप में फ़ॉरवर्ड होते रहेंगे।</string>
+    <string name="fw_confirm_forward_title">ऑटो-फ़ॉरवर्डिंग की पुष्टि करें</string>
+    <string name="fw_confirm_forward_subtitle">आपके मैसेज अपने-आप दूसरे फ़ोन पर फ़ॉरवर्ड होंगे।</string>
+    <!-- High-risk confirmation (long / open-ended / extended period, OTPs, risky recipient) -->
+    <string name="fw_risk_title">रुकिए। क्या किसी ने आपसे ऐसा करने को कहा?</string>
+    <string name="fw_risk_body">जिसे आपके फ़ॉरवर्ड किए मैसेज मिलते हैं, वह आपके बैंक अलर्ट और वन-टाइम पासवर्ड (OTP) पढ़ सकता है और उनसे आपके बैंक, UPI, ईमेल और दूसरे खातों पर कब्ज़ा कर सकता है।
+
+बैंक, पुलिस, कूरियर, आपकी टेलीकॉम कंपनी या कस्टमर सपोर्ट होने का नाटक करने वाले ठग अक्सर लोगों से \"वेरिफ़िकेशन के लिए\" या \"धोखाधड़ी रोकने के लिए\" मैसेज फ़ॉरवर्डिंग चालू करने को कहते हैं। कोई भी असली बैंक, अधिकारी या कंपनी आपसे कभी ऐसा करने को नहीं कहेगी।
+
+अगर कॉल या चैट पर किसी ने आपसे यह चालू करने को कहा है, तो अभी रुकें और कॉल काट दें।</string>
+    <string name="fw_risk_reasons">आपको यह क्यों दिख रहा है:</string>
+    <string name="fw_risk_reason_long">फ़ॉरवर्डिंग 1 घंटे से ज़्यादा चलेगी।</string>
+    <string name="fw_risk_reason_open">फ़ॉरवर्डिंग तब तक चलेगी जब तक आप इसे बंद न करें।</string>
+    <string name="fw_risk_reason_extend">आप इस नियम का फ़ॉरवर्डिंग समय बढ़ा रहे हैं।</string>
+    <string name="fw_risk_reason_otp">वन-टाइम पासवर्ड (OTP) फ़ॉरवर्ड किए जाएंगे।</string>
+    <string name="fw_risk_reason_recipient">%1$s: %2$s।</string>
+    <string name="fw_risk_ack">मैं यह अपने लिए चालू कर रहा/रही हूं। किसी ने मुझसे ऐसा करने को नहीं कहा।</string>
+    <string name="fw_risk_continue">जारी रखें</string>
+    <string name="fw_otp_notice_title">OTP फ़ॉरवर्ड किए जा रहे हैं</string>
+    <string name="fw_otp_notice_body">कम से कम एक चालू नियम वन-टाइम पासवर्ड फ़ॉरवर्ड करता है। ज़रूरत खत्म होते ही उसे बंद कर दें।</string>
+    <string name="fw_row_route">%1$s → %2$s</string>
+    <string name="fw_row_includes_otp">OTP भी शामिल</string>
+    <string name="fw_status_active">चालू</string>
+    <string name="fw_status_scheduled">शेड्यूल किया गया</string>
+    <string name="fw_status_paused">रुका हुआ</string>
+    <string name="fw_status_ended">खत्म</string>
+    <string name="fw_status_paused_contact">रुका हुआ: पाने वाला आपके संपर्कों में नहीं है</string>
+    <string name="fw_status_paused_access">रुका हुआ: संपर्कों की अनुमति दें</string>
+    <string name="fw_row_needs_confirmation">जब तक आप फ़िंगरप्रिंट या स्क्रीन लॉक से पुष्टि नहीं करते, फ़ॉरवर्डिंग नहीं होगी</string>
+    <string name="fw_row_confirm">पुष्टि करें</string>
+    <string name="fw_enable_contact_missing">%1$s अब आपके संपर्कों में नहीं है। नियम बदलें और कोई संपर्क चुनें।</string>
+    <string name="fw_paused_notification_title">फ़ॉरवर्डिंग रुकी: %1$s</string>
+    <string name="fw_paused_contact_missing">%1$s अब आपके संपर्कों में नहीं है, इसलिए उन्हें कुछ फ़ॉरवर्ड नहीं किया जाता। फ़ॉरवर्ड सिर्फ़ सेव किए संपर्कों को जाते हैं।</string>
+    <string name="fw_paused_no_access">Dak अब %1$s को जांचने के लिए आपके संपर्क नहीं पढ़ सकता, इसलिए फ़ॉरवर्डिंग रुकी है। संपर्कों की अनुमति दें, फिर नियम दोबारा चालू करें।</string>
+    <string name="fw_period_range">%1$s – %2$s</string>
+    <string name="fw_period_from">%1$s से</string>
+    <string name="fw_period_until">%1$s तक</string>
+    <string name="fw_period_until_stopped">जब तक आप बंद न करें</string>
+    <string name="fw_pick_channels">भेजने वाले चुनें</string>
+    <string name="fw_pick_channels_help">ग्रुप किए भेजने वाले एक गिने जाते हैं: \"HDFC Bank\" में वे सभी हेडर शामिल हैं जिनसे वह मैसेज भेजता है।</string>
+    <string name="fw_search_channels">भेजने वाले खोजें</string>
+    <string name="fw_done">हो गया</string>
+    <string name="fw_label_forwarded">फ़ॉरवर्ड → %1$s</string>
+    <!-- Persistent status notification -->
+    <string name="fw_channel_status_name">फ़ॉरवर्डिंग की स्थिति</string>
+    <string name="fw_channel_status_description">जब मैसेज अपने-आप फ़ॉरवर्ड हो रहे हों, तब एक शांत रिमाइंडर।</string>
+    <string name="fw_status_line">%1$s → %2$s (%3$s)</string>
+
+    <!-- Birthday wishes -->
+    <string name="fw_bd_title">जन्मदिन और खास मौके</string>
+    <string name="fw_bd_shortcut_summary">आपके संपर्कों के जन्मदिन, सालगिरह और दूसरी तारीखें, उस दिन भेजने के लिए तैयार बधाई के साथ।</string>
+    <string name="fw_bd_enable">बधाई भेजें</string>
+    <string name="fw_bd_enable_summary">जब तक आप किसी संपर्क के लिए \"अपने-आप भेजें\" भी चालू नहीं करते, कुछ नहीं भेजा जाता।</string>
+    <string name="fw_bd_mode_ask">पहले मुझसे पूछें</string>
+    <string name="fw_bd_mode_auto">अपने-आप भेजें</string>
+    <string name="fw_bd_mode_ask_summary">उस दिन आपको भेजें, बदलें और छोड़ें वाली एक सूचना मिलेगी।</string>
+    <string name="fw_bd_mode_auto_summary">बधाई बिना पूछे चुने हुए समय पर भेजी जाती है। इसके लिए ऐप लॉक चाहिए: उसके बिना, या अपने-आप भेजे जाने वाले मैसेज की रोज़ की सीमा पार होने पर, आपको इसकी जगह भेजें वाली सूचना मिलेगी।</string>
+    <string name="fw_bd_send_time">भेजने का समय</string>
+    <string name="fw_bd_edit_birthday_template">जन्मदिन का मैसेज</string>
+    <string name="fw_bd_edit_anniversary_template">सालगिरह का मैसेज</string>
+    <string name="fw_bd_permission_title">संपर्कों की अनुमति दें</string>
+    <string name="fw_bd_permission_body">Dak इस फ़ोन पर आपके संपर्कों से जन्मदिन, सालगिरह और दूसरी तारीखें पढ़ता है। ये कभी अपलोड नहीं होतीं।</string>
+    <string name="fw_bd_allow">अनुमति दें</string>
+    <string name="fw_bd_open_settings">सेटिंग्स खोलें</string>
+    <string name="fw_bd_upcoming">अगले 60 दिन</string>
+    <string name="fw_bd_none_title">जल्द कुछ नहीं है</string>
+    <string name="fw_bd_none_body">किसी संपर्क में जन्मदिन, सालगिरह या कोई और तारीख जोड़ने के लिए \"तारीख जोड़ें\" पर टैप करें।</string>
+    <string name="fw_bd_today">आज</string>
+    <string name="fw_bd_tomorrow">कल</string>
+    <string name="fw_bd_anniversary">सालगिरह</string>
+    <string name="fw_bd_choose_number">नंबर चुनें</string>
+    <string name="fw_bd_no_number">कोई फ़ोन नंबर नहीं</string>
+    <string name="fw_bd_auto_send">अपने-आप भेजें</string>
+    <string name="fw_bd_feature_off_hint">इसे भेजने के लिए ऊपर \"बधाई भेजें\" चालू करें।</string>
+    <string name="fw_bd_template_title">मैसेज</string>
+    <string name="fw_bd_template_field">आपका मैसेज</string>
+    <string name="fw_bd_template_help">प्लेसहोल्डर: {firstName}, {name}, {age} (सिर्फ़ तब जब जन्म का साल पता हो), {occasion} (दूसरी तारीखों के लिए उस तारीख का नाम)।</string>
+    <string name="fw_bd_template_reset">डिफ़ॉल्ट इस्तेमाल करें</string>
+    <string name="fw_bd_prompt_title">आज %1$s का जन्मदिन है</string>
+    <string name="fw_bd_prompt_title_anniversary">आज %1$s की सालगिरह है</string>
+    <string name="fw_bd_action_send">भेजें</string>
+    <string name="fw_bd_action_edit">बदलें</string>
+    <string name="fw_bd_action_skip">छोड़ें</string>
+
+    <!-- Inbox overflow -->
+    <string name="fw_menu_forwarding">ऑटो-फ़ॉरवर्डिंग</string>
+    <string name="fw_menu_birthdays">जन्मदिन और खास मौके</string>
+
+    <!-- Automations that send messages off the phone need app lock (OutboundAutomationGuard) -->
+    <string name="fw_lock_needed_title">पहले ऐप लॉक सेट करें</string>
+    <string name="fw_lock_needed_body">ऑटो-फ़ॉरवर्डिंग और मैसेज भेजने वाले दूसरे ऑटोमेशन के लिए ऐप लॉक ज़रूरी है। इससे कोई व्यक्ति जो एक मिनट के लिए आपका अनलॉक फ़ोन उठा ले, या कोई ठग जो आपको बातों में उलझाकर करवाए, चुपचाप आपके बैंक मैसेज और कोड पाने के लिए ऐसा कुछ सेट नहीं कर सकता।</string>
+    <string name="fw_lock_needed_action">ऐप लॉक सेट करें</string>
+    <string name="fw_lock_needed_not_now">अभी नहीं</string>
+    <string name="fw_status_off_lock_off">बंद किया गया: ऐप लॉक बंद कर दिया गया था</string>
+    <string name="fw_status_off_screen_lock">बंद किया गया: फ़ोन का स्क्रीन लॉक हटा दिया गया था</string>
+    <string name="fw_status_off_lock_needed">बंद किया गया: ऐप लॉक चाहिए</string>
+    <string name="fw_guard_disabled_title">आपकी सुरक्षा के लिए फ़ॉरवर्डिंग बंद की गई</string>
+    <string name="fw_guard_reason_lock_off">ऐप लॉक बंद कर दिया गया था</string>
+    <string name="fw_guard_reason_screen_lock">आपके फ़ोन का स्क्रीन लॉक हटा दिया गया था</string>
+    <string name="fw_guard_reason_lock_needed">ऐप लॉक सेट नहीं है</string>
+
+    <!-- "Was this you?" security alert -->
+    <string name="fw_channel_security_name">सुरक्षा अलर्ट</string>
+    <string name="fw_channel_security_description">जब ऑटो-फ़ॉरवर्डिंग या आपके मैसेज भेजने वाला कोई और ऑटोमेशन चालू या बंद होता है, तब बताता है, ताकि किसी और ने सेट किया हो तो आपको पता चल जाए।</string>
+    <string name="fw_remind_title_forwarding">क्या यह आपने किया? ऑटो-फ़ॉरवर्डिंग चालू है</string>
+    <string name="fw_remind_title_automation">क्या यह आपने किया? एक ऑटोमेशन मैसेज भेजता है</string>
+    <string name="fw_remind_body">%1$s को चालू किया गया: %2$s। %3$s %4$s आपने सेट नहीं किया? इसे बंद करें और अपने फ़ोन की सुरक्षा जांचें। ठग, या कोई जिसके पास थोड़ी देर आपका फ़ोन रहा, बैंक मैसेज और कोड पाने के लिए फ़ॉरवर्डिंग का इस्तेमाल करते हैं।</string>
+    <string name="fw_remind_still_active">अब भी चालू है।</string>
+    <string name="fw_remind_ended">खत्म हो गया है।</string>
+    <plurals name="fw_remind_sent_count">
+        <item quantity="one">अब तक %1$d मैसेज भेजा गया।</item>
+        <item quantity="other">अब तक %1$d मैसेज भेजे गए।</item>
+    </plurals>
+    <string name="fw_remind_action_turn_off">बंद करें</string>
+    <string name="fw_remind_action_history">देखें क्या भेजा गया</string>
+    <string name="fw_remind_turned_off_title">बंद किया गया: %1$s</string>
+    <string name="fw_remind_turned_off_body">अब कुछ और नहीं भेजा जाएगा। अगर यह आपने सेट नहीं किया था, तो अपने फ़ोन के स्क्रीन लॉक का PIN बदलें और क्या भेजा गया यह देखने के लिए यहां टैप करें।</string>
+    <string name="fw_generic_summary">%1$s (%2$s)</string>
+    <string name="fw_kind_forward">%1$s को SMS फ़ॉरवर्ड करता है</string>
+    <string name="fw_kind_reply">SMS से जवाब देता है</string>
+    <string name="fw_kind_webhook">%1$s को भेजता है</string>
+    <string name="fw_kind_web_client">आपके वेब क्लाइंट को भेजता है</string>
+    <string name="fw_kind_relay">%1$s को रिले करता है</string>
+    <string name="fw_kind_open">दूसरे ऐप में लिंक खोलता है</string>
+    <string name="fw_kind_unknown">ऐसा काम जिसे Dak का यह वर्शन नहीं जानता</string>
+
+    <!-- Using an ended rule again -->
+    <string name="fw_section_ended">खत्म — दोबारा इस्तेमाल के लिए टैप करें</string>
+    <string name="fw_row_use_again">दोबारा इस्तेमाल करें</string>
+    <string name="fw_use_again_done">%1$s तक फिर से फ़ॉरवर्ड हो रहा है</string>
+    <string name="fw_use_again_done_open">जब तक आप बंद न करें, फिर से फ़ॉरवर्ड हो रहा है</string>
+
+    <!-- History (automation run log) -->
+    <string name="fw_history_menu">फ़ॉरवर्डिंग इतिहास</string>
+    <string name="fw_history_rule_title">इतिहास: %1$s</string>
+    <string name="fw_history_row_cd">%1$s का इतिहास</string>
+    <string name="fw_history_open_message_cd">मूल मैसेज खोलें</string>
+    <string name="fw_history_message_gone">मूल मैसेज अब इस फ़ोन पर नहीं है।</string>
+    <string name="fw_history_empty_title">अभी तक कुछ नहीं भेजा गया</string>
+    <string name="fw_history_empty_body">ऑटोमेशन जो भी मैसेज फ़ॉरवर्ड करता है या भेजता है, वह यहां समय, मूल मैसेज और कहां गया, इसके साथ दिखता है।</string>
+    <plurals name="fw_history_sent">
+        <item quantity="one">%2$s को %1$d मैसेज भेजा गया</item>
+        <item quantity="other">%2$s को %1$d मैसेज भेजे गए</item>
+    </plurals>
+    <string name="fw_history_sent_none">कोई मैसेज नहीं भेजा गया</string>
+    <string name="fw_history_from">%1$s से</string>
+    <string name="fw_history_to">%1$s को</string>
+    <string name="fw_outcome_sent">भेजा गया</string>
+    <string name="fw_outcome_failed">नहीं भेजा जा सका</string>
+    <string name="fw_outcome_skipped">छोड़ा गया</string>
+    <string name="fw_skip_not_confirmed">नहीं भेजा गया: आपके फ़िंगरप्रिंट या स्क्रीन लॉक से पुष्टि का इंतज़ार है</string>
+    <string name="fw_skip_no_app_lock">नहीं भेजा गया: ऐप लॉक बंद था</string>
+    <string name="fw_queued_auto_reply">अपने-आप जवाब</string>
+    <string name="fw_queued_auto_forward">अपने-आप फ़ॉरवर्ड</string>
+    <string name="fw_queued_automation">ऑटोमेशन</string>
+    <string name="fw_skip_contact_removed">नहीं भेजा गया: पाने वाला अब आपके संपर्कों में नहीं है</string>
+    <string name="fw_skip_no_contacts_access">नहीं भेजा गया: Dak आपके संपर्क नहीं जांच सका</string>
+    <string name="fw_skip_possible_scam">नहीं भेजा गया: मैसेज धोखाधड़ी जैसा लगा</string>
+    <string name="fw_skip_premium">नहीं भेजा गया: Premium सुविधा चाहिए</string>
+    <string name="fw_skip_incognito">नहीं भेजा गया: मैसेज इनकॉग्निटो चैट में है, जो कभी फ़ॉरवर्ड नहीं होती</string>
+    <string name="fw_limit_title">आज के लिए अपने-आप भेजना रुका</string>
+    <string name="fw_limit_text">आपके ऑटोमेशन ने आज %1$d मैसेज भेजे, जो रोज़ की सीमा है, इसलिए आगे के फ़ॉरवर्ड और अपने-आप जवाब छोड़ दिए गए। अगर यह अनपेक्षित था, तो अपने ऑटोमेशन जांचें।</string>
+
+    <!-- Snackbar after an automation rule acted on a new message, with Undo. %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_archived">\"%1$s\" ने आर्काइव किया</string>
+    <!-- %1$s = the rule's name (typed by the user). -->
+    <string name="undo_rule_binned">\"%1$s\" ने बिन में भेजा</string>
+</resources>

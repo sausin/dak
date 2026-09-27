@@ -106,7 +106,9 @@ public data class ForwardingSpec(
     /**
      * Builds the stored rule. Returns null when [isComplete] is false. With [includeOtp] and a category filter,
      * [Category.OTP] is added to the filter so "include OTPs" really includes them (and the rule then needs the
-     * biometric confirmation every OTP-forwarding rule needs).
+     * biometric confirmation every OTP-forwarding rule needs). A blank [template] becomes the English
+     * [DEFAULT_TEMPLATE] (it always carries a loop-guard lead); `:app` replaces a blank template with the app-language
+     * default ([defaultTemplate]) before calling this, so the English one is only a last resort.
      */
     public fun toRule(nowMillis: Long, newId: () -> String): Rule? {
         if (!isComplete) return null

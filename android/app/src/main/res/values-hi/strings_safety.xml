@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fraud help and SMS cost warnings (agent "safety"). All names prefixed safe_. -->
+<resources>
+    <!-- Entry points -->
+    <string name="safe_action_report_fraud">धोखाधड़ी की शिकायत करें</string>
+    <string name="safe_link_report">शिकायत करें</string>
+    <string name="safe_shortcut_short">धोखाधड़ी की शिकायत</string>
+    <string name="safe_shortcut_long">धोखाधड़ी की शिकायत करें या हेल्पलाइन पर कॉल करें</string>
+    <string name="safe_shortcut_disabled">धोखाधड़ी की शिकायत के लिए Dak खोलें</string>
+
+    <!-- Report fraud screen -->
+    <string name="safe_title">धोखाधड़ी की शिकायत करें</string>
+    <string name="safe_urgent_title">स्कैम में पैसे गंवाए?</string>
+    <string name="safe_urgent_body">तुरंत %1$s, राष्ट्रीय साइबर क्राइम हेल्पलाइन पर कॉल करें। पहले कुछ घंटों में शिकायत करने से पैसे रुकवाने की सबसे अच्छी संभावना होती है। फिर अपना कार्ड या खाता ब्लॉक करवाने के लिए अपने बैंक को कॉल करें।</string>
+    <string name="safe_call_n">%1$s पर कॉल करें</string>
+    <string name="safe_sms_n">%1$s पर SMS करें</string>
+    <string name="safe_report_title">इस मैसेज की शिकायत करें</string>
+    <string name="safe_report_trai">TRAI (1909) को स्पैम की शिकायत करें</string>
+    <string name="safe_report_trai_body">TRAI के बताए फ़ॉर्मैट में मैसेज के टेक्स्ट, भेजने वाले और तारीख के साथ एक शिकायत SMS खोलता है। भेजने से पहले इसे जांच लें: अगर बदलाव की ज़रूरत हो तो आपका ऑपरेटर जवाब दे सकता है। शिकायत मैसेज मिलने के कुछ दिनों के अंदर भेजनी होती है।</string>
+    <string name="safe_report_trai_sim">%1$s से भेजता है, वह SIM जिस पर यह मैसेज आया था।</string>
+    <string name="safe_report_trai_sim_fallback">%1$s से भेजता है। जिस SIM पर यह मैसेज आया था, वह उपलब्ध नहीं है।</string>
+    <string name="safe_report_chakshu">संदिग्ध धोखाधड़ी की शिकायत चक्षु पर करें</string>
+    <string name="safe_report_chakshu_body">नकली KYC, किसी और के नाम से, नकली कस्टमर केयर या इनाम वाले मैसेज के लिए। मैसेज की जानकारी कॉपी हो गई है: संचार साथी पेज पर माध्यम (SMS) और श्रेणी चुनें, फिर इसे पेस्ट करें।</string>
+    <string name="safe_report_cyber">वित्तीय धोखाधड़ी की शिकायत cybercrime.gov.in पर करें</string>
+    <string name="safe_report_cyber_body">अगर आपने पैसे गंवाए हैं या बैंक की जानकारी शेयर की है। शिकायत फ़ॉर्म के लिए मैसेज की जानकारी कॉपी हो गई है। स्क्रीनशॉट और ट्रांज़ैक्शन ID तैयार रखें।</string>
+    <string name="safe_block_sender">भेजने वाले को ब्लॉक करें</string>
+    <string name="safe_sender_blocked">भेजने वाला ब्लॉक किया गया</string>
+    <string name="safe_block_sender_body">भेजने वाले को आपके फ़ोन की ब्लॉक सूची में जोड़ता है (उनकी कॉल भी ब्लॉक होती हैं)।</string>
+    <string name="safe_copy_details">मैसेज की जानकारी कॉपी करें</string>
+    <string name="safe_message_missing">जिस मैसेज की शिकायत करनी है, वह अब इस फ़ोन पर नहीं है।</string>
+    <string name="safe_section_helplines">आधिकारिक हेल्पलाइन</string>
+    <string name="safe_section_bank">आपका बैंक</string>
+    <string name="safe_pending_verification">पुष्टि बाकी है</string>
+    <string name="safe_source">स्रोत: %1$s</string>
+    <string name="safe_bank_empty">Dak ऐसे बैंक नंबर नहीं दिखाता जिनकी उसने पुष्टि नहीं की है। अपने बैंक का कार्ड-ब्लॉक नंबर यहां सेव करें ताकि ज़रूरत पड़ने पर वह एक टैप दूर हो।</string>
+    <string name="safe_bank_add">मेरे बैंक का कार्ड-ब्लॉक नंबर जोड़ें</string>
+    <string name="safe_bank_add_hint">इसे अपने कार्ड के पीछे से या बैंक की आधिकारिक वेबसाइट से कॉपी करें, कभी भी SMS या सर्च रिज़ल्ट से नहीं।</string>
+    <string name="safe_bank_label">नाम</string>
+    <string name="safe_bank_default_label">मेरे बैंक का कार्ड-ब्लॉक नंबर</string>
+    <string name="safe_bank_number">फ़ोन नंबर</string>
+    <string name="safe_bank_unverified">आपने जोड़ा · Dak ने पुष्टि नहीं की</string>
+    <string name="safe_bank_added">नंबर सेव हो गया</string>
+    <string name="safe_bank_invalid">नाम और फ़ोन नंबर डालें</string>
+    <string name="safe_bank_remove_title">यह नंबर हटाएं?</string>
+    <string name="safe_remove">हटाएं</string>
+    <string name="safe_save">सेव करें</string>
+    <string name="safe_blocked">भेजने वाला ब्लॉक किया गया</string>
+    <string name="safe_block_failed">ब्लॉक नहीं हो सका। पक्का करें कि Dak आपका डिफ़ॉल्ट SMS ऐप है।</string>
+    <string name="safe_no_app">इस फ़ोन पर कोई ऐप इसे नहीं खोल सकता</string>
+    <string name="safe_details_copied">जानकारी कॉपी हो गई</string>
+    <string name="safe_details_copied_paste">मैसेज की जानकारी कॉपी हो गई। इसे फ़ॉर्म में पेस्ट करें।</string>
+    <string name="safe_clip_label">मैसेज की जानकारी</string>
+    <string name="safe_detail_sender">भेजने वाला</string>
+    <string name="safe_detail_received">मिला</string>
+    <string name="safe_detail_sim">SIM</string>
+    <string name="safe_detail_message">मैसेज</string>
+    <string name="safe_footer">कॉल आपके फ़ोन का डायलर खोलती हैं; Dak कभी आपकी ओर से कॉल नहीं करता। बैंक, पुलिस और सरकारी एजेंसियां कभी भी SMS या फ़ोन पर आपका OTP, PIN या कार्ड की जानकारी नहीं मांगतीं।</string>
+
+    <!-- SMS cost warnings -->
+    <string name="safe_cost_title">भेजने से पहले जांचें</string>
+    <string name="safe_cost_title_premium">इसमें ज़्यादा पैसे लग सकते हैं</string>
+    <string name="safe_cost_premium">प्रीमियम-रेट नंबर। हर मैसेज का शुल्क सामान्य SMS से बहुत ज़्यादा हो सकता है, या आप किसी पेड सेवा में साइन अप हो सकते हैं।</string>
+    <string name="safe_cost_unknown_short_code">अनजान शुल्क वाला शॉर्ट कोड। इसका शुल्क प्रीमियम रेट पर लग सकता है।</string>
+    <string name="safe_cost_international">अंतरराष्ट्रीय नंबर। अंतरराष्ट्रीय SMS दरें लागू होंगी।</string>
+    <string name="safe_cost_international_to">%1$s का नंबर। अंतरराष्ट्रीय SMS दरें लागू होंगी।</string>
+    <string name="safe_cost_roaming">आप विदेश में रोमिंग पर हैं। SMS पर रोमिंग दरें लग सकती हैं।</string>
+    <string name="safe_cost_also_roaming">आप विदेश में रोमिंग पर भी हैं।</string>
+    <string name="safe_cost_alphanumeric">यह भेजने वाला जवाब नहीं ले सकता। आपका मैसेज डिलीवर नहीं होगा (फिर भी शुल्क लग सकता है)।</string>
+    <string name="safe_cost_emergency">आपातकालीन नंबर। आपातकालीन सेवाओं को SMS शायद काम न करे: कॉल करें।</string>
+    <string name="safe_cost_standard_short_code">शॉर्ट कोड, सामान्य दर पर शुल्क।</string>
+    <string name="safe_cost_toll_free">टोल-फ़्री नंबर।</string>
+    <string name="safe_cost_scheduled_note">मैसेज बाद में भेजा जाएगा, जब आप शायद कहीं और हों।</string>
+    <string name="safe_cost_dont_ask_number">इस नंबर के लिए फिर न पूछें</string>
+    <string name="safe_cost_dont_ask_numbers">इन नंबरों के लिए फिर न पूछें</string>
+    <string name="safe_cost_send_anyway">फिर भी भेजें</string>
+    <string name="safe_cost_schedule_anyway">फिर भी शेड्यूल करें</string>
+    <string name="safe_cost_dont_send">न भेजें</string>
+    <string name="safe_reply_needs_confirmation">नहीं भेजा गया: यह नंबर महंगा हो सकता है। पुष्टि करने के लिए बातचीत खोलें।</string>
+</resources>

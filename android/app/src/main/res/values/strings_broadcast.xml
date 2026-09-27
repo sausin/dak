@@ -14,11 +14,13 @@
     <string name="bc_terms_india">In India, TRAI\'s rules on unsolicited commercial communication (TCCCPR 2018) cover personal numbers too: people can report your number on 1909, and it can be disconnected or blacklisted.</string>
     <string name="bc_terms_throttle">Operators may slow down, block or suspend numbers that send in bulk.</string>
     <string name="bc_terms_charges">Your normal SMS charges apply for every recipient, and for every part of a long message.</string>
+    <!-- %1$d = maximum people per broadcast; %2$d = maximum messages per day. -->
     <string name="bc_terms_limits">Dak limits a broadcast to %1$d people and %2$d messages a day, and spaces the messages out.</string>
     <string name="bc_terms_checkbox">I understand, and will only send to people who expect my messages</string>
     <string name="bc_terms_accept">Accept</string>
     <string name="bc_terms_decline">Not now</string>
     <string name="bc_terms_read_full">Read acceptable use</string>
+    <!-- %s = the date the terms were accepted. -->
     <string name="bc_terms_accepted_on">Terms accepted on %s</string>
 
     <!-- Acceptable use (mirrors docs/terms-acceptable-use.md) -->
@@ -30,8 +32,11 @@
     <string name="bc_empty_title">No broadcast lists yet</string>
     <string name="bc_empty_body">Make a list to send one message to several people you know. Each gets their own SMS, and replies come back to you 1:1.</string>
     <string name="bc_new_list">New list</string>
+    <!-- %1$d = maximum people per broadcast; %2$d = maximum broadcast messages per day. -->
     <string name="bc_limits_note">Up to %1$d people per broadcast and %2$d broadcast messages a day. Personal use only.</string>
+    <!-- %s = relative time, e.g. "5 min" or "Yesterday". -->
     <string name="bc_last_sent">Last sent %s</string>
+    <!-- %d = number of people. -->
     <plurals name="bc_members_count">
         <item quantity="one">%d person</item>
         <item quantity="other">%d people</item>
@@ -44,11 +49,13 @@
     <string name="bc_edit_search">Add people: name or number</string>
     <string name="bc_edit_numbers">Or type numbers, separated by commas</string>
     <string name="bc_edit_add">Add</string>
+    <!-- %1$d = number of members; %2$d = maximum number of members. -->
     <string name="bc_edit_members">Members (%1$d of %2$d)</string>
+    <!-- Screen reader label. %s = the member's name or phone number. -->
     <string name="bc_edit_remove">Remove %s</string>
-    <string name="bc_edit_over_cap">A list can have at most %d people.</string>
     <string name="bc_edit_save">Save</string>
     <string name="bc_edit_delete">Delete list</string>
+    <!-- %s = the broadcast list's name. -->
     <string name="bc_edit_delete_confirm">Delete \"%s\"? Messages already sent stay in each conversation.</string>
     <string name="bc_edit_contacts_off">Allow contacts access to search by name.</string>
     <string name="bc_edit_allow">Allow</string>
@@ -57,33 +64,36 @@
     <!-- List thread + composer -->
     <string name="bc_thread_empty">Nothing sent to this list yet. What you send here goes to each person as their own SMS.</string>
     <string name="bc_composer_hint">Message to everyone</string>
+    <!-- Keep {firstName} in English, exactly as written: the app replaces it with each person's first name. -->
     <string name="bc_insert_first_name">{firstName}</string>
+    <!-- Keep {name} in English, exactly as written: the app replaces it with each person's name. -->
     <string name="bc_insert_name">{name}</string>
     <string name="bc_placeholders_label">Personalise:</string>
+    <!-- %1$s = the member's name or phone number; %2$s = the message as that member will receive it. -->
     <string name="bc_preview_for">Preview for %1$s: %2$s</string>
     <string name="bc_send">Send</string>
     <string name="bc_send_later">Send later</string>
+    <!-- %s = date and time, e.g. "12 Mar, 14:30". -->
     <string name="bc_scheduled_for">Goes out %s</string>
     <string name="bc_send_now_instead">Send now instead</string>
+    <!-- %s = SIM name, e.g. "SIM 1" or the carrier. -->
     <string name="bc_sim_label">From %s</string>
     <string name="bc_edit_list">Edit list</string>
     <string name="bc_cancel">Cancel</string>
-    <string name="bc_sent_snack">Sending to %d people</string>
-    <string name="bc_scheduled_snack">Scheduled for %d people</string>
     <string name="bc_send_failed">Couldn\'t queue the broadcast. Check the daily limit and try again.</string>
     <string name="bc_list_missing">This list was deleted.</string>
 
     <!-- Confirmation -->
-    <string name="bc_confirm_title">Send to %d people?</string>
-    <string name="bc_confirm_title_scheduled">Schedule for %d people?</string>
-    <string name="bc_confirm_cost">%1$d SMS in total (%2$d people, up to %3$d part(s) each). Your operator\'s normal charges apply to each one.</string>
     <string name="bc_confirm_eta_single_batch">All go out right away.</string>
+    <!-- %s = how long until the last message is sent, e.g. "12 minutes". -->
     <string name="bc_confirm_eta">Sent in small batches to stay within carrier limits: the last one goes out in about %s.</string>
+    <!-- %1$s = start date and time; %2$s = how long until the last message is sent, e.g. "12 minutes". -->
     <string name="bc_confirm_eta_scheduled">Starts %1$s; the last one goes out about %2$s later.</string>
+    <!-- %d = number of people left out of the broadcast. -->
     <string name="bc_confirm_excluded">Left out (%d):</string>
-    <string name="bc_confirm_international">%d international number(s): international SMS rates apply.</string>
     <string name="bc_confirm_roaming">Your SIM is roaming, so each SMS may cost more.</string>
     <string name="bc_confirm_reminder">Only send to people who expect this message. Spam breaks Dak\'s terms and operator / TRAI rules.</string>
+    <!-- %1$d = broadcast messages still allowed today; %2$d = daily limit. -->
     <string name="bc_confirm_quota">%1$d of %2$d daily broadcast messages left.</string>
     <string name="bc_risk_promo_title">This looks like a promotional message</string>
     <string name="bc_risk_promo_body">Links and words like offer, sale, discount or click are typical of spam. Unsolicited promotional SMS from a personal number breaks TRAI rules in India and your operator\'s terms: your number can be reported on 1909 and disconnected.</string>
@@ -94,8 +104,6 @@
     <string name="bc_confirm_schedule">Schedule</string>
     <string name="bc_problem_empty">Type a message first.</string>
     <string name="bc_problem_no_recipients">No one on this list can receive it.</string>
-    <string name="bc_problem_too_many">%1$d people would receive this, but a broadcast can go to at most %2$d. Remove some from the list first.</string>
-    <string name="bc_problem_daily">Daily limit reached: only %1$d more broadcast messages can go out in the next 24 hours (limit %2$d).</string>
     <string name="bc_problem_past">Pick a time in the future.</string>
     <string name="bc_problem_far">Pick a time within the next 30 days.</string>
 
@@ -109,7 +117,6 @@
     <string name="bc_excl_invalid">not a phone number</string>
 
     <!-- Sent broadcast + details -->
-    <string name="bc_status_line">%1$d delivered · %2$d sent · %3$d pending · %4$d failed</string>
     <string name="bc_details_title">Broadcast details</string>
     <string name="bc_details_recipients">Recipients</string>
     <string name="bc_details_replies">Replies</string>
@@ -117,13 +124,16 @@
     <string name="bc_retry">Retry</string>
     <string name="bc_cancel_unsent">Cancel unsent</string>
     <string name="bc_delete_record">Remove from this list\'s history</string>
+    <!-- %s = date and time the message is scheduled for, e.g. "12 Mar, 14:30". -->
     <string name="bc_state_scheduled">Scheduled %s</string>
     <string name="bc_state_sending">Sending</string>
     <string name="bc_state_sent">Sent</string>
     <string name="bc_state_delivered">Delivered</string>
     <string name="bc_state_failed">Failed</string>
     <string name="bc_state_cancelled">Cancelled</string>
+    <!-- %s = the person's name or phone number. -->
     <string name="bc_open_conversation">Open conversation with %s</string>
+    <!-- %d = number of replies. -->
     <plurals name="bc_reply_count">
         <item quantity="one">%d reply</item>
         <item quantity="other">%d replies</item>

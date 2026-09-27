@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.dak.core.model.Message
 import app.dak.core.model.MessageKey
+import app.dak.core.model.MessageKind
 import app.dak.index.ContactLookup
 import app.dak.index.MessageItem
 import app.dak.index.NoContactLookup
@@ -132,7 +133,16 @@ class SearchRepository @Inject constructor(
 
     private fun titleOf(row: IndexedMessage): String {
         if (ConversationIds.isMergeGroup(row.conversationId)) return row.canonicalSender ?: row.address
+        titlePartsOf(row).takeIf { it.isNotEmpty() }?.let { return it.joinToString(", ") }
         return contacts.displayName(row.address) ?: row.canonicalSender ?: row.address
+    }
+
+    /** A group MMS row's participants (contact name, else address) for the UI to join; empty for anything else. */
+    private fun titlePartsOf(row: IndexedMessage): List<String> {
+        if (row.kind != MessageKind.MMS || ConversationIds.isMergeGroup(row.conversationId)) return emptyList()
+        val addresses = Mappers.splitAddresses(row.address)
+        if (addresses.size < 2) return emptyList()
+        return Mappers.titlePartsForAddresses(addresses, contacts) ?: addresses
     }
 
     private fun SqlQuery.toSupport(): SimpleSQLiteQuery = SimpleSQLiteQuery(sql, args.toTypedArray())
@@ -179,6 +189,7 @@ class SearchRepository @Inject constructor(
                     message = Mappers.messageItem(row),
                     matchCount = hit.matchCount,
                     highlights = highlightsIn(row.body),
+                    conversationTitleParts = titlePartsOf(row),
                 )
             }
         }

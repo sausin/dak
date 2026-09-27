@@ -41,6 +41,16 @@ class RepeatCollapseTest {
     }
 
     @Test
+    fun `withCount and displayLines use the given format`() {
+        val format: (String, Int) -> String = { text, n -> "($n×) $text" }
+        assertEquals("hi", RepeatCollapse.withCount("hi", 1, format))
+        assertEquals("(2×) hi", RepeatCollapse.withCount("hi", 2, format))
+        var s = RepeatCollapse.next(null, "a", "k", 0)
+        s = RepeatCollapse.next(s, "a", "k", 1)
+        assertEquals(listOf("(2×) a"), s.displayLines(format))
+    }
+
+    @Test
     fun `next counts repeats and keeps the latest text`() {
         var s = RepeatCollapse.next(null, "Bal Rs 10", "k", 0)
         assertEquals(1, s.count)

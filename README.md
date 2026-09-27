@@ -37,7 +37,7 @@ It is built as the successor to Microsoft SMS Organizer, India first and usable 
 | **Codebase** | 12 Gradle modules (9 pure-Kotlin JVM, 3 Android), about 73k lines of production Kotlin and 31k lines of tests |
 | **Tests** | About 1,850 JUnit/Robolectric `@Test`s in 230 files, plus a 400+ message [adversarial SMS corpus](shared/adversarial/) and seeded MMS fuzzers |
 | **Gates** | Offline guard, tests, per-module coverage floors, R8 release builds and a mapping check, on every pull request and push to `main` that touches the app ([workflow](.github/workflows/android.yml)) |
-| **Status** | The maintainers have tested it extensively. It is not on the Play Store yet ([details](#status--roadmap)) |
+| **Status** | The maintainers have tested it extensively. It is not in a store yet: F-Droid first, then Play ([F-Droid checklist](docs/fdroid-submission.md), [Play checklist](docs/play-submission.md)) |
 
 ## Why Dak
 

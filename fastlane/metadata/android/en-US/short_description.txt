@@ -1,0 +1,1 @@
+Private, offline SMS app that sorts OTPs, bank alerts and spam, and flags scams

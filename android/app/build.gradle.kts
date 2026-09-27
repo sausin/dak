@@ -7,10 +7,6 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-val ciVersionCode = (System.getenv("DAK_VERSION_CODE") ?: "1").toInt()
-// Tagged CI builds pass the tag's version (v1.2.3 -> 1.2.3); local and untagged builds keep the default.
-val ciVersionName = System.getenv("DAK_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.1.0"
-
 android {
     namespace = "app.dak"
     compileSdk = 37
@@ -19,8 +15,13 @@ android {
         applicationId = "app.dak"
         minSdk = 26
         targetSdk = 36
-        versionCode = ciVersionCode
-        versionName = ciVersionName
+        // The one source of truth for the app version (docs/release.md#versioning). Literal on purpose: F-Droid builds
+        // from source and reads these two lines to detect new releases, and the F-Droid and Play builds of a release
+        // must carry the same versionCode. Bump both in the release commit, add
+        // fastlane/metadata/android/en-US/changelogs/<versionCode>.txt, then tag v<versionName>; CI fails a tag that
+        // does not match.
+        versionCode = 1
+        versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -101,6 +102,13 @@ android {
         // Warning, not error, while only English ships: Android falls back to English per string, and a language
         // is only offered once it is complete (scripts/check-i18n.py enforces that for locales_config.xml).
         warning += "MissingTranslation"
+    }
+    // No Google-encrypted dependency metadata block in the APK signing block: F-Droid cannot read or verify it and its
+    // scanner rejects it, and it would stop F-Droid reproducing our signed APK. Play reads the bundle's copy (its SDK
+    // index checks), which stays on.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = true
     }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/versions/9/previous-compilation-data.bin")

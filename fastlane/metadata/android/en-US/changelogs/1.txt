@@ -1,0 +1,6 @@
+First public release.
+• Automatic OTP, transaction, promotion and spam tabs, sorted on the device
+• OTP copied on arrival; bank alerts grouped into a passbook
+• Fake-credit and phishing-link warnings, one-tap fraud reporting
+• Incognito chats, app lock, encrypted backups and open export
+• Scheduled sends, dual SIM, group MMS and delivery ticks

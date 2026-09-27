@@ -15,6 +15,22 @@ steps are in [play-submission.md](play-submission.md).
 Both are set in `android/app/build.gradle.kts`. Rules: `proguard-android-optimize.txt` (AGP default),
 `android/app/proguard-rules.pro`, and each library's consumer rules.
 
+## Versioning
+
+`versionCode` and `versionName` are literals in `android/app/build.gradle.kts`: F-Droid builds from source and reads
+them to detect releases (`UpdateCheckMode: Tags`), and the F-Droid and Play builds of one release must carry the same
+`versionCode`. To release:
+
+1. Bump both (`versionCode` by one; `versionName` in semver) in one commit, and add
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` (≤ 500 characters; shown by F-Droid and pasted into
+   Play's release notes).
+2. Tag that commit `v<versionName>` and push the tag. CI fails the tag if it does not match `versionName` or the
+   changelog is missing, and otherwise attaches `dak-<versionName>-free-release.apk` (and the premium and debug
+   APKs) to the GitHub release; the Play bundle is the `dak-play-bundle-<run>` artifact.
+3. Upload the AAB to Play (same `versionCode`). F-Droid picks the tag up by itself.
+
+Debug and untagged builds keep the same version; their APK file names carry the CI run number instead.
+
 ## CI checks (`.github/workflows/android.yml`)
 
 1. **Unsigned release builds of both flavours** (`assembleFreeRelease assemblePremiumRelease`) on every push and
@@ -82,6 +98,7 @@ manifest:
 
 ## Before publishing
 
+- [ ] `versionCode` / `versionName` bumped and the changelog added (see "Versioning").
 - [ ] CI green on the tag, including the release smoke check.
 - [ ] Mapping files from that run kept with the release (and uploaded to Play Console).
 - [ ] Signed release APK installed on a phone; device-test-plan P0 items pass.
